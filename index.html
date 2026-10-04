@@ -186,6 +186,10 @@ button:focus-visible,[tabindex]:focus-visible{outline:2px solid var(--amber);out
 .eqtab .lore{grid-column:2 / -1;color:var(--muted);font-size:11.5px;margin-top:-2px}
 @media (max-width:480px){.eqtab>div{grid-template-columns:92px minmax(0,1fr)}.eqtab .st{grid-column:2;text-align:left}}
 .oddmark{color:var(--rival);font-size:11px;margin-left:4px}
+.ptag{font-size:11px;margin-left:4px;padding:0 5px;border:1px solid var(--line);border-radius:3px;color:var(--muted);white-space:nowrap}
+.ptag.lead{color:var(--amber);border-color:var(--amber-dim)}
+.ptag.none{border-style:dashed}
+.c-members .lead{color:var(--amber);margin-right:2px}
 .dream small{display:block;color:var(--muted);font-size:11px}
 .kv{display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:6px;margin:10px 0}
 .kv div{background:var(--panel2);border-radius:4px;padding:6px 8px;font-size:12px;color:var(--muted)}
@@ -2308,7 +2312,7 @@ function renderCrystals(){
     if(!p) return `<div class="crystal${sel}"><div class="c-head" data-act="selc" data-i="${i}" tabindex="0"><span class="orb"></span><span class="nm">水晶 ${i+1}</span></div><div class="c-empty">水晶は くもっている<br>下から 一行を えらぶと ここに うつる</div></div>`;
     const ms=p.members.concat(p.carried||[]).map(id=>S.adv[id]).filter(Boolean);
     const lost=p.state==='wiped';
-    const mem=ms.slice(0,6).map(a=>{const dead=a.hp<=0;const low=!dead&&a.hp/a.mhp<.35;return `<div class="m${dead?' dead':low?' low':''}"><span>${nmLink(a)}</span><span>${dead?'しぼう':a.hp+'/'+a.mhp}${a.poison&&!dead?'毒':''}</span></div>`}).join('');
+    const mem=ms.slice(0,6).map(a=>{const dead=a.hp<=0;const low=!dead&&a.hp/a.mhp<.35;return `<div class="m${dead?' dead':low?' low':''}"><span>${p.leader===a.id?'<span class="lead" title="リーダー">★</span>':''}${nmLink(a)}</span><span>${dead?'しぼう':a.hp+'/'+a.mhp}${a.poison&&!dead?'毒':''}</span></div>`}).join('');
     let last=shown[p.id]||0;let fresh=last?p.log.filter(l=>l.n>last).length:0;if(fresh>14){last=0;fresh=0;}const stepD=fresh?Math.min(.35,(TICK_SEC/speedNow()-.3)/fresh):0;let fi=0;
     const lines=p.log.slice(-60).map(l=>{const nw=last&&l.n>last;const st=nw?` style="animation-delay:${(fi++*stepD).toFixed(2)}s"`:'';return `<div class="${l.k}${nw?' nw':''}"${st}>${esc(l.t)}</div>`}).join('');
     shown[p.id]=p.lc||0;
@@ -2347,7 +2351,7 @@ function renderSide(){
 }
 function sideNews(){const ed=(S.edicts||[]).filter(e=>e.until>S.tick);return `${ed.length?`<div class="sect"><h3>いま出ているお触れ</h3>${ed.map(e=>`<div class="quote edict">【${esc(e.from)}】${esc(e.t)}<span class="by">あと${Math.max(1,Math.ceil((e.until-S.tick)/TICKS_PER_DAY))}日</span></div>`).join('')}</div>`:''}<p class="note">黒猫亭にも、銀の杯亭にも、迷宮の出来事は届く。</p><ul class="news">${S.news.slice(-60).reverse().map(newsLi).join('')}</ul>`}
 function sideBar(){
-  const idle=Object.values(S.adv).filter(a=>a.tav==='ours'&&a.status==='idle');
+  const idle=Object.values(S.adv).filter(a=>a.tav==='ours'&&a.status==='idle').sort(byTeam);
   const used=seatsUsed(S,'ours');
   const tales=S.tales.slice(-12).reverse();
   const ch=(S.chatter||[]).slice(-8).reverse();
@@ -2355,17 +2359,16 @@ function sideBar(){
   return `<div class="sect"><h3>酒場のざわめき</h3>${chHtml||'<p class="note">まだ静かだ。</p>'}</div><div class="sect"><h3>土産話　話半分に聞くこと</h3>${tales.map(x=>`<div class="quote">「${esc(x.t)}」<span class="by">${esc(x.who)}（${x.tav==='ours'?esc(x.party):'銀の杯亭の客・'+esc(x.party)}／${x.pers}）・${Math.floor(x.tk/TICKS_PER_DAY)+1}日目</span></div>`).join('')||'<p class="note">まだ誰も帰ってきていない。</p>'}</div>
   <div class="sect"><h3>常連の席　${used} / ${seatCap(S,'ours')}</h3><div class="seats">${Array.from({length:seatCap(S,'ours')},(_,i)=>`<i class="${i<used?'on':''}"></i>`).join('')}</div>
   <p class="note">席が空くと、ときどき新顔がやってくる。</p>
-  ${idle.map(a=>`<div class="row"><span class="who">${a.title?`<span class="ttl">「${esc(a.title)}」</span>`:''}${nmLink(a)}${a.odd?'<span class="oddmark">異例</span>':''}${C(a).rare?'<span class="clsmark">レア</span>':C(a).adv?'<span class="clsmark">上級</span>':''} <span class="meta">${sexAge(a)} ${a.origin&&ORIGINS[a.origin]?ORIGINS[a.origin].short+'出身 ':''}Lv${a.lvl} ${a.race}の${a.cls}</span><span class="does">${esc(doing(a))}</span></span></div>`).join('')||'<p class="note">いまは皆、出払っている。</p>'}</div>`;
+  ${idle.map(a=>`<div class="row"><span class="who">${a.title?`<span class="ttl">「${esc(a.title)}」</span>`:''}${nmLink(a)}${teamTag(a)}${a.odd?'<span class="oddmark">異例</span>':''}${C(a).rare?'<span class="clsmark">レア</span>':C(a).adv?'<span class="clsmark">上級</span>':''} <span class="meta">${sexAge(a)} ${a.origin&&ORIGINS[a.origin]?ORIGINS[a.origin].short+'出身 ':''}Lv${a.lvl} ${a.race}の${a.cls}</span><span class="does">${esc(doing(a))}</span></span></div>`).join('')||'<p class="note">いまは皆、出払っている。</p>'}</div>`;
 }
 function advRow(a){
   const chip={idle:'酒場',party:'探索中',missing:'行方不明',dead:'寺院・死',ash:'寺院・灰'}[a.status]||a.status;
   const act='';
-  const team=a.party&&S.parties[a.party]?S.parties[a.party].name:'';
-  return `<div class="row"><span class="chip ${a.status}">${chip}</span><span class="who">${a.title?`<span class="ttl">「${esc(a.title)}」</span>`:''}${nmLink(a)}${a.odd?'<span class="oddmark">異例</span>':''}${C(a).rare?'<span class="clsmark">レア</span>':C(a).adv?'<span class="clsmark">上級</span>':''} <span class="meta">${sexAge(a)} ${a.origin&&ORIGINS[a.origin]?ORIGINS[a.origin].short+'出身 ':''}Lv${a.lvl} ${a.race}の${a.cls}・${a.pers}・HP${Math.max(0,a.hp)}/${a.mhp}${team?'・'+esc(team):''}</span><span class="does">${a.dream?'夢：'+esc(dreamText(a.dream)):'次の夢を探している'}${(a.pastDreams||[]).length?`（かなえた夢 ${a.pastDreams.length}）`:''}</span></span>${act}</div>`;
+  return `<div class="row"><span class="chip ${a.status}">${chip}</span><span class="who">${a.title?`<span class="ttl">「${esc(a.title)}」</span>`:''}${nmLink(a)}${teamTag(a)}${a.odd?'<span class="oddmark">異例</span>':''}${C(a).rare?'<span class="clsmark">レア</span>':C(a).adv?'<span class="clsmark">上級</span>':''} <span class="meta">${sexAge(a)} ${a.origin&&ORIGINS[a.origin]?ORIGINS[a.origin].short+'出身 ':''}Lv${a.lvl} ${a.race}の${a.cls}・${a.pers}・HP${Math.max(0,a.hp)}/${a.mhp}</span><span class="does">${a.dream?'夢：'+esc(dreamText(a.dream)):'次の夢を探している'}${(a.pastDreams||[]).length?`（かなえた夢 ${a.pastDreams.length}）`:''}</span></span>${act}</div>`;
 }
 function sideRoster(){
   const ours=Object.values(S.adv).filter(a=>a.tav==='ours'&&a.status!=='lost');
-  const g=(f,h)=>{const l=ours.filter(f);return l.length?`<div class="sect"><h3>${h}　${l.length}人</h3>${l.sort((x,y)=>y.lvl-x.lvl).map(advRow).join('')}</div>`:''};
+  const g=(f,h)=>{const l=ours.filter(f);return l.length?`<div class="sect"><h3>${h}　${l.length}人</h3>${l.sort(byTeam).map(advRow).join('')}</div>`:''};
   return `<p class="note">名前を押すと、その冒険者の手帳が開く。蘇生や贈り物は「帳場」から。</p>`+
     g(a=>a.status==='dead'||a.status==='ash','寺院で眠る者')+g(a=>a.status==='party','探索中')+g(a=>a.status==='idle','酒場')+g(a=>a.status==='missing','行方不明');
 }
@@ -2385,8 +2388,8 @@ function sideDesk(){
 <div class="sect"><h3>常連への手当て</h3>
   ${(()=>{const dead=Object.values(S.adv).filter(a=>a.tav==='ours'&&(a.status==='dead'||a.status==='ash'));const idle=Object.values(S.adv).filter(a=>a.tav==='ours'&&a.status==='idle');
     const gifts=idle.map(a=>({a,o:giftOffer(S,a)})).filter(x=>x.o).sort((x,y)=>x.o.price-y.o.price);
-    return (dead.length?dead.map(a=>{const c=templeCost(S,a);return `<div class="row"><span class="chip ${a.status}">${a.status==='ash'?'寺院・灰':'寺院・死'}</span><span class="who">${nmLink(a)} <span class="meta">Lv${a.lvl} ${a.race}の${a.cls}</span></span><button class="btn sm" data-act="revive" data-a="${a.id}" ${T().gold<c?'disabled':''}>蘇生を頼む ${c}G</button></div>`}).join(''):'<p class="note">寺院で眠っている常連はいない。</p>')+
-    (gifts.length?`<p class="note" style="margin-top:8px">酒場にいる常連に、店の金で武具屋の品を贈れる。贈られた者は恩を感じ、帰還のたびに店でよく飲むようになる。</p>`+gifts.map(({a,o})=>`<div class="row"><span class="who">${nmLink(a)} <span class="meta">Lv${a.lvl} ${a.race}の${a.cls}</span></span><button class="btn sm" data-act="gift" data-a="${a.id}" ${T().gold<o.price?'disabled':''}>${SHOP_MAT[o.b.m][o.t-1]}の${o.b.t}を贈る ${o.price}G</button></div>`).join(''):'');})()}
+    return (dead.length?dead.map(a=>{const c=templeCost(S,a);return `<div class="row"><span class="chip ${a.status}">${a.status==='ash'?'寺院・灰':'寺院・死'}</span><span class="who">${nmLink(a)}${teamTag(a)} <span class="meta">Lv${a.lvl} ${a.race}の${a.cls}</span></span><button class="btn sm" data-act="revive" data-a="${a.id}" ${T().gold<c?'disabled':''}>蘇生を頼む ${c}G</button></div>`}).join(''):'<p class="note">寺院で眠っている常連はいない。</p>')+
+    (gifts.length?`<p class="note" style="margin-top:8px">酒場にいる常連に、店の金で武具屋の品を贈れる。贈られた者は恩を感じ、帰還のたびに店でよく飲むようになる。</p>`+gifts.map(({a,o})=>`<div class="row"><span class="who">${nmLink(a)}${teamTag(a)} <span class="meta">Lv${a.lvl} ${a.race}の${a.cls}</span></span><button class="btn sm" data-act="gift" data-a="${a.id}" ${T().gold<o.price?'disabled':''}>${SHOP_MAT[o.b.m][o.t-1]}の${o.b.t}を贈る ${o.price}G</button></div>`).join(''):'');})()}
   </div>
 <div class="sect"><h3>死体回収の依頼</h3><p class="note">依頼を出すと、同じ階を歩く一行が見つけやすくなり、欲深い者も遺体を連れ帰るようになる。報酬はその階の深さに応じて決まり、回収されたときに支払う。</p>
   ${miss.map(p=>`<div class="row"><span class="who"><b>${esc(p.name)}</b> <span class="meta">${S.taverns[p.tav].name}・B${p.floor}F・${p.members.length}人${p.looted?'・装備が持ち去られた形跡':''}</span></span>${S.bounties[p.id]?`<span class="chip">依頼中 ${S.bounties[p.id]}G</span>`:`<button class="btn sm" data-act="bounty" data-p="${p.id}" ${T().gold<bountyPrice(p)?'disabled':''}>依頼を出す ${bountyPrice(p)}G</button>`}</div>`).join('')||'<p class="note">消息不明の一行はいない。</p>'}</div>
@@ -2450,6 +2453,10 @@ function sideStone(){
   <div class="sect"><h3>ロストした者　${S.memorial.length}人</h3>`+(S.memorial.slice().reverse().map(m=>`<div class="stone">${ln(m.id,m.name)} <span class="meta">Lv${m.lvl} ${m.race}の${m.cls}</span><div class="ep">${m.tav==='ours'?'黒猫亭':'銀の杯亭'}の客。B${m.floor}Fにて${esc(m.by)}に倒れ、蘇ることなく${Math.floor(m.tk/TICKS_PER_DAY)+1}日目に眠る。討伐${m.kills}。</div></div>`).join('')||'<p class="note">まだ誰の名も刻まれていない。</p>')+'</div>';
 }
 function nmLink(a){return `<button class="nm-link" data-act="adv" data-a="${a.id}">${esc(a.name)}</button>`}
+function teamOf(a){const p=a.party&&S.parties[a.party];return p&&p.tav===a.tav?p:null}
+function isLeader(a){const p=teamOf(a);return !!p&&p.leader===a.id}
+function teamTag(a){const p=teamOf(a);if(!p)return a.status==='idle'?'<span class="ptag none">一行なし</span>':'';const L=p.leader===a.id;return `<span class="ptag${L?' lead':''}">${L?'★':''}${esc(p.name)}${L?'のリーダー':''}</span>`}
+function byTeam(x,y){const px=teamOf(x),py=teamOf(y);const kx=px?px.name:'\uffff',ky=py?py.name:'\uffff';return kx<ky?-1:kx>ky?1:(isLeader(y)-isLeader(x))||(y.lvl-x.lvl)}
 function doing(a){
   if(a.status==='dead'||a.status==='ash') return '寺院で眠っている';
   if(a.status==='missing') return '迷宮から戻らない';
@@ -2480,7 +2487,7 @@ function renderAdv(){
   const status={idle:'酒場にいる',party:'探索中',missing:'行方不明',dead:'寺院で眠る（死）',ash:'寺院で眠る（灰）',lost:'ロスト',retired:'店を去った'}[a.status];
   const team=a.party&&S.parties[a.party]?S.parties[a.party].name:'なし';
   const d=a.dream;
-  box.innerHTML=`<div class="adv-h"><h2>${a.title?`<span class="ttl">「${esc(a.title)}」</span>`:''}${esc(a.name)}</h2><span class="chip ${a.status}">${status}</span></div>
+  box.innerHTML=`<div class="adv-h"><h2>${a.title?`<span class="ttl">「${esc(a.title)}」</span>`:''}${esc(a.name)}</h2><span class="chip ${a.status}">${status}</span>${teamTag(a)}</div>
   <div class="adv-sub">${S.taverns[a.tav].name}の客・出身：${esc(originOf(a))}${a.origin&&ORIGINS[a.origin].far?'（大陸の外）':''}・${sexAge(a)}${a.race!=='人間'?'（実年齢'+a.age+'歳）':''}・レベル${a.lvl}（${rankOf(a.lvl)}） ${a.race}の${a.cls}・${a.pers}・${esc(a.quirk)}・素質「${a.tal}」<br>${esc(a.bg)}<br>口調：${esc(a.tone||'普通')}・口癖「${esc(a.catch||'')}」・好物：${esc(a.food||'')}${a.fear?'・怖いもの：'+esc(a.fear):''}</div>
   ${(a.traits||[]).length?`<div class="dream${a.blessed?' odd':''}"><small>${a.blessed?'天に愛された者・':a.cursed?'星回りの悪い者・':''}得意と不得意</small>${trGood(a).map(t=>`<b>${t}</b>　${esc(TRAITS[t].d)}`).join('<br>')}${trGood(a).length&&trBad(a).length?'<br>':''}${trBad(a).map(t=>`<span style="opacity:.75">${t}</span>　${esc(TRAITS[t].d)}`).join('<br>')}</div>`:''}
   ${(a.changes||[]).length?`<div class="dream"><small>変わったこと</small>${a.changes.map(c=>`${Math.floor(c.tk/TICKS_PER_DAY)+1}日目　${esc(c.t)}`).join('<br>')}</div>`:''}
