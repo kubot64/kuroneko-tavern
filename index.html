@@ -2222,7 +2222,7 @@ function boot(){
     S=newState();
     for(let i=0;i<6;i++)tick(S);
   }
-  autoWatch();render();setSpeed(1);
+  if(!ff)autoWatch();render();setSpeed(1);
 }
 function step(){if(ff)return;tick(S);rivalTemple(S);autoWatch();render();if(S.tick%5===0)save();}
 function setSpeed(v){
@@ -2242,9 +2242,9 @@ function fastForward(n,awaySec){
       tick(S);rivalTemple(S);
       before.forEach(([id,st2])=>{const p=S.parties[id];if(!p)return;if(p.tav!=='ours')return;if(st2!=='town'&&p.state==='town')st.returns++;if(st2!=='wiped'&&p.state==='wiped')st.wipes++;});
     }
-    drawDigest(st);autoWatch();render();
+    drawDigest(st);
     if(st.i<st.n){setTimeout(run,40);return;}
-    ff=null;btn.disabled=false;btn.textContent='店に戻る';save();
+    ff=null;btn.disabled=false;btn.textContent='店に戻る';autoWatch();render();save();
   };
   setTimeout(run,40);
 }
