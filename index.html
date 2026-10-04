@@ -2108,7 +2108,7 @@ function rivalTemple(S){
 const KEY='kuroneko-tavern-v1';
 const TICK_SEC=2.5;
 const shown={};
-let S,speed=1,tab='news',timer=null,toastT=null;
+let S,speed=1,tab='news',timer=null,toastT=null,ff=null;
 const $=id=>document.getElementById(id);
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 
@@ -2224,27 +2224,37 @@ function boot(){
   }
   autoWatch();render();setSpeed(1);
 }
-function step(){tick(S);rivalTemple(S);autoWatch();render();if(S.tick%5===0)save();}
+function step(){if(ff)return;tick(S);rivalTemple(S);autoWatch();render();if(S.tick%5===0)save();}
 function setSpeed(v){
   speed=v;clearInterval(timer);if(v>0)timer=setInterval(step,TICK_SEC*1000/v);
   ['0','1','4'].forEach(k=>$('sp'+k).classList.toggle('on',String(v)===k));
 }
 function fastForward(n,awaySec){
-  const n0=S.news.length?S.news[S.news.length-1].tk:-1;
-  const g0=S.taverns.ours.gold;const lost0=S.memorial.length;
-  const startTick=S.tick;
-  let returns=0,wipes=0;
-  for(let i=0;i<n;i++){
-    const before=Object.values(S.parties).map(p=>[p.id,p.state]);
-    tick(S);rivalTemple(S);
-    before.forEach(([id,st])=>{const p=S.parties[id];if(!p)return;if(p.tav!=='ours')return;if(st!=='town'&&p.state==='town')returns++;if(st!=='wiped'&&p.state==='wiped')wipes++;});
-  }
-  const items=S.news.filter(x=>x.tk>startTick);
-  $('dg-sub').textContent=awaySec?`店をあけていたのは約${fmtAway(awaySec)}。迷宮では${(n/TICKS_PER_DAY).toFixed(1)}日が過ぎた。`:`迷宮では1日が過ぎた。`;
-  const gd=S.taverns.ours.gold-g0;
-  $('dg-sum').innerHTML=[[returns,'帰還'],[wipes,'消息不明'],[S.memorial.length-lost0,'ロスト'],[(gd>=0?'+':'')+gd+'G','売上']].map(([v,l])=>`<div><b>${v}</b><span>${l}</span></div>`).join('');
-  $('dg-news').innerHTML=items.length?items.slice(-30).reverse().map(newsLi).join(''):'<li><span></span><span class="note">静かな日々だった。</span></li>';
-  $('digest').hidden=false;
+  if(ff)return;
+  const st=ff={n,i:0,awaySec,startTick:S.tick,g0:S.taverns.ours.gold,lost0:S.memorial.length,returns:0,wipes:0};
+  const btn=document.querySelector('[data-act="closedigest"]');btn.disabled=true;btn.textContent='時が流れている…';
+  $('digest').hidden=false;drawDigest(st);
+  const per=Math.max(1,Math.ceil(n/60));
+  const run=()=>{
+    const end=Math.min(st.n,st.i+per);
+    for(;st.i<end;st.i++){
+      const before=Object.values(S.parties).map(p=>[p.id,p.state]);
+      tick(S);rivalTemple(S);
+      before.forEach(([id,st2])=>{const p=S.parties[id];if(!p)return;if(p.tav!=='ours')return;if(st2!=='town'&&p.state==='town')st.returns++;if(st2!=='wiped'&&p.state==='wiped')st.wipes++;});
+    }
+    drawDigest(st);autoWatch();render();
+    if(st.i<st.n){setTimeout(run,40);return;}
+    ff=null;btn.disabled=false;btn.textContent='店に戻る';save();
+  };
+  setTimeout(run,40);
+}
+function drawDigest(st){
+  const done=st.i>=st.n,days=(st.i/TICKS_PER_DAY).toFixed(1);
+  const items=S.news.filter(x=>x.tk>st.startTick);
+  $('dg-sub').textContent=(st.awaySec?`店をあけていたのは約${fmtAway(st.awaySec)}。`:'')+(done?(st.awaySec?`迷宮では${days}日が過ぎた。`:'迷宮では1日が過ぎた。'):`迷宮では時が流れている……（${days}日／${(st.n/TICKS_PER_DAY).toFixed(1)}日）`);
+  const gd=S.taverns.ours.gold-st.g0;
+  $('dg-sum').innerHTML=[[st.returns,'帰還'],[st.wipes,'消息不明'],[S.memorial.length-st.lost0,'ロスト'],[(gd>=0?'+':'')+gd+'G','売上']].map(([v,l])=>`<div><b>${v}</b><span>${l}</span></div>`).join('');
+  $('dg-news').innerHTML=items.length?items.slice(-30).reverse().map(newsLi).join(''):`<li><span></span><span class="note">${done?'静かな日々だった。':'……'}</span></li>`;
 }
 function fmtAway(s){if(s<3600)return Math.round(s/60)+'分';if(s<86400)return Math.round(s/3600)+'時間';return Math.round(s/86400)+'日'}
 function newsLi(x){const d=Math.floor(x.tk/TICKS_PER_DAY)+1;return `<li><span class="d">${d}日目</span><span class="${x.k}">${esc(x.t)}</span></li>`}
@@ -2488,8 +2498,8 @@ document.addEventListener('click',e=>{
   const b=e.target.closest('[data-act]');if(!b)return;
   const act=b.dataset.act;
   if(act==='speed'){setSpeed(+b.dataset.v);return;}
-  if(act==='skip'){fastForward(TICKS_PER_DAY,0);autoWatch();render();save();return;}
-  if(act==='closedigest'){$('digest').hidden=true;return;}
+  if(act==='skip'){fastForward(TICKS_PER_DAY,0);return;}
+  if(act==='closedigest'){if(ff)return;$('digest').hidden=true;return;}
   if(act==='adv'){advOpen=+b.dataset.a;$('advm').hidden=false;$('advbox').scrollTop=0;renderAdv();return;}
   if(act==='closeadv'){if(b.id==='advm'&&e.target!==b)return;advOpen=null;$('advm').hidden=true;return;}
   if(act==='tab'){tab=b.dataset.v;$('tbody').scrollTop=0;renderSide();return;}
