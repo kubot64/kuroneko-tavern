@@ -557,7 +557,7 @@ function uname(S,g){
 const AGE2={'人間':{n:[15,30],o:[31,62]},'ホビット':{n:[18,40],o:[41,95]},'ドワーフ':{n:[25,90],o:[91,190]},'エルフ':{n:[30,180],o:[181,420]}};
 const AGE=Object.fromEntries(Object.entries(AGE2).map(([k,v])=>[k,[v.n[0],v.o[1]]]));
 const OLD={'人間':55,'エルフ':400,'ドワーフ':175,'ホビット':85};
-function rollAge(race,lv0){const lvl=Math.ceil(lv0/2);const r=AGE2[race]||AGE2['人間'];const oldP=.05+(lvl>=6?.12:0)+(lvl>=9?.2:0);const rg=chance(oldP)?r.o:r.n;const t=clamp((lvl-1)/10*.4+R()*.6,0,1);return Math.round(rg[0]+(rg[1]-rg[0])*t);}
+function rollAge(race,lv0){const lvl=Math.ceil(lv0/2);const r=AGE2[race]||AGE2['人間'];const oldP=.05+(lvl>=6?.12:0)+(lvl>=9?.2:0);const old=chance(oldP);const rg=old?r.o:r.n;const t=old?clamp(R()**2*(.5+lvl*.04),0,1):clamp((lvl-1)/10*.4+R()*.6,0,1);return Math.round(rg[0]+(rg[1]-rg[0])*t);}
 const KIN_G={'兄':'男','弟':'男','父':'男','姉':'女'};
 const KIN_AGE={'父':[20,32],'兄':[1,8],'姉':[1,8],'弟':[-7,-1],'師匠':[15,40],'幼なじみ':[-2,2]};
 function humanAge(a){if(a.race==='人間'||!AGE2[a.race])return a.age;const r=AGE2[a.race];
