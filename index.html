@@ -1210,13 +1210,15 @@ function personalize(a){a.tone=a.tone||pickTone(a);a.catch=a.catch||pick(CATCH);
 function fearOf(a){return a.fear?FEARS.find(f=>f.k===a.fear):null}
 function fearsFoe(a,t){const f=fearOf(a);return !!(f&&f.re&&f.re.test(t.base||t.n));}
 function fearPen(a,t,p){const f=fearOf(a);if(!f)return 0;if(f.re&&f.re.test(t.base||t.n))return .15;if(f.zone&&zoneOf(p.floor)===f.zone)return .07;if(f.nomap&&!hasMap(p))return .06;return 0;}
+// 文末の「だ」。「死んだ」「すくんだ」のような過去形の動詞は除く
+const DA=/(?<!(?:[一-龠々]|[らそしころびみ]|[^一-龠々]く)ん)だ(な|よ|ぞ|ぜ)?(?=[。！？]|$)/g;
 function toneT(a,t){const tn=a.tone||'普通';const end=(re,f)=>t.replace(re,f);
-  if(tn==='丁寧')t=t.replace(/だろう(?=[。！？]|$)/g,'でしょう').replace(/だ(な|よ|ぞ|ぜ)?(?=[。！？]|$)/g,(m,x)=>x==='な'?'ですね':x?'ですよ':'です').replace(/(?<=[^っ])(ぞ|ぜ|さ)(?=[。！？]|$)/g,'');
-  else if(tn==='古風')t=t.replace(/だろう(?=[。！？]|$)/g,'じゃろう').replace(/だ(な|よ|ぞ|ぜ)?(?=[。！？]|$)/g,(m,x)=>x==='な'?'じゃな':x?'じゃぞ':'じゃ');
-  else if(tn==='商人言葉')t=t.replace(/だろう(?=[。！？]|$)/g,'やろ').replace(/だ(な|よ|ぞ|ぜ)?(?=[。！？]|$)/g,(m,x)=>x==='な'?'やな':x?'やで':'や').replace(/じゃない/g,'やない');
-  else if(tn==='田舎なまり')t=t.replace(/だろう(?=[。！？]|$)/g,'だべさ').replace(/だ(な|よ|ぞ|ぜ)?(?=[。！？]|$)/g,(m,x)=>x==='な'?'だなや':x?'だべよ':'だべ');
+  if(tn==='丁寧')t=t.replace(/だろう(?=[。！？]|$)/g,'でしょう').replace(DA,(m,x)=>x==='な'?'ですね':x?'ですよ':'です').replace(/(?<=[^っ])(ぞ|ぜ|さ)(?=[。！？]|$)/g,'');
+  else if(tn==='古風')t=t.replace(/だろう(?=[。！？]|$)/g,'じゃろう').replace(DA,(m,x)=>x==='な'?'じゃな':x?'じゃぞ':'じゃ');
+  else if(tn==='商人言葉')t=t.replace(/だろう(?=[。！？]|$)/g,'やろ').replace(DA,(m,x)=>x==='な'?'やな':x?'やで':'や').replace(/じゃない/g,'やない');
+  else if(tn==='田舎なまり')t=t.replace(/だろう(?=[。！？]|$)/g,'だべさ').replace(DA,(m,x)=>x==='な'?'だなや':x?'だべよ':'だべ');
   else if(tn==='陽気'){t=t.replace(/。$/,'！');if(chance(.3)&&!/^[はあ]/.test(t))t='はは、'+t;}
-  else if(tn==='無口'){const m=t.match(/^[^、。！？]{1,14}/);t='……'+(t.length>16&&m?m[0]:t.replace(/^……/,''));}
+  else if(tn==='無口'){t=t.replace(/^……/,'');if(t.length>16){t=t.match(/^[^。！？]*[。！？]?/)[0].replace(/[。]$/,'');}t='……'+t;}
   else if(tn==='ぶっきらぼう')t=t.replace(/(よ|ね)(?=[。！？]|$)/g,'');
   return t;}
 function changeOf(S,a,why,f){if(a.status==='lost'||a.status==='retired')return;f(a);a.changes=a.changes||[];a.changes.push({tk:S.tick,t:why});chron(S,a,why);}
@@ -1229,7 +1231,7 @@ function voice(a,t){let me;const h=humanAge(a);
   if(a.tone==='丁寧'&&me!=='わし')me='私';if(a.tone==='古風'&&a.sex==='男'&&(a.cls==='侍'||a.cls==='剣聖'||a.origin==='東方の島国アズマ'))me='拙者';else if(a.tone==='古風'&&a.sex==='男')me='わし';
   t=t.replace(/俺|僕/g,me).replace(/あたし(?=たち)/g,me);return toneT(a,t);}
 // ときどき口癖で締める（酒場の会話と土産話で共通）
-function withCatch(a,x){if(a.catch&&chance(.15)&&!x.includes(a.catch)&&!/）$/.test(x))x=x.replace(/[。！]?$/,'。')+a.catch;return x;}
+function withCatch(a,x){if(a.catch&&chance(.15)&&!x.includes(a.catch)&&!/）$/.test(x))x=(/[！？]$/.test(x)?x:x.replace(/。?$/,'。'))+a.catch;return x;}
 function chatterTick(S){
   if(!chance(.05))return;
   const idle=Object.values(S.adv).filter(a=>a.tav==='ours'&&a.status==='idle');if(idle.length<2)return;
