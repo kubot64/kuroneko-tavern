@@ -1228,12 +1228,14 @@ function voice(a,t){let me;const h=humanAge(a);
   if(a.race==='エルフ')me='私';else if(a.race==='ドワーフ'&&h>=40)me='わし';else if(a.sex==='女')me=(a.pers==='慎重'||a.pers==='臆病'||h>=40)?'私':'あたし';else if(h>=55)me='わし';else if(a.pers==='臆病')me='僕';else me='俺';
   if(a.tone==='丁寧'&&me!=='わし')me='私';if(a.tone==='古風'&&a.sex==='男'&&(a.cls==='侍'||a.cls==='剣聖'||a.origin==='東方の島国アズマ'))me='拙者';else if(a.tone==='古風'&&a.sex==='男')me='わし';
   t=t.replace(/俺|僕/g,me).replace(/あたし(?=たち)/g,me);return toneT(a,t);}
+// ときどき口癖で締める（酒場の会話と土産話で共通）
+function withCatch(a,x){if(a.catch&&chance(.15)&&!x.includes(a.catch)&&!/）$/.test(x))x=x.replace(/[。！]?$/,'。')+a.catch;return x;}
 function chatterTick(S){
   if(!chance(.05))return;
   const idle=Object.values(S.adv).filter(a=>a.tav==='ours'&&a.status==='idle');if(idle.length<2)return;
   const A=pick(idle);const others=idle.filter(x=>x!==A);let B=pick(others);
   if(chance(.5)){const bw=others.map(o=>{const b=bondOf(S,A,o);return b?b.n+b.ev.length*3:0;});if(bw.some(x=>x>0))B=others[+wpick(Object.fromEntries(bw.map((w,i)=>[i,w+.01])))];}
-  const L=[];const say2=(a,t)=>{let x=voice(a,t);if(a.catch&&L.length&&chance(.15)&&!x.includes(a.catch))x=x.replace(/[。！]?$/,'。')+a.catch;L.push({id:a.id,who:a.name,t:x});};
+  const L=[];const say2=(a,t)=>{let x=voice(a,t);if(L.length)x=withCatch(a,x);L.push({id:a.id,who:a.name,t:x});};
   const topics=[];const recent=d=>S.tick-d<5*TICKS_PER_DAY;
   const ed=(S.edicts||[]).filter(e=>e.until>S.tick);
   if(ed.length)topics.push([2,()=>{const e=pick(ed);say2(A,`${e.from==='噂'?'噂だが、':e.from+'のお触れ、聞いたか？'}${e.t.replace(/。$/,'')}ってよ`);say2(B,pick(e.k==='tax'||e.k==='templeUp'?['お上はいつも取ることばかりだ','やってられないな']:REACT[B.pers]));}]);
@@ -2032,7 +2034,7 @@ function tale(S,p,al,second){
   if(!list.length)return;
   const W={};list.forEach(([w,t,k])=>{W[t]=w*Math.pow(.2,used[k]||0);});
   const t=wpick(W);const k=list.find(c=>c[1]===t)[2];
-  S.tales.push({tk:S.tick,who:full(sp),whoId:sp.id,tav:p.tav,party:p.name,t:voice(sp,t),k,pers:sp.pers});
+  S.tales.push({tk:S.tick,who:full(sp),whoId:sp.id,tav:p.tav,party:p.name,t:withCatch(sp,voice(sp,t)),k,pers:sp.pers});
   if(S.tales.length>80)S.tales.shift();
 }
 function temple(S,a,paidByTavern){
