@@ -2222,7 +2222,7 @@ function boot(){
     migrate(S);
     const away=Math.floor((Date.now()-saved.at)/1000);
     const pend=saved.pend||0;
-    const n=Math.min(Math.floor(away/TICK_SEC)+pend,TICKS_PER_DAY*10);
+    const n=Math.min(Math.floor(away/TICK_SEC),TICKS_PER_DAY*10)+pend;
     if(n>=30||pend>0) fastForward(n,away);
   } else {
     S=newState();
