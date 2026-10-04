@@ -1212,12 +1212,14 @@ function fearsFoe(a,t){const f=fearOf(a);return !!(f&&f.re&&f.re.test(t.base||t.
 function fearPen(a,t,p){const f=fearOf(a);if(!f)return 0;if(f.re&&f.re.test(t.base||t.n))return .15;if(f.zone&&zoneOf(p.floor)===f.zone)return .07;if(f.nomap&&!hasMap(p))return .06;return 0;}
 // 文末の「だ」。「死んだ」「すくんだ」のような過去形の動詞は除く
 const DA=/(?<!(?:[一-龠々]|[らそしころびみ]|[^一-龠々]く)ん)だ(な|よ|ぞ|ぜ)?(?=[。！？]|$)/g;
+// 仲間の死やつらい話。陽気な口調でも笑わない
+const SAD=/やられ|死|寺院|担いで|亡く|失っ|ロスト|灰に|墓|弔|記念碑|いいやつだった|放っておいて|そっとして|席が、ひとつ/;
 function toneT(a,t){const tn=a.tone||'普通';const end=(re,f)=>t.replace(re,f);
   if(tn==='丁寧')t=t.replace(/だろう(?=[。！？]|$)/g,'でしょう').replace(DA,(m,x)=>x==='な'?'ですね':x?'ですよ':'です').replace(/(?<=[^っ])(ぞ|ぜ|さ)(?=[。！？]|$)/g,'');
   else if(tn==='古風')t=t.replace(/だろう(?=[。！？]|$)/g,'じゃろう').replace(DA,(m,x)=>x==='な'?'じゃな':x?'じゃぞ':'じゃ');
   else if(tn==='商人言葉')t=t.replace(/だろう(?=[。！？]|$)/g,'やろ').replace(DA,(m,x)=>x==='な'?'やな':x?'やで':'や').replace(/じゃない/g,'やない');
   else if(tn==='田舎なまり')t=t.replace(/だろう(?=[。！？]|$)/g,'だべさ').replace(DA,(m,x)=>x==='な'?'だなや':x?'だべよ':'だべ');
-  else if(tn==='陽気'){t=t.replace(/。$/,'！');if(chance(.3)&&!/^[はあ]/.test(t))t='はは、'+t;}
+  else if(tn==='陽気'&&!SAD.test(t)){t=t.replace(/。$/,'！');if(chance(.3)&&!/^[はあ…]/.test(t))t='はは、'+t;}
   else if(tn==='無口'){t=t.replace(/^……/,'');if(t.length>16){t=t.match(/^[^。！？]*[。！？]?/)[0].replace(/[。]$/,'');}t='……'+t;}
   else if(tn==='ぶっきらぼう')t=t.replace(/(よ|ね)(?=[。！？]|$)/g,'');
   return t;}
