@@ -489,7 +489,7 @@ const PUSH={
 function newState(){
   const S={tick:0,nid:1,adv:{},parties:{},news:[],tales:[],memorial:[],
     taverns:{ours:{name:'黒猫亭',gold:400,rep:0,crystals:1,earned:0,debt:DEBT0,seats:12,nextPay:30*TICKS_PER_DAY,late:0},rival:{name:'銀の杯亭',gold:99999,rep:60,owner:RIVAL_OWNER}},
-    bounties:{},deepest:{ours:1,rival:GATE_F},usedNames:{[RIVAL_OWNER]:1},usedParty:{'鉄の誓い':1,'黄金の剣':1,'七つ星':1,'夜鷹':1,'鉄の誓い傭兵団':1,'黄金の剣団':1},usedItems:{},uniqFound:{},farewells:[],edicts:[],v:16,loreFound:{},shop:{tiers:{1:true},mats:{},serial:0,log:[]},watch:[null,null],sel:0,stats:{dreams:{ours:0,rival:0}},small:SMALL_TAV.slice(0,5)};
+    bounties:{},deepest:{ours:1,rival:GATE_F},usedNames:{[RIVAL_OWNER]:1},usedParty:{'鉄の誓い':1,'黄金の剣':1,'七つ星':1,'夜鷹':1,'鉄の誓い傭兵団':1,'黄金の剣団':1},usedItems:{},uniqFound:{},farewells:[],edicts:[],v:17,loreFound:{},shop:{tiers:{1:true},mats:{},serial:0,log:[]},watch:[null,null],sel:0,stats:{dreams:{ours:0,rival:0}},small:SMALL_TAV.slice(0,5)};
   for(let i=0;i<7;i++) makeAdv(S,'ours',{lvl:pick([1,1,1,2,2,3,3,4,5,6])});
   const vets=[];for(let i=0;i<6;i++) vets.push(makeAdv(S,'rival',{lvl:ri(12,17)}));
   for(let i=0;i<22;i++) makeAdv(S,'rival');
@@ -1302,6 +1302,7 @@ function tick(S){
       p.members.forEach(id=>{const a=A(S,id);if(a.status!=='missing')return;a.status='lost';a.party=null;chron(S,a,`B${p.floor}Fから戻ることなく、迷宮に呑まれる`);
         S.memorial.push({id:a.id,name:full(a),cls:a.cls,lvl:a.lvl,race:a.race,tav:a.tav,tk:S.tick,by:a.lastBy||p.killer||'不明',floor:p.floor,kills:a.kills});onLostFriend(S,a);});
       news(S,`${S.taverns[p.tav].name}の${p.name}は、ついに見つからなかった。B${p.floor}Fに消えた${p.members.length}人の名が記念碑に刻まれる。`,'lost');
+      if(S.bounties[p.id]){S.taverns.ours.gold+=S.bounties[p.id];news(S,`${p.name}の死体回収の依頼を取り下げ、預けていた${S.bounties[p.id]}Gが戻った。`,'info');}
       delete S.bounties[p.id];delete S.parties[p.id];
     }
   }
@@ -1527,8 +1528,8 @@ function floorThrough(S,p,f){const F=floorsInit(S);F[f]=F[f]||{};if(F[f].through
 function mapTick(S){const F=floorsInit(S);
   for(const [k,v] of Object.entries(F)){if(v.map||!v.mapAt||S.tick<v.mapAt)continue;const f=+k;v.map=true;
     const pay=Math.round(mapPrice(f)*.5/10)*10;const th=v.through;const team=Object.values(S.parties).find(q=>q.name===th.party&&q.tav===th.tav);
-    if(team){const ms=Object.values(S.adv).filter(a=>a.party===team.id&&a.status!=='lost'&&a.status!=='retired');ms.forEach(a=>a.gold+=Math.floor(pay/Math.max(1,ms.length)));}
-    news(S,`【${CARTO}】B${f}Fの地図を売り出した（${mapPrice(f)}G）。この階を最初に突破したのは${th.tav?S.taverns[th.tav].name+'の':''}${th.party}。地図屋は彼らの記録を${pay}Gで買い取った。`,'edict');}}
+    const ms=team?Object.values(S.adv).filter(a=>a.party===team.id&&a.status!=='lost'&&a.status!=='retired'):[];ms.forEach(a=>a.gold+=Math.floor(pay/ms.length));
+    news(S,`【${CARTO}】B${f}Fの地図を売り出した（${mapPrice(f)}G）。この階を最初に突破したのは${th.tav?S.taverns[th.tav].name+'の':''}${th.party}。${ms.length?`地図屋は彼らの記録を${pay}Gで買い取った。`:'地図屋は記録の代金を払おうとしたが、もう受け取る者はいなかった。'}`,'edict');}}
 function policy(S){S.policy=S.policy||{potion:0,mapPay:false,revive:false,rookie:false};return S.policy;}
 function favor(a,n){a.favor=(a.favor||0)+n;}
 function potionPrice(S,p){const al=p.members.map(id=>A(S,id)).filter(Boolean);const d=al.length?Math.round(al.reduce((s,a)=>s+depthOf(a),0)/al.length):1;return Math.max(20,Math.round(incomeAt(d)*.12/10)*10);}
@@ -1850,6 +1851,7 @@ function wipe(S,p,by){
   p.members.forEach(id=>{const a=A(S,id);a.hp=0;a.status='missing';a.lastFloor=p.floor;});
   // carried corpses fall again with them
   p.carried.forEach(id=>{const a=A(S,id);a.status='missing';p.members.push(id);});p.carried=[];
+  (p.bountyFor||[]).forEach(b=>{if(b)S.taverns.ours.gold+=b;});p.bountyFor=[];
   const watched=S.watch.includes(p.id);
   if(watched&&p.tav==='ours'){p.knownWiped=true;p.announced=true;news(S,`水晶が${p.name}の最期を映した。B${p.floor}F、${by}に倒れる。${p.pushWhy==='race'?'銀の杯亭に先を越されまいとした末だった。':p.pushWhy==='first'?'一番乗りを狙った末だった。':p.pushWhy==='bounty'?'報奨金を狙った末だった。':p.pushWhy==='avenge'?'仇を追った末だった。':''}`,'death');}
 }
@@ -1875,7 +1877,7 @@ function arrive(S,p){
   if(p.tav==='ours'){const cut=al.reduce((s,a)=>s+(a.spent||0)+(a.lodge||0),0);tav.gold+=cut;tav.earned+=cut;tav.rep+=1+Math.floor(p.trip.deep/2);
     if(cut>=300)plog(p,`さかばで ${cut} G を つかった`,'loot');}
   // bounties
-  (p.bountyFor||[]).forEach(b=>{if(b){S.taverns.ours.gold-=b;news(S,`${p.name}に死体回収の報酬 ${b}G を支払った。`,'info');al.forEach(a=>a.gold+=Math.floor(b/Math.max(1,al.length)));}});
+  (p.bountyFor||[]).forEach(b=>{if(b){news(S,`${p.name}に死体回収の報酬 ${b}G を支払った。`,'info');al.forEach(a=>a.gold+=Math.floor(b/Math.max(1,al.length)));}});
   p.bountyFor=[];
   // temple
   const ownDead=new Set(p.members);
@@ -2112,7 +2114,7 @@ let S,speed=1,tab='news',timer=null,toastT=null,ff=null;
 const $=id=>document.getElementById(id);
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 
-function save(){try{localStorage.setItem(KEY,JSON.stringify({S,at:Date.now()}))}catch(e){}}
+function save(){try{localStorage.setItem(KEY,JSON.stringify({S,at:Date.now(),pend:ff?ff.n-ff.i:0}))}catch(e){}}
 function migrate(S){
   if(!(S.v>=2)){migrateV2(S);}
   if(!(S.v>=3)){
@@ -2185,6 +2187,9 @@ function migrate(S){
   if(!(S.v>=14)){policy(S);S.v=14;}
   if(!(S.v>=15)){const T0=S.taverns.ours;T0.debt=T0.debt||0;T0.seats=Math.max(30,T0.seats||0);S.taverns.rival.owner=RIVAL_OWNER;S.taverns.rival.rep=Math.max(S.taverns.rival.rep||0,60);
     S.stats=S.stats||{dreams:{ours:0,rival:0}};S.small=S.small||SMALL_TAV.slice(0,5);S.usedNames[RIVAL_OWNER]=1;pickAce(S,true);S.v=15;}
+  if(!(S.v>=17)){const T0=S.taverns.ours;// 依頼の金を出す時点で預ける形に変わった。古い記録の依頼は、払えるものだけ預け直す
+    Object.keys(S.bounties).forEach(id=>{const c=S.bounties[id];if(T0.gold>=c)T0.gold-=c;else delete S.bounties[id];});
+    Object.values(S.parties).forEach(p=>{p.bountyFor=(p.bountyFor||[]).map(c=>{const x=Math.max(0,Math.min(T0.gold,c||0));T0.gold-=x;return x;});});S.v=17;}
   Object.values(S.adv).forEach(a=>{if(!a.tone)personalize(a);if(!a.traits)assignTraits(S,a,true);});
   Object.values(S.adv).filter(a=>a.title&&!a.titleKind&&a.status!=='lost'&&a.status!=='retired').forEach(a=>{a.title='';title(S,a,true);});
 }
@@ -2216,8 +2221,9 @@ function boot(){
     S=saved.S;
     migrate(S);
     const away=Math.floor((Date.now()-saved.at)/1000);
-    const n=Math.min(Math.floor(away/TICK_SEC),TICKS_PER_DAY*10);
-    if(n>=30) fastForward(n,away);
+    const pend=saved.pend||0;
+    const n=Math.min(Math.floor(away/TICK_SEC)+pend,TICKS_PER_DAY*10);
+    if(n>=30||pend>0) fastForward(n,away);
   } else {
     S=newState();
     for(let i=0;i<6;i++)tick(S);
@@ -2251,7 +2257,7 @@ function fastForward(n,awaySec){
 function drawDigest(st){
   const done=st.i>=st.n,days=(st.i/TICKS_PER_DAY).toFixed(1);
   const items=S.news.filter(x=>x.tk>st.startTick);
-  $('dg-sub').textContent=(st.awaySec?`店をあけていたのは約${fmtAway(st.awaySec)}。`:'')+(done?(st.awaySec?`迷宮では${days}日が過ぎた。`:'迷宮では1日が過ぎた。'):`迷宮では時が流れている……（${days}日／${(st.n/TICKS_PER_DAY).toFixed(1)}日）`);
+  $('dg-sub').textContent=(st.awaySec>=60?`店をあけていたのは約${fmtAway(st.awaySec)}。`:'')+(done?`迷宮では${days}日が過ぎた。`:`迷宮では時が流れている……（${days}日／${(st.n/TICKS_PER_DAY).toFixed(1)}日）`);
   const gd=S.taverns.ours.gold-st.g0;
   $('dg-sum').innerHTML=[[st.returns,'帰還'],[st.wipes,'消息不明'],[S.memorial.length-st.lost0,'ロスト'],[(gd>=0?'+':'')+gd+'G','売上']].map(([v,l])=>`<div><b>${v}</b><span>${l}</span></div>`).join('');
   $('dg-news').innerHTML=items.length?items.slice(-30).reverse().map(newsLi).join(''):`<li><span></span><span class="note">${done?'静かな日々だった。':'……'}</span></li>`;
@@ -2519,7 +2525,7 @@ document.addEventListener('click',e=>{
   if(act==='gift'){const a=S.adv[b.dataset.a];const o=a&&giftOffer(S,a);const it=o&&giveGift(S,a,o,'店主から');if(it){toast(`${a.name}に${it.n}を贈った`);news(S,`黒猫亭の店主が${a.name}に${it.n}を贈った。`,'info');}render();save();return;}
   if(act==='loan'){const a=S.adv[b.dataset.a];if(a&&T().gold>=100){T().gold-=100;a.loan=100;chron(S,a,'店主からツケで装備を借りる');toast(`${a.name}に装備を貸した`);render();save();}return;}
   if(act==='revive'){const a=S.adv[b.dataset.a];const c=templeCost(S,a);if(T().gold>=c){T().gold-=c;const r=temple(S,a,true);toast(r==='ok'?`${a.name}が蘇った`:r==='ash'?`${a.name}は灰になった…`:`${a.name}はロストした`);render();save();}return;}
-  if(act==='bounty'){S.bounties[b.dataset.p]=bountyPrice(S.parties[b.dataset.p]);if(T().gold<S.bounties[b.dataset.p]){delete S.bounties[b.dataset.p];toast('お金が足りない');return;}toast('掲示板に依頼を貼り出した');render();save();return;}
+  if(act==='bounty'){const p=S.parties[b.dataset.p];if(!p||S.bounties[p.id])return;const c=bountyPrice(p);if(T().gold<c){toast('お金が足りない');return;}T().gold-=c;S.bounties[p.id]=c;toast(`掲示板に依頼を貼り出した（${c}Gを預けた）`);render();save();return;}
 });
 document.addEventListener('keydown',e=>{if(e.key==='Escape'&&advOpen!=null){advOpen=null;$('advm').hidden=true;return;}if((e.key==='Enter'||e.key===' ')&&e.target.matches('.c-head')){e.preventDefault();e.target.click();}});
 window.addEventListener('pagehide',save);
