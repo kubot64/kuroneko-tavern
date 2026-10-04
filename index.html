@@ -1940,15 +1940,15 @@ function tale(S,p,al,second){
   const deep=tr.deep;const big=tr.big;
   const CAND=[];const add=(k,w,t)=>CAND.push([w,t,k]);
   // fights
-  if(cnt){add('1',2,`B${deep}Fで${mon}を${cnt*m}匹は斬ったぜ`);
-    add('2',1,`${mon}の群れに囲まれてな。${m>1?'ほとんど俺ひとりで':'みんなで'}片付けてやった`);
-    add('3',1,`${mon}なんて、もう目をつぶってても倒せる`);}
-  if(big&&big.f>=4){add('4',2.5,`${big.n}を見たことあるか？ ${m>1?'城の門ほど':'家の戸口ほど'}の大きさだった`);
-    add('5',1.5,`${big.n}とやり合った。腕がまだ震えてる`);}
+  if(cnt){add('1',2,pick([`B${deep}Fで${mon}を${cnt*m}匹は斬ったぜ`,`${mon}を${cnt*m}匹。数えるのも途中で嫌になった`,`B${deep}Fは${mon}だらけでな。${cnt*m}匹は片付けた`,`${mon}の返り血がまだ落ちない。${cnt*m}匹分だ`]));
+    add('2',1,pick([`${mon}の群れに囲まれてな。${m>1?'ほとんど俺ひとりで':'みんなで'}片付けてやった`,`角を曲がったら${mon}がぞろぞろいた。${m>1?'俺が前に出て蹴散らした':'背中合わせでしのいだ'}`,`${mon}の群れってのは、一匹ずつなら大したことないんだがな`]));
+    add('3',1,pick([`${mon}なんて、もう目をつぶってても倒せる`,`${mon}の動きは、もう全部読める`,`${mon}？ ああ、あれはもう慣れた`]));}
+  if(big&&big.f>=4){add('4',2.5,pick([`${big.n}を見たことあるか？ ${m>1?'城の門ほど':'家の戸口ほど'}の大きさだった`,`${big.n}の気配が、まだ背中に張りついてる`,`${big.n}が${m>1?'百人力で':'すごい力で'}壁を叩いてな。迷宮ごと揺れた`]));
+    add('5',1.5,pick([`${big.n}とやり合った。腕がまだ震えてる`,`${big.n}の一撃を盾で受けた。盾のほうが先に参った`,`${big.n}を相手に、よく生きて帰れたもんだ`]));}
   const cr=(tr.crits||[]);
   if(cr.length){const c=pick(cr);
     if(c.n===sp.name)add('6',3,`${c.m}の首を一太刀ではねてやった。手応えがまだ残ってる`);
-    else add('7',3,`${c.n}が${c.m}の首を一太刀で落としたんだ。あれは見ものだった`);}
+    else add('7',3,pick([`${c.n}が${c.m}の首を一太刀で落としたんだ。あれは見ものだった`,`${c.n}の剣が${c.m}の首を飛ばした。音もしなかった`,`${c.m}がこっちを向いた瞬間、${c.n}が首を落としてた`]));}
   if(tr.slept>=3)add('8',2,`${tr.sleeper===sp.name?'俺':tr.sleeper}のネムリで${tr.slept*m}匹まとめて眠らせた。寝首をかくのは楽な仕事さ`);
   if(tr.heals>=4)add('9',1.2,tr.healer===sp.name?`イヤシを${tr.heals}回も唱えた。喉がからからだ`:`${tr.healer}がいなけりゃ、全員B${deep}Fの土になってた`);
   // danger
@@ -1961,31 +1961,31 @@ function tale(S,p,al,second){
     else if(t==='ばくだん')add('12',2.5,`宝箱が爆発した。${m>1?'天井が半分落ちてきた':'眉毛が少し焦げた'}`);
     else add('13',2,`宝箱の${t}にやられた。${al.some(a=>C(a).thief)?'盗賊がついてても、こういうことはある':'次は盗賊を連れていく'}`);}
   if((tr.poison||[]).length)add('14',1.5,`${tr.poison[0]===sp.name?'毒が抜けなくて':''+tr.poison[0]+'が毒をもらって'}な。帰り道は地獄だった`);
-  if(tr.fled)add('15',sp.pers==='慎重'||sp.pers==='臆病'?2.5:1,`${tr.fledFrom||mon}から${tr.fled>1?tr.fled+'回も':''}逃げ出した。生きてるだけましさ`);
+  if(tr.fled)add('15',sp.pers==='慎重'||sp.pers==='臆病'?2.5:1,pick([`${tr.fledFrom||mon}から${tr.fled>1?tr.fled+'回も':''}逃げ出した。生きてるだけましさ`,`${tr.fledFrom||mon}を見て、全員で回れ右だ`,`逃げるのも腕のうちさ。${tr.fledFrom||mon}相手なら、なおさらだ`]));
   // loss
   const deaths=(tr.deaths||[]);
   if(deaths.length){const d=pick(deaths);
     add('16',5,pick([`${d.n}が${d.by}にやられた。……寺院が何とかしてくれるといいが`,`${d.n}の分まで飲む。今夜は放っておいてくれ`,`${d.n}を担いで帰ってきた。重かったよ。いろんな意味でな`]));}
   // loot
-  if(tr.items.length){const it=pick(tr.items);add('17',2.5,pick([`宝箱から${it}が出てきたんだ${m>1?'。いや、ふたつだったかな':''}`,`${it}を手に入れた。見ろよ、この輝き`,`${it}って名前、誰がつけたんだろうな`]));}
-  if(p.loot>=600)add('18',2,`今回は${p.loot*m}Gの稼ぎだ。しばらくは遊んで暮らせる`);
+  if(tr.items.length){const it=pick(tr.items);add('17',2.5,pick([`${it}を拾った。前の持ち主はどうなったんだろうな`,`宝箱から${it}が出てきたんだ${m>1?'。いや、ふたつだったかな':''}`,`${it}を手に入れた。見ろよ、この輝き`,`${it}って名前、誰がつけたんだろうな`]));}
+  if(p.loot>=600)add('18',2,pick([`今回は${p.loot*m}Gの稼ぎだ。しばらくは遊んで暮らせる`,`財布が重くて歩きにくい。${p.loot*m}Gだぞ`,`${p.loot*m}Gだ。今夜は誰が何を頼んでもいい`]));
   if(p.loot<80&&!tr.items.length)add('19',1.5,'骨折り損だ。宝箱は空っぽ、財布も空っぽ');
   // exploration
   if(tr.potion)add('20',2,`黒猫亭の差し入れの回復薬がなかったら、危なかった`);
   if(tr.escaped)add('21',5,`${tr.escaped===sp.name?'俺の':tr.escaped+'の'}ダッシュツがなかったら、全員B${deep}Fの土になってた`);
   if(tr.yomi)add('22',5,`${tr.yomi.c}のヨミガエリで、${tr.yomi.d}が息を吹き返した。……奇跡だよ`);
-  if((tr.vars||[]).length)add('23',2.5,`${pick(tr.vars)}に出くわした。ふつうのとは比べものにならない`);
+  if((tr.vars||[]).length){const v=pick(tr.vars);add('23',2.5,pick([`${v}に出くわした。ふつうのとは比べものにならない`,`${v}ってのがいてな。名前だけで嫌な予感がしたよ`,`${v}の相手は、もうごめんだ`]));}
   if((tr.rareSeen||[]).length)add('24',4,`${tr.rareSeen[0]}を見た。あれは格が違う`);
   if(tr.rec)add('25',5,`誰も行ったことのないB${deep}Fに足を踏み入れた。最初の足跡は俺たちのだ`);
-  if(deep>=4){add('26',1.5,`B${deep+(m>1?1:0)}Fまで潜ってきた。あそこは空気がちがう`);add('27',1,`B${deep}Fの壁には誰かの名前が刻まれてた。古い字でな`);}
+  if(deep>=4){add('26',1.5,pick([`B${deep+(m>1?1:0)}Fまで潜ってきた。あそこは空気がちがう`,`B${deep+(m>1?1:0)}Fは、灯りの火まで小さくなる`,`B${deep+(m>1?1:0)}Fまで行くと、上の階の音がまるで聞こえない`]));add('27',1,pick([`B${deep}Fの壁には誰かの名前が刻まれてた。古い字でな`,`B${deep}Fに、誰かの錆びた兜が転がってた`,`B${deep}Fで古い焚き火の跡を見つけた。誰のだろうな`]));}
   if(deep<=2)add('28',.8,'浅いところをぐるっと回ってきただけさ。今日は様子見だ');
   const met=(tr.met||[]);
-  if(met.length){const o=pick(met);add('29',1.5,o.rival?`銀の杯亭の${o.n}とすれ違った。あいつら、愛想ってものがない`:`${o.n}の連中とすれ違ったよ。元気そうだった`);}
+  if(met.length){const o=pick(met);add('29',1.5,o.rival?pick([`銀の杯亭の${o.n}とすれ違った。あいつら、愛想ってものがない`,`${o.n}の連中、銀の杯亭の看板を背負って偉そうにしてたよ`,`銀の杯亭の${o.n}に道を譲られた。……妙に気味が悪い`]):pick([`${o.n}の連中とすれ違ったよ。元気そうだった`,`${o.n}と通路で鉢合わせてな。干し肉を分けてもらった`,`${o.n}の連中が手を振ってた。迷宮で知った顔を見るとほっとする`]));}
   if(tr.found.length)add('30',4,`${tr.found[0]}の連中を見つけた。ひどい有様だったよ`);
   if(tr.kin){const k=tr.kin;add('31',6,k.alive?`${k.by}が${k.who}を見つけたんだ。生きてたんだよ！ 今夜は奢りだ`:`${k.by}が${k.who}の${k.keep}を見つけた。……しばらくそっとしておいてやってくれ`);}
   // growth
   const lv=(tr.lv||[]).find(x=>x.n===sp.name);
-  if(lv)add('32',2,pick(['レベルが上がった。体が軽い',`ようやくレベル${lv.l}だ。まだまだ先は長い`,'強くなった気がする。気のせいじゃないといいが']));
+  if(lv)add('32',2,pick(['剣が前より軽く感じる。ようやく一人前に近づいた','レベルが上がった。体が軽い',`ようやくレベル${lv.l}だ。まだまだ先は長い`,'強くなった気がする。気のせいじゃないといいが']));
   // quirk & dream
   const qt=QUIRK_TALES[sp.quirk];
   if(qt)add('33',1.5,pick(qt).replace('{other}',other).replace('{deep}',deep).replace('{mon}',mon).replace('{win}',chance(.5)?'大勝ちした':'すっからかんになった'));
@@ -1997,8 +1997,32 @@ function tale(S,p,al,second){
     if(d.k==='kin')add('37',1,`${d.who}の手がかりは、今回もなかった`);
   }
   const ot=sp.origin&&ORIGINS[sp.origin];if(ot)add('38',1.3,pick(ot.tale).replace('{deep}',deep));
-  if(sp.pers==='臆病')add('39',1,'……もう二度と潜りたくない');
-  if(sp.pers==='無謀')add('40',1,'次はもっと深く行く。止めても無駄だ');
+  if(sp.pers==='臆病')add('39',1,pick(['……もう二度と潜りたくない','足の震えがまだ止まらない','次は……次こそは、浅いところだけにする']));
+  if(sp.pers==='無謀')add('40',1,pick(['次はもっと深く行く。止めても無駄だ','B'+(deep+2)+'Fくらい、どうってことないさ','今回は物足りなかった。次はもっと下だ']));
+  if(sp.pers==='慎重')add('pers',1,pick(['引き返す頃合いを決めるのが一番難しい',`B${deep}Fで止めたのは正解だった。あれ以上は欲張りだ`,'地図に印をつけながら進んだ。だから帰ってこられた']));
+  if(sp.pers==='強欲')add('pers',1,pick([`もう一部屋開けていれば、もっと稼げたんだ`,'取り分の話は、帰ってからじっくりしようか','宝箱を置いてきたのが、今でも悔しい']));
+  if(sp.pers==='普通')add('pers',.8,pick(['まあ、いつもどおりの潜りだったよ','可もなく不可もなく。それが一番だ','無事に帰ってきた。今日はそれで十分だ']));
+  // 好物・怖いもの・口癖
+  if(sp.food)add('food',1,pick([`帰ったら${sp.food}だ、とそればかり考えてた`,`迷宮の中で、${sp.food}の夢を見た`,`今夜は${sp.food}を頼む。大盛りでな`]));
+  const fo=fearOf(sp);
+  if(fo){const fm=fo.re&&Object.keys(tr.kills).find(n=>fo.re.test(n));const fz=fo.zone&&zoneOf(deep)===fo.zone;
+    if(fm)add('fear',3,pick([`${fm}が出たんだ。……${sp.fear}だけは、どうにも駄目なんだ`,`${fm}を見たとき、正直、足がすくんだ`,`${fm}だけは勘弁してほしい。夢に出そうだ`]));
+    else if(fz)add('fear',3,pick([`${zoneOf(deep)}は、${sp.fear}が苦手な俺には地獄だった`,`ずっと${sp.fear}のことばかり気になって、生きた心地がしなかった`]));
+    else add('fear',.6,`今回は${sp.fear}に出くわさずに済んだ。それだけで上出来だ`);}
+  if(sp.catch)add('catch',.8,pick([`「${sp.catch}」って、今回も何度言ったか`,`迷宮じゃ「${sp.catch}」が口から勝手に出るんだ`]));
+  // 職業
+  const sc=C(sp);
+  if(sp.beast)add('cls',2,pick([`相棒の${sp.beast.name}が${mon}に飛びかかってな。俺より勇ましい`,`${sp.beast.name}のおかげで、罠の匂いに気づけた`,`${sp.beast.name}に、帰ったら一番いい肉をやる約束なんだ`]));
+  else if(sc.song)add('cls',1.5,pick([`迷宮で歌うと、仲間の足取りが軽くなるんだ`,`B${deep}Fは声がよく響く。いい舞台だった`,'竪琴の弦が一本切れた。張り替えないと']));
+  else if(sc.bomb)add('cls',1.5,pick([`調合した薬で${mon}を吹き飛ばした。分量はちょっと多すぎた`,'フラスコを三本割った。いや、二本は敵にぶつけたんだが','迷宮の苔は、いい薬の材料になる']));
+  else if(sc.thief)add('cls',1.5,pick(['宝箱の鍵は、どれも素直だった','罠の針を一本、記念に持って帰ってきた',`B${deep}Fの宝箱は、鍵が一段と意地悪になる`]));
+  else if(sc.heal)add('cls',1.5,pick(['祈りの言葉が、途中で何度も詰まった','傷を塞ぐたびに、少しずつ自分の力が削れていく','神様も、迷宮の底までは見ていないのかもしれない']));
+  else if(sc.mage&&!sc.front)add('cls',1.5,pick(['呪文が尽きたら、俺はただの杖持ちだ',`B${deep}Fの空気は、呪文の通りが悪い`,'呪文を唱えすぎて、頭が割れそうだ']));
+  else if(sc.front)add('cls',1.5,pick(['ずっと前に立ちっぱなしだった。盾がへこんだよ','剣の刃こぼれを数えたら、両手じゃ足りない',`${mon}の攻撃は、全部俺が受け止めた`]));
+  // 仲間との絆
+  if(others.length){const bo=others.map(o=>[o,(bondOf(S,sp,o)||{n:0}).n]).sort((x,y)=>y[1]-x[1])[0];
+    if(bo[1]>=8)add('bond',1.5,pick([`${bo[0].name}とは、もう${bo[1]}回一緒に潜った。背中を任せられるのはあいつだけだ`,`${bo[0].name}の癖は全部知ってる。向こうも俺のを知ってるだろう`]));
+    else if(bo[1]<=1)add('bond',1,pick([`${bo[0].name}とは初めて組んだ。……悪くない`,`${bo[0].name}って新顔、なかなか見どころがある`]));}
   // avoid repeating recent tales
   // 同じ型（数字や名前だけ違う話）も、最近出たものほど出にくくする
   const recent=new Set(S.tales.slice(-15).map(x=>x.t));
