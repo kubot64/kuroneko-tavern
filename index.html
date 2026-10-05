@@ -2524,7 +2524,6 @@ function sideDesk(){
   const debtSect=`<div class="sect"><h3>店の借金と席</h3>
   ${To.debt>0?`<p class="note">開店のときにセーレの両替商から借りた金。30日ごとに${DEBT_DUE}Gと利息（残りの2%）を払う。足りなければ罰金が上乗せされ、取り立て人が店先に居座って評判が落ちる。次の返済まであと${Math.max(1,Math.ceil(((To.nextPay||0)-S.tick)/TICKS_PER_DAY))}日。</p>
   <div class="row"><span class="who"><b>借金の残り ${To.debt}G</b><span class="does">これまでに返した額 ${To.repaid||0}G</span></span>${[1000,10000].filter(x=>x<To.debt).map(x=>`<button class="btn sm" data-act="repay" data-v="${x}" ${To.gold<x?'disabled':''}>${x}G返す</button>`).join('')}<button class="btn sm" data-act="repay" data-v="${To.debt}" ${To.gold<To.debt?'disabled':''}>全額返す</button></div>`:`<p class="note">${To.debtFree!=null?`開店のときの借金は、${Math.floor(To.debtFree/TICKS_PER_DAY)+1}日目に返し終えた。`:'この店に借金はない。'}</p>`}
-  ${!(To.debt>0)&&To.debtFree==null?`<div class="row"><span class="who"><b>新しい黒猫亭で始め直す</b><span class="does">いまの店は、借金なしで開いた古いころの記録。若い店主が借金をして店を開くところから始め直せる。いまの記録は消える。</span></span><button class="btn sm" data-act="reset">始め直す</button></div>`:''}
   <div class="row"><span class="who"><b>常連の席 ${seatCap(S,'ours')}席</b><span class="does">${ns?`店を広げると、${ns[1]}席まで常連を迎えられる。`:'これ以上は広げられない。'}銀の杯亭は${seatCap(S,'rival')}席。</span></span>${ns?`<button class="btn sm" data-act="seats" ${To.gold<ns[2]?'disabled':''}>店を広げる ${ns[2]}G</button>`:''}</div></div>`;
   return debtSect+`<div class="sect"><h3>店の方針　冒険者への支援</h3>
   <p class="note">店の金で常連を支える。生きて帰る者が増え、恩を感じた者は店でよく飲む。これまでの支援 ${T().support||0}G・売上 ${T().earned}G。</p>
@@ -2539,7 +2538,8 @@ function sideDesk(){
   </div>
 <div class="sect"><h3>死体回収の依頼</h3><p class="note">依頼を出すと、同じ階を歩く一行が見つけやすくなり、欲深い者も遺体を連れ帰るようになる。報酬はその階の深さに応じて決まり、回収されたときに支払う。</p>
   ${miss.map(p=>`<div class="row"><span class="who"><b>${esc(p.name)}</b> <span class="meta">${S.taverns[p.tav].name}・B${p.floor}F・${p.members.length}人${p.looted?'・装備が持ち去られた形跡':''}</span></span>${S.bounties[p.id]?`<span class="chip">依頼中 ${S.bounties[p.id]}G</span>`:`<button class="btn sm" data-act="bounty" data-p="${p.id}" ${T().gold<bountyPrice(p)?'disabled':''}>依頼を出す ${bountyPrice(p)}G</button>`}</div>`).join('')||'<p class="note">消息不明の一行はいない。</p>'}</div>
-  <div class="sect"><h3>店の帳簿</h3><div class="row"><span class="who">これまでの売上</span><span class="meta">${T().earned}G</span></div><div class="row"><span class="who">これまでの支援</span><span class="meta">${T().support||0}G</span></div></div>`;
+  <div class="sect"><h3>店の帳簿</h3><div class="row"><span class="who">これまでの売上</span><span class="meta">${T().earned}G</span></div><div class="row"><span class="who">これまでの支援</span><span class="meta">${T().support||0}G</span></div></div>
+  <div class="sect"><h3>記録</h3><div class="row"><span class="who"><b>最初から始める</b><span class="does">いまの記録を消して、若い店主が借金をして黒猫亭を開くところから始め直す。消した記録は戻らない。</span></span><button class="btn sm" data-act="reset">最初から始める</button></div></div>`;
 }
 function sideRank(){
   return `${banzuke()}${sideSmall()}
@@ -2676,7 +2676,7 @@ document.addEventListener('click',e=>{
     S.watch[S.sel]=p.id;render();return;
   }
   if(act==='recall'){const p=S.parties[b.dataset.p];if(p&&p.state==='explore'&&T().gold>=50){T().gold-=50;plog(p,'でんしょばとが まいおりた。「すぐ もどれ」','sys');p.state='return';say(S,p,['……店主の めいれいだ。もどるぞ']);render();save();}return;}
-  if(act==='reset'){if(confirm('いまの記録を消して、新しい黒猫亭で始め直しますか？')){S=newState();for(let i=0;i<6;i++)tick(S);save();autoWatch();render();toast('黒猫亭が店を開いた');}return;}
+  if(act==='reset'){if(confirm('いまの記録を消して、最初から始めますか？\n消した記録は戻りません。')){S=newState();for(let i=0;i<6;i++)tick(S);save();autoWatch();render();toast('黒猫亭が店を開いた');}return;}
   if(act==='repay'){const x=repay(S,+b.dataset.v);if(x)toast(`両替商に${x}Gを返した`);render();save();return;}
   if(act==='seats'){const ns=nextSeats(S);if(ns&&T().gold>=ns[2]){T().gold-=ns[2];T().seats=ns[1];news(S,`黒猫亭が店を広げた。常連の席は${ns[1]}席になった。`,'record');toast(`席が${ns[1]}席になった`);}render();save();return;}
   if(act==='pol'){const k=b.dataset.k,v=+b.dataset.v;policy(S)[k]=k==='potion'?v:!!v;renderSide();save();return;}
