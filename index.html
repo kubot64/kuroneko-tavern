@@ -1447,7 +1447,7 @@ function stepParty(S,p){
   if(roll<.42){meetParty(S,p);return;}
   loreCheck(S,p);
   const safe=safeFloor(S,p);
-  if(p.fsteps>=(hasMap(p)?6:10)&&p.floor<MAXF&&p.floor<Math.min(p.cap||99,Math.max(safe+(owe?.7:0)+(p.plan==='push'?(p.pushWhy?1:.5):0),p.plan==='push'&&p.pushTo?p.pushTo:0))&&r>pers.th-(owe?.06:0)+.25&&chance(.3)){
+  if(p.fsteps>=stairSteps(p)&&p.floor<MAXF&&p.floor<Math.min(p.cap||99,Math.max(safe+(owe?.7:0)+(p.plan==='push'?(p.pushWhy?1:.5):0),p.plan==='push'&&p.pushTo?p.pushTo:0))&&r>pers.th-(owe?.06:0)+.25&&chance(.3)){
     if(p.floor===DRAGON_F&&dragonAlive(S)){say(S,p,DESC[leader(S,p).pers]);dragonEncounter(S,p);return;}
     say(S,p,DESC[leader(S,p).pers]);
     p.floor++;p.fsteps=0;p.trip.deep=Math.max(p.trip.deep,p.floor);
@@ -1582,6 +1582,8 @@ function reachFloor(S,p,byTrap){p.reach=Math.max(p.reach||0,p.floor);
     if(p.floor>both&&p.floor>=5)rivalryNews(S,p);
   }
 }
+// 地図のない階は、深いほど階段を見つけるまでに歩き回る
+function stairSteps(p){return hasMap(p)?6:10+p.floor}
 function hasMap(p){return !!((p.maps&&p.maps[p.floor])||(p.tmap&&p.tmap[p.floor]))}
 function floorArrive(S,p,byTrap){const F=floorsInit(S);const f=p.floor;if(f<1)return;F[f]=F[f]||{};
   // 上の階がまだ突破されていないのに罠で飛ばされて着いたときは、そうと分かるよう印を付ける
