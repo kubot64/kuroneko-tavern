@@ -1377,7 +1377,9 @@ function stepParty(S,p){
       while(roster.length<p.size&&extra.length){const a=extra.shift();a.party=p.id;roster.push(a);plog(p,`${a.name} が なかまに くわわった`,'sys');chron(S,a,`${L.name}に誘われ、${p.name}に加わる`);if(p.tav==='ours')news(S,`${L.name}が、${a.name}を${p.name}に迎え入れた。`,'info');}}
     let ms=roster.filter(a=>a.status==='idle');
     const allIn=ms.length===roster.length;
-    if(ms.length>=3&&(allIn||(p.wait||0)>150)&&(ms.includes(L)||(p.wait||0)>300)){
+    // 寺院で眠る仲間まで数えて6人いるなら、欠けたまま出ずに全員の戻りを待つ
+    const full=roster.length>=p.size;
+    if(ms.length>=3&&(allIn||(!full&&(p.wait||0)>150))&&(ms.includes(L)||(p.wait||0)>300)){
       p.wait=0;
       p.members=ms.map(a=>a.id); ms.forEach(a=>{a.status='party'});
       Object.assign(p,{floor:1,state:'explore',steps:0,fsteps:0,loot:0,carried:[],trip:newTrip(),rescue:[],tmap:{},guard:0,announced:false,knownWiped:false,retrieved:false});
