@@ -806,6 +806,10 @@ function fulfill(S,a,note){
   const d=a.dream;S.stats=S.stats||{dreams:{ours:0,rival:0}};S.stats.dreams[a.tav]=(S.stats.dreams[a.tav]||0)+1;a.pastDreams=a.pastDreams||[];a.pastDreams.push({k:d.k,t:dreamText(d),tk:S.tick,note:note||''});
   a.dream=null;a.nextDreamAt=S.tick+ri(150,400);
 }
+// 店の評判を聞いて、常連と肩を並べられる者が来る。評判が高いほどその割合が増え、残りはこれまでどおりの散らばりで来る
+function newcomerLvl(S,tav){const rs=Object.values(S.adv).filter(a=>a.tav===tav&&a.status!=='lost'&&a.status!=='retired');
+  if(!rs.length||!chance(.5+Math.min(S.taverns[tav].rep||0,200)*.002))return 0;
+  const avg=rs.reduce((s,a)=>s+a.lvl,0)/rs.length;return Math.max(1,Math.round(avg)+ri(-3,3));}
 function makeAdv(S,tav,o){
   o=o||{};
   const race=o.race||wpick(Object.fromEntries(Object.entries(RACE).map(([k,v])=>[k,v.w])));
@@ -1323,7 +1327,7 @@ function tick(S){
   for(const tav of ['ours','rival']){
     if(chance(.12)) formParties(S,tav);
     const rate=(tav==='ours'?0.016+Math.min(S.taverns.ours.rep,200)*0.00008:0.018)*(edict(S,'mercs')?1.8:1);
-    if(seatsUsed(S,tav)<seatCap(S,tav)&&chance(rate)){const a=makeAdv(S,tav,edict(S,'mercs')&&chance(.5)?{origin:'グラウ帝国',race:'人間'}:{}); if(tav==='ours'&&policy(S).rookie&&a.lvl<10){for(let k=0;k<2;k++){const o=giftOffer(S,a);if(!o||o.price>incomeAt(depthOf(a)+2)*3)break;giveGift(S,a,o,'店主から支度の品として');}}
+    if(seatsUsed(S,tav)<seatCap(S,tav)&&chance(rate)){const a=makeAdv(S,tav,Object.assign({lvl:newcomerLvl(S,tav)},edict(S,'mercs')&&chance(.5)?{origin:'グラウ帝国',race:'人間'}:{})); if(tav==='ours'&&policy(S).rookie&&a.lvl<10){for(let k=0;k<2;k++){const o=giftOffer(S,a);if(!o||o.price>incomeAt(depthOf(a)+2)*3)break;giveGift(S,a,o,'店主から支度の品として');}}
       if(tav==='ours') news(S,`新顔がやってきた。${ORIGINS[a.origin].far?'海の向こう、'+a.origin+'から来た':a.origin+'出身の'}${a.bg}だという${a.race==='人間'?a.age+'歳の':'人間でいえば'+humanAge(a)+'歳ほどの'}${a.sex==='女'?'女':''}${a.race}の${a.cls}、${a.name}（レベル${a.lvl}）。${a.odd?a.race+'の'+a.cls+'とは珍しい。':''}${CLS[a.cls].rare?a.cls+'とは、めったに見ない職業だ。':''}${a.blessed?'生まれながらに'+a.traits.join('・')+'を備えた、天に愛された者らしい。':''}${a.cursed?'見るからに星回りが悪い。'+a.traits.join('・')+'と、不得手ばかりだという。':''}`,a.odd||CLS[a.cls].rare||ORIGINS[a.origin].far||a.blessed||a.cursed?'record':'info');
       else if(a.odd||CLS[a.cls].rare) news(S,`噂：銀の杯亭に${a.race}の${a.cls}が現れたらしい。`,'rumor');}
   }
