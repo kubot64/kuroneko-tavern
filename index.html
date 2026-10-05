@@ -146,6 +146,8 @@ button:focus-visible,[tabindex]:focus-visible{outline:2px solid var(--amber);out
 .sum span{font-size:11px;color:var(--muted)}
 @media (max-width:420px){.sum{grid-template-columns:repeat(2,1fr)}}
 .mbox.wide{max-width:640px}
+.ending p{margin:10px 0;line-height:1.8}
+.ending .said{padding-left:1em;border-left:2px solid var(--amber-dim)}
 .nm-link{background:none;border:0;padding:0;font:inherit;color:inherit;font-weight:700;text-decoration:underline;text-decoration-color:var(--amber-dim);text-underline-offset:3px;cursor:pointer}
 .nm-link:hover{color:var(--amber)}
 .c-members .nm-link{font-weight:400;text-decoration-color:#3a4677}
@@ -259,6 +261,14 @@ button:focus-visible,[tabindex]:focus-visible{outline:2px solid var(--amber);out
     <div class="sum" id="dg-sum"></div>
     <ul class="news" id="dg-news"></ul>
     <div style="margin-top:16px;text-align:right"><button class="btn on" data-act="closedigest">店に戻る</button></div>
+  </div>
+</div>
+<div class="modal" id="ending" hidden>
+  <div class="mbox" role="dialog" aria-labelledby="ed-t">
+    <h2 id="ed-t">迷宮踏破</h2>
+    <div class="note" id="ed-sub"></div>
+    <div class="ending" id="ed-body"></div>
+    <div style="margin-top:16px;text-align:right"><button class="btn on" data-act="closeending" id="ed-btn">店に戻る</button></div>
   </div>
 </div>
 
@@ -1542,7 +1552,7 @@ function dragonSlain(S,p){const al=alive(S,p);const first=!S.dragon.kills;S.drag
   al.forEach(a=>{chron(S,a,`B${DRAGON_F}Fで門番の黒竜を討つ`);});
   news(S,`${S.taverns[p.tav].name}の${p.name}が、B${DRAGON_F}Fの門番・黒竜を討ち果たした。${first?'下への道が初めて開かれた。':'しばらくは下への道が開く。'}`,'record');}
 function conquest(S,p){
-  floorThrough(S,p,MAXF);const al=alive(S,p);S.conquered={tk:S.tick,tav:p.tav,party:p.name,names:al.map(a=>a.name)};
+  floorThrough(S,p,MAXF);const al=alive(S,p);S.conquered={tk:S.tick,tav:p.tav,party:p.name,names:al.map(a=>a.name),ending:true};
   plog(p,'……ぎょくざの ひとかげが くずれおちた','sys');plog(p,'めいきゅうは しずまりかえった','sys');
   const CR=r100(incomeAt(20)*20);al.forEach(a=>{a.conq=true;a.gold+=CR;chron(S,a,`B${MAXF}F玉座の間で、沈んだ王を討つ。迷宮踏破`);title(S,a);});
   news(S,`${S.taverns[p.tav].name}の${p.name}（${al.map(a=>a.name).join('・')}）が、B${MAXF}F玉座の間で「沈んだ王」を討ち果たした。迷宮暦81年以来、初めての踏破である。`,'record');
@@ -2372,6 +2382,28 @@ function fastForward(n,awaySec){
   };
   setTimeout(run,40);
 }
+// 踏破の夜のひと幕。どちらの店の客が王を討ったかで、祝われるか、嫌味を言われるかが変わる
+function maybeEnding(){
+  const c=S.conquered;if(ff||!c||!c.ending||!$('digest').hidden||!$('ending').hidden)return;
+  const RO=esc(S.taverns.rival.owner||RIVAL_OWNER),pn=esc(c.party),who=c.names.map(esc).join('・'),d=Math.floor(c.tk/TICKS_PER_DAY)+1;
+  $('ed-sub').textContent=`迷宮暦81年・解禁から${d}日目`;
+  const P=(t,said)=>`<p${said?' class="said"':''}>${t}</p>`;
+  $('ed-body').innerHTML=c.tav==='ours'?[
+    P(`${pn}が、玉座の間から戻ってきた。沈んだ王を討ったのは、${who}。黒猫亭の常連たちだった。`),
+    P('その夜、黒猫亭は朝まで灯りが消えなかった。グンター親方は自分の打った武具の話を何度もくり返し、梟の地図屋は最後の一枚に「踏破」と書き入れて、店の壁に貼っていった。'),
+    P(`夜更けに、銀の杯亭から酒樽がひとつ届いた。${RO}の札が添えてある。`),
+    P('「今夜だけは、おたくの店ですよ。若い店主さん」',true),
+    P('王都からの祝い金と、ロウエンいちばんの名が店に残った。大穴からは今日も澱が湧いている。明日もまた、誰かが潜っていく。')
+  ].join(''):[
+    P(`踏破の知らせは、大穴の向こう岸から届いた。沈んだ王を討ったのは、銀の杯亭の${pn}（${who}）。`),
+    P(`その夜、${RO}がわざわざ黒猫亭の戸口まで来た。上等な外套に、上等な笑みを浮かべて。`),
+    P('「迷宮の底は、うちの客がきれいに片づけておきましたよ。おたくの客は、上の階で小銭でも拾っていてください」',true),
+    P(S.taverns.ours.debt>0?'「ああ、両替商への返済はお忘れなく。踏破の祝いを待ってくれるほど、セーレの連中は気が長くありませんから」':'「祝いの酒なら、うちへ飲みにいらっしゃい。勘定はもちろん、おたく持ちで」',true),
+    P(`${RO}が帰ったあと、常連の誰かがぽつりと言った。「王がいなくなっても、迷宮は終わっちゃいない」。大穴からは今日も澱が湧いている。`)
+  ].join('');
+  $('ed-btn').textContent=c.tav==='ours'?'店に戻る':'見返してやる';
+  $('ending').hidden=false;
+}
 function drawDigest(st){
   const done=st.i>=st.n,days=(st.i/TICKS_PER_DAY).toFixed(1);
   const items=S.news.filter(x=>x.tk>st.startTick);
@@ -2405,7 +2437,7 @@ function render(){
   const T=S.taverns.ours;
   $('day').textContent=day(S);{const c=calDate(S.tick);$('year').textContent=c.y;$('md').textContent=` ${c.m}月${c.d}日 `;$('hr').textContent=`${c.h}時`;}$('gold').textContent=T.gold;$('rep').textContent=T.rep;$('debt').textContent=T.debt||0;$('debtw').hidden=!(T.debt>0);
   $('deep').textContent='B'+Math.max(S.deepest.ours,1)+'F'+(S.conquered?'・踏破済み':'');
-  renderCrystals();renderParties();renderSide();renderAdv();
+  renderCrystals();renderParties();renderSide();renderAdv();maybeEnding();
 }
 function stateText(p){
   if(p.state==='wiped'){
@@ -2630,7 +2662,8 @@ document.addEventListener('click',e=>{
   const act=b.dataset.act;
   if(act==='speed'){setSpeed(+b.dataset.v);return;}
   if(act==='skip'){fastForward(TICKS_PER_DAY,0);return;}
-  if(act==='closedigest'){if(ff)return;$('digest').hidden=true;return;}
+  if(act==='closedigest'){if(ff)return;$('digest').hidden=true;maybeEnding();return;}
+  if(act==='closeending'){$('ending').hidden=true;if(S.conquered)S.conquered.ending=false;save();return;}
   if(act==='adv'){advOpen=+b.dataset.a;$('advm').hidden=false;$('advbox').scrollTop=0;renderAdv();return;}
   if(act==='closeadv'){if(b.id==='advm'&&e.target!==b)return;advOpen=null;$('advm').hidden=true;return;}
   if(act==='tab'){tab=b.dataset.v;$('tbody').scrollTop=0;renderSide();return;}
