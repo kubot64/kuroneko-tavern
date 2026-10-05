@@ -494,7 +494,7 @@ const PUSH={
 function newState(){
   const S={tick:0,nid:1,adv:{},parties:{},news:[],tales:[],memorial:[],
     taverns:{ours:{name:'黒猫亭',gold:400,rep:0,crystals:1,earned:0,debt:DEBT0,seats:12,nextPay:30*TICKS_PER_DAY,late:0},rival:{name:'銀の杯亭',gold:99999,rep:60,owner:RIVAL_OWNER}},
-    bounties:{},deepest:{ours:1,rival:GATE_F},usedNames:{[RIVAL_OWNER]:1},usedParty:{'鉄の誓い':1,'黄金の剣':1,'七つ星':1,'夜鷹':1,'鉄の誓い傭兵団':1,'黄金の剣団':1},usedItems:{},uniqFound:{},farewells:[],edicts:[],v:18,loreFound:{},shop:{tiers:{1:true},mats:{},serial:0,log:[]},watch:[null,null],sel:0,stats:{dreams:{ours:0,rival:0}},small:SMALL_TAV.slice(0,5)};
+    bounties:{},deepest:{ours:1,rival:GATE_F},usedNames:{[RIVAL_OWNER]:1},usedParty:{'鉄の誓い':1,'黄金の剣':1,'七つ星':1,'夜鷹':1,'鉄の誓い傭兵団':1,'黄金の剣団':1},usedItems:{},uniqFound:{},farewells:[],edicts:[],v:19,loreFound:{},shop:{tiers:{1:true},mats:{},serial:0,log:[]},watch:[null,null],sel:0,stats:{dreams:{ours:0,rival:0}},small:SMALL_TAV.slice(0,5)};
   for(let i=0;i<7;i++) makeAdv(S,'ours',{lvl:pick([1,1,1,2,2,3,3,4,5,6])});
   const vets=[];for(let i=0;i<6;i++) vets.push(makeAdv(S,'rival',{lvl:ri(12,17)}));
   for(let i=0;i<22;i++) makeAdv(S,'rival');
@@ -868,7 +868,7 @@ const SEAT_STEPS=[[12,18,5000],[18,24,15000],[24,30,40000],[30,36,100000]];
 function seatCap(S,tav){return tav==='ours'?(S.taverns.ours.seats||30):SEATS.rival}
 function nextSeats(S){return SEAT_STEPS.find(x=>x[0]===seatCap(S,'ours'))||null}
 function seatsUsed(S,tav){return Object.values(S.adv).filter(a=>a.tav===tav&&a.status!=='lost'&&a.status!=='retired').length}
-function freeAdv(S,tav){return Object.values(S.adv).filter(a=>a.tav===tav&&a.status==='idle'&&(!a.party||!S.parties[a.party]||S.parties[a.party].state==='wiped'))}
+function freeAdv(S,tav){return Object.values(S.adv).filter(a=>a.tav===tav&&a.status==='idle'&&(!a.party||!S.parties[a.party]||(S.parties[a.party].state==='wiped'&&!S.parties[a.party].retrieved)))}
 function retire(S,a,why){
   const team=a.party;a.status='retired';a.party=null;
   const mates=Object.values(S.adv).filter(m=>m!==a&&team&&m.party===team&&m.status!=='lost'&&m.status!=='retired');
@@ -947,7 +947,7 @@ function formParties(S,tav,quiet,forced,fname){
   if(!nm){let i=1;do{nm=take[0].name+'隊・'+(++i)}while(S.usedParty[nm]);}
   S.usedParty[nm]=1;
   const p={id:S.nid++,name:nm,tav,leader:L.id,size,members:take.map(a=>a.id),floor:1,state:'explore',steps:0,fsteps:0,
-    log:[],loot:0,carried:[],enemies:null,etype:null,ident:false,rest:0,trip:newTrip(),wipedAt:0,knownWiped:false,seen:-999,killer:''};
+    log:[],loot:0,carried:[],enemies:null,etype:null,ident:false,rest:0,trip:newTrip(),wipedAt:0,knownWiped:false,announced:false,retrieved:false,seen:-999,killer:''};
   take.forEach(a=>{a.party=p.id;a.status='party';chron(S,a,a===L?`仲間を集め、${nm}を結成してリーダーになる`:`${L.name}に誘われ、${nm}に加わる`)});
   S.parties[p.id]=p;
   plog(p,`${nm} が めいきゅうへ おりていく`,'sys');p.maps={};supplyTeam(S,p);setPlan(S,p);floorArrive(S,p);
@@ -996,7 +996,7 @@ function plog(p,t,k){
 function alive(S,p){return p.members.map(id=>A(S,id)).filter(a=>a.hp>0)}
 function leader(S,p){const L=p.leader&&A(S,p.leader);if(L&&L.hp>0&&p.members.includes(L.id))return L;return alive(S,p)[0]||A(S,p.members[0])}
 function leaderScore(a){return PL(a)+(has(a,'人望')?4:0)+({'慎重':1.5,'普通':1,'無謀':.5,'強欲':0,'臆病':-3}[a.pers]||0)+Math.min(3,(a.trips||0)/10)+(humanAge(a)>=30?1:0)}
-function disbandParty(S,p,why){Object.values(S.adv).filter(a=>a.party===p.id).forEach(a=>{a.party=null;if(a.status!=='lost'&&a.status!=='retired')chron(S,a,`${why}、${p.name}は解散する`);});
+function disbandParty(S,p,why){Object.values(S.adv).filter(a=>a.party===p.id).forEach(a=>{a.party=null;if(a.status==='party')a.status='idle';if(a.status!=='lost'&&a.status!=='retired')chron(S,a,`${why}、${p.name}は解散する`);});
   news(S,`${S.taverns[p.tav].name}の${p.name}は、${why}、解散した。`,p.tav==='ours'?'info':'rumor');delete S.parties[p.id];}
 function succession(S,p,roster,old){const why=!old?'リーダーを失い':old.status==='lost'?`リーダーの${old.name}を失い`:old.status==='retired'?`リーダーの${old.name}が店を去り`:`リーダーの${old.name}が${S.taverns[old.tav].name}に移り`;
   const cands=roster.filter(a=>a!==old);if(cands.length<2){disbandParty(S,p,why);return false;}
@@ -1338,9 +1338,9 @@ function tick(S){
     if(policy(S).revive&&S.taverns.ours.gold>=templeCost(S,a)){const c0=templeCost(S,a);S.taverns.ours.gold-=c0;S.taverns.ours.support=(S.taverns.ours.support||0)+c0;favor(a,1);chron(S,a,`店主が蘇生代${c0}Gを出してくれる`);temple(S,a,true);continue;}
     if(a.tw>120){a.tw=0;const cost=templeCost(S,a);a.gold-=cost;chron(S,a,`寺院に${cost}Gの借りを作って蘇生を受ける`);temple(S,a,true);}
   }
-  // the dungeon swallows parties nobody recovers
+  // the dungeon swallows parties nobody recovers. 遺体を運んでいる途中の一行は、運び手が帰るまでこの時計を止める
   for(const p of Object.values(S.parties)){
-    if(p.state==='wiped'&&S.tick-p.wipedAt>1000){
+    if(p.state==='wiped'&&!p.retrieved&&S.tick-p.wipedAt>1000){
       p.members.forEach(id=>{const a=A(S,id);if(a.status!=='missing')return;a.status='lost';a.party=null;chron(S,a,`B${p.floor}Fから戻ることなく、迷宮に呑まれる`);
         S.memorial.push({id:a.id,name:full(a),cls:a.cls,lvl:a.lvl,race:a.race,tav:a.tav,tk:S.tick,by:a.lastBy||p.killer||'不明',floor:p.floor,kills:a.kills});onLostFriend(S,a);});
       news(S,`${S.taverns[p.tav].name}の${p.name}は、ついに見つからなかった。B${p.floor}Fに消えた${p.members.length}人の名が記念碑に刻まれる。`,'lost');
@@ -1357,12 +1357,15 @@ function tick(S){
       else news(S,`噂：銀の杯亭の${p.name}が、B${p.floor}Fから戻らないらしい。${p.pushWhy==='race'?'黒猫亭に負けまいと焦ったのだろう、と皆が言う。':p.pushWhy==='bounty'?'報奨金に目がくらんだのだろう。':''}`,'rumor');
     }
   }
+  releaseRetrieved(S);
 }
 
 function stepParty(S,p){
   if(p.state==='wiped') return;
   if(p.state==='town'){
     p.rest--; if(p.rest>0) return;
+    // 遺体がまだ迷宮にあるあいだは、別の仲間を集めて先に潜らない
+    if(Object.values(S.adv).some(a=>a.party===p.id&&a.status==='missing')) return;
     let roster=Object.values(S.adv).filter(a=>a.party===p.id&&a.status!=='lost'&&a.status!=='retired'&&a.status!=='missing');
     roster.filter(a=>a.tav!==p.tav).forEach(a=>{a.party=null;});roster=roster.filter(a=>a.tav===p.tav);
     let L=A(S,p.leader);
@@ -1377,7 +1380,7 @@ function stepParty(S,p){
     if(ms.length>=3&&(allIn||(p.wait||0)>150)&&(ms.includes(L)||(p.wait||0)>300)){
       p.wait=0;
       p.members=ms.map(a=>a.id); ms.forEach(a=>{a.status='party'});
-      Object.assign(p,{floor:1,state:'explore',steps:0,fsteps:0,loot:0,carried:[],trip:newTrip(),rescue:[],tmap:{},guard:0});
+      Object.assign(p,{floor:1,state:'explore',steps:0,fsteps:0,loot:0,carried:[],trip:newTrip(),rescue:[],tmap:{},guard:0,announced:false,knownWiped:false,retrieved:false});
       plog(p,'――――――――――','move'); plog(p,`${p.name} が ふたたび めいきゅうへ`,'sys');supplyTeam(S,p);setPlan(S,p);
       const lim=Math.min(p.reach||0,Math.floor(safeFloor(S,p)),p.cap||99);const st=STONES.filter(x=>x<=lim).pop();
       if(st){p.floor=st;p.trip.deep=st;plog(p,`てんいの せきひで B${st}F へ（${zoneOf(st)}）`,'sys');}
@@ -1415,7 +1418,7 @@ function stepParty(S,p){
   const th=pers.th+(avgLvl(S,p)<3?.12:0)-(owe?.06:0)-(p.pushWhy?.06:0);
   const lostOne=(al.length<p.members.length||al.some(a=>a.hp<a.mhp*.2))&&leader(S,p).pers!=='無謀';
   let goHome = r<th || lostOne || al.length<=Math.ceil(p.members.length/2) || p.steps>(p.plan==='grind'?220:160) || (healLeft===0&&r<th+.2&&casters.length>0);
-  if(p.carried.length&&!goHome) goHome=true;
+  if((p.carried||[]).length&&!goHome) goHome=true;
   if(goHome){
     p.state='return'; say(S,p,RET[leader(S,p).pers]); return;
   }
@@ -1453,7 +1456,7 @@ function meetParty(S,p){
 }
 
 function findCorpses(S,p,base){
-  const w=Object.values(S.parties).find(q=>q.state==='wiped'&&q.floor===p.floor&&q!==p);
+  const w=Object.values(S.parties).find(q=>q.state==='wiped'&&!q.retrieved&&q.floor===p.floor&&q!==p);
   if(!w) return false;
   const bounty=S.bounties[w.id];
   if(!chance(base+(bounty?.12:0))) return false;
@@ -1471,11 +1474,12 @@ function findCorpses(S,p,base){
     return true;
   }
   plog(p,`${lp.name}「つれて かえろう」`,'say');
-  for(const id of w.members){p.carried.push(id); A(S,id).carriedBy=p.id; chron(S,A(S,id),`${p.name}に遺体を見つけられ、街へ運ばれる`);}
+  for(const id of w.members){if(!(p.carried||[]).includes(id))p.carried.push(id); const a=A(S,id);if(!a)continue;a.carriedBy=p.id; chron(S,a,`${p.name}に遺体を見つけられ、街へ運ばれる`);}
   if(!w.announced&&w.tav==='ours') news(S,`${p.name}がB${w.floor}Fで${w.name}を発見。遺体を連れ帰る。`,'info');
   else news(S,`${p.name}${p.tav==='rival'?'（銀の杯亭）':''}がB${w.floor}Fで${w.name}の遺体を回収。${w.killer?w.killer+'にやられたらしい。':''}`,'info');
   p.bountyFor=p.bountyFor||[]; if(bounty) p.bountyFor.push(bounty);
-  Object.assign(w,{state:'town',rest:0,wait:0,members:[],floor:0,enemies:null,announced:true,knownWiped:false});
+  // 街に着くまで消息不明のままにする。ここで仲間を入れ直すと、全滅した一行がその場で潜り直してしまう
+  w.retrieved=true;w.announced=true;w.enemies=null;
   plog(w,'――――――――――','move');plog(w,`${p.name}によって いこつが まちへ はこばれた`,'sys');
   delete S.bounties[w.id];
   p.state='return';
@@ -1897,10 +1901,20 @@ function wipe(S,p,by){
   plog(p,'……','death');plog(p,'いっこうは ぜんめつした','death');
   p.members.forEach(id=>{const a=A(S,id);a.hp=0;a.status='missing';a.lastFloor=p.floor;});
   // carried corpses fall again with them
-  p.carried.forEach(id=>{const a=A(S,id);a.status='missing';p.members.push(id);});p.carried=[];
+  (p.carried||[]).forEach(id=>{const a=A(S,id);if(!a)return;a.status='missing';if(!p.members.includes(id))p.members.push(id);});p.carried=[];
   (p.bountyFor||[]).forEach(b=>{if(b)S.taverns.ours.gold+=b;});p.bountyFor=[];
   const watched=S.watch.includes(p.id);
   if(watched&&p.tav==='ours'){p.knownWiped=true;p.announced=true;news(S,`水晶が${p.name}の最期を映した。B${p.floor}F、${by}に倒れる。${p.pushWhy==='race'?'銀の杯亭に先を越されまいとした末だった。':p.pushWhy==='first'?'一番乗りを狙った末だった。':p.pushWhy==='bounty'?'報奨金を狙った末だった。':p.pushWhy==='avenge'?'仇を追った末だった。':''}`,'death');}
+  if(p.tav==='rival'&&S.ace===p.id){p.ace=false;S.ace=null;pickAce(S);}
+}
+// 運ばれていた遺体が街に着いた（あるいは途中でロストした）ら、一行を街の支度に戻す
+function releaseRetrieved(S){
+  for(const p of Object.values(S.parties)){
+    if(p.state!=='wiped'||!p.retrieved) continue;
+    if(Object.values(S.adv).some(a=>a.party===p.id&&a.status==='missing')) continue;
+    p.retrieved=false;p.state='town';p.rest=ri(14,24);p.wait=0;p.floor=0;p.enemies=null;p.announced=false;p.knownWiped=false;
+    p.members=(p.members||[]).filter(id=>{const a=A(S,id);return a&&a.party===p.id&&a.status!=='lost'&&a.status!=='retired';});
+  }
 }
 function arrive(S,p){
   const tav=S.taverns[p.tav];
@@ -2146,7 +2160,7 @@ function debtTick(S){const T0=S.taverns.ours;if(!(T0.debt>0))return;if(T0.nextPa
   debtNews(S);}
 function moveTav(S,a,tav){const team=a.party&&S.parties[a.party];if(team&&team.state!=='town')return false;
   a.party=null;const from=S.taverns[a.tav].name;a.tav=tav;a.favor=0;chron(S,a,`${from}を出て、${S.taverns[tav].name}の客になる`);return true;}
-function pickAce(S,quiet){const ps=Object.values(S.parties).filter(p=>p.tav==='rival'&&p.state!=='wiped');if(!ps.length)return;
+function pickAce(S,quiet){const ps=Object.values(S.parties).filter(p=>p.tav==='rival'&&p.state!=='wiped');if(!ps.length){if(S.ace&&S.parties[S.ace])S.parties[S.ace].ace=false;S.ace=null;return;}
   ps.sort((x,y)=>avgLvl(S,y)-avgLvl(S,x));const b=ps[0];if(S.ace===b.id)return;Object.values(S.parties).forEach(p=>{p.ace=false;});S.ace=b.id;b.ace=true;
   if(!quiet)news(S,`噂：銀の杯亭の看板は、${b.name}に代わったらしい。`,'rumor');}
 function rivalryNews(S,p){const RO=S.taverns.rival.owner||RIVAL_OWNER;
@@ -2278,6 +2292,15 @@ function migrate(S){
     Object.values(S.parties).forEach(p=>{p.bountyFor=(p.bountyFor||[]).map(c=>{const x=Math.max(0,Math.min(T0.gold,c||0));T0.gold-=x;return x;});});S.v=17;}
   if(!(S.v>=18)){const R=S.rares||{},o={...R};// 王国に仕えた名のある魔物をB21Fより下へ移した。記録も魔物について移す
     [[13,23],[18,26],[23,18],[26,13]].forEach(([to,from])=>{if(o[from])R[to]=o[from];else delete R[to];});S.rares=R;S.v=18;}
+  if(!(S.v>=19)){// 全滅した一行が、遺体が街に着く前に別の仲間で潜り直していた。運んでいる途中の一行は消息不明に戻す
+    Object.values(S.parties||{}).forEach(p=>{
+      if(p.announced==null)p.announced=false;if(p.knownWiped==null)p.knownWiped=false;if(p.retrieved==null)p.retrieved=false;if(!p.carried)p.carried=[];
+      if(p.state==='town'&&!(p.members&&p.members.length)){
+        const missing=Object.values(S.adv).filter(a=>a.party===p.id&&a.status==='missing');
+        if(missing.length){
+          p.state='wiped';p.retrieved=true;p.announced=true;p.members=missing.map(a=>a.id);if(!p.wipedAt)p.wipedAt=S.tick;if(!p.floor)p.floor=missing[0].lastFloor||1;}
+      }
+    });S.v=19;}
   Object.values(S.adv).forEach(a=>{if(!a.tone)personalize(a);if(!a.traits)assignTraits(S,a,true);});
   smallOf(S);
   Object.values(S.adv).filter(a=>a.title&&!a.titleKind&&a.status!=='lost'&&a.status!=='retired').forEach(a=>{a.title='';title(S,a,true);});
@@ -2380,7 +2403,7 @@ function render(){
 }
 function stateText(p){
   if(p.state==='wiped'){
-    if(p.tav==='ours') return p.knownWiped?[`全滅（B${p.floor}F）`,true]:(S.tick-p.wipedAt<15?[`B${p.floor}F 探索中…？`,false]:[`消息不明（B${p.floor}F）`,true]);
+    if(p.tav==='ours') return p.knownWiped?[`全滅（B${p.floor}F）`,true]:(!p.retrieved&&S.tick-p.wipedAt<15?[`B${p.floor}F 探索中…？`,false]:[`消息不明（B${p.floor}F）`,true]);
     return [`消息不明（噂）`,true];
   }
   if(p.state==='town') return [(p.wait||0)>10?'仲間の回復を待っている':'酒場で休息中',false];
@@ -2458,7 +2481,7 @@ function sideRoster(){
     g(a=>a.status==='dead'||a.status==='ash','寺院で眠る者')+g(a=>a.status==='party','探索中')+g(a=>a.status==='idle','酒場')+g(a=>a.status==='missing','行方不明');
 }
 function sideDesk(){
-  const miss=Object.values(S.parties).filter(p=>p.state==='wiped'&&p.announced);
+  const miss=Object.values(S.parties).filter(p=>p.state==='wiped'&&p.announced&&!p.retrieved);
   const To=T(),ns=nextSeats(S);
   const debtSect=`<div class="sect"><h3>店の借金と席</h3>
   ${To.debt>0?`<p class="note">開店のときにセーレの両替商から借りた金。30日ごとに${DEBT_DUE}Gと利息（残りの2%）を払う。足りなければ罰金が上乗せされ、取り立て人が店先に居座って評判が落ちる。次の返済まであと${Math.max(1,Math.ceil(((To.nextPay||0)-S.tick)/TICKS_PER_DAY))}日。</p>
@@ -2501,7 +2524,7 @@ function banzuke(){
   const lost=cnt(c=>{S.memorial.forEach(m=>{if(c[m.tav]!=null)c[m.tav]++;});});
   const dr=(S.stats&&S.stats.dreams)||{ours:0,rival:0};
   const rows=[['最深到達',`B${S.deepest.ours}F`,`B${S.deepest.rival}F`,S.deepest.ours-S.deepest.rival],['初到達した階（解禁後）',arr.ours,arr.rival,arr.ours-arr.rival],['最初に突破した階',thr.ours,thr.rival,thr.ours-thr.rival],['名のある魔物の討伐',rar.ours,rar.rival,rar.ours-rar.rival],['かなえた夢',dr.ours||0,dr.rival||0,(dr.ours||0)-(dr.rival||0)],['常連の数',seatsUsed(S,'ours'),seatsUsed(S,'rival'),seatsUsed(S,'ours')-seatsUsed(S,'rival')],['評判',T().rep,S.taverns.rival.rep,T().rep-S.taverns.rival.rep],['ロストした者',lost.ours,lost.rival,lost.rival-lost.ours]];
-  const ace=S.parties[S.ace];const won=rows.filter(r=>r[3]>0).length;
+  const aceP=S.parties[S.ace];const ace=aceP&&aceP.state!=='wiped'?aceP:null;const won=rows.filter(r=>r[3]>0).length;
   return `<div class="sect"><h3>番付　黒猫亭 対 銀の杯亭</h3><p class="note">銀の杯亭の主人は${esc(S.taverns.rival.owner||RIVAL_OWNER)}。看板の一行は${ace?esc(ace.name):'いまはいない'}。${won>=6?'もう、黒猫亭を新参と呼ぶ者はいない。':won>=4?'黒猫亭は、銀の杯亭と肩を並べはじめている。':'黒猫亭は、まだ追いかける側だ。'}</p>
   <div class="tblwrap"><table class="maptbl"><thead><tr><th></th><th>黒猫亭</th><th>銀の杯亭</th></tr></thead><tbody>${rows.map(r=>`<tr><td>${r[0]}</td><td>${r[3]>0?'<b>'+r[1]+'</b>':r[1]}</td><td>${r[3]<0?'<b>'+r[2]+'</b>':r[2]}</td></tr>`).join('')}</tbody></table></div></div>`;
 }
@@ -2609,7 +2632,7 @@ document.addEventListener('click',e=>{
   if(act==='selc'){S.sel=+b.dataset.i;render();return;}
   if(act==='watch'){
     const p=S.parties[b.dataset.p];
-    if(!visible(p)){toast(p.tav==='rival'?'銀の杯亭の一行は、すれ違ったときしか見えない':'水晶は闇しか映さない');return;}
+    if(!visible(p)){toast(p.state==='wiped'?(p.tav==='rival'?'銀の杯亭の全滅は、噂でしか伝わらない':'水晶は闇しか映さない'):(p.tav==='rival'?'銀の杯亭の一行は、すれ違ったときしか見えない':'水晶は闇しか映さない'));return;}
     const j=S.watch.indexOf(p.id);if(j>=0){S.sel=j;render();return;}
     S.watch[S.sel]=p.id;render();return;
   }
