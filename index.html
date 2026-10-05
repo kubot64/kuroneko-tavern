@@ -168,8 +168,9 @@ button:focus-visible,[tabindex]:focus-visible{outline:2px solid var(--amber);out
 .eqtab .rare{color:var(--amber)}
 .eqtab .none{color:var(--muted)}
 .mat{display:grid;grid-template-columns:76px minmax(0,1fr) 64px;gap:2px 8px;align-items:center;font-size:12.5px;padding:4px 0}
-.mat .bar{align-self:center;height:6px;background:var(--panel2);border-radius:3px;overflow:hidden}
-.mat .bar i{display:block;height:100%;background:var(--amber)}
+/* 帳場の .bar とは別。そちらの padding を継ぐと、border-box で塗り（i）の高さが 0 になる */
+.mat .matbar{display:block;height:6px;padding:0;border:0;background:var(--panel2);border-radius:3px;overflow:hidden}
+.mat .matbar i{display:block;height:100%;background:var(--amber)}
 .mat>span:last-child{grid-column:2 / -1;font-size:11px}
 .tiers{display:flex;flex-wrap:wrap;gap:4px;margin-bottom:8px}
 .tblwrap{overflow-x:auto}
@@ -2546,7 +2547,7 @@ let shopTier=1;
 function sideShop(){
   const sh=shopInit(S);const open=[1,2,3,4,5,6,7].filter(t=>sh.tiers[t]);if(!sh.tiers[shopTier])shopTier=open.at(-1);
   const prog=[2,3,4,5,6,7].map(t=>{const T=SHOP_TIERS[t];const have=Math.min(T.need,sh.mats[T.mat]||0);
-    return `<div class="mat"><span>${T.mat}</span><span class="bar"><i style="width:${Math.round(have/T.need*100)}%"></i></span><span class="meta">${sh.tiers[t]?'入荷済み':have+' / '+T.need}</span><span class="meta">→ ${T.label}</span></div>`}).join('');
+    return `<div class="mat"><span>${T.mat}</span><span class="matbar"><i style="width:${Math.round(have/T.need*100)}%"></i></span><span class="meta">${sh.tiers[t]?'入荷済み':have+' / '+T.need}</span><span class="meta">→ ${T.label}</span></div>`}).join('');
   const SLOTN={wpn:'武器',shield:'盾',head:'頭',body:'胴',acc:'装飾'};
   const rows=ITEM_BASES.map(b=>{const t=shopTier;const desc=b.t==='指輪'?`命中+${4*t}% か 攻+${t+1}`:b.t==='お守り'?`毒耐性${30+10*t}% か 罠解除+${6*t}%`:itemStat(Object.assign({},b.two?{two:true}:{},b.st(t)));
     return `<tr><td>${SHOP_MAT[b.m][shopTier-1]}の${b.t}</td><td class="meta">${SLOTN[b.slot]}</td><td class="meta">${esc(desc)}</td><td class="num">${shopPrice(b,shopTier)}G</td></tr>`}).join('');
