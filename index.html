@@ -873,9 +873,17 @@ function retire(S,a,why){
   const mates=Object.values(S.adv).filter(m=>m!==a&&team&&m.party===team&&m.status!=='lost'&&m.status!=='retired');
   eqList(a).forEach(it=>{const m=giveBest(S,mates,it,null);if(m){a.eq[it.slot]=null;chron(S,m,`店を去る${a.name}から${it.n}を託される`);chron(S,a,`${it.n}を${m.name}に託す`);}});
   chron(S,a,`${why}ため、${S.taverns[a.tav].name}を去る`);
+  // 店主に恩のある常連は、去る前に恩を返していく。もう「恩を返す」夢を叶えた者は、そのぶん少なめ
+  const gift=farewellGift(a);
+  if(gift>0){a.gold-=gift;S.taverns.ours.gold+=gift;S.taverns.ours.earned+=gift;chron(S,a,`店主への恩を返すため、${gift}Gを置いていく`);}
   S.farewells=S.farewells||[];S.farewells.push({id:a.id,name:full(a),tav:a.tav,tk:S.tick,why,lvl:a.lvl,cls:a.cls,race:a.race,sex:a.sex,age:a.age,hage:humanAge(a),race2:a.race});
-  news(S,`${S.taverns[a.tav].name}の${full(a)}が、${why}ため店を去った。`,'record');
+  if(a.tav==='ours'&&(a.favor||0)>=2)news(S,gift>0?`黒猫亭の${full(a)}が、${why}ため店を去った。「店主には世話になった。この恩は忘れない」と、${gift}Gを置いていった。`:`黒猫亭の${full(a)}が、${why}ため店を去った。「店主には世話になった。いつか必ず、この恩は返す」と言い残して。`,'record');
+  else news(S,`${S.taverns[a.tav].name}の${full(a)}が、${why}ため店を去った。`,'record');
 }
+function farewellGift(a){if(a.tav!=='ours'||(a.favor||0)<2)return 0;
+  const repaid=(a.pastDreams||[]).some(d=>d.k==='payback');
+  let g=Math.min(a.gold*.6,incomeAt(depthOf(a)+2)*Math.min(10,2+a.favor))*(repaid?.5:1);
+  g=Math.round(g/100)*100;return g>=300?g:0;}
 function checkDream(S,a){
   if(a.status!=='idle')return;
   if(!a.dream){if(S.tick>=(a.nextDreamAt||0)){a.dream=makeDream(S,a);chron(S,a,`新たな夢を抱く――${dreamText(a.dream)}`);}return;}
