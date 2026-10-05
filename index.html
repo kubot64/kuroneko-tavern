@@ -867,7 +867,7 @@ const SEAT_STEPS=[[12,18,5000],[18,24,15000],[24,30,40000],[30,36,100000]];
 function seatCap(S,tav){return tav==='ours'?(S.taverns.ours.seats||30):SEATS.rival}
 function nextSeats(S){return SEAT_STEPS.find(x=>x[0]===seatCap(S,'ours'))||null}
 function seatsUsed(S,tav){return Object.values(S.adv).filter(a=>a.tav===tav&&a.status!=='lost'&&a.status!=='retired').length}
-function freeAdv(S,tav){return Object.values(S.adv).filter(a=>a.tav===tav&&a.status==='idle'&&(!a.party||!S.parties[a.party]||S.parties[a.party].state==='wiped'))}
+function freeAdv(S,tav){return Object.values(S.adv).filter(a=>a.tav===tav&&a.status==='idle'&&(!a.party||!S.parties[a.party]||(S.parties[a.party].state==='wiped'&&!S.parties[a.party].retrieved)))}
 function retire(S,a,why){
   const team=a.party;a.status='retired';a.party=null;
   const mates=Object.values(S.adv).filter(m=>m!==a&&team&&m.party===team&&m.status!=='lost'&&m.status!=='retired');
@@ -2296,7 +2296,7 @@ function migrate(S){
       if(p.announced==null)p.announced=false;if(p.knownWiped==null)p.knownWiped=false;if(p.retrieved==null)p.retrieved=false;if(!p.carried)p.carried=[];
       if(p.state==='town'&&!(p.members&&p.members.length)){
         const missing=Object.values(S.adv).filter(a=>a.party===p.id&&a.status==='missing');
-        if(missing.length){Object.values(S.adv).filter(a=>a.party===p.id&&a.status==='idle').forEach(a=>{a.party=null;});
+        if(missing.length){
           p.state='wiped';p.retrieved=true;p.announced=true;p.members=missing.map(a=>a.id);if(!p.wipedAt)p.wipedAt=S.tick;if(!p.floor)p.floor=missing[0].lastFloor||1;}
       }
     });S.v=19;}
