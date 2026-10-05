@@ -844,7 +844,25 @@ function makeAdv(S,tav,o){
 const SEATS={ours:30,rival:32};
 const RIVAL_OWNER='ロドリック';const ACE_NAME='白銀の牙';
 const DEBT0=80000,DEBT_DUE=4000;
-const SMALL_TAV=['赤い樽亭','片目の鴉亭','三本足の椅子亭','錆びた錨亭','灰かぶり亭','眠る羊亭','欠けた月亭','山羊の角亭','煤けた竈亭'];
+const SMALL_TAV=['赤い樽亭','片目の鴉亭','三本足の椅子亭','錆びた錨亭','灰かぶり亭','眠る羊亭','欠けた月亭','山羊の角亭','煤けた竈亭','傾いた梯子亭','青い蝋燭亭','七つ釘亭'];
+const SMALL_NA=['赤い','片目の','三本足の','錆びた','灰かぶりの','眠る','欠けた','山羊の','煤けた','傾いた','青い','七つの','酔いどれ','古い','黒い','笑う','歌う','割れた','曲がった','雨ざらしの'];
+const SMALL_NB=['樽','鴉','椅子','錨','羊','月','竈','梯子','蝋燭','釘','靴','鍋','灯','鐘','蹄鉄','杯','鼠','鍵','煙突','手斧'];
+// 新しい店の名前。いま開いている店とたたんだ店の名前は使わない
+function smallName(S,list){const used=new Set(list.map(t=>t.n).concat(S.smallClosed.map(x=>x.n)));
+  const free=SMALL_TAV.filter(n=>!used.has(n));if(free.length&&chance(.5))return pick(free);
+  for(let i=0;i<50;i++){const n=pick(SMALL_NA)+pick(SMALL_NB)+'亭';if(!used.has(n))return n;}return null;}
+const SMALL_TRAIT=['ドワーフの親方が自分で醸す黒麦酒が自慢の','港の荒くれが集まる','元冒険者の主人が古い地図を見せてくれる','安さだけが取り柄の','夜ごとに吟遊詩人が歌う','ホビットの夫婦が切り盛りする','帝国の傭兵くずれがたむろする','寺院の下働きが仕事帰りに寄る','博打の卓が奥にある','煮込みが一晩中煮えている'];
+const SMALL_WHY={debt:['借金が返せず','借金が返せなかった'],wipe:['一行を迷宮で失ってから客足が戻らず','一行を迷宮で失ってから、客足が戻らなかった'],poach:['常連を銀の杯亭に持っていかれ','常連を銀の杯亭に持っていかれた'],fight:['揉め事続きで客が寄りつかなくなり','揉め事続きで、客が寄りつかなくなった']};
+const SMALL_MOOD=[[2,'繁盛'],[0,'ふつう'],[-1,'客足が落ちている'],[-9,'傾いている']];
+function smallMood(t){return SMALL_MOOD.find(([v])=>t.score>=v)[1]}
+// 裏通りの小さな酒場。名前だけだった古い記録は、ここで中身を持たせる
+function smallOf(S){
+  if(!S.small)S.small=SMALL_TAV.slice(0,5);
+  const out=[];S.small.forEach(t=>out.push(typeof t==='string'?newSmall(S,t,0,out):t));S.small=out;
+  S.smallClosed=S.smallClosed||[];
+  return S.small;}
+function newSmall(S,n,tk,list){const g=pick(['男','女']);const used=list.map(t=>t.trait);const tr=SMALL_TRAIT.filter(x=>!used.includes(x));return {n,owner:uname(S,g),trait:pick(tr.length?tr:SMALL_TRAIT),score:0,since:tk,log:[]};}
+function smallLog(S,t,txt,d){t.score=clamp(t.score+d,-3,3);t.log.push({tk:S.tick,t:txt});if(t.log.length>3)t.log.shift();}
 const SEAT_STEPS=[[12,18,5000],[18,24,15000],[24,30,40000],[30,36,100000]];
 function seatCap(S,tav){return tav==='ours'?(S.taverns.ours.seats||30):SEATS.rival}
 function nextSeats(S){return SEAT_STEPS.find(x=>x[0]===seatCap(S,'ours'))||null}
@@ -2115,14 +2133,26 @@ function pickAce(S,quiet){const ps=Object.values(S.parties).filter(p=>p.tav==='r
 function rivalryNews(S,p){const RO=S.taverns.rival.owner||RIVAL_OWNER;
   if(p.tav==='rival'&&S.deepest.ours<p.floor-1&&chance(.5))news(S,`銀の杯亭の${RO}「黒猫亭さんの客は、まだB${S.deepest.ours}Fあたりですか。若い店主さんには、荷が重いでしょう」`,'rumor');
   else if(p.tav==='ours'&&S.deepest.rival<p.floor&&chance(.6))news(S,`噂：黒猫亭の${p.name}の名を聞いて、銀の杯亭の${RO}が舌打ちしたらしい。`,'rumor');}
-function smallEvent(S){S.small=S.small||SMALL_TAV.slice(0,5);if(!S.small.length)S.small.push(pick(SMALL_TAV));const t=pick(S.small);
-  const deep=Math.max(3,Math.min(S.deepest.ours,S.deepest.rival));const f=ri(Math.max(1,deep-4),Math.max(1,deep-1));const k=R();
-  if(k<.3)news(S,`噂：${t}の一行が、B${f}Fで全滅したらしい。`,'rumor');
-  else if(k<.5)news(S,`噂：${t}の一行が、B${f}Fから大きな稼ぎを持ち帰ったらしい。`,'rumor');
-  else if(k<.65){S.small=S.small.filter(x=>x!==t);news(S,`${t}が店をたたんだ。迷宮に客を取られ、借金だけが残ったという。`,'info');
-    if(seatsUsed(S,'ours')<seatCap(S,'ours')&&chance(.3+Math.min(.4,S.taverns.ours.rep*.003))){const a=makeAdv(S,'ours',{lvl:ri(3,10),bg:`店をたたんだ${t}の元常連`});news(S,`店をたたんだ${t}から、${a.name}（${a.race}の${a.cls}・レベル${a.lvl}）が黒猫亭に流れてきた。`,'record');}}
-  else if(k<.8&&S.small.length<6){const nt=pick(SMALL_TAV.filter(x=>!S.small.includes(x)));if(nt){S.small.push(nt);news(S,`裏通りに、新しい酒場「${nt}」が開いた。`,'info');}}
-  else news(S,`噂：${t}の客と銀の杯亭の客が、店の前で殴り合いになったらしい。`,'rumor');}
+function smallEvent(S){const list=smallOf(S);
+  const deep=Math.max(3,Math.min(S.deepest.ours,S.deepest.rival));const f=ri(Math.max(1,deep-4),Math.max(1,deep-1));
+  // 傾いた店は、たたむことがある。理由は、その店に最近あった悪い出来事から決める
+  const low=list.filter(t=>t.score<=-2&&S.tick-t.since>TICKS_PER_DAY*10);
+  if(low.length&&chance(.5)){const t=pick(low);const bad=[...t.log].reverse().find(x=>x.bad);
+    const [why,past]=SMALL_WHY[bad?bad.bad:'debt'];
+    S.small=list.filter(x=>x!==t);S.smallClosed.push({n:t.n,owner:t.owner,tk:S.tick,why:past});
+    news(S,`裏通りの${t.n}が、${why}、店をたたんだ。`,'info');
+    if(seatsUsed(S,'ours')<seatCap(S,'ours')&&chance(.3+Math.min(.4,S.taverns.ours.rep*.003))){const a=makeAdv(S,'ours',{lvl:ri(3,10),bg:`店をたたんだ${t.n}の元常連`});news(S,`店をたたんだ${t.n}から、${a.name}（${a.race}の${a.cls}・レベル${a.lvl}）が黒猫亭に流れてきた。`,'record');}
+    return;}
+  const nn=list.length<6?smallName(S,list):null;
+  const canOpen=!!nn;let k=R();if(k<.15&&!canOpen)k=.15+R()*.85;
+  if((k<.15||!list.length)&&canOpen){const t=newSmall(S,nn,S.tick,list);list.push(t);smallLog(S,t,'店を開いた',0);
+    news(S,`裏通りに新しい酒場、${t.n}が開いた。主人は${t.owner}。${t.trait}店だという。`,'info');return;}
+  if(!list.length)return;const t=pick(list);
+  if(k<.4){smallLog(S,t,`B${f}Fで一行が全滅した`,-1);t.log[t.log.length-1].bad='wipe';news(S,`噂：裏通りの${t.n}の一行が、B${f}Fで全滅したらしい。`,'rumor');}
+  else if(k<.6){smallLog(S,t,`B${f}Fから大きな稼ぎを持ち帰った`,1);news(S,`噂：裏通りの${t.n}の一行が、B${f}Fから大きな稼ぎを持ち帰ったらしい。`,'rumor');}
+  else if(k<.72){smallLog(S,t,'常連が銀の杯亭に引き抜かれた',-1);t.log[t.log.length-1].bad='poach';news(S,`噂：裏通りの${t.n}の常連が、銀の杯亭に引き抜かれたらしい。`,'rumor');}
+  else if(k<.84){smallLog(S,t,'客が銀の杯亭の客と殴り合った',-1);t.log[t.log.length-1].bad='fight';news(S,`噂：裏通りの${t.n}の客と銀の杯亭の客が、店の前で殴り合いになったらしい。`,'rumor');}
+  else{smallLog(S,t,'評判を聞いた客が増えた',1);news(S,`噂：裏通りの${t.n}が、このところ客でにぎわっているらしい。`,'rumor');}}
 function rivalTick(S){
   if(S.nextSmall==null)S.nextSmall=S.tick+ri(4,8)*TICKS_PER_DAY;
   if(S.tick>=S.nextSmall){S.nextSmall=S.tick+ri(6,12)*TICKS_PER_DAY;smallEvent(S);}
@@ -2228,6 +2258,7 @@ function migrate(S){
     Object.keys(S.bounties).forEach(id=>{const c=S.bounties[id];if(T0.gold>=c)T0.gold-=c;else delete S.bounties[id];});
     Object.values(S.parties).forEach(p=>{p.bountyFor=(p.bountyFor||[]).map(c=>{const x=Math.max(0,Math.min(T0.gold,c||0));T0.gold-=x;return x;});});S.v=17;}
   Object.values(S.adv).forEach(a=>{if(!a.tone)personalize(a);if(!a.traits)assignTraits(S,a,true);});
+  smallOf(S);
   Object.values(S.adv).filter(a=>a.title&&!a.titleKind&&a.status!=='lost'&&a.status!=='retired').forEach(a=>{a.title='';title(S,a,true);});
 }
 function migrateV2(S){
@@ -2429,10 +2460,13 @@ function sideDesk(){
   <div class="sect"><h3>店の帳簿</h3><div class="row"><span class="who">これまでの売上</span><span class="meta">${T().earned}G</span></div><div class="row"><span class="who">これまでの支援</span><span class="meta">${T().support||0}G</span></div></div>`;
 }
 function sideRank(){
-  return `${banzuke()}
+  return `${banzuke()}${sideSmall()}
   <div class="sect"><h3>迷宮の記録　${Object.keys(S.loreFound||{}).length} / ${LORE.length}</h3>${LORE.map((L,i)=>{const f=(S.loreFound||{})[i];return f?`<div class="quote">「${esc(L.t)}」<span class="by">B${L.f}F付近の${esc(L.what)}・${esc(S.taverns[f.tav].name)}の${esc(f.party)}が発見</span></div>`:`<div class="quote"><span class="by">B${L.f}Fより深く……まだ見つかっていない</span></div>`}).join('')}
   ${S.conquered?`<p class="note">迷宮暦81年・解禁から${Math.floor(S.conquered.tk/TICKS_PER_DAY)+1}日目、${esc(S.taverns[S.conquered.tav].name)}の${esc(S.conquered.party)}が沈んだ王を討ち、迷宮は踏破された。</p>`:''}</div>`;
 }
+function sideSmall(){const list=smallOf(S);const day=tk=>Math.floor(tk/TICKS_PER_DAY)+1;
+  return `<div class="sect"><h3>裏通りの酒場　${list.length}軒</h3>${list.map(t=>{const L=t.log[t.log.length-1];return `<div class="quote"><b>${esc(t.n)}</b>　${smallMood(t)}<br>主人は${esc(t.owner)}。${esc(t.trait)}店。${L?`<span class="by">${day(L.tk)}日目：${esc(L.t)}</span>`:''}</div>`}).join('')||'<p class="note">いま裏通りに酒場はない。</p>'}
+  ${S.smallClosed.length?`<p class="note">たたんだ店：${S.smallClosed.slice(-8).reverse().map(x=>`${esc(x.n)}（${day(x.tk)}日目。${esc(x.why)}）`).join('、')}</p>`:''}</div>`;}
 function sideRef(){
   return `<div class="sect"><h3>呪文の一覧</h3>${SPELL_LIST.map(([n,d,w])=>`<div class="cl"><b>${n}</b><span>${esc(d)}。<br>使える者：${esc(w)}</span></div>`).join('')}</div>
   <div class="sect"><h3>職業の一覧</h3>
