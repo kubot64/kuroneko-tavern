@@ -1426,20 +1426,7 @@ function stepParty(S,p){
     floorThrough(S,p,p.floor-1);
     plog(p,`かいだんを おりた……B${p.floor}F`,'sys');p.reach=Math.max(p.reach||0,p.floor);
     floorArrive(S,p);if(isFrontier(S,p.floor))plog(p,'だれも しらない かいだ。くうきが ちがう','death');else if(!hasMap(p))plog(p,'ちずの ない かいだ。しんちょうに すすめ','move');
-    if(ZONES.some(z=>z[0]===p.floor))plog(p,`――ここから先は ${zoneOf(p.floor)}――`,'sys');
-    if(p.floor===MAXF&&!S.conquered){encounter(S,p);}
-    alive(S,p).forEach(a=>{if(p.floor>a.deepest){a.deepest=p.floor;if(p.floor>=3)chron(S,a,`はじめてB${p.floor}Fに足を踏み入れる`);}
-      const d=a.dream;if(d&&(d.k==='deep'&&p.floor===d.f||d.k==='abyss'&&p.floor===MAXF))plog(p,`${a.name}「……これが B${p.floor}Fの けしき……」`,'say');});
-    const eb=edict(S,'bounty');
-    if(eb&&p.floor>=eb.f&&!eb.paid){eb.paid=true;eb.until=S.tick;alive(S,p).forEach(a=>{a.gold+=eb.amt;chron(S,a,`王国の報奨金${eb.amt}Gを受け取る（B${eb.f}F到達）`);});
-      news(S,`${S.taverns[p.tav].name}の${p.name}がB${eb.f}Fに到達し、王国の報奨金を手にした。`,'record');plog(p,`おうこくの ほうしょうきん ${eb.amt} G を てにいれた`,'loot');}
-    if(p.floor>S.deepest[p.tav]){
-      const both=Math.max(S.deepest.ours,S.deepest.rival,GATE_F);
-      S.deepest[p.tav]=p.floor;
-      if(p.floor>both){p.trip.rec=true;alive(S,p).forEach(a=>a.firsts=(a.firsts||0)+1);} if(p.floor>both) news(S,p.floor===GATE_F+1?`${p.tav==='ours'?'':'銀の杯亭の'}${p.name}が封じの門を越え、19年ぶりにB${GATE_F+1}Fへ足を踏み入れた。二百人の調査隊が消えた階だ。`:`${p.tav==='ours'?'':'銀の杯亭の'}${p.name}が、誰も踏み入れたことのないB${p.floor}Fに到達した。`,'record');
-      S.taverns[p.tav].rep+=3;
-      if(p.floor>both&&p.floor>=5)rivalryNews(S,p);
-    }
+    reachFloor(S,p,false);
     return;
   }
   plog(p,pick(MOVE),'move');
@@ -1549,9 +1536,27 @@ function mapPrice(f){const d=dz(f);return f<=3?[0,40,80,150][f]:Math.round((30*d
 const HIST=[null,['迷宮の最初の冒険者たち',null,5],['迷宮の最初の冒険者たち',null,7],['迷宮の最初の冒険者たち',null,12],['鉄の誓い傭兵団（四十人）','rival',38],['七つ星団（赤い樽亭・三十人）',null,41],['鉄の誓い傭兵団（四十人）','rival',44],['王国の探索隊（百人）',null,47],['黄金の剣団（五十人）','rival',51],['夜鷹団（灰かぶり亭・二十人）',null,55],['黄金の剣団（五十人）','rival',58]];
 function floorsInit(S){if(!S.floors){S.floors={};for(let f=1;f<=GATE_F;f++){const h=HIST[f]||HIST[1],h2=HIST[f+1]||['王国の調査隊二百人',null,62];S.floors[f]={arrive:{party:h[0],tav:h[1]||undefined,tk:0,yr:h[2]},through:{party:h2[0],tav:h2[1]||undefined,tk:0,yr:h2[2]},map:true};}
   S.floors[GATE_F+1]={arrive:{party:'王国の調査隊二百人（全滅）',tk:0,yr:62}};}return S.floors;}
+// 新しい階に着いたときの記録（最深、初到達の知らせ、報奨金など）。階段で降りたときも、罠で飛ばされたときも通る
+function reachFloor(S,p,byTrap){p.reach=Math.max(p.reach||0,p.floor);
+  if(ZONES.some(z=>z[0]===p.floor))plog(p,`――ここから先は ${zoneOf(p.floor)}――`,'sys');
+  if(p.floor===MAXF&&!S.conquered){encounter(S,p);}
+  alive(S,p).forEach(a=>{if(p.floor>a.deepest){a.deepest=p.floor;if(p.floor>=3)chron(S,a,`はじめてB${p.floor}Fに足を踏み入れる`);}
+    const d=a.dream;if(d&&(d.k==='deep'&&p.floor===d.f||d.k==='abyss'&&p.floor===MAXF))plog(p,`${a.name}「……これが B${p.floor}Fの けしき……」`,'say');});
+  const eb=edict(S,'bounty');
+  if(eb&&p.floor>=eb.f&&!eb.paid){eb.paid=true;eb.until=S.tick;alive(S,p).forEach(a=>{a.gold+=eb.amt;chron(S,a,`王国の報奨金${eb.amt}Gを受け取る（B${eb.f}F到達）`);});
+    news(S,`${S.taverns[p.tav].name}の${p.name}がB${eb.f}Fに到達し、王国の報奨金を手にした。`,'record');plog(p,`おうこくの ほうしょうきん ${eb.amt} G を てにいれた`,'loot');}
+  if(p.floor>S.deepest[p.tav]){
+    const both=Math.max(S.deepest.ours,S.deepest.rival,GATE_F);
+    S.deepest[p.tav]=p.floor;
+    if(p.floor>both){p.trip.rec=true;alive(S,p).forEach(a=>a.firsts=(a.firsts||0)+1);} if(p.floor>both) news(S,p.floor===GATE_F+1?`${p.tav==='ours'?'':'銀の杯亭の'}${p.name}が封じの門を越え、19年ぶりにB${GATE_F+1}Fへ足を踏み入れた。二百人の調査隊が消えた階だ。`:`${p.tav==='ours'?'':'銀の杯亭の'}${p.name}が、${byTrap?'罠で飛ばされ、':''}誰も踏み入れたことのないB${p.floor}Fに到達した。`,'record');
+    S.taverns[p.tav].rep+=3;
+    if(p.floor>both&&p.floor>=5)rivalryNews(S,p);
+  }
+}
 function hasMap(p){return !!((p.maps&&p.maps[p.floor])||(p.tmap&&p.tmap[p.floor]))}
-function floorArrive(S,p){const F=floorsInit(S);const f=p.floor;if(f<1)return;F[f]=F[f]||{};
-  if(!F[f].arrive)F[f].arrive={party:p.name,tav:p.tav,tk:S.tick};
+function floorArrive(S,p,byTrap){const F=floorsInit(S);const f=p.floor;if(f<1)return;F[f]=F[f]||{};
+  // 上の階がまだ突破されていないのに罠で飛ばされて着いたときは、そうと分かるよう印を付ける
+  if(!F[f].arrive)F[f].arrive={party:p.name,tav:p.tav,tk:S.tick,trap:!!(byTrap&&f>1&&!(F[f-1]&&F[f-1].through))||undefined};
   useMap(S,p);
   {const fz=alive(S,p).find(a=>{const fo=fearOf(a);return fo&&((fo.zone&&zoneOf(f)===fo.zone)||(fo.nomap&&!((p.maps&&p.maps[f])||(p.tmap&&p.tmap[f]))));});if(fz&&chance(.3))plog(p,`${fz.name}「${FEAR_SAY[fz.fear]}」`,'say');}
   if(!hasMap(p)&&f>3){const c=alive(S,p).find(a=>CAN.mitooshi(a)&&a.mp>=3);if(c&&chance(.6)){c.mp-=3;p.tmap=p.tmap||{};p.tmap[f]=1;plog(p,`${c.name} は ミトオシ を となえた。B${f}Fの みちすじが うかびあがる`,'loot');}}}
@@ -1860,7 +1865,7 @@ function chest(S,p){
     else if(trap==='いしつぶて'){al.forEach(a=>a.hp-=Math.round((ri(1,4)+f)*tdm));}
     else if(trap==='ばくだん'){al.forEach(a=>a.hp-=Math.round((ri(1,4)+f)*1.5*tdm));}
     else if(trap==='まひガス'){al.forEach(a=>a.hp-=ri(1,3));plog(p,'からだが しびれる……','move');}
-    else {const nf=clamp(rf+ri(-1,2),1,dragonAlive(S)?DRAGON_F:MAXF-1);p.floor=nf;floorArrive(S,p);p.fsteps=0;plog(p,`きがつくと B${nf}F に いた`,'sys');al.forEach(a=>a.deepest=Math.max(a.deepest,nf));p.trip.deep=Math.max(p.trip.deep,nf);}
+    else {const nf=clamp(rf+ri(-1,2),1,dragonAlive(S)?DRAGON_F:MAXF-1);p.floor=nf;floorArrive(S,p,true);p.fsteps=0;plog(p,`きがつくと B${nf}F に いた`,'sys');p.trip.deep=Math.max(p.trip.deep,nf);reachFloor(S,p,true);}
     al.forEach(a=>{if(a.hp<=0){a.hp=0;die(S,p,a,'宝箱の'+trap);}});
     if(!alive(S,p).length){wipe(S,p,'宝箱の'+trap);return;}
   }
@@ -2491,11 +2496,12 @@ function banzuke(){
 }
 function sideMaps(){
   const F=floorsInit(S);const who=r=>r?`${r.tav?esc(S.taverns[r.tav].name)+'の':''}${esc(r.party)}<span class="meta">${r.yr?'・迷宮暦'+r.yr+'年':r.tk?'・'+(Math.floor(r.tk/TICKS_PER_DAY)+1)+'日目':''}</span>`:'<span class="meta">―</span>';
+  const whoA=r=>who(r)+(r&&r.trap?'<span class="meta">（罠で飛ばされて）</span>':'');
   let rows='',lastZone='';
   for(let f=1;f<=MAXF;f++){const v=F[f]||{};const z=zoneOf(f);
     if(z!==lastZone){rows+=`<tr class="zone"><td colspan="4">${esc(z)}${STONES.includes(f)?'（転移の石碑あり）':''}</td></tr>`;lastZone=z;}
     const st=v.map?`<span class="mok">販売中 ${mapPrice(f)}G</span>${v.sold?`<span class="meta">・${v.sold}部</span>`:''}`:v.mapAt?`<span class="mwip">作成中・あと${Math.max(1,Math.ceil((v.mapAt-S.tick)/TICKS_PER_DAY))}日</span>`:v.arrive?'<span class="meta">突破待ち</span>':'<span class="meta">未踏</span>';
-    rows+=`<tr><td class="fl">B${f}F</td><td>${who(v.arrive)}</td><td>${who(v.through)}</td><td>${st}</td></tr>`;}
+    rows+=`<tr><td class="fl">B${f}F</td><td>${whoA(v.arrive)}</td><td>${who(v.through)}</td><td>${st}</td></tr>`;}
   return `<p class="note">${CARTO}。ある階を誰かが最初に突破すると、地図屋がその一行の記録を買い取り、しばらくして地図を売り出す。地図のある階では罠を避けやすく、不意打ちも受けにくいので、腰を据えて稼げる。地図のない階は魔物に地の利があり、罠も重い。そこでの目標は稼ぐことより、無事に階段を見つけて抜けることだ。</p>
   <div class="tblwrap"><table class="maptbl"><thead><tr><th>階</th><th>初到達</th><th>初突破</th><th>地図</th></tr></thead><tbody>${rows}</tbody></table></div>
   <div class="sect" style="margin-top:14px"><h3>名のある魔物</h3><p class="note">各階に一体ずつ潜む。めったに姿を見せず、倒した一行には財宝・経験・素材・伝説の品のいずれかが手に入る。今のところ、一度討たれた魔物が再び現れたという話はない。</p>
