@@ -1,15 +1,20 @@
 // docs/spec.md に書かれた決まりを「いつでも成り立つはずの性質」として、ゲームの中身を回しながら確かめる。
 // ブラウザは使わない。index.html の /*ENGINE START*/〜/*ENGINE END*/ を取り出して node で動かす。
 //
-//   node tools/spec-test.mjs                 乱数の種を3つ、それぞれ30000刻（600日）回す
-//   node tools/spec-test.mjs --seeds 5 --ticks 10000
+//   node tools/spec-test.mjs                 乱数の種を48個、それぞれ30000刻（600日）回す
+//   node tools/spec-test.mjs --seeds 40 --ticks 10000
 //   node tools/spec-test.mjs --seed 12345    その種だけを回す（不合格の再現に使う）
+//   node tools/spec-test.mjs --jobs 2        同時に回す数（ふだんは CPU のコア数）
+// 種ごとに別のスレッドで回すので、コアが多いほど早く終わる。
 import {readFileSync} from 'node:fs';
+import {Worker,isMainThread,parentPort,workerData} from 'node:worker_threads';
+import {availableParallelism} from 'node:os';
 
 const args=process.argv.slice(2);
 const opt=(k,d)=>{const i=args.indexOf(k);return i>=0?Number(args[i+1]):d;};
 const TICKS=opt('--ticks',30000);
-const SEEDS=args.includes('--seed')?[opt('--seed',1)]:Array.from({length:opt('--seeds',3)},(_,i)=>1000+i*7919);
+const SEEDS=args.includes('--seed')?[opt('--seed',1)]:Array.from({length:opt('--seeds',48)},(_,i)=>1000+i*7919);
+const JOBS=Math.max(1,opt('--jobs',availableParallelism()));
 
 const html=readFileSync(new URL('../index.html',import.meta.url),'utf8');
 const ENGINE=html.match(/\/\*ENGINE START\*\/([\s\S]*?)\/\*ENGINE END\*\//)[1];
@@ -32,7 +37,7 @@ const live=a=>a.status!=='lost'&&a.status!=='retired';
 const num=x=>typeof x==='number'&&Number.isFinite(x);
 
 // ---- 決まった値の表（仕様の表と、コードの値が一致すること） ----
-{
+function checkTables(){
   const E=load(1),S=E.newState();
   // 「席と拡張」の表
   const steps=[];S.taverns.ours.seats=12;for(let ns;(ns=E.nextSeats(S));){steps.push(ns.join('→'));S.taverns.ours.seats=ns[1];}
@@ -61,7 +66,7 @@ const num=x=>typeof x==='number'&&Number.isFinite(x);
 }
 
 // ---- 何百日も回しながら、毎刻成り立つはずの性質 ----
-for(const seed of SEEDS){
+function runSeed(seed){
   const E=load(seed),S=E.newState();
   for(let i=0;i<6;i++)E.tick(S);// 画面側の開店と同じ
   const prevState={},killed={},lore={};let conquered=null;
@@ -121,10 +126,28 @@ for(const seed of SEEDS){
   // 「新顔の来店」：評判を聞いて来る新顔は、常連の平均レベルの前後3以内（0は、これまでどおりの散らばりで来る印）
   {const rs=Object.values(S.adv).filter(a=>a.tav==='ours'&&live(a));const avg=Math.round(rs.reduce((s,a)=>s+a.lvl,0)/rs.length);
     for(let k=0;k<500;k++){const l=E.newcomerLvl(S,'ours');check('新顔の来店：評判を聞いて来る者は平均レベル±3',l===0||(l>=Math.max(1,avg-3)&&l<=avg+3),`種${seed}・終わり`,`平均${avg}に対して${l}`);}}
-  process.stdout.write(`種${seed}：${TICKS}刻を回した（最深 黒猫亭B${S.deepest.ours}F・銀の杯亭B${S.deepest.rival}F）\n`);
+  return `種${seed}：${TICKS}刻を回した（最深 黒猫亭B${S.deepest.ours}F・銀の杯亭B${S.deepest.rival}F）`;
 }
 
+if(!isMainThread){const line=runSeed(workerData.seed);parentPort.postMessage({line,res:[...results]});}
+else{
+  checkTables();
+  // 種ごとの結果は、種の順に重ねる。反例は、いちばん若い種の最初のものを残す
+  const out=new Array(SEEDS.length);let next=0;
+  const runOne=()=>{if(next>=SEEDS.length)return Promise.resolve();const k=next++;
+    return new Promise((ok,ng)=>{const w=new Worker(new URL(import.meta.url),{workerData:{seed:SEEDS[k]},argv:args});
+      w.once('message',m=>{out[k]=m;console.log(m.line);});
+      // ゲームの中身が例外を投げたら、その種は「エラーで止まった」として不合格にする
+      w.once('error',e=>{out[k]={res:[['ゲームがエラーで止まらない',`種${SEEDS[k]}：${e&&e.stack?e.stack.split('\n').slice(0,3).join(' / '):e}`]]};console.log(`種${SEEDS[k]}：エラーで止まった`);});
+      w.once('exit',()=>ok());}).then(runOne);};
+  await Promise.all(Array.from({length:Math.min(JOBS,SEEDS.length)},runOne));
+  pass('ゲームがエラーで止まらない');
+  for(const m of out)for(const [name,f] of m.res){pass(name);if(f&&!results.get(name))results.set(name,f);}
+  report();
+}
+function report(){
 let bad=0;
 for(const [name,f] of results){if(f){bad++;console.log(`× ${name}\n    反例 ${f}`);}else console.log(`○ ${name}`);}
-console.log(`\n${results.size}件のうち、合格${results.size-bad}件・不合格${bad}件`);
+console.log(`\n種${SEEDS.length}個×${TICKS}刻。${results.size}件のうち、合格${results.size-bad}件・不合格${bad}件`);
 process.exit(bad?1:0);
+}
