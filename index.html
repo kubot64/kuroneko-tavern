@@ -509,7 +509,7 @@ function newState(){
   return S;
 }
 const EDICTS=[
-  {k:'bounty',w:2,from:'ラウレンツ王国',days:[6,10],mk:S=>{const f=Math.min(MAXF,Math.max(S.deepest.ours,S.deepest.rival)+1);return {f,amt:Math.round(dz(f)*15)*10}},txt:e=>`B${e.f}Fに到達した一行に、一人あたり${e.amt}Gの報奨金を出す`},
+  {k:'bounty',w:2,from:'ラウレンツ王国',days:[6,10],mk:S=>{const f=Math.min(MAXF,Math.max(S.deepest.ours,S.deepest.rival)+1);return {f,amt:r100(incomeAt(dz(f))*15)}},txt:e=>`B${e.f}Fに到達した一行に、一人あたり${e.amt}Gの報奨金を出す`},
   {k:'tax',w:2,from:'ラウレンツ王国',days:[4,7],mk:()=>({r:.15}),txt:()=>'探索税を引き上げる。持ち帰った稼ぎの一割五分を納めよ'},
   {k:'templeUp',w:1.5,from:'灰の寺院',days:[4,7],mk:()=>({m:1.5}),txt:()=>'聖オルド教国の通達により、蘇生代を五割増しとする'},
   {k:'templeDown',w:1,from:'灰の寺院',days:[2,3],mk:()=>({m:.5}),txt:()=>'聖日につき、蘇生代を半額とする'},
