@@ -918,13 +918,18 @@ function formParties(S,tav,quiet,forced,fname){
   if(pool.length<3) return;
   const top=pool.slice().sort((x,y)=>leaderScore(y)-leaderScore(x));const L=forced?top[0]:(chance(.7)?top[0]:pick(top.slice(0,4)));
   pool=pool.filter(a=>a!==L);
-  if(!forced){const near=pool.filter(a=>Math.abs(PL(a)-PL(L))<=3);if(near.length>=2)pool=near;pool.sort((x,y)=>{const bx=bondOf(S,L,x),by=bondOf(S,L,y);return (by?by.n:0)-(bx?bx.n:0);});}
+  // 実力の近い者を優先する。近い者だけで6人に届かなければ、レベル差があっても近い順に足す（その回は腕を磨く方針になりやすい）
+  let filled=false;
+  if(!forced){const bsort=(x,y)=>{const bx=bondOf(S,L,x),by=bondOf(S,L,y);return (by?by.n:0)-(bx?bx.n:0);};const gap=a=>Math.abs(PL(a)-PL(L));
+    const near=pool.filter(a=>gap(a)<=3).sort(bsort);
+    if(near.length>=5)pool=near;
+    else{pool=near.concat(pool.filter(a=>gap(a)>3).sort((x,y)=>gap(x)-gap(y)));filled=true;}}
   // prefer a balanced line-up
   const take=[L];const want=[c=>c.front,c=>c.heal,c=>c.mage||c.bomb||c.song,c=>c.thief,c=>c.front,c=>true];
   if(!forced&&pool.length+1<6&&!chance(.03))return;
   const size=Math.min(pool.length+1,6);
   for(const w of want){ if(take.length>=size)break; if(take.some(a=>w(C(a)))&&w!==want[4]&&w!==want[5])continue; const i=pool.findIndex(a=>w(C(a))); if(i>=0)take.push(pool.splice(i,1)[0]); }
-  while(take.length<size&&pool.length) take.push(pool.splice(Math.floor(R()*pool.length),1)[0]);
+  while(take.length<size&&pool.length) take.push(pool.splice(filled?0:Math.floor(R()*pool.length),1)[0]);
   if(take.length<3) return;
   take.sort((x,y)=>(C(y).front?1:0)-(C(x).front?1:0));
   let nm=fname&&!S.usedParty[fname]?fname:null;const freeP=PARTY_NAMES.filter(x=>!S.usedParty[x]);
