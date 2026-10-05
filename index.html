@@ -1606,6 +1606,27 @@ function supplyTeam(S,p){if(p.tav!=='ours')return;const n=[0,2,5][policy(S).poti
 function giftOffer(S,a){let best=null,sc=0;for(const o of shopOffers(S,a.cls)){const prev=Object.assign({for:o.b.for,slot:o.b.slot},o.b.two?{two:true}:{},o.b.st(o.t));const g=gainOf(a,prev);if(g<1.5)continue;const v=g/Math.sqrt(o.price);if(v>sc){sc=v;best=o;}}return best;}
 function giveGift(S,a,o,why){const T0=S.taverns.ours;if(!o||T0.gold<o.price)return null;T0.gold-=o.price;T0.support=(T0.support||0)+o.price;const it=shopMake(S,o.b,o.t);
   const out=equip(a,it);out.forEach(x=>{a.gold+=Math.round((x.f||1)*30);});favor(a,2);chron(S,a,`${why}${it.n}を贈られる`);return it;}
+// 終盤の大きな使い道。上限のないもの（特注・引き抜き・寄進）と、一度きりの店の設備
+const FACILITIES=[['dojo','修練場',300000,'裏庭の稽古場。常連が迷宮で得る経験が15%増える'],['info','情報屋',500000,'店の隅で迷宮の噂を買い集める男。常連の一行は宝箱の罠を外しやすくなり、不意打ちを受けにくくなる'],['inn','療養所',800000,'店の離れの寝台と薬湯。帰還した常連の休みが短くなる']];
+function fac(S,k){return !!(S.fac&&S.fac[k]);}
+function buildFac(S,k){const F=FACILITIES.find(x=>x[0]===k),T0=S.taverns.ours;if(!F||fac(S,k)||T0.gold<F[2])return false;T0.gold-=F[2];S.fac=S.fac||{};S.fac[k]=S.tick;news(S,`黒猫亭に${F[1]}ができた。${F[3]}。`,'record');return true;}
+function blessed(S,a){return a.tav==='ours'&&(S.blessUntil||0)>S.tick;}
+function donatePrice(S){return r100(incomeAt(dz(Math.max(1,S.deepest.ours)))*30);}
+function donate(S){const T0=S.taverns.ours,c=donatePrice(S);if(T0.gold<c)return false;T0.gold-=c;T0.support=(T0.support||0)+c;S.blessUntil=Math.max(S.tick,S.blessUntil||0)+30*TICKS_PER_DAY;
+  news(S,`黒猫亭の店主が、灰の寺院に${c}Gを寄進した。しばらくのあいだ、黒猫亭の常連の蘇生には司祭たちが念を入れるという。`,'info');return true;}
+function customOffer(S,a){const sh=shopInit(S);if(!sh.tiers[7]||a.lvl<20)return null;const n=a.custom||0,t=8+Math.min(n,4);let best=null,sc=0;
+  for(const b of ITEM_BASES){if(!canUse(a.cls,b))continue;const it=Object.assign({for:b.for,slot:b.slot},b.two?{two:true}:{},b.st(t));const g=gainOf(a,it);if(g<1.5)continue;if(g>sc){sc=g;best={b,t};}}
+  if(best)best.price=Math.round(150000*Math.pow(1.35,n)/1000)*1000;return best;}
+function orderCustom(S,a,o){const T0=S.taverns.ours;if(!o||T0.gold<o.price)return null;T0.gold-=o.price;T0.support=(T0.support||0)+o.price;a.custom=(a.custom||0)+1;
+  const it=Object.assign({for:[...o.b.for],f:o.t,slot:o.b.slot,base:o.b.t,shop:true,custom:true,n:`グンター銘の${o.b.t}（${a.name}のための${a.custom}作目）`},o.b.two?{two:true}:{},o.b.st(o.t));
+  const out=equip(a,it);out.forEach(x=>{a.gold+=Math.round((x.f||1)*30);});favor(a,3);chron(S,a,`店主の頼みでグンター親方が打った${it.n}を贈られる`);
+  news(S,`グンター親方が、黒猫亭の店主の頼みで${a.name}のために${it.n}を打った。`,'record');return it;}
+function poachPrice(S,a){return r100((a.debt||0)+incomeAt(depthOf(a))*25);}
+function poachList(S){if(seatsUsed(S,'ours')>=seatCap(S,'ours'))return [];return Object.values(S.adv).filter(a=>a.tav==='rival'&&a.status==='idle'&&(!a.party||!S.parties[a.party]||S.parties[a.party].state==='town')).sort((x,y)=>y.lvl-x.lvl).slice(0,5);}
+function poach(S,a){const T0=S.taverns.ours,c=poachPrice(S,a),d=a.debt||0;if(T0.gold<c||!poachList(S).includes(a))return false;if(!moveTav(S,a,'ours'))return false;T0.gold-=c;a.debt=0;favor(a,1);
+  chron(S,a,`黒猫亭の店主が銀の杯亭への借金${d}Gを肩代わりしてくれる`);
+  news(S,`黒猫亭の店主が、銀の杯亭の${a.name}（${a.race}の${a.cls}・レベル${a.lvl}）を迎え入れた。${d?`銀の杯亭への借金${d}Gは、店主が肩代わりした。`:''}`,'record');
+  news(S,`噂：銀の杯亭の${S.taverns.rival.owner||RIVAL_OWNER}「客を金で買うとは、黒猫亭さんも品がなくなりましたね」`,'rumor');return true;}
 function useMap(S,p){const F=floorsInit(S);const f=p.floor;if(!F[f]||!F[f].map)return;p.maps=p.maps||{};if(p.maps[f])return;
   const price=mapPrice(f);const al=alive(S,p);
   if(p.tav==='ours'&&policy(S).mapPay&&S.taverns.ours.gold>=price){S.taverns.ours.gold-=price;S.taverns.ours.support=(S.taverns.ours.support||0)+price;p.maps[f]=1;F[f].sold=(F[f].sold||0)+1;al.forEach(a=>favor(a,.2));plog(p,`くろねこていの もちで B${f}Fの ちずを ひろげた`,'loot');return;}
@@ -1720,7 +1741,7 @@ function encounter(S,p){
   p.etype=tt;p.ident=chance(.6)||alive(S,p).some(a=>has(a,'博識'));p.fought=false;
   plog(p,'＊ かいぶつが あらわれた ＊','sys');
   plog(p,`${p.ident?t.n:t.u} ×${n}`,'sys');
-  if(!hasMap(p)&&chance(fr?.35:.2))p.ambush=true;
+  if(!hasMap(p)&&chance((fr?.35:.2)*(p.tav==='ours'&&fac(S,'info')?.5:1)))p.ambush=true;
   encounterFlavor(S,p,tt);
 }
 function encounterFlavor(S,p,t,big){const al=alive(S,p);if(!al.length)return;
@@ -1863,7 +1884,7 @@ function victory(S,p){
   if(t.rare){rareSlain(S,p,t);}
   if(t.gate){dragonSlain(S,p);p.fsteps=99;}
   const mf=(hasMap(p)?1:.7)*(t.xpm||1);const bn=t.base||t.n;const xp=Math.round((6*Math.pow(t.f,1.6)+3)*n/al.length*mf);const g=Math.round(ri(5,12)*t.f*n*mf);
-  al.forEach(a=>{a.xp+=Math.round(xp*(TAL[a.tal]||TAL['並']).g*rc(a).xp*trXp(a));a.slain=a.slain||{};a.slain[bn]=(a.slain[bn]||0)+n;});p.loot+=g;
+  al.forEach(a=>{a.xp+=Math.round(xp*(TAL[a.tal]||TAL['並']).g*rc(a).xp*trXp(a)*(a.tav==='ours'&&fac(S,'dojo')?1.15:1));a.slain=a.slain||{};a.slain[bn]=(a.slain[bn]||0)+n;});p.loot+=g;
   p.trip.kills[bn]=(p.trip.kills[bn]||0)+n;if(t.variant&&t.xpm>=1.4)(p.trip.vars=p.trip.vars||[]).push(t.n);
   if(!p.trip.big||t.f>p.trip.big.f)p.trip.big={n:t.n,f:t.f,c:n};
   const mt=matTier(Math.max(1,p.floor));if(mt&&chance(.3)){const m=SHOP_TIERS[mt].mat,q=ri(1,2);p.trip.mats=p.trip.mats||{};p.trip.mats[m]=(p.trip.mats[m]||0)+q;plog(p,`${m}を ${q}こ ひろった`,'loot');}
@@ -1883,7 +1904,7 @@ function chest(S,p){
   plog(p,'たからばこが ある','sys');
   if(!th&&(lp.pers==='慎重'||lp.pers==='臆病')){plog(p,`${lp.name}「わなが こわい。あけずに すすむ」`,'say');return;}
   const opener=th||pick(al);
-  const tm=hasMap(p);const tdm=tm?.7:isFrontier(S,rf)?1.9:1.4;const ok=chance((tm?.15:-.1)+(th?clamp(.62+PL(th)*.04-f*.03+trTrap(th)+rc(th).trap+eqSum(th,'trap'),.3,.97):.3+rc(opener).trap+eqSum(opener,'trap')));
+  const tm=hasMap(p);const tdm=tm?.7:isFrontier(S,rf)?1.9:1.4;const ok=chance((tm?.15:-.1)+(p.tav==='ours'&&fac(S,'info')?.1:0)+(th?clamp(.62+PL(th)*.04-f*.03+trTrap(th)+rc(th).trap+eqSum(th,'trap'),.3,.97):.3+rc(opener).trap+eqSum(opener,'trap')));
   if(ok){
     if(th){th.disarms++;plog(p,`${opener.name} は わなを はずした`);}
     else plog(p,`${opener.name} は たからばこを こじあけた`);
@@ -1984,7 +2005,7 @@ function arrive(S,p){
   if(al.length){tale(S,p,al);if(al.length>1&&chance(.35))tale(S,p,al,true);}
   if(p.tav==='ours'&&p.loot>=400) news(S,`${p.name}が ${p.loot}G の稼ぎを抱えて帰還。今夜の酒場は大にぎわいだ。`,'loot');
   [...new Set(lvls)].filter(a=>a.lvl%10===0).forEach(a=>news(S,`${S.taverns[a.tav].name}の${a.name}がレベル${a.lvl}に達した。${a.lvl===30?'英雄と呼ばれる域だ。':a.lvl===40?'もはや伝説の域だ。':''}`,'record'));
-  p.state='town';p.rest=ri(14,24);p.floor=0;
+  p.state='town';p.rest=p.tav==='ours'&&fac(S,'inn')?ri(8,14):ri(14,24);p.floor=0;
   quarrelCheck(S,p,al.filter(a=>a.status==='idle'));
 }
 const QUIRK_TALES={
@@ -2116,11 +2137,11 @@ function temple(S,a,paidByTavern){
     if(a.tav==='ours') a.gold-=cost;
   }
   if(a.status==='dead'){
-    if(chance(clamp(.84+PL(a)*.01+(has(a,'信心深い')?.05:0),0,.97))){a.status='idle';a.hp=a.mhp;a.mp=mmpOf(a);a.revived++;chron(S,a,'寺院で息を吹き返す');title(S,a);if(a.tav==='ours')news(S,`寺院にて${a.name}が息を吹き返した。`,'loot');return 'ok';}
+    if(chance(clamp(.84+PL(a)*.01+(has(a,'信心深い')?.05:0)+(blessed(S,a)?.08:0),0,blessed(S,a)?.99:.97))){a.status='idle';a.hp=a.mhp;a.mp=mmpOf(a);a.revived++;chron(S,a,'寺院で息を吹き返す');title(S,a);if(a.tav==='ours')news(S,`寺院にて${a.name}が息を吹き返した。`,'loot');return 'ok';}
     a.status='ash';chron(S,a,'蘇生に失敗し、灰になる');news(S,`${S.taverns[a.tav].name}の${a.name}、蘇生に失敗し灰となる。`,'death');return 'ash';
   }
   if(a.status==='ash'){
-    if(chance(clamp(.7+PL(a)*.015+(has(a,'信心深い')?.06:0),0,.94))){a.status='idle';a.hp=a.mhp;a.mp=mmpOf(a);a.revived++;chron(S,a,'灰の中からよみがえる');title(S,a);if(chance(.25))changeOf(S,a,'灰から戻ってから、人が変わったように静かになった',x=>{x.tone='無口';x.catch='……生きてるって、いいな';});news(S,`灰の中から${a.name}がよみがえった。`,'loot');return 'ok';}
+    if(chance(clamp(.7+PL(a)*.015+(has(a,'信心深い')?.06:0)+(blessed(S,a)?.08:0),0,blessed(S,a)?.97:.94))){a.status='idle';a.hp=a.mhp;a.mp=mmpOf(a);a.revived++;chron(S,a,'灰の中からよみがえる');title(S,a);if(chance(.25))changeOf(S,a,'灰から戻ってから、人が変わったように静かになった',x=>{x.tone='無口';x.catch='……生きてるって、いいな';});news(S,`灰の中から${a.name}がよみがえった。`,'loot');return 'ok';}
     a.status='lost';a.party=null;chron(S,a,'ロスト。その名は記念碑に刻まれる');S.memorial.push({id:a.id,name:full(a),cls:a.cls,lvl:a.lvl,race:a.race,tav:a.tav,tk:S.tick,by:a.lastBy||'不明',floor:a.lastFloor||'?',kills:a.kills});onLostFriend(S,a);
     news(S,`${S.taverns[a.tav].name}の${full(a)}、ロスト。その名は記念碑に刻まれる。`,'lost');return 'lost';
   }
@@ -2536,6 +2557,12 @@ function sideDesk(){
     return (dead.length?dead.map(a=>{const c=templeCost(S,a);return `<div class="row"><span class="chip ${a.status}">${a.status==='ash'?'寺院・灰':'寺院・死'}</span><span class="who">${nmLink(a)}${teamTag(a)} <span class="meta">Lv${a.lvl} ${a.race}の${a.cls}</span></span><button class="btn sm" data-act="revive" data-a="${a.id}" ${T().gold<c?'disabled':''}>蘇生を頼む ${c}G</button></div>`}).join(''):'<p class="note">寺院で眠っている常連はいない。</p>')+
     (gifts.length?`<p class="note" style="margin-top:8px">酒場にいる常連に、店の金で武具屋の品を贈れる。贈られた者は恩を感じ、帰還のたびに店でよく飲むようになる。</p>`+gifts.map(({a,o})=>`<div class="row"><span class="who">${nmLink(a)}${teamTag(a)} <span class="meta">Lv${a.lvl} ${a.race}の${a.cls}</span></span><button class="btn sm" data-act="gift" data-a="${a.id}" ${T().gold<o.price?'disabled':''}>${SHOP_MAT[o.b.m][o.t-1]}の${o.b.t}を贈る ${o.price}G</button></div>`).join(''):'');})()}
   </div>
+<div class="sect"><h3>寺院への寄進</h3><p class="note">灰の寺院に寄進すると、30日のあいだ黒猫亭の常連の蘇生に司祭たちが念を入れ、死からも灰からも生き返りやすくなる。重ねて寄進すれば、そのぶん日が延びる。額は常連の潜る深さで決まる。</p>
+  <div class="row"><span class="who"><b>${(S.blessUntil||0)>S.tick?`寄進の効き目 あと${Math.ceil((S.blessUntil-S.tick)/TICKS_PER_DAY)}日`:'いまは寄進していない'}</b></span><button class="btn sm" data-act="donate" ${T().gold<donatePrice(S)?'disabled':''}>寄進する ${donatePrice(S)}G</button></div></div>
+<div class="sect"><h3>店の設備</h3><p class="note">大きな金を出して、店に設備を建てる。どれも一度建てれば、ずっと効く。</p>
+  ${FACILITIES.map(([k,n,c,d])=>`<div class="row"><span class="who"><b>${n}</b><span class="does">${d}</span></span>${fac(S,k)?'<span class="chip">建てた</span>':`<button class="btn sm" data-act="fac" data-k="${k}" ${T().gold<c?'disabled':''}>建てる ${c}G</button>`}</div>`).join('')}</div>
+<div class="sect"><h3>銀の杯亭の客を引き抜く</h3><p class="note">銀の杯亭で酒場にいる客を、借金を肩代わりして黒猫亭に迎え入れる。借金に加えて、腕に見合った支度金がかかる。席が空いているときだけ声をかけられる。</p>
+  ${(()=>{const L=poachList(S);return L.length?L.map(a=>`<div class="row"><span class="who"><b>${esc(a.name)}</b> <span class="meta">Lv${a.lvl} ${a.race}の${a.cls}・借金${a.debt||0}G</span></span><button class="btn sm" data-act="poach" data-a="${a.id}" ${T().gold<poachPrice(S,a)?'disabled':''}>迎え入れる ${poachPrice(S,a)}G</button></div>`).join(''):`<p class="note">${seatsUsed(S,'ours')>=seatCap(S,'ours')?'黒猫亭の席が埋まっている。':'いま声をかけられる客はいない。'}</p>`;})()}</div>
 <div class="sect"><h3>死体回収の依頼</h3><p class="note">依頼を出すと、同じ階を歩く一行が見つけやすくなり、欲深い者も遺体を連れ帰るようになる。報酬はその階の深さに応じて決まり、回収されたときに支払う。</p>
   ${miss.map(p=>`<div class="row"><span class="who"><b>${esc(p.name)}</b> <span class="meta">${S.taverns[p.tav].name}・B${p.floor}F・${p.members.length}人${p.looted?'・装備が持ち去られた形跡':''}</span></span>${S.bounties[p.id]?`<span class="chip">依頼中 ${S.bounties[p.id]}G</span>`:`<button class="btn sm" data-act="bounty" data-p="${p.id}" ${T().gold<bountyPrice(p)?'disabled':''}>依頼を出す ${bountyPrice(p)}G</button>`}</div>`).join('')||'<p class="note">消息不明の一行はいない。</p>'}</div>
   <div class="sect"><h3>店の帳簿</h3><div class="row"><span class="who">これまでの売上</span><span class="meta">${T().earned}G</span></div><div class="row"><span class="who">これまでの支援</span><span class="meta">${T().support||0}G</span></div></div>
@@ -2592,6 +2619,8 @@ function sideShop(){
   const log=sh.log.slice(-10).reverse().map(l=>`<div class="row"><span class="who">${S.adv[l.id]?nmLink(S.adv[l.id]):esc(l.who)}<span class="meta">（${S.taverns[l.tav].name}）が ${esc(l.n)} を買った</span></span><span class="meta">${l.price}G・${Math.floor(l.tk/TICKS_PER_DAY)+1}日目</span></div>`).join('');
   return `<p class="note">${SHOP_NAME}。親方はドワーフのグンター。冒険者が迷宮から持ち帰った素材が集まると、上の品が打てるようになる。迷宮で見つかる銘入りの品は、同じ素材の店売りより一段よく出来ていることが多い。</p>
   <div class="sect"><h3>素材の集まり具合</h3>${prog}</div>
+  <div class="sect"><h3>親方の特注</h3>${sh.tiers[7]?(()=>{const C0=Object.values(S.adv).filter(a=>a.tav==='ours'&&a.status==='idle').map(a=>({a,o:customOffer(S,a)})).filter(x=>x.o).sort((x,y)=>y.a.lvl-x.a.lvl);
+    return `<p class="note">澱鉄まで打てるようになったグンター親方は、大金を積めば、店売りより上の品を常連ひとりのために打つ。打たせるのはレベル20以上の者に限る。同じ者に頼むたびに腕をふるった品になり、値も上がる。</p>`+(C0.length?C0.map(({a,o})=>`<div class="row"><span class="who">${nmLink(a)} <span class="meta">Lv${a.lvl} ${a.race}の${a.cls}・${o.b.t}${a.custom?`・${a.custom+1}作目`:''}</span></span><button class="btn sm" data-act="custom" data-a="${a.id}" ${T().gold<o.price?'disabled':''}>打たせる ${o.price}G</button></div>`).join(''):'<p class="note">いま酒場にいる常連で、特注の品がはっきり役に立つ者はいない。</p>');})():'<p class="note">澱鉄の品が並ぶようになると、親方に常連のための特注を頼めるようになる。</p>'}</div>
   <div class="sect"><h3>品書き</h3><div class="tiers">${open.map(t=>`<button class="btn sm${t===shopTier?' on':''}" data-act="shoptier" data-v="${t}">${SHOP_TIERS[t].label}</button>`).join('')}</div>
   <div class="tblwrap"><table class="shoptbl"><tbody>${rows}</tbody></table></div><p class="note" style="margin-top:6px">指輪とお守りは、品によって効き目が変わる。</p></div>
   <div class="sect"><h3>最近の買い物</h3>${log||'<p class="note">まだ誰も買っていない。</p>'}</div>`;
@@ -2682,6 +2711,10 @@ document.addEventListener('click',e=>{
   if(act==='pol'){const k=b.dataset.k,v=+b.dataset.v;policy(S)[k]=k==='potion'?v:!!v;renderSide();save();return;}
   if(act==='gift'){const a=S.adv[b.dataset.a];const o=a&&giftOffer(S,a);const it=o&&giveGift(S,a,o,'店主から');if(it){toast(`${a.name}に${it.n}を贈った`);news(S,`黒猫亭の店主が${a.name}に${it.n}を贈った。`,'info');}render();save();return;}
   if(act==='loan'){const a=S.adv[b.dataset.a];if(a&&T().gold>=100){T().gold-=100;a.loan=100;chron(S,a,'店主からツケで装備を借りる');toast(`${a.name}に装備を貸した`);render();save();}return;}
+  if(act==='donate'){if(donate(S))toast('灰の寺院に寄進した');render();save();return;}
+  if(act==='fac'){if(buildFac(S,b.dataset.k))toast(`${FACILITIES.find(x=>x[0]===b.dataset.k)[1]}を建てた`);render();save();return;}
+  if(act==='poach'){const a=S.adv[b.dataset.a];if(a&&poach(S,a))toast(`${a.name}を黒猫亭に迎え入れた`);render();save();return;}
+  if(act==='custom'){const a=S.adv[b.dataset.a];const it=a&&orderCustom(S,a,customOffer(S,a));if(it)toast(`${a.name}に${it.n}が届いた`);render();save();return;}
   if(act==='revive'){const a=S.adv[b.dataset.a];const c=templeCost(S,a);if(T().gold>=c){T().gold-=c;const r=temple(S,a,true);toast(r==='ok'?`${a.name}が蘇った`:r==='ash'?`${a.name}は灰になった…`:`${a.name}はロストした`);render();save();}return;}
   if(act==='bounty'){const p=S.parties[b.dataset.p];if(!p||S.bounties[p.id])return;const c=bountyPrice(p);if(T().gold<c){toast('お金が足りない');return;}T().gold-=c;S.bounties[p.id]=c;toast(`掲示板に依頼を貼り出した（${c}Gを預けた）`);render();save();return;}
 });
