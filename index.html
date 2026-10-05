@@ -493,7 +493,7 @@ const PUSH={
 function newState(){
   const S={tick:0,nid:1,adv:{},parties:{},news:[],tales:[],memorial:[],
     taverns:{ours:{name:'黒猫亭',gold:400,rep:0,crystals:1,earned:0,debt:DEBT0,seats:12,nextPay:30*TICKS_PER_DAY,late:0},rival:{name:'銀の杯亭',gold:99999,rep:60,owner:RIVAL_OWNER}},
-    bounties:{},deepest:{ours:1,rival:GATE_F},usedNames:{[RIVAL_OWNER]:1},usedParty:{'鉄の誓い':1,'黄金の剣':1,'七つ星':1,'夜鷹':1,'鉄の誓い傭兵団':1,'黄金の剣団':1},usedItems:{},uniqFound:{},farewells:[],edicts:[],v:17,loreFound:{},shop:{tiers:{1:true},mats:{},serial:0,log:[]},watch:[null,null],sel:0,stats:{dreams:{ours:0,rival:0}},small:SMALL_TAV.slice(0,5)};
+    bounties:{},deepest:{ours:1,rival:GATE_F},usedNames:{[RIVAL_OWNER]:1},usedParty:{'鉄の誓い':1,'黄金の剣':1,'七つ星':1,'夜鷹':1,'鉄の誓い傭兵団':1,'黄金の剣団':1},usedItems:{},uniqFound:{},farewells:[],edicts:[],v:18,loreFound:{},shop:{tiers:{1:true},mats:{},serial:0,log:[]},watch:[null,null],sel:0,stats:{dreams:{ours:0,rival:0}},small:SMALL_TAV.slice(0,5)};
   for(let i=0;i<7;i++) makeAdv(S,'ours',{lvl:pick([1,1,1,2,2,3,3,4,5,6])});
   const vets=[];for(let i=0;i<6;i++) vets.push(makeAdv(S,'rival',{lvl:ri(12,17)}));
   for(let i=0;i<22;i++) makeAdv(S,'rival');
@@ -2275,6 +2275,8 @@ function migrate(S){
   if(!(S.v>=17)){const T0=S.taverns.ours;// 依頼の金を出す時点で預ける形に変わった。古い記録の依頼は、払えるものだけ預け直す
     Object.keys(S.bounties).forEach(id=>{const c=S.bounties[id];if(T0.gold>=c)T0.gold-=c;else delete S.bounties[id];});
     Object.values(S.parties).forEach(p=>{p.bountyFor=(p.bountyFor||[]).map(c=>{const x=Math.max(0,Math.min(T0.gold,c||0));T0.gold-=x;return x;});});S.v=17;}
+  if(!(S.v>=18)){const R=S.rares||{},o={...R};// 王国に仕えた名のある魔物をB21Fより下へ移した。記録も魔物について移す
+    [[13,23],[18,26],[23,18],[26,13]].forEach(([to,from])=>{if(o[from])R[to]=o[from];else delete R[to];});S.rares=R;S.v=18;}
   Object.values(S.adv).forEach(a=>{if(!a.tone)personalize(a);if(!a.traits)assignTraits(S,a,true);});
   smallOf(S);
   Object.values(S.adv).filter(a=>a.title&&!a.titleKind&&a.status!=='lost'&&a.status!=='retired').forEach(a=>{a.title='';title(S,a,true);});
