@@ -879,8 +879,20 @@ function smallOf(S){
 function newSmall(S,n,tk,list){const g=pick(['男','女']);const used=list.map(t=>t.trait);const tr=SMALL_TRAIT.filter(x=>!used.includes(x));return {n,owner:uname(S,g),trait:pick(tr.length?tr:SMALL_TRAIT),score:0,since:tk,log:[]};}
 function smallLog(S,t,txt,d){t.score=clamp(t.score+d,-3,3);t.log.push({tk:S.tick,t:txt});if(t.log.length>3)t.log.shift();}
 const SEAT_STEPS=[[12,18,5000],[18,24,15000],[24,30,40000],[30,36,100000]];
-function seatCap(S,tav){return tav==='ours'?(S.taverns.ours.seats||30):SEATS.rival}
-function nextSeats(S){return SEAT_STEPS.find(x=>x[0]===seatCap(S,'ours'))||null}
+function seatCap(S,tav){return tav==='ours'?(S.taverns.ours.seats||30)+BRANCH_SEATS*branches(S).length:SEATS.rival}
+function nextSeats(S){return SEAT_STEPS.find(x=>x[0]===(S.taverns.ours.seats||30))||null}
+// 裏通りの酒場への出資と買収。後ろ盾になった店はたたまれず、買い取った店は黒猫亭の支店になって席が増える
+const BRANCH_SEATS=6;
+function branches(S){return (S.small||[]).filter(t=>t&&t.owned);}
+function investPrice(S,t){return r100(incomeAt(dz(Math.max(3,S.deepest.ours)))*5*Math.pow(1.5,t.invest||0));}
+function invest(S,t){const T0=S.taverns.ours,c=investPrice(S,t);if(t.owned||t.score>=3||T0.gold<c)return false;T0.gold-=c;t.invest=(t.invest||0)+1;t.patron=true;
+  smallLog(S,t,'黒猫亭の店主が出資した',2);T0.rep+=2;news(S,`黒猫亭の店主が、裏通りの${t.n}に${c}Gを出資した。主人の${t.owner}は、黒猫亭に足を向けて寝られないと言っている。`,'info');return true;}
+function buyPrice(S,t){const m=t.score<=-2?.5:t.score<0?.8:t.score===0?1:t.score<3?1.5:2;return r100(300000*m*Math.pow(1.3,branches(S).length));}
+function buySmall(S,t){const T0=S.taverns.ours,c=buyPrice(S,t);if(t.owned||T0.gold<c)return false;T0.gold-=c;t.owned=S.tick;t.patron=true;
+  smallLog(S,t,'黒猫亭に買い取られ、支店になった',0);
+  news(S,`黒猫亭が、裏通りの${t.n}を${c}Gで買い取った。${t.n}は黒猫亭の支店になり、主人の${t.owner}がそのまま店を任される。常連の席が${BRANCH_SEATS}増えた。`,'record');
+  const n=ri(1,3);for(let i=0;i<n&&seatsUsed(S,'ours')<seatCap(S,'ours');i++){const lv=newcomerLvl(S,'ours');const a=makeAdv(S,'ours',Object.assign({bg:`${t.n}の常連`},lv?{lvl:lv}:{}));news(S,`${t.n}の常連だった${a.name}（${a.race}の${a.cls}・レベル${a.lvl}）が、黒猫亭に籍を移した。`,'info');}
+  news(S,`噂：銀の杯亭の${S.taverns.rival.owner||RIVAL_OWNER}「裏通りの店まで買い集めるとは。黒猫亭さんも、ずいぶん偉くなったものですね」`,'rumor');return true;}
 function seatsUsed(S,tav){return Object.values(S.adv).filter(a=>a.tav===tav&&a.status!=='lost'&&a.status!=='retired').length}
 function freeAdv(S,tav){return Object.values(S.adv).filter(a=>a.tav===tav&&a.status==='idle'&&(!a.party||!S.parties[a.party]||(S.parties[a.party].state==='wiped'&&!S.parties[a.party].retrieved)))}
 function retire(S,a,why){
@@ -2206,7 +2218,7 @@ function rivalryNews(S,p){const RO=S.taverns.rival.owner||RIVAL_OWNER;
 function smallEvent(S){const list=smallOf(S);
   const deep=Math.max(3,Math.min(S.deepest.ours,S.deepest.rival));const f=ri(Math.max(1,deep-4),Math.max(1,deep-1));
   // 傾いた店は、たたむことがある。理由は、その店に最近あった悪い出来事から決める
-  const low=list.filter(t=>t.score<=-2&&S.tick-t.since>TICKS_PER_DAY*10);
+  const low=list.filter(t=>t.score<=-2&&S.tick-t.since>TICKS_PER_DAY*10&&!t.patron);
   if(low.length&&chance(.5)){const t=pick(low);const bad=[...t.log].reverse().find(x=>x.bad);
     const [why,past]=SMALL_WHY[bad?bad.bad:'debt'];
     S.small=list.filter(x=>x!==t);S.smallClosed.push({n:t.n,owner:t.owner,tk:S.tick,why:past});
@@ -2217,9 +2229,10 @@ function smallEvent(S){const list=smallOf(S);
   const canOpen=!!nn;let k=R();if(k<.15&&!canOpen)k=.15+R()*.85;
   if((k<.15||!list.length)&&canOpen){const t=newSmall(S,nn,S.tick,list);list.push(t);smallLog(S,t,'店を開いた',0);
     news(S,`裏通りに新しい酒場、${t.n}が開いた。主人は${t.owner}。${t.trait}店だという。`,'info');return;}
-  if(!list.length)return;const t=pick(list);
+  const free=list.filter(x=>!x.owned);if(!free.length)return;const t=pick(free);
   if(k<.4){smallLog(S,t,`B${f}Fで一行が全滅した`,-1);t.log[t.log.length-1].bad='wipe';news(S,`噂：裏通りの${t.n}の一行が、B${f}Fで全滅したらしい。`,'rumor');}
   else if(k<.6){smallLog(S,t,`B${f}Fから大きな稼ぎを持ち帰った`,1);news(S,`噂：裏通りの${t.n}の一行が、B${f}Fから大きな稼ぎを持ち帰ったらしい。`,'rumor');}
+  else if(k<.72&&t.patron){smallLog(S,t,'銀の杯亭が常連に声をかけたが、黒猫亭の後ろ盾を知って引き下がった',0);news(S,`噂：銀の杯亭が裏通りの${t.n}の常連に声をかけたが、黒猫亭の後ろ盾があると知って引き下がったらしい。`,'rumor');}
   else if(k<.72){smallLog(S,t,'常連が銀の杯亭に引き抜かれた',-1);t.log[t.log.length-1].bad='poach';news(S,`噂：裏通りの${t.n}の常連が、銀の杯亭に引き抜かれたらしい。`,'rumor');}
   else if(k<.84){smallLog(S,t,'客が銀の杯亭の客と殴り合った',-1);t.log[t.log.length-1].bad='fight';news(S,`噂：裏通りの${t.n}の客と銀の杯亭の客が、店の前で殴り合いになったらしい。`,'rumor');}
   else{smallLog(S,t,'評判を聞いた客が増えた',1);news(S,`噂：裏通りの${t.n}が、このところ客でにぎわっているらしい。`,'rumor');}}
@@ -2574,7 +2587,8 @@ function sideRank(){
   ${S.conquered?`<p class="note">迷宮暦81年・解禁から${Math.floor(S.conquered.tk/TICKS_PER_DAY)+1}日目、${esc(S.taverns[S.conquered.tav].name)}の${esc(S.conquered.party)}が沈んだ王を討ち、迷宮は踏破された。</p>`:''}</div>`;
 }
 function sideSmall(){const list=smallOf(S);const day=tk=>Math.floor(tk/TICKS_PER_DAY)+1;
-  return `<div class="sect"><h3>裏通りの酒場　${list.length}軒</h3>${list.map(t=>{const L=t.log[t.log.length-1];return `<div class="quote"><b>${esc(t.n)}</b>　${smallMood(t)}<br>主人は${esc(t.owner)}。${esc(t.trait)}店。${L?`<span class="by">${day(L.tk)}日目：${esc(L.t)}</span>`:''}</div>`}).join('')||'<p class="note">いま裏通りに酒場はない。</p>'}
+  return `<div class="sect"><h3>裏通りの酒場　${list.length}軒</h3><p class="note">出資すると景気が上がり、黒猫亭が後ろ盾の店はたたまれず、銀の杯亭の引き抜きも退ける。黒猫亭の評判も2上がる。買い取った店は黒猫亭の支店になり、常連の席が${BRANCH_SEATS}増え、その店の常連が何人か籍を移してくる。</p>${list.map(t=>{const L=t.log[t.log.length-1];return `<div class="quote"><b>${esc(t.n)}</b>　${t.owned?'黒猫亭の支店':smallMood(t)+(t.patron?'・黒猫亭が後ろ盾':'')}<br>${t.owned?`${esc(t.owner)}が店を任されている。`:`主人は${esc(t.owner)}。`}${esc(t.trait)}店。${L?`<span class="by">${day(L.tk)}日目：${esc(L.t)}</span>`:''}
+    ${t.owned?'':`<div style="margin-top:6px">${t.score<3?`<button class="btn sm" data-act="invest" data-n="${esc(t.n)}" ${T().gold<investPrice(S,t)?'disabled':''}>出資する ${investPrice(S,t)}G</button> `:''}<button class="btn sm" data-act="buysmall" data-n="${esc(t.n)}" ${T().gold<buyPrice(S,t)?'disabled':''}>買い取る ${buyPrice(S,t)}G</button></div>`}</div>`}).join('')||'<p class="note">いま裏通りに酒場はない。</p>'}
   ${S.smallClosed.length?`<p class="note">たたんだ店：${S.smallClosed.slice(-8).reverse().map(x=>`${esc(x.n)}（${day(x.tk)}日目。${esc(x.why)}）`).join('、')}</p>`:''}</div>`;}
 function sideRef(){
   return `<div class="sect"><h3>呪文の一覧</h3>${SPELL_LIST.map(([n,d,w])=>`<div class="cl"><b>${n}</b><span>${esc(d)}。<br>使える者：${esc(w)}</span></div>`).join('')}</div>
@@ -2715,6 +2729,7 @@ document.addEventListener('click',e=>{
   if(act==='fac'){if(buildFac(S,b.dataset.k))toast(`${FACILITIES.find(x=>x[0]===b.dataset.k)[1]}を建てた`);render();save();return;}
   if(act==='poach'){const a=S.adv[b.dataset.a];if(a&&poach(S,a))toast(`${a.name}を黒猫亭に迎え入れた`);render();save();return;}
   if(act==='custom'){const a=S.adv[b.dataset.a];const it=a&&orderCustom(S,a,customOffer(S,a));if(it)toast(`${a.name}に${it.n}が届いた`);render();save();return;}
+  if(act==='invest'||act==='buysmall'){const t=smallOf(S).find(x=>x.n===b.dataset.n);if(t&&(act==='invest'?invest(S,t):buySmall(S,t)))toast(act==='invest'?`${t.n}に出資した`:`${t.n}を買い取った`);render();save();return;}
   if(act==='revive'){const a=S.adv[b.dataset.a];const c=templeCost(S,a);if(T().gold>=c){T().gold-=c;const r=temple(S,a,true);toast(r==='ok'?`${a.name}が蘇った`:r==='ash'?`${a.name}は灰になった…`:`${a.name}はロストした`);render();save();}return;}
   if(act==='bounty'){const p=S.parties[b.dataset.p];if(!p||S.bounties[p.id])return;const c=bountyPrice(p);if(T().gold<c){toast('お金が足りない');return;}T().gold-=c;S.bounties[p.id]=c;toast(`掲示板に依頼を貼り出した（${c}Gを預けた）`);render();save();return;}
 });
