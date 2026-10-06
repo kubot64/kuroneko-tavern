@@ -19,11 +19,11 @@ const JOBS=Math.max(1,opt('--jobs',availableParallelism()));
 const html=readFileSync(new URL('../index.html',import.meta.url),'utf8');
 const ENGINE=html.match(/\/\*ENGINE START\*\/([\s\S]*?)\/\*ENGINE END\*\//)[1];
 const EXPORTS=['newState','tick','rivalTemple','seatCap','seatsUsed','nextSeats','newcomerLvl','buyPrice','investPrice','FACILITIES',
-  'RARES','MAXF','DRAGON_F','TICKS_PER_DAY','smallOf','debtTick','DEBT0'];
+  'RARES','MAXF','DRAGON_F','TICKS_PER_DAY','smallOf','debtTick','DEBT0','encounter','rareSlain','rareMonOf'];
 
 // 乱数の種を固定したゲームの中身を1つ作る。中身の Math.random だけを差し替える
-function load(seed){
-  let s=seed>>>0;const rnd=()=>{s=(s+0x6D2B79F5)>>>0;let t=s;t=Math.imul(t^(t>>>15),t|1);t^=t+Math.imul(t^(t>>>7),t|61);return ((t^(t>>>14))>>>0)/4294967296;};
+function load(seed,fixed){
+  let s=seed>>>0;const rnd=fixed?()=>fixed:()=>{s=(s+0x6D2B79F5)>>>0;let t=s;t=Math.imul(t^(t>>>15),t|1);t^=t+Math.imul(t^(t>>>7),t|61);return ((t^(t>>>14))>>>0)/4294967296;};
   const M=Object.create(Math);M.random=rnd;
   return new Function('Math',`${ENGINE};return {${EXPORTS.join(',')}};`)(M);
 }
@@ -63,6 +63,23 @@ function checkTables(){
     // 浅い階では額が小さく、100G単位の丸めで比がずれるので、B30Fまで届いたときの額で比べる
     const d0=S.deepest.ours;S.deepest.ours=30;const i0=E.investPrice(S,{invest:0}),i1=E.investPrice(S,{invest:1});S.deepest.ours=d0;
     check('裏通りの酒場：出資は重ねるたびに1.5倍',Math.abs(i1/i0-1.5)<.01,'出資',`${i0}→${i1}`);}
+}
+
+// ---- わざと作った場面で確かめる性質 ----
+function checkScenes(){
+  // 「名のある魔物」：各階に1体きり。ある一行が戦っているあいだは、同じ階の別の一行の前には現れない
+  // 乱数をいつも0にして、出会えるときは必ず出会うようにする
+  const meet=fighting=>{const E=load(1,1e-9),S=E.newState();const [p,q]=Object.values(S.parties);
+    p.floor=q.floor=23;p.enemies=q.enemies=null;p.etype=q.etype=null;
+    if(fighting){q.etype=E.rareMonOf(23);q.enemies=[{hp:q.etype.hp,sleep:0}];}
+    E.encounter(S,p);return !!(p.etype&&p.etype.rare);};
+  check('名のある魔物：誰も戦っていなければ、出会える（下の確かめが空振りでない）',meet(false),'B23F・ほかの一行は戦っていない','出会えなかった');
+  check('名のある魔物：ほかの一行が戦っているあいだは、別の一行の前に現れない',!meet(true),'B23F・ほかの一行が戦っている','別の一行の前にも現れた');
+  // 「名のある魔物」「伝説の品」：2つの一行が続けて討っても、褒美と記録は最初の一行の1回きり
+  {const E=load(1),S=E.newState();const [p,q]=Object.values(S.parties);const t=E.rareMonOf(23);const it=E.RARES.find(r=>r.f===23).item.n;
+    E.rareSlain(S,p,t);E.rareSlain(S,q,t);
+    const n=Object.values(S.adv).filter(a=>Object.values(a.eq||{}).some(x=>x&&x.n===it)).length;
+    check('名のある魔物：続けて2回討たれても、褒美と記録は最初の1回きり',n<=1&&S.rares[23].killed.party===p.name,'B23F・2つの一行が続けて討つ',`${it}を持つ者${n}人・記録は${S.rares[23].killed.party}`);}
 }
 
 // ---- 何百日も回しながら、毎刻成り立つはずの性質 ----
@@ -131,7 +148,7 @@ function runSeed(seed){
 
 if(!isMainThread){const line=runSeed(workerData.seed);parentPort.postMessage({line,res:[...results]});}
 else{
-  checkTables();
+  checkTables();checkScenes();
   // 種ごとの結果は、種の順に重ねる。反例は、いちばん若い種の最初のものを残す
   const out=new Array(SEEDS.length);let next=0;
   const runOne=()=>{if(next>=SEEDS.length)return Promise.resolve();const k=next++;

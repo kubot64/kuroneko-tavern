@@ -1684,7 +1684,7 @@ const RW_N={gold:'大金',xp:'経験',mat:'大量の素材',item:'伝説の品'}
 function rareMonOf(rf){const R0=RARES.find(r=>r.f===rf);const f=dz(rf);const top=MON.filter(m=>!m.boss&&!m.gate&&m.f<=Math.max(1,f)).pop();
   return {n:R0.n,u:R0.u,f,rf,hp:Math.round(top.hp*5+30+f*10),atk:Math.round(top.atk*1.5)+3,sp:R0.sp,rare:true,acts:f>=8?2:1};}
 function rareSlain(S,p,t){
-  S.rares=S.rares||{};const R0=RARES.find(r=>r.f===t.rf);const al=alive(S,p);const tn=S.taverns[p.tav].name;
+  S.rares=S.rares||{};if(S.rares[t.rf]&&S.rares[t.rf].killed){plog(p,`${t.n}は ちりと なって きえた`,'sys');return;}const R0=RARES.find(r=>r.f===t.rf);const al=alive(S,p);const tn=S.taverns[p.tav].name;
   S.rares[t.rf]=Object.assign(S.rares[t.rf]||{},{killed:{party:p.name,tav:p.tav,names:al.map(a=>a.name),tk:S.tick}});
   let what='';
   if(R0.rw==='gold'){const g=r100(incomeAt(t.f)*ri(10,14));p.loot+=g;what=`${g}Gの財宝`;}
@@ -1738,7 +1738,9 @@ const VARIANTS=[
 ];
 function encounter(S,p){
   if(p.floor>=1&&p.floor<=MAXF&&!(p.floor===MAXF&&!S.conquered)){S.rares=S.rares||{};const rr=S.rares[p.floor]||{};
-    if(!rr.killed&&chance(.004)){const t=rareMonOf(p.floor);S.rares[p.floor]=Object.assign(rr,{seen:rr.seen||{party:p.name,tav:p.tav,tk:S.tick}});
+    // 名のある魔物は1体きり。ほかの一行が戦っているあいだは、別の一行の前には現れない
+    const busy=Object.values(S.parties).some(q=>q!==p&&q.enemies&&q.etype&&q.etype.rare&&q.etype.rf===p.floor);
+    if(!rr.killed&&!busy&&chance(.004)){const t=rareMonOf(p.floor);S.rares[p.floor]=Object.assign(rr,{seen:rr.seen||{party:p.name,tav:p.tav,tk:S.tick}});
       p.enemies=[{hp:t.hp,sleep:0}];p.etype=t;p.ident=true;p.fought=true;
       plog(p,'＊ ただならぬ けはいが する ＊','sys');plog(p,`名のある魔物「${t.n}」`,'sys');encounterFlavor(S,p,t,true);(p.trip.rareSeen=p.trip.rareSeen||[]).push(t.n);return;}}
   if(p.floor>=MAXF&&!S.conquered){const t=MON.find(m=>m.boss);p.enemies=[{hp:t.hp,sleep:0}];p.etype=t;p.ident=true;
