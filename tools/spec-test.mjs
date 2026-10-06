@@ -119,6 +119,7 @@ function runSeed(seed){
 
     // 「席と拡張」：寺院や行方不明の者も含め、常連の数は席の数を超えない
     check('席と拡張：常連の数は席の数を超えない',E.seatsUsed(S,'ours')<=E.seatCap(S,'ours'),at,()=>`${E.seatsUsed(S,'ours')}人 / ${E.seatCap(S,'ours')}席`);
+    check('席と拡張：銀の杯亭の常連も席の数を超えない',E.seatsUsed(S,'rival')<=E.seatCap(S,'rival'),at,()=>`${E.seatsUsed(S,'rival')}人 / ${E.seatCap(S,'rival')}席`);
     // 「新顔の来店」：名前はほかの冒険者と重ならない
     {const seen=new Map();let dup=null;for(const a of advs){if(seen.has(a.name))dup=a.name;seen.set(a.name,1);}check('新顔の来店：冒険者の名前は重ならない',!dup,at,dup);}
     // 「一行の結成」：一行の名前は重ならない
