@@ -19,7 +19,7 @@ const JOBS=Math.max(1,opt('--jobs',availableParallelism()));
 const html=readFileSync(new URL('../index.html',import.meta.url),'utf8');
 const ENGINE=html.match(/\/\*ENGINE START\*\/([\s\S]*?)\/\*ENGINE END\*\//)[1];
 const EXPORTS=['newState','tick','rivalTemple','seatCap','seatsUsed','nextSeats','newcomerLvl','buyPrice','investPrice','FACILITIES',
-  'RARES','MAXF','DRAGON_F','TICKS_PER_DAY','smallOf','debtTick','DEBT0','encounter','rareSlain','rareMonOf'];
+  'RARES','MAXF','DRAGON_F','TICKS_PER_DAY','smallOf','debtTick','DEBT0','encounter','rareSlain','rareMonOf','arrive'];
 
 // 乱数の種を固定したゲームの中身を1つ作る。中身の Math.random だけを差し替える
 function load(seed,fixed){
@@ -80,6 +80,31 @@ function checkScenes(){
     E.rareSlain(S,p,t);E.rareSlain(S,q,t);
     const n=Object.values(S.adv).filter(a=>Object.values(a.eq||{}).some(x=>x&&x.n===it)).length;
     check('名のある魔物：続けて2回討たれても、褒美と記録は最初の1回きり',n<=1&&S.rares[23].killed.party===p.name,'B23F・2つの一行が続けて討つ',`${it}を持つ者${n}人・記録は${S.rares[23].killed.party}`);}
+  // 「身内探し」「席と拡張」：席が埋まっているときは、救い出された身内は客にならない。見つけた本人と故郷へ帰る
+  {const E=load(1),S=E.newState();const p=Object.values(S.parties).find(x=>x.tav==='ours');
+    const finder=S.adv[p.leader];const kin='席のない身内';
+    p.members.forEach(id=>{const a=S.adv[id];a.hp=a.mhp;a.status='party';});
+    p.loot=0;p.carried=[];p.rescue=[{by:finder.id,name:kin,who:'兄',f:12}];
+    S.taverns.ours.seats=E.seatsUsed(S,'ours');
+    const before=E.seatsUsed(S,'ours');
+    E.arrive(S,p);
+    const joined=Object.values(S.adv).some(a=>a.name===kin);
+    const home=S.news.some(n=>n.t.includes(`見つけ出した兄の${kin}と故郷へ帰る`));
+    check('身内探し：席が埋まっているときは、救い出された身内は客にならず、見つけた本人と故郷へ帰る',
+      !joined&&home&&finder.status==='retired'&&E.seatsUsed(S,'ours')<before&&E.seatsUsed(S,'ours')<=E.seatCap(S,'ours'),
+      '満席で帰還',`${joined?'客になった':'客にならない'} ${home?'本人と帰る':'残る'} ${finder.status} ${E.seatsUsed(S,'ours')}人 / ${E.seatCap(S,'ours')}席`);}
+  // 席が空いていれば、これまでのとおり半々で、故郷へ帰るか客になる
+  {let joined=false,home=false;
+    for(let seed=1;seed<=40&&!(joined&&home);seed++){const E=load(seed),S=E.newState();const p=Object.values(S.parties).find(x=>x.tav==='ours');if(!p)continue;
+      const finder=S.adv[p.leader];const kin='空きのある身内'+seed;
+      p.members.forEach(id=>{const a=S.adv[id];a.hp=a.mhp;a.status='party';});
+      p.loot=0;p.carried=[];p.rescue=[{by:finder.id,name:kin,who:'兄',f:12}];
+      S.taverns.ours.seats=36;
+      E.arrive(S,p);
+      if(Object.values(S.adv).some(a=>a.name===kin))joined=true;
+      if(S.news.some(n=>n.t.includes(`見つけ出した兄の${kin}と故郷へ帰る`)))home=true;
+      check('身内探し：席が空いていても常連の数は席を超えない',E.seatsUsed(S,'ours')<=E.seatCap(S,'ours'),`種${seed}`,`${E.seatsUsed(S,'ours')}人 / ${E.seatCap(S,'ours')}席`);}
+    check('身内探し：席が空いていれば、半々で故郷へ帰るか客になる',joined&&home,'席に空き',`客になる:${joined} 帰る:${home}`);}
 }
 
 // ---- 何百日も回しながら、毎刻成り立つはずの性質 ----

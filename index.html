@@ -2006,10 +2006,12 @@ function arrive(S,p){
     if(a.gold>50000&&!a.rich){a.rich=1;if(a.pers!=='強欲'&&chance(.35))changeOf(S,a,'大金を手にしてから、金の話ばかりするようになった',x=>x.pers='強欲');}
     if((a.favor||0)>=6&&!a.loyal&&a.tav==='ours'){a.loyal=1;changeOf(S,a,'「店主には借りがある」が口癖になった',x=>x.catch='店主には借りがある');}});
   p.members=al.map(a=>a.id);p.carried=[];
-  (p.rescue||[]).forEach(r=>{const a=A(S,r.by);
-    if(a&&a.status==='idle'&&chance(.5)){retire(S,a,`見つけ出した${r.who}の${r.name}と故郷へ帰る`);}
-    else{const d0=a&&a.dream||{};const ka=KIN_AGE[r.who]||[0,0];const k=makeAdv(S,p.tav,{name:r.name,sex:d0.g||KIN_G[r.who],race:a?a.race:null,origin:a?a.origin:null,age:a?a.age+ri(ka[0],ka[1]):null,lvl:ri(3,11),bg:`B${r.f}Fで${a?a.name:'仲間'}に救い出された${r.who}`});k.dream=makeDream(S,k);
+  // 席が埋まっているときは、救い出された身内を客にしない。本人が戻れていれば二人で故郷へ帰る
+  (p.rescue||[]).forEach(r=>{const a=A(S,r.by);const full=seatsUsed(S,p.tav)>=seatCap(S,p.tav);
+    if(a&&a.status==='idle'&&(full||chance(.5))){retire(S,a,`見つけ出した${r.who}の${r.name}と故郷へ帰る`);}
+    else if(!full){const d0=a&&a.dream||{};const ka=KIN_AGE[r.who]||[0,0];const k=makeAdv(S,p.tav,{name:r.name,sex:d0.g||KIN_G[r.who],race:a?a.race:null,origin:a?a.origin:null,age:a?a.age+ri(ka[0],ka[1]):null,lvl:ri(3,11),bg:`B${r.f}Fで${a?a.name:'仲間'}に救い出された${r.who}`});k.dream=makeDream(S,k);
       news(S,`救い出された${r.name}が${S.taverns[p.tav].name}の客になった。`,'info');}
+    else news(S,`救い出された${r.name}は、${S.taverns[p.tav].name}に空きがなかったので、故郷へ帰った。`,'info');
   });p.rescue=[];
   al.forEach(a=>{a.trips=(a.trips||0)+1;promote(S,a);});
   al.forEach(a=>{if(a.status!=='idle')return;
