@@ -571,6 +571,8 @@ const OLD={'人間':55,'エルフ':400,'ドワーフ':175,'ホビット':85};
 function rollAge(race,lv0){const lvl=Math.ceil(lv0/2);const r=AGE2[race]||AGE2['人間'];const oldP=.05+(lvl>=6?.12:0)+(lvl>=9?.2:0);const old=chance(oldP);const rg=old?r.o:r.n;const t=old?clamp(R()**2*(.5+lvl*.04),0,1):clamp((lvl-1)/10*.4+R()*.6,0,1);return Math.round(rg[0]+(rg[1]-rg[0])*t);}
 const KIN_G={'兄':'男','弟':'男','父':'男','姉':'女'};
 const KIN_AGE={'父':[20,32],'兄':[1,8],'姉':[1,8],'弟':[-7,-1],'師匠':[15,40],'幼なじみ':[-2,2]};
+// 封じの門の向こうで見つかった身内のレベル。その階を潜る冒険者と同じくらいにする
+function kinLvl(f){return ri(f+7,f+13)}
 function humanAge(a){if(a.race==='人間'||!AGE2[a.race])return a.age;const r=AGE2[a.race];
   const v=a.age<=r.n[1]?15+(a.age-r.n[0])/(r.n[1]-r.n[0])*15:31+(a.age-r.o[0])/(r.o[1]-r.o[0])*31;return Math.max(13,Math.round(v));}
 function sexAge(a){return `${a.sex}・${humanAge(a)}歳${a.race==='人間'?'':'相当'}`}
@@ -921,16 +923,54 @@ function checkDream(S,a){
   fulfill(S,a);
   if(ret)retire(S,a,ret);
 }
+// 担いで帰った身内の遺体を寺院へ運ぶ。蘇生代は探していた本人が出し、足りなければ一行の仲間が出し合う。払えなければ弔う。銀の杯亭の客は借金に積む
+function kinPay(S,tav,a,mates,cost){
+  if(tav!=='ours'){if(a)a.debt=(a.debt||0)+cost;return true;}
+  const ps=(a?[a]:[]).concat(mates.filter(m=>m!==a));if(ps.reduce((s,m)=>s+Math.max(0,m.gold),0)<cost)return false;
+  let need=cost;ps.forEach((m,i)=>{const x=Math.min(Math.max(0,m.gold),i===0?need:Math.ceil(need/(ps.length-i)));m.gold-=x;need-=x;});
+  ps.forEach(m=>{if(need>0){const x=Math.min(Math.max(0,m.gold),need);m.gold-=x;need-=x;}});return true;}
+function kinTemple(S,p,al,r){
+  const a=A(S,r.by);const tav=a?a.tav:p.tav;const tn=S.taverns[tav].name;const kin=`${r.who}の${r.name}`;const by=a?a.name:'仲間';
+  const lvl=r.lvl||kinLvl(r.f);const pl=Math.ceil(lvl/2);const body={lvl,status:'dead'};
+  let res;
+  if(!kinPay(S,tav,a,al,templeCost(S,body)))res='buried';
+  else if(chance(clamp(.84+pl*.01,0,.97)))res='ok';
+  else{body.status='ash';news(S,`${tn}の${by}が連れ帰った${kin}は、蘇生に失敗し灰となった。`,'death');
+    res=!kinPay(S,tav,a,al,templeCost(S,body))?'buried':chance(clamp(.7+pl*.015,0,.94))?'ok':'lost';}
+  if(p.trip.kin)p.trip.kin.res=res;
+  if(res==='ok'){
+    news(S,`寺院にて、${tn}の${by}が迷宮から連れ帰った${kin}が息を吹き返した。${r.name}は故郷へ帰るという。`,'loot');
+    // 故郷へ帰った身内は、まれに冒険者として本人のいた店へやって来る
+    if(chance(.3)){const d0=a&&a.dream||{};const ka=KIN_AGE[r.who]||[0,0];
+      S.kinHome=(S.kinHome||[]).concat([{name:r.name,who:r.who,by:by,tav,f:r.f,lvl,sex:d0.g||KIN_G[r.who],race:a?a.race:null,origin:a?a.origin:null,age:a&&a.age?a.age+ri(ka[0],ka[1]):null,tk:S.tick,at:S.tick+ri(60,400)*TICKS_PER_DAY}]);}
+  } else news(S,res==='lost'?`${tn}の${by}が連れ帰った${kin}は、灰からもよみがえらなかった。`:`${tn}の${by}は、連れ帰った${kin}の蘇生代を払えず、弔った。`,'death');
+  if(!a)return;
+  chron(S,a,res==='ok'?`寺院で${kin}が息を吹き返す`:res==='lost'?`連れ帰った${kin}は、寺院でもよみがえらなかった`:`蘇生代が払えず、連れ帰った${kin}を弔う`);
+  if(a.dream&&a.dream.k==='kin')fulfill(S,a,res==='ok'?'遺体を連れ帰り、生き返らせた':res==='lost'?'遺体を連れ帰ったが、生き返らなかった':'遺体を連れ帰り、弔った');
+  if(a.status==='lost'||a.status==='retired')return;
+  if(res==='ok'){if(a.status==='idle'&&chance(.5))retire(S,a,`生き返った${kin}と故郷へ帰る`);}
+  else if(chance(.35))a.retirePending='弔いの旅に出る';
+}
+// 故郷へ帰った身内が、冒険者として店にやって来る。席が埋まっていれば空くまで待つ
+function kinTick(S){
+  if(!(S.kinHome||[]).length)return;
+  S.kinHome=S.kinHome.filter(k=>{
+    if(S.tick<k.at||seatsUsed(S,k.tav)>=seatCap(S,k.tav))return true;
+    const yrs=Math.floor((S.tick-k.tk)/TICKS_PER_DAY/365);
+    const a=makeAdv(S,k.tav,{name:k.name,sex:k.sex,race:k.race,origin:k.origin,age:k.age?k.age+yrs:null,lvl:k.lvl,bg:`B${k.f}Fで${k.by}に遺体を見つけられ、寺院で生き返って故郷へ帰っていた${k.who}`});
+    news(S,`${k.by}が迷宮から連れ帰った${k.who}の${a.name}が、冒険者として${S.taverns[k.tav].name}にやってきた。`,k.tav==='ours'?'record':'rumor');
+    return false;});
+}
 function kinEvent(S,p,a){
   const d=a.dream;const tn=S.taverns[a.tav].name;p.trip.kin={by:a.name,who:d.who,name:d.name};
   if(chance(.1)){
-    plog(p,'くらがりから よわよわしい こえが する……','sys');
-    plog(p,`${d.name}「……${a.name}？ ほんとうに ${a.name}なのか」`,'say');
-    plog(p,`${a.name} は ${d.who}の ${d.name}を みつけだした！`,'loot');
-    p.rescue=(p.rescue||[]).concat([{by:a.id,name:d.name,who:d.who,f:p.floor}]);
-    chron(S,a,`B${p.floor}Fで${d.who}の${d.name}を生きて見つけ出す`);
-    news(S,`${tn}の${a.name}が、B${p.floor}Fで行方知れずだった${d.who}の${d.name}を生きて見つけ出した！`,'record');
-    p.state='return';p.trip.kin.alive=true;fulfill(S,a,'生きて見つけ出した');
+    plog(p,'くらがりに だれかが たおれている……','sys');
+    plog(p,`${a.name}「……${d.name}？ ${d.name}なのか」`,'say');
+    plog(p,`${a.name} は ${d.who}の ${d.name}の いたいを みつけた。くちて いない`,'loot');
+    p.rescue=(p.rescue||[]).concat([{by:a.id,name:d.name,who:d.who,f:p.floor,lvl:kinLvl(p.floor)}]);d.found=true;
+    chron(S,a,`B${p.floor}Fで${d.who}の${d.name}の遺体を見つける。澱のせいか、朽ちていなかった`);
+    news(S,`${tn}の${a.name}が、B${p.floor}Fで行方知れずだった${d.who}の${d.name}の遺体を見つけた。遺体は朽ちていなかったという。`,'record');
+    p.state='return';p.trip.kin.body=true;
   } else {
     const keep=pick(['ペンダント','折れた剣','日記','指輪','革の帽子','手紙']);d.keep=keep;p.trip.kin.keep=keep;fulfill(S,a,`${keep}だけが見つかった`);
     plog(p,`${a.name} は ふるい ${keep}を ひろいあげた……`,'death');
@@ -1344,7 +1384,7 @@ function chatterTick(S){
 }
 
 function tick(S){
-  S.tick++;edictTick(S);mapTick(S);chatterTick(S);debtTick(S);rivalTick(S);
+  S.tick++;edictTick(S);mapTick(S);chatterTick(S);debtTick(S);rivalTick(S);kinTick(S);
   for(const p of Object.values(S.parties)) stepParty(S,p);
   for(const tav of ['ours','rival']){
     if(chance(.12)) formParties(S,tav);
@@ -1452,7 +1492,7 @@ function stepParty(S,p){
   }
   if(r<.5&&PUSH[leader(S,p).pers]&&chance(.3)) say(S,p,PUSH[leader(S,p).pers]);
   if(chance(.07)){const q=pick(al);plog(p,pick(QUIRKS[q.quirk].d).replace('{n}',q.name),'say');}
-  for(const a of al){const d=a.dream;if(d&&!d.done&&d.k==='kin'&&p.floor===d.f&&chance(.012)){kinEvent(S,p,a);return;}}
+  for(const a of al){const d=a.dream;if(d&&!d.done&&!d.found&&d.k==='kin'&&p.floor===d.f&&chance(.012)){kinEvent(S,p,a);return;}}
   const roll=R();
   if(roll<(hasMap(p)?.30:isFrontier(S,p.floor)?.30:.24)){encounter(S,p);return;}
   if(findCorpses(S,p,.08)) return;
@@ -1955,6 +1995,8 @@ function wipe(S,p,by){
   p.members.forEach(id=>{const a=A(S,id);a.hp=0;a.status='missing';a.lastFloor=p.floor;});
   // carried corpses fall again with them
   (p.carried||[]).forEach(id=>{const a=A(S,id);if(!a)return;a.status='missing';if(!p.members.includes(id))p.members.push(id);});p.carried=[];
+  // 担いでいた身内の遺体も迷宮に残る。探す夢は終わらない
+  (p.rescue||[]).forEach(r=>{const a=A(S,r.by);if(!a)return;chron(S,a,`担いでいた${r.who}の${r.name}の遺体も、迷宮に残される`);if(a.dream&&a.dream.k==='kin')a.dream.found=false;});p.rescue=[];
   (p.bountyFor||[]).forEach(b=>{if(b)S.taverns.ours.gold+=b;});p.bountyFor=[];
   const watched=S.watch.includes(p.id);
   if(watched&&p.tav==='ours'){p.knownWiped=true;p.announced=true;news(S,`水晶が${p.name}の最期を映した。B${p.floor}F、${by}に倒れる。${p.pushWhy==='race'?'銀の杯亭に先を越されまいとした末だった。':p.pushWhy==='first'?'一番乗りを狙った末だった。':p.pushWhy==='bounty'?'報奨金を狙った末だった。':p.pushWhy==='avenge'?'仇を追った末だった。':''}`,'death');}
@@ -2006,11 +2048,7 @@ function arrive(S,p){
     if(a.gold>50000&&!a.rich){a.rich=1;if(a.pers!=='強欲'&&chance(.35))changeOf(S,a,'大金を手にしてから、金の話ばかりするようになった',x=>x.pers='強欲');}
     if((a.favor||0)>=6&&!a.loyal&&a.tav==='ours'){a.loyal=1;changeOf(S,a,'「店主には借りがある」が口癖になった',x=>x.catch='店主には借りがある');}});
   p.members=al.map(a=>a.id);p.carried=[];
-  (p.rescue||[]).forEach(r=>{const a=A(S,r.by);
-    if(a&&a.status==='idle'&&chance(.5)){retire(S,a,`見つけ出した${r.who}の${r.name}と故郷へ帰る`);}
-    else{const d0=a&&a.dream||{};const ka=KIN_AGE[r.who]||[0,0];const k=makeAdv(S,p.tav,{name:r.name,sex:d0.g||KIN_G[r.who],race:a?a.race:null,origin:a?a.origin:null,age:a?a.age+ri(ka[0],ka[1]):null,lvl:ri(3,11),bg:`B${r.f}Fで${a?a.name:'仲間'}に救い出された${r.who}`});k.dream=makeDream(S,k);
-      news(S,`救い出された${r.name}が${S.taverns[p.tav].name}の客になった。`,'info');}
-  });p.rescue=[];
+  (p.rescue||[]).forEach(r=>kinTemple(S,p,al,r));p.rescue=[];
   al.forEach(a=>{a.trips=(a.trips||0)+1;promote(S,a);});
   al.forEach(a=>{if(a.status!=='idle')return;
     if(humanAge(a)>=55&&chance(.12)){retire(S,a,`${ageWords(a)}。老いを感じ、冒険から身を引く`);return;}
@@ -2092,7 +2130,7 @@ function tale(S,p,al,second){
   const met=(tr.met||[]);
   if(met.length){const o=pick(met);add('29',1.5,o.rival?pick([`銀の杯亭の${o.n}とすれ違った。あいつら、愛想ってものがない`,`${o.n}の連中、銀の杯亭の看板を背負って偉そうにしてたよ`,`銀の杯亭の${o.n}に道を譲られた。……妙に気味が悪い`]):pick([`${o.n}の連中とすれ違ったよ。元気そうだった`,`${o.n}と通路で鉢合わせてな。干し肉を分けてもらった`,`${o.n}の連中が手を振ってた。迷宮で知った顔を見るとほっとする`]));}
   if(tr.found.length)add('30',4,`${tr.found[0]}の連中を見つけた。ひどい有様だったよ`);
-  if(tr.kin){const k=tr.kin;add('31',6,k.alive?`${k.by}が${k.who}を見つけたんだ。生きてたんだよ！ 今夜は奢りだ`:`${k.by}が${k.who}の${k.keep}を見つけた。……しばらくそっとしておいてやってくれ`);}
+  if(tr.kin){const k=tr.kin;add('31',6,k.res==='ok'?`${k.by}が${k.who}を連れ帰ったんだ。寺院で息を吹き返したよ。今夜は奢りだ`:k.res==='lost'?`${k.by}が${k.who}を連れ帰った。……寺院でも、だめだった`:k.res==='buried'?`${k.by}が${k.who}を連れ帰った。蘇生代が足りなくてな。……弔ってやった`:`${k.by}が${k.who}の${k.keep}を見つけた。……しばらくそっとしておいてやってくれ`);}
   // growth
   const lv=(tr.lv||[]).find(x=>x.n===sp.name);
   if(lv)add('32',2,pick(['剣が前より軽く感じる。ようやく一人前に近づいた','レベルが上がった。体が軽い',`ようやくレベル${lv.l}だ。まだまだ先は長い`,'強くなった気がする。気のせいじゃないといいが']));
