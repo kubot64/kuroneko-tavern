@@ -2266,7 +2266,7 @@ function rivalTemple(S){
 const KEY='kuroneko-tavern-v1';
 const TICK_SEC=2.5;
 const shown={};
-let S,speed=1,tab='news',timer=null,toastT=null,ff=null;
+let S,speed=1,tab='news',timer=null,toastT=null,ff=null,hiddenAt=null;
 const $=id=>document.getElementById(id);
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 
@@ -2740,8 +2740,24 @@ document.addEventListener('click',e=>{
   if(act==='bounty'){const p=S.parties[b.dataset.p];if(!p||S.bounties[p.id])return;const c=bountyPrice(p);if(T().gold<c){toast('お金が足りない');return;}T().gold-=c;S.bounties[p.id]=c;toast(`掲示板に依頼を貼り出した（${c}Gを預けた）`);render();save();return;}
 });
 document.addEventListener('keydown',e=>{if(e.key==='Escape'&&advOpen!=null){advOpen=null;$('advm').hidden=true;return;}if((e.key==='Enter'||e.key===' ')&&e.target.matches('.c-head')){e.preventDefault();e.target.click();}});
-window.addEventListener('pagehide',save);
+// 開いたまま裏に回ったタブは、ブラウザがタイマーを止めたり間引いたりする。戻ったときに、裏にいた時間を進める
+function onHide(){if(hiddenAt==null)hiddenAt=Date.now();clearInterval(timer);save();}
+function onShow(){
+  if(hiddenAt==null)return;
+  const away=Math.floor((Date.now()-hiddenAt)/1000);hiddenAt=null;
+  const n=speed>0?Math.min(Math.floor(away/TICK_SEC),TICKS_PER_DAY*10):0;
+  if(n>0){
+    if(ff)ff.n+=n;
+    else if(n>=30)fastForward(n,away);
+    else{for(let i=0;i<n;i++){tick(S);rivalTemple(S);}autoWatch();render();save();}
+  }
+  setSpeed(speed);
+}
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden')onHide();else onShow();});
+window.addEventListener('pagehide',onHide);
+window.addEventListener('pageshow',e=>{if(e.persisted)onShow();});
 boot();
+if(document.visibilityState==='hidden')onHide();
 </script>
 </body>
 </html>
