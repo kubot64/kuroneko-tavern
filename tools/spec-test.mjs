@@ -19,7 +19,7 @@ const JOBS=Math.max(1,opt('--jobs',availableParallelism()));
 const html=readFileSync(new URL('../index.html',import.meta.url),'utf8');
 const ENGINE=html.match(/\/\*ENGINE START\*\/([\s\S]*?)\/\*ENGINE END\*\//)[1];
 const EXPORTS=['newState','tick','rivalTemple','seatCap','seatsUsed','nextSeats','newcomerLvl','buyPrice','investPrice','FACILITIES',
-  'RARES','MAXF','DRAGON_F','TICKS_PER_DAY','awayPlan','smallOf','debtTick','DEBT0','encounter','rareSlain','rareMonOf','arrive'];
+  'RARES','MAXF','DRAGON_F','TICKS_PER_DAY','awayPlan','smallOf','debtTick','DEBT0','encounter','rareSlain','rareMonOf','arrive','partyName','partyNameSrc'];
 
 // 乱数の種を固定したゲームの中身を1つ作る。中身の Math.random だけを差し替える
 function load(seed,fixed){
@@ -34,6 +34,9 @@ const pass=name=>{if(!results.has(name))results.set(name,null);};
 const check=(name,ok,where,detail)=>{pass(name);if(!ok)fail(name,where,typeof detail==='function'?detail():detail);};
 
 const live=a=>a.status!=='lost'&&a.status!=='retired';
+// 「一行の結成」：名前がリーダーの出身・職業・種族の言葉からできているか。番号付きの名前（〜隊・2）は別に扱う
+const nameFromLeader=(E,L,nm)=>{const src=E.partyNameSrc(L).map(x=>x[0]);if(src.some(o=>(o.n||[]).includes(nm)))return true;
+  const ss=src.flatMap(o=>o.s||[]);return src.some(o=>o.w.some(w=>nm.startsWith(w)&&ss.includes(nm.slice(w.length))));};
 const num=x=>typeof x==='number'&&Number.isFinite(x);
 
 // ---- 決まった値の表（仕様の表と、コードの値が一致すること） ----
@@ -111,13 +114,25 @@ function checkScenes(){
       if(S.news.some(n=>n.t.includes(`見つけ出した兄の${kin}と故郷へ帰る`)))home=true;
       check('身内探し：席が空いていても常連の数は席を超えない',E.seatsUsed(S,'ours')<=E.seatCap(S,'ours'),`種${seed}`,`${E.seatsUsed(S,'ours')}人 / ${E.seatCap(S,'ours')}席`);}
     check('身内探し：席が空いていれば、半々で故郷へ帰るか客になる',joined&&home,'席に空き',`客になる:${joined} 帰る:${home}`);}
+  // 「一行の結成」：名前はリーダーの出身・職業・種族の言葉からでき、いまいる一行の名前の言葉は頭に使わない
+  {const leaders=[{origin:'鉄の山脈',race:'ドワーフ',cls:'戦士'},{origin:'霧の森',race:'エルフ',cls:'魔術師'},{origin:'グラウ帝国',race:'人間',cls:'盗賊'},
+      {origin:'麦穂の丘',race:'ホビット',cls:'吟遊詩人'},{origin:'東方の島国アズマ',race:'人間',cls:'剣聖'},{origin:'不明',race:'人間',cls:'僧侶'}];
+    for(const L of leaders){const E=load(7),S=E.newState();const where=`${L.origin}・${L.race}・${L.cls}`;let own=0;
+      for(let i=0;i<40;i++){const nm=E.partyName(S,L);if(!nm)break;S.usedParty[nm]=1;
+        check('一行の結成：名前はリーダーの出身・職業・種族の言葉からできる',nameFromLeader(E,L,nm),where,nm);
+        const src=E.partyNameSrc(L).map(x=>x[0]);if(src.filter(o=>o!==E.partyNameSrc({})[0][0]).some(o=>o.w.some(w=>nm.startsWith(w))||(o.n||[]).includes(nm)))own++;
+        const live=Object.values(S.parties).map(p=>p.name);const head=src.flatMap(o=>o.w).find(w=>nm.startsWith(w));
+        check('一行の結成：いまいる一行の名前の言葉は、頭に使わない',!head||!live.some(x=>x.includes(head)),where,()=>`${nm}（いまいる一行：${live.join('、')}）`);}
+      // どこにでもある言葉ばかりにならず、半分以上はリーダーに由来する名前になる
+      if(L.origin!=='不明')check('一行の結成：名前の半分以上はリーダーの出身・職業・種族に由来する',own>=20,where,`40件中${own}件`);}
+  }
 }
 
 // ---- 何百日も回しながら、毎刻成り立つはずの性質 ----
 function runSeed(seed){
   const E=load(seed),S=E.newState();
   for(let i=0;i<6;i++)E.tick(S);// 画面側の開店と同じ
-  const prevState={},killed={},lore={};let conquered=null;
+  const prevState={},killed={},lore={};let conquered=null;const named=new Set(Object.keys(S.parties));
   for(let i=0;i<TICKS;i++){
     E.tick(S);E.rivalTemple(S);// 画面側の step と同じく、銀の杯亭の蘇生も毎刻呼ぶ
     const at=`種${seed}・${S.tick}刻（${Math.floor(S.tick/E.TICKS_PER_DAY)+1}日目）`;
@@ -131,6 +146,9 @@ function runSeed(seed){
     // 「一行の結成」：一行の名前は重ならない
     {const ns=parties.map(p=>p.name);check('一行の結成：一行の名前は重ならない',new Set(ns).size===ns.length,at,ns.join('、'));}
     for(const p of parties){
+      // 「一行の結成」：新しく結成した一行の名前は、リーダーの言葉からできている（番号付きの名前は除く）
+      if(!named.has(String(p.id))){named.add(String(p.id));const L=S.adv[p.leader];
+        if(L&&!/隊・\d+$/.test(p.name))check('一行の結成：名前はリーダーの出身・職業・種族の言葉からできる',nameFromLeader(E,L,p.name),at,()=>`${p.name}（${L.origin}・${L.race}・${L.cls}）`);}
       // 「一行の結成」：人数は基本6人、最大6人
       if(p.state!=='wiped')check('一行の結成：潜っている一行は6人まで',p.members.length<=6,at,()=>`${p.name} ${p.members.length}人`);
       // 「一行の結成」「街での休みと再出発」：潜りはじめる一行は3人以上
