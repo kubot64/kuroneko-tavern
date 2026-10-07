@@ -391,6 +391,27 @@ const MON=[
   {n:'黒竜',u:'おおきな かげ',f:18,hp:650,atk:32,sp:'breath',gate:true,acts:2},
   {n:'儀式の守護者',u:'かめんの ひとかげ',f:19,hp:230,atk:34,sp:'drain'},
   {n:'沈んだ王',u:'ぎょくざの ひとかげ',f:20,hp:900,atk:42,sp:'boss',boss:true},
+  // 鉄の山脈の坑道の魔物
+  {n:'岩喰い虫',u:'いわを はう もの',f:12,hp:86,atk:22,sp:'poison',mine:true},
+  {n:'坑夫の亡霊',u:'ランプを さげた ひとかげ',f:13,hp:100,atk:24,sp:'drain',mine:true},
+  {n:'崩落蜘蛛',u:'てんじょうの おおきな むし',f:14,hp:118,atk:26,sp:'poison',mine:true},
+  {n:'鉄喰いトロール',u:'おおきな ひとかげ',f:15,hp:150,atk:28,mine:true},
+  {n:'坑道ゴーレム',u:'うごく いわの すがた',f:16,hp:190,atk:29,mine:true},
+  {n:'盲目の洞窟竜',u:'めの ない りゅう',f:17,hp:180,atk:31,sp:'breath',mine:true},
+  {n:'澱の坑夫',u:'くろく ぬれた ひとかげ',f:18,hp:195,atk:33,sp:'drain',mine:true},
+  {n:'坑道都市の衛兵',u:'ずんぐりした よろいの ひとかげ',f:19,hp:215,atk:34,mine:true},
+  {n:'炉の番人ゴーレム',u:'ほのおを まとう てつの すがた',f:20,hp:240,atk:36,sp:'breath',mine:true},
+  {n:'鉱脈の大蛇',u:'いわの なかの ながい かげ',f:21,hp:265,atk:38,sp:'poison',mine:true},
+  {n:'晶石の亡霊',u:'ひかる いしの ひとかげ',f:22,hp:290,atk:39,sp:'drain',mine:true},
+  {n:'地底の巨人',u:'とても おおきな ひとかげ',f:23,hp:330,atk:42,mine:true},
+  {n:'溶岩の獣',u:'あかく ひかる けもの',f:24,hp:345,atk:43,sp:'breath',mine:true},
+  {n:'澱の古蟲',u:'どろりとした おおきな もの',f:25,hp:375,atk:45,sp:'poison',mine:true},
+  {n:'堕ちた坑夫長',u:'つるはしの ひとかげ',f:26,hp:405,atk:47,mine:true},
+  {n:'澱を呑んだ竜',u:'くろく にごった りゅう',f:27,hp:440,atk:48,sp:'breath',mine:true},
+  {n:'鉄血の近衛',u:'くろがねの ひとかげ',f:28,hp:470,atk:50,mine:true},
+  {n:'澱の巫女',u:'うたう ひとかげ',f:29,hp:430,atk:51,sp:'blast',mine:true},
+  {n:'坑道王の親衛',u:'かんむりの もんしょうの よろい',f:30,hp:540,atk:53,mine:true},
+  {n:'澱呑みの坑道王',u:'いわの ぎょくざの ひとかげ',f:31,hp:2400,atk:61,sp:'boss',boss:true,mboss:true,mine:true,fire:[30,48]},
 ];
 const ALLC=['戦士','侍','盗賊','僧侶','魔術師'];
 const ITEM_BASES=[
@@ -416,12 +437,12 @@ const ITEM_BASES=[
   {t:'首飾り',slot:'acc',m:'jewel',for:['魔術師','僧侶','侍'],st:t=>({mp:t+2})},
   {t:'お守り',slot:'acc',m:'charm',for:ALLC,st:t=>chance(.5)?{pois:.3+.1*t}:{trap:.06*t}},
 ];
-const MATS_BY={metal:[['青銅','鉄'],['鋼','銀'],['ミスリル','黒鉄'],['竜骨','星鉄'],['神銀','月長石'],['アダマン','冥銀'],['澱鉄','古王金']],
-  wood:[['樫','楡'],['桜','柊'],['黒檀','白樺'],['世界樹','霊木'],['星樹','神木'],['冥樹','影樹'],['澱木','王樹']],
-  cloth:[['麻','木綿'],['毛織','羅紗'],['絹','天鵞絨'],['月絹','妖精織'],['星織','天衣'],['冥絹','影織'],['澱糸','王衣']],
-  leather:[['なめし','鹿'],['硬化','猪'],['魔獣','大蜥蜴'],['竜','合成獣'],['影','古竜'],['黒竜','冥獣'],['澱革','番犬']],
-  jewel:[['銅','真鍮'],['銀','翡翠'],['金','紅玉'],['白金','蒼玉'],['星鉄','金剛石'],['竜涙石','冥銀'],['澱晶','王冠石']],
-  charm:[['木彫り','布'],['骨','琥珀'],['聖別','魔除け'],['古代','天使'],['神代','精霊'],['冥府','聖王'],['澱','古王']]};
+const MATS_BY={metal:[['青銅','鉄'],['鋼','銀'],['ミスリル','黒鉄'],['竜骨','星鉄'],['神銀','月長石'],['アダマン','冥銀'],['澱鉄','古王金'],['黒曜鉄','坑王鋼'],['澱金','山心鋼']],
+  wood:[['樫','楡'],['桜','柊'],['黒檀','白樺'],['世界樹','霊木'],['星樹','神木'],['冥樹','影樹'],['澱木','王樹'],['化石樹','黒曜樹'],['澱樹','山根木']],
+  cloth:[['麻','木綿'],['毛織','羅紗'],['絹','天鵞絨'],['月絹','妖精織'],['星織','天衣'],['冥絹','影織'],['澱糸','王衣'],['岩蜘蛛糸','黒曜織'],['澱金糸','山衣']],
+  leather:[['なめし','鹿'],['硬化','猪'],['魔獣','大蜥蜴'],['竜','合成獣'],['影','古竜'],['黒竜','冥獣'],['澱革','番犬'],['洞窟竜','岩竜'],['澱竜','地底獣']],
+  jewel:[['銅','真鍮'],['銀','翡翠'],['金','紅玉'],['白金','蒼玉'],['星鉄','金剛石'],['竜涙石','冥銀'],['澱晶','王冠石'],['黒曜石','坑王石'],['澱金','山心石']],
+  charm:[['木彫り','布'],['骨','琥珀'],['聖別','魔除け'],['古代','天使'],['神代','精霊'],['冥府','聖王'],['澱','古王'],['坑道','黒曜'],['澱金','山心']]};
 const SLOTS=['wpn','shield','head','body','acc'];
 const SLOT_N={wpn:'武器',shield:'盾',head:'頭',body:'胴',acc:'装飾'};
 const EPITHETS=['灰鴉','三日月','夜霧','狼牙','残り火','初雪','名無し','風見','黄昏','忘れ水','白百合','雷鳴','古狐','鈴鳴り','墓守','朝凪','血涙','星屑','錆鷹','月蝕','木漏れ日','双蛇','黒薔薇','冬至','石竜','嘆き','祈り火','茨冠','銀鈴','深淵','虎落笛','宵闇','旅鳥','鬼灯','霜柱','流れ星','獅子','鴉羽','紅蓮','寒椿','蛍火','渡り鳥','暁','野分','鶺鴒','陽炎','時雨','不知火','雪花','龍胆','赤錆','空蝉','残月','葦笛','鉄線','白夜','黒檀','琥珀','小夜鳴き','鉄鍋','迷い子','灯台守','百舌','薄氷','狐火','花冷え','雲雀','夕凪','霧笛','十六夜'];
@@ -440,7 +461,7 @@ const UNIQUES=[
 function die(S,p,a,by){
   if(has(a,'強運')&&chance(.12)){a.hp=1;plog(p,`${a.name} は きせきてきに もちこたえた！`,'loot');return;}
   const ph=a.eq&&a.eq.acc&&a.eq.acc.phoenix;
-  if(ph){const it=a.eq.acc;a.eq.acc=null;a.hp=Math.ceil(a.mhp/2);plog(p,`${it.n}が もえあがった！\n　${a.name} は ひのなかから たちあがった`,'loot');chron(S,a,`B${p.floor}Fで${by}に倒れるが、${it.n}が燃え尽きて命を拾う`);
+  if(ph){const it=a.eq.acc;a.eq.acc=null;a.hp=Math.ceil(a.mhp/2);plog(p,`${it.n}が もえあがった！\n　${a.name} は ひのなかから たちあがった`,'loot');chron(S,a,`${FN(p.floor)}で${by}に倒れるが、${it.n}が燃え尽きて命を拾う`);
     news(S,`${S.taverns[a.tav].name}の${a.name}が死の淵で${it.n}に救われた。羽根は灰になった。`,'record');return;}
   if(a.catch&&chance(.35))plog(p,`${a.name}「${pick(LAST_WORDS).replace('{catch}',a.catch)}」`,'say');
   plog(p,`${a.name} は しんだ`,'death');dieInDungeon(S,p,a,by);
@@ -477,7 +498,7 @@ function itemStat(it){const r=[];if(it.atk)r.push(`攻${it.atk>0?'+':''}${it.atk
 function makeItem(S,f,cls){
   S.usedItems=S.usedItems||{};S.uniqFound=S.uniqFound||{};
   if(!cls&&f>=7&&chance(.12)){const us=UNIQUES.filter(u=>u.minF<=f&&!S.uniqFound[u.n]);const u=us.length?pick(us):null;if(u){S.uniqFound[u.n]=1;S.usedItems[u.n]=1;return {...u,for:[...u.for]};}}
-  const b=pick(cls?ITEM_BASES.filter(x=>canUse(cls,x)):ITEM_BASES);const tier=f<=10?clamp(Math.ceil(f/2),1,5):f<=15?6:7;const mat=pick(MATS_BY[b.m][tier-1]);
+  const b=pick(cls?ITEM_BASES.filter(x=>canUse(cls,x)):ITEM_BASES);const tier=f<=10?clamp(Math.ceil(f/2),1,5):f<=15?6:f<=20?7:f<=25?8:9;const mat=pick(MATS_BY[b.m][tier-1]);
   const it=Object.assign({for:[...b.for],f:tier,slot:b.slot,base:b.t},b.two?{two:true}:{},b.st(tier));
   if(it.atk>0&&it.slot==='wpn'&&chance(.6))it.atk+=Math.ceil(tier/2);
   if(it.ac>0&&chance(.6))it.ac+=Math.ceil(tier/2);
@@ -516,19 +537,19 @@ function newState(){
   for(let i=0;i<7;i++) makeAdv(S,'ours',{lvl:pick([1,1,1,2,2,3,3,4,5,6])});
   const vets=[];for(let i=0;i<6;i++) vets.push(makeAdv(S,'rival',{lvl:ri(12,17)}));
   for(let i=0;i<22;i++) makeAdv(S,'rival');
-  news(S,`【ラウレンツ王国のお触れ】19年のあいだ閉ざしていた「封じの門」を開き、B${GATE_F+1}Fより下の探索を解禁する。`,'edict');
-  news(S,`ロウエンの酒場の頂点は、三十年来、大穴の東の縁の銀の杯亭だ。主人の${RIVAL_OWNER}はセーレの商人ギルドの元番頭で、客に装備を貸しつけ、稼ぎから取り立てる。封鎖の前、何十人もの大部隊を組み、六十年かけてB${GATE_F}Fまでの道を切り開いたのも、銀の杯亭の先代の看板たちだ。`,'info');
+  news(S,`【ラウレンツ王国のお触れ】19年のあいだ閉ざしていた「封じの門」を開き、${FN(GATE_F+1)}より下の探索を解禁する。`,'edict');
+  news(S,`ロウエンの酒場の頂点は、三十年来、大穴の東の縁の銀の杯亭だ。主人の${RIVAL_OWNER}はセーレの商人ギルドの元番頭で、客に装備を貸しつけ、稼ぎから取り立てる。封鎖の前、何十人もの大部隊を組み、六十年かけて${FN(GATE_F)}までの道を切り開いたのも、銀の杯亭の先代の看板たちだ。`,'info');
   news(S,'封鎖の十九年で、冒険者のやり方は変わった。大部隊は澱に魔物を呼び寄せるだけだと知れ、六人で潜るのが当たり前になった。転移の石碑の使い方が解き明かされ、梟の地図屋が浅い階の地図を揃えた。門の先は、昔とは比べものにならない速さで拓かれるだろう、と古株たちは言う。','info');
   news(S,`封じの門が開いたその月に、大穴の西の縁の空き家で、若い店主が黒猫亭を開いた。開店の金は、セーレの両替商から借りた${DEBT0}G。毎月の返済は${DEBT_DUE}Gと利息だ。`,'record');
   formParties(S,'rival',true,vets,ACE_NAME);
   for(const p of Object.values(S.parties)){if(p.name===ACE_NAME){S.ace=p.id;p.ace=true;}}
   for(let i=0;i<3;i++){formParties(S,'rival',true);}
-  for(const p of Object.values(S.parties)){p.reach=GATE_F;const st=STONES.filter(x=>x<=Math.min(GATE_F,Math.floor(safeFloor(S,p)))).pop();if(st){p.floor=st;p.trip.deep=st;plog(p,`てんいの せきひで B${st}F へ（${zoneOf(st)}）`,'sys');floorArrive(S,p);}}
+  for(const p of Object.values(S.parties)){p.reach=GATE_F;const st=STONES.filter(x=>x<=Math.min(GATE_F,Math.floor(safeFloor(S,p)))).pop();if(st){p.floor=st;p.trip.deep=st;plog(p,`てんいの せきひで ${FN(st)} へ（${zoneOf(st)}）`,'sys');floorArrive(S,p);}}
   formParties(S,'ours',true);
   return S;
 }
 const EDICTS=[
-  {k:'bounty',w:2,from:'ラウレンツ王国',days:[6,10],mk:S=>{const f=Math.min(MAXF,Math.max(S.deepest.ours,S.deepest.rival)+1);return {f,amt:r100(incomeAt(dz(f))*15)}},txt:e=>`B${e.f}Fに到達した一行に、一人あたり${e.amt}Gの報奨金を出す`},
+  {k:'bounty',w:2,from:'ラウレンツ王国',days:[6,10],mk:S=>{const f=Math.min(MAXF,Math.max(S.deepest.ours,S.deepest.rival)+1);return {f,amt:r100(incomeAt(dz(f))*15)}},txt:e=>`${FN(e.f)}に到達した一行に、一人あたり${e.amt}Gの報奨金を出す`},
   {k:'tax',w:2,from:'ラウレンツ王国',days:[4,7],mk:()=>({r:.15}),txt:()=>'探索税を引き上げる。持ち帰った稼ぎの一割五分を納めよ'},
   {k:'templeUp',w:1.5,from:'灰の寺院',days:[4,7],mk:()=>({m:1.5}),txt:()=>'聖オルド教国の通達により、蘇生代を五割増しとする'},
   {k:'templeDown',w:1,from:'灰の寺院',days:[2,3],mk:()=>({m:.5}),txt:()=>'聖日につき、蘇生代を半額とする'},
@@ -537,12 +558,18 @@ const EDICTS=[
 ];
 function edict(S,k){return (S.edicts||[]).find(e=>e.k===k&&e.until>S.tick)}
 const MAXF=30,GATE_F=10,DRAGON_F=28,YOMI_F=16;
-function dz(f){return Math.max(.67,f*2/3)}
+// 鉄の山脈の坑道。迷宮を踏破したあとに開く二つ目のダンジョン。階は迷宮の続きの番号（31〜55）で持ち、坑道B1F〜B25Fとして見せる
+const MINE_N=25,MINE_TOP=MAXF+1,MINE_BOT=MAXF+MINE_N,MINE_E0=20,MINE_K=.9,MINE_XP=3;
+function inMine(f){return f>MAXF}
+// 強さで見た深さ。迷宮では階そのもの、坑道ではB1FがおよそB20F、1階ごとに0.9階ぶん深くなる。坑道の魔物は、同じ強さの迷宮の魔物の3倍の経験をくれる
+function fx(f){return f>MAXF?MINE_E0+(f-MINE_TOP)*MINE_K:f}
+function FN(f){return typeof f==='number'&&f>MAXF?`坑道B${f-MAXF}F`:`B${f}F`}
+function dz(f){return Math.max(.67,fx(f)*2/3)}
 function incomeAt(f){return Math.round(70*Math.pow(Math.max(1,f),1.45))}
-function depthOf(a){const pl=PL(a);return clamp(Math.round(pl<=10?1+pl/1.5:1+10/1.5+(pl-10)*1.3),1,20)}
+function depthOf(a){const pl=PL(a);return clamp(Math.round(pl<=10?1+pl/1.5:1+10/1.5+(pl-10)*1.3),1,32)}
 function r100(x){return Math.max(100,Math.round(x/100)*100)}
 function bountyPrice(p){return p?r100(incomeAt(dz(p.floor||1))):500}
-function upkeep(a){const rep=eqList(a).reduce((s,it)=>s+SHOP_PRICE[Math.min(7,Math.max(1,it.f||1))]*.025,0);return {repair:Math.round(rep),lodge:Math.round(incomeAt(depthOf(a))*.08)};}
+function upkeep(a){const rep=eqList(a).reduce((s,it)=>s+SHOP_PRICE[Math.min(SHOP_TOP,Math.max(1,it.f||1))]*.025,0);return {repair:Math.round(rep),lodge:Math.round(incomeAt(depthOf(a))*.08)};}
 function templeCost(S,a){const base=Math.round(incomeAt(depthOf(a))*(a.status==='ash'?1.5:.5)/10)*10;const e=edict(S,'templeUp')||edict(S,'templeDown');return Math.round(base*(e?e.m:1));}
 function edictTick(S){
   S.edicts=(S.edicts||[]).filter(e=>e.until>S.tick);
@@ -602,7 +629,7 @@ const QUIRKS={
 };
 const ORIGINS={
   'ラウレンツ王国':{short:'王国',w:{'人間':4,'ホビット':.6,'ドワーフ':.3,'エルフ':.2},bg:[['王都の下町育ち','辺境の農家の三男坊','没落した騎士家の末子'],['王国軍の元衛兵','王都の自警団あがり'],['元王国騎士団員','辺境の守備隊長だった']],
-    tale:['王都の連中は、この穴の底のことなんて何も知らない','騎士団の連中に見せてやりたいよ、B{deep}Fの景色を']},
+    tale:['王都の連中は、この穴の底のことなんて何も知らない','騎士団の連中に見せてやりたいよ、{deep}の景色を']},
   'グラウ帝国':{short:'帝国',w:{'人間':2,'ドワーフ':.8},bg:[['帝国の徴兵から逃げてきた若者','鉱山労働者の子'],['帝国の脱走兵','帝国から流れてきた傭兵'],['帝国の元百人隊長','帝国の戦場帰り']],
     tale:['帝国の行軍に比べりゃ、迷宮なんて散歩だ','帝国の将軍どもも、この穴は欲しがるだろうな']},
   'セーレ自由都市同盟':{short:'同盟',w:{'人間':2,'ホビット':1,'エルフ':.3},bg:[['家出した商家の子','港の荷運び人夫'],['密輸船の用心棒だった','借金を抱えた元商人'],['同盟の私掠船の元船長']],
@@ -614,17 +641,17 @@ const ORIGINS={
   'リンデ公国':{short:'リンデ',w:{'人間':1,'エルフ':.6},bg:[['森番の子','公国の猟師見習い'],['公国の弓兵あがり','森の街道の用心棒'],['公爵家の私生児','元公国弓兵隊長']],
     tale:['リンデの森なら、獣の足跡で道がわかる。ここは石しかない','公爵さまは王国の顔色ばかり見てる。俺は自分の顔で稼ぐ']},
   'ベルクラント鉱山諸侯領':{short:'ベルク',w:{'人間':1,'ドワーフ':1},bg:[['落盤で職を失った鉱夫','坑夫頭の娘'],['鉱山主の放蕩息子','鉱山の用心棒だった'],['ベルクの坑道を三つ潰した男']],
-    tale:['B{deep}Fの鉱石、ベルクの親方衆が見たら目の色を変えるぞ','坑道で死ぬか、迷宮で死ぬか。稼げるほうを選んだだけさ']},
+    tale:['{deep}の鉱石、ベルクの親方衆が見たら目の色を変えるぞ','坑道で死ぬか、迷宮で死ぬか。稼げるほうを選んだだけさ']},
   'ハザン草原':{short:'ハザン',w:{'人間':.5},bg:[['氏族を出た若い騎手'],['氏族を追われた馬泥棒','草原の隊商の案内人'],['ハザンの元氏族長']],
     tale:['馬で駆けられない場所は好きじゃない。……金になるなら別だが','草原の風が恋しい。ここの風は死人の匂いがする']},
   '灰の荒野':{short:'荒野',w:{'人間':1,'ドワーフ':.3},bg:[['荒野の流民の子'],['旧王国の遺物を掘る墓荒らし'],['滅んだ王国の生き残り','エスタリア騎士の末裔']],
-    tale:['B{deep}Fで旧王国の紋章を見た。……故郷の紋だ','あの穴の底に、俺たちの国が眠ってる']},
+    tale:['{deep}で旧王国の紋章を見た。……故郷の紋だ','あの穴の底に、俺たちの国が眠ってる']},
   'ロウエン':{short:'ロウエン',w:{'人間':1,'ホビット':.4,'ドワーフ':.4,'エルフ':.4},bg:[['ロウエンの孤児','寺院の下働き'],['ロウエン生まれの冒険者の二世'],['ロウエンの生き字引']],
     tale:['この街で生まれて、この穴で死ぬ。それだけさ','親父もこの穴に潜ってた。帰ってこなかったがな']},
   '霧の森':{short:'森',w:{'エルフ':8},bg:[['森を飛び出した若いエルフ'],['森を追放されたエルフ'],['森の長老会を去った賢者']],
     tale:['森の連中が見たら卒倒するだろうな、あの穴の底は','大地の傷、か。……長老たちの言うことも、わからなくはない']},
   '鉄の山脈':{short:'山脈',w:{'ドワーフ':8},bg:[['坑道の見習い鉱夫'],['封鎖された坑道の元番人'],['坑道都市の元鍛冶頭']],
-    tale:['石の積み方が坑道と同じだ。誰かが掘ったんだよ、あれは','B{deep}Fの岩は質がいい。故郷の親方に見せたいね']},
+    tale:['石の積み方が坑道と同じだ。誰かが掘ったんだよ、あれは','{deep}の岩は質がいい。故郷の親方に見せたいね']},
   '麦穂の丘':{short:'丘',w:{'ホビット':8},bg:[['麦畑を抜け出したホビット','粉挽き小屋の子'],['丘の自警団あがり'],['丘で一番の物知り']],
     tale:['丘のみんなにこの話をしたら、誰も信じないだろうな','麦の穂が恋しい。迷宮には風が吹かない']},
   '東方の島国アズマ':{short:'アズマ',far:true,w:{'人間':.12},cls:{'侍':12,'剣聖':12},bg:[['海を渡ってきた若い剣士'],['主家を失った浪人'],['アズマで名を馳せた剣客']],
@@ -644,7 +671,7 @@ const BGS=[[1,['村を出たばかりの若者','見習いあがり','家出し�
   [6,['流れの古強者','戦場帰り','元騎士団員','名の知れた冒険者','辺境の守備隊長だった']],
   [9,['伝説に片足をかけた老兵','滅んだ王国の生き残り','隠遁から戻ってきた達人']]];
 function PL(a){return Math.ceil(a.lvl/2)}
-function rankOf(l){return l>=40?'伝説':l>=30?'英雄':l>=20?'ベテラン':l>=10?'一人前':'駆け出し'}
+function rankOf(l){return l>=50?'神話':l>=40?'伝説':l>=30?'英雄':l>=20?'ベテラン':l>=10?'一人前':'駆け出し'}
 function xpNeed(l){const k=(l+1)/2;return Math.round(15*Math.pow(k,3)*Math.pow(Math.max(1,k/8),1.5))}
 function lvlUp(a){a.lvl++;const c=CLS[a.cls];const t=TAL[a.tal]||TAL['並'];
   a.mhp+=Math.max(1,Math.round((ri(2,c.hd)+t.hp+(a.odd&&rc(a).hd<0?0:rc(a).hd))/2)+(has(a,'頑健')?1:0)-(has(a,'虚弱')&&chance(.5)?1:0));
@@ -653,9 +680,9 @@ function chron(S,a,t){a.chron=a.chron||[];a.chron.push({tk:S.tick,t});if(a.chron
 const TOP_TITLES=['百戦錬磨','深淵帰り','三度目の蘇生者'];
 const DREAMS={
   conquer:{w:.6,cw:{'戦士':1,'侍':1,'聖騎士':1.5,'剣聖':1.5,'竜騎士':1.2},mk:()=>({}),txt:()=>'迷宮の主を討ち、踏破者として名を残したい',
-    ok:(S,a)=>a.conq,msg:a=>`${a.name}が迷宮の主を討ち、踏破者として名を残した。`,prog:a=>`これまでの最深 B${a.deepest}F`},
+    ok:(S,a)=>a.conq,msg:a=>`${a.name}が迷宮の主を討ち、踏破者として名を残した。`,prog:a=>`これまでの最深 ${FN(a.deepest)}`},
   truth:{w:0,ow:{'灰の荒野':3},mk:()=>({}),txt:()=>'故国エスタリアが沈んだ真相を、この目で確かめたい',
-    ok:(S,a)=>a.deepest>=MAXF,msg:a=>`${a.name}が迷宮の最下層にたどり着き、故国が沈んだ地の底をその目で見た。`,prog:a=>`これまでの最深 B${a.deepest}F`},
+    ok:(S,a)=>a.deepest>=MAXF,msg:a=>`${a.name}が迷宮の最下層にたどり着き、故国が沈んだ地の底をその目で見た。`,prog:a=>`これまでの最深 ${FN(a.deepest)}`},
   home:{w:0,ow:{'東方の島国アズマ':3,'砂の大陸ザハル':3,'北の氷海ノルデン':3},mk:a=>({amt:r100(Math.max(5000,incomeAt(depthOf(a)+3)*ri(12,20)))}),txt:d=>`海を渡って故郷へ帰る船賃と土産（${d.amt}G）を稼ぎたい`,
     ok:(S,a,d)=>a.gold>=d.amt,pay:d=>d.amt,msg:a=>`${a.name}が故郷へ帰る船賃を稼ぎ終えた。`,ret:d=>d.vi===1&&d.who?`海を渡って故郷の${d.who}のもとへ帰る`:'海を渡って故郷へ帰る',prog:(a,d)=>`貯金 ${a.gold} / ${d.amt}G`},
   debt:{w:1.2,mk:a=>({amt:r100(Math.max(1500,incomeAt(depthOf(a)+2)*ri(6,12)))}),txt:d=>`故郷に残した莫大な借金${d.amt}Gを返したい`,
@@ -666,16 +693,16 @@ const DREAMS={
     ok:(S,a,d)=>a.gold>=d.amt,pay:d=>d.amt,msg:(a,d)=>`${a.name}が貯めた金で、${d.place||'王都の大通り'}に${d.what}を構えることになった。`,ret:d=>`${d.place||'王都'}に${d.what}を構える`,prog:(a,d)=>`貯金 ${a.gold} / ${d.amt}G`},
   temple:{w:.3,cw:{'僧侶':2.5,'司教':2.5},mk:a=>({amt:r100(Math.max(10000,incomeAt(depthOf(a)+3)*ri(15,25)))}),txt:d=>`故郷の村に寺院を建てたい（${d.amt}G）`,
     ok:(S,a,d)=>a.gold>=d.amt,pay:d=>d.amt,msg:(a,d)=>`${a.name}の寄進で、故郷の村に${d.what||'寺院'}が建つことになった。`,ret:d=>`故郷に建てた${d.what||'寺院'}を守る`,prog:(a,d)=>`貯金 ${a.gold} / ${d.amt}G`},
-  abyss:{w:1.2,mk:a=>({f:MAXF}),txt:()=>`迷宮の最下層、B${MAXF}Fにたどり着きたい`,
-    ok:(S,a,d)=>a.deepest>=MAXF,msg:a=>`${a.name}が迷宮の最下層B${MAXF}Fにたどり着き、長年の夢を果たした。`,prog:a=>`これまでの最深 B${a.deepest}F`},
-  deep:{w:1,mk:(a,S)=>{const f=clamp(Math.max(a.deepest||0,Math.ceil(PL(a)))+ri(5,9),GATE_F+2,MAXF-1);return {f,unseen:!!S&&f>Math.max(S.deepest.ours,S.deepest.rival)};},txt:d=>`${d.unseen?'まだ誰も見ぬ':''}B${d.f}Fの景色を、この目で見たい`,
-    ok:(S,a,d)=>a.deepest>=d.f,msg:(a,d)=>`${a.name}がB${d.f}Fの景色を見るという夢を果たした。`,prog:a=>`これまでの最深 B${a.deepest}F`},
+  abyss:{w:1.2,mk:a=>({f:MAXF}),txt:()=>`迷宮の最下層、${FN(MAXF)}にたどり着きたい`,
+    ok:(S,a,d)=>a.deepest>=MAXF,msg:a=>`${a.name}が迷宮の最下層${FN(MAXF)}にたどり着き、長年の夢を果たした。`,prog:a=>`これまでの最深 ${FN(a.deepest)}`},
+  deep:{w:1,mk:(a,S)=>{const f=clamp(Math.max(a.deepest||0,Math.ceil(PL(a)))+ri(5,9),GATE_F+2,MAXF-1);return {f,unseen:!!S&&f>Math.max(S.deepest.ours,S.deepest.rival)};},txt:d=>`${d.unseen?'まだ誰も見ぬ':''}${FN(d.f)}の景色を、この目で見たい`,
+    ok:(S,a,d)=>a.deepest>=d.f,msg:(a,d)=>`${a.name}が${FN(d.f)}の景色を見るという夢を果たした。`,prog:a=>`これまでの最深 ${FN(a.deepest)}`},
   kin:{w:1,mk:(a,S)=>{const who=pick(['兄','姉','師匠','幼なじみ','父','弟']);const g=KIN_G[who]||pick(['男','女']);return {who,g,f:ri(GATE_F+1,GATE_F+6),name:uname(S,g)}},
-    txt:d=>`封じの門を密かに越えて消えた${d.who}の${d.name}を探している（B${d.f}F付近）`,ok:()=>false,prog:a=>`これまでの最深 B${a.deepest}F`},
+    txt:d=>`封じの門を密かに越えて消えた${d.who}の${d.name}を探している（${FN(d.f)}付近）`,ok:()=>false,prog:a=>`これまでの最深 ${FN(a.deepest)}`},
   dragon:{w:.8,cw:{'戦士':1.3,'侍':1.6,'竜騎士':4},mk:()=>({m:'黒竜'}),txt:()=>'黒竜を討ち、竜殺しと呼ばれたい',
-    ok:(S,a,d)=>(a.slain||{})['黒竜'],msg:a=>`${a.name}が黒竜を討ち果たした！ 竜殺しの名が街じゅうに響く。`,prog:a=>`これまでの最深 B${a.deepest}F`},
+    ok:(S,a,d)=>(a.slain||{})['黒竜'],msg:a=>`${a.name}が黒竜を討ち果たした！ 竜殺しの名が街じゅうに響く。`,prog:a=>`これまでの最深 ${FN(a.deepest)}`},
   slay:{w:1,mk:()=>({}),txt:d=>`故郷を滅ぼした${d.m}を討ちたい`,
-    ok:(S,a,d)=>(a.slain||{})[d.m],msg:(a,d)=>`${a.name}が、${d.why||'故郷を滅ぼした'}${d.m}への仇を討った。`,ret:()=>chance(.4)?'仇を討ち、剣を置く':null,prog:a=>`これまでの最深 B${a.deepest}F`},
+    ok:(S,a,d)=>(a.slain||{})[d.m],msg:(a,d)=>`${a.name}が、${d.why||'故郷を滅ぼした'}${d.m}への仇を討った。`,ret:()=>chance(.4)?'仇を討ち、剣を置く':null,prog:a=>`これまでの最深 ${FN(a.deepest)}`},
   hero:{w:1,mk:a=>({l:Math.max(30,a.lvl+16)}),txt:d=>`レベル${d.l}の英雄になりたい`,
     ok:(S,a,d)=>a.lvl>=d.l,msg:(a,d)=>`${a.name}がレベル${d.l}に達し、英雄の域に踏み込んだ。`,prog:a=>`いまレベル${a.lvl}`},
   legend:{w:.8,mk:()=>({}),txt:()=>'伝説の武具を、この手に握りたい',
@@ -687,15 +714,15 @@ const DREAMS={
   archmage:{w:0,cw:{'魔術師':3,'魔導士':3,'司教':1},mk:()=>({}),txt:()=>'あらゆる呪文を極め、大魔導士と呼ばれたい',
     ok:(S,a)=>a.lvl>=32,msg:a=>`${a.name}があらゆる呪文を極め、大魔導士と呼ばれるようになった。`,prog:a=>`いまレベル${a.lvl}`},
   map:{w:.4,cw:{'盗賊':1.5,'忍者':1.5},mk:()=>({}),txt:()=>'迷宮の完全な地図を描き上げたい',
-    ok:(S,a)=>a.deepest>=MAXF&&(a.trips||0)>=40,msg:a=>`${a.name}が、迷宮の完全な地図を描き上げた。写しは高値で売れるだろう。`,prog:a=>`探索${a.trips||0}回・最深B${a.deepest}F`},
+    ok:(S,a)=>a.deepest>=MAXF&&(a.trips||0)>=40,msg:a=>`${a.name}が、迷宮の完全な地図を描き上げた。写しは高値で売れるだろう。`,prog:a=>`探索${a.trips||0}回・最深${FN(a.deepest)}`},
   sendhome:{w:.8,aw:a=>humanAge(a)<22?2:humanAge(a)>40?.4:1,mk:a=>({amt:r100(Math.max(2000,incomeAt(depthOf(a)+2)*ri(5,9))),who:pick(['弟や妹たち','病気の母','年老いた両親','村の孤児院','戦で片腕をなくした兄'])}),txt:d=>`${d.who}への仕送り（${d.amt}G）を貯めて送りたい`,
     ok:(S,a,d)=>a.gold>=d.amt,pay:d=>d.amt,msg:(a,d)=>`${a.name}が、${d.who}へ${d.amt}Gを送り届けた。`,prog:(a,d)=>`貯金 ${a.gold} / ${d.amt}G`},
   marry:{w:.7,aw:a=>{const h=humanAge(a);return h>=20&&h<=35?1.6:h>45?.2:.6},mk:a=>({amt:r100(Math.max(6000,incomeAt(depthOf(a)+3)*ri(15,22))),who:pick(['故郷で待つ幼なじみ','王都で知り合った仕立て屋','ロウエンの花売り','寺院で働く若者','同じ村の羊飼い','武具屋で見習いをしている子'])}),txt:d=>`${d.who}と所帯を持つための金（${d.amt}G）を貯めたい`,
     ok:(S,a,d)=>a.gold>=d.amt,pay:d=>d.amt,msg:(a,d)=>`${a.name}が貯めた金を手に、${d.who}に結婚を申し込んだ。返事は「はい」だった。`,ret:()=>chance(.6)?'所帯を持つ':null,prog:(a,d)=>`貯金 ${a.gold} / ${d.amt}G`},
   pension:{w:1.5,can:a=>humanAge(a)>=40,mk:a=>({amt:r100(Math.max(15000,incomeAt(depthOf(a)+2)*ri(25,35)))}),txt:d=>`剣を置く前に、静かな余生のための蓄え（${d.amt}G）を作りたい`,
     ok:(S,a,d)=>a.gold>=d.amt,msg:(a,d)=>`${a.name}が、余生の蓄えを作り終えた。`,ret:d=>d.vi===1&&d.place?`剣を置いて${d.place}で隠居する`:'剣を置いて隠居する',prog:(a,d)=>`貯金 ${a.gold} / ${d.amt}G`},
-  lastdive:{w:1.2,can:a=>humanAge(a)>=42,mk:a=>({f:clamp(Math.max(a.deepest||0,Math.ceil(PL(a)))+ri(2,4),GATE_F+1,MAXF)}),txt:d=>`体が言うことをきくうちに、もう一度だけB${d.f}Fまで潜りたい`,
-    ok:(S,a,d)=>a.deepest>=d.f,msg:(a,d)=>`${a.name}が老いた体で、ついにB${d.f}Fに立った。「これで思い残すことはない」`,ret:()=>chance(.6)?'思い残すことなく引退する':null,prog:a=>`これまでの最深 B${a.deepest}F`},
+  lastdive:{w:1.2,can:a=>humanAge(a)>=42,mk:a=>({f:clamp(Math.max(a.deepest||0,Math.ceil(PL(a)))+ri(2,4),GATE_F+1,MAXF)}),txt:d=>`体が言うことをきくうちに、もう一度だけ${FN(d.f)}まで潜りたい`,
+    ok:(S,a,d)=>a.deepest>=d.f,msg:(a,d)=>`${a.name}が老いた体で、ついに${FN(d.f)}に立った。「これで思い残すことはない」`,ret:()=>chance(.6)?'思い残すことなく引退する':null,prog:a=>`これまでの最深 ${FN(a.deepest)}`},
   mentor:{w:1,can:a=>humanAge(a)>=33&&a.lvl>=16,mk:()=>({}),txt:()=>'駆け出しを一人、一人前に育て上げたい',
     ok:(S,a,d)=>{const b=Object.values(S.adv).find(b=>b!==a&&b.tav===a.tav&&b.party&&b.party===a.party&&(b.lvl0||99)<=4&&b.lvl>=14&&b.status!=='lost');if(b)d.pupil=b.name;return !!b;},
     msg:(a,d)=>`${a.name}が駆け出しのころから面倒を見てきた${d.pupil}が、一人前の冒険者になった。`,prog:()=>'同じ一行の駆け出しが育つのを待っている'},
@@ -704,9 +731,9 @@ const DREAMS={
   defy:{w:.6,mk:a=>({l:Math.max(20,a.lvl+12),g:a.sex}),txt:d=>d.g==='女'?`「女に剣は振れない」と言った故郷の連中を、レベル${d.l}になって見返したい`:`家業を継げと言う父に、レベル${d.l}になって自分の生き方を認めさせたい`,
     ok:(S,a,d)=>a.lvl>=d.l,msg:(a,d)=>d.g==='女'?`${a.name}がレベル${d.l}に達した。故郷に届いた噂に、かつて笑った連中は黙り込んだという。`:`${a.name}がレベル${d.l}に達し、故郷の父から「好きにしろ」とだけ書いた手紙が届いた。`,prog:a=>`いまレベル${a.lvl}`},
   elfsong:{w:1.5,can:a=>a.race==='エルフ',mk:()=>({}),txt:()=>'森へ帰る前に、人の世の英雄譚をこの目で見届けたい',
-    ok:(S,a)=>(a.trips||0)>=25&&a.deepest>=GATE_F+5,msg:a=>`${a.name}が、森へ持ち帰る英雄譚をいくつも見届けた。`,ret:()=>chance(.5)?'人の世の歌を携えて森へ帰る':null,prog:a=>`探索${a.trips||0}回・最深B${a.deepest}F`},
-  elfrelic:{w:1.2,can:a=>a.race==='エルフ',mk:()=>({f:ri(GATE_F+4,GATE_F+12)}),txt:d=>`B${d.f}Fあたりに沈んだという、古いエルフの弓を見つけて森へ返したい`,
-    ok:(S,a,d)=>a.deepest>=d.f,msg:(a,d)=>`${a.name}がB${d.f}Fで古いエルフの弓を見つけ出した。森の長老たちに届けるという。`,prog:a=>`これまでの最深 B${a.deepest}F`},
+    ok:(S,a)=>(a.trips||0)>=25&&a.deepest>=GATE_F+5,msg:a=>`${a.name}が、森へ持ち帰る英雄譚をいくつも見届けた。`,ret:()=>chance(.5)?'人の世の歌を携えて森へ帰る':null,prog:a=>`探索${a.trips||0}回・最深${FN(a.deepest)}`},
+  elfrelic:{w:1.2,can:a=>a.race==='エルフ',mk:()=>({f:ri(GATE_F+4,GATE_F+12)}),txt:d=>`${FN(d.f)}あたりに沈んだという、古いエルフの弓を見つけて森へ返したい`,
+    ok:(S,a,d)=>a.deepest>=d.f,msg:(a,d)=>`${a.name}が${FN(d.f)}で古いエルフの弓を見つけ出した。森の長老たちに届けるという。`,prog:a=>`これまでの最深 ${FN(a.deepest)}`},
   dwarfaxe:{w:1.5,can:a=>a.race==='ドワーフ'||a.origin==='ベルクラント鉱山諸侯領',mk:()=>{const t=ri(4,6);return {t,mat:SHOP_MAT.metal[t-1],amt:SHOP_PRICE[t]*2}},txt:d=>`グンター親方に、${d.mat}で自分だけの得物を打たせたい（${d.amt}G）`,
     ok:(S,a,d)=>!!(S.shop&&S.shop.tiers&&S.shop.tiers[d.t])&&a.gold>=d.amt,pay:d=>d.amt,act:(S,a,d)=>{const o=shopOffers(S,a.cls).filter(x=>x.t===d.t&&x.b.slot==='wpn')[0];if(o){const it=shopMake(S,o.b,o.t);it.n=`${a.name}の${d.mat}の${o.b.t}`;it.atk=(it.atk||0)+2;equip(a,it);}},
     msg:(a,d)=>`${a.name}が、グンター親方に打たせた${d.mat}の得物を手にした。`,prog:(a,d)=>`貯金 ${a.gold} / ${d.amt}G${S.shop&&S.shop.tiers&&S.shop.tiers[d.t]?'':'（武具屋にまだ'+d.mat+'の品がない）'}`},
@@ -715,7 +742,7 @@ const DREAMS={
   hobbithome:{w:1.6,can:a=>a.race==='ホビット',mk:a=>({amt:r100(Math.max(8000,incomeAt(depthOf(a)+3)*ri(18,26)))}),txt:d=>`麦穂の丘に、丸い窓のある大きな家を建てたい（${d.amt}G）`,
     ok:(S,a,d)=>a.gold>=d.amt,pay:d=>d.amt,msg:(a,d)=>`${a.name}が、麦穂の丘に丸い窓の家を建てる金を送った。`,ret:()=>chance(.5)?'丘に帰って、丸い窓の家で暮らす':null,prog:(a,d)=>`貯金 ${a.gold} / ${d.amt}G`},
   book:{w:.3,aw:a=>(a.race==='ホビット'?3:1)*(a.quirk==='読書家'?3:1),mk:()=>({}),txt:()=>'迷宮での冒険を、一冊の本に書き上げたい',
-    ok:(S,a)=>(a.trips||0)>=30&&a.deepest>=GATE_F+3,msg:a=>`${a.name}が、迷宮での冒険を一冊の本に書き上げた。ロウエンの本屋に並ぶらしい。`,prog:a=>`探索${a.trips||0}回・最深B${a.deepest}F`},
+    ok:(S,a)=>(a.trips||0)>=30&&a.deepest>=GATE_F+3,msg:a=>`${a.name}が、迷宮での冒険を一冊の本に書き上げた。ロウエンの本屋に並ぶらしい。`,prog:a=>`探索${a.trips||0}回・最深${FN(a.deepest)}`},
   ship:{w:0,ow:{'セーレ自由都市同盟':2.5},mk:a=>({amt:r100(Math.max(25000,incomeAt(depthOf(a)+3)*ri(35,50)))}),txt:d=>`自分の船を一隻持ちたい（${d.amt}G）`,
     ok:(S,a,d)=>a.gold>=d.amt,pay:d=>d.amt,msg:(a,d)=>`${a.name}が、セーレの港で自分の船を買った。`,ret:()=>chance(.6)?'自分の船で海に出る':null,prog:(a,d)=>`貯金 ${a.gold} / ${d.amt}G`},
   clearname:{w:0,ow:{'グラウ帝国':2},mk:()=>({}),txt:()=>'帝国の脱走兵という汚名を、迷宮での手柄で消したい',
@@ -729,13 +756,13 @@ const DREAMS={
   horse:{w:0,ow:{'ハザン草原':3},mk:a=>({amt:r100(Math.max(6000,incomeAt(depthOf(a)+3)*ri(12,18)))}),txt:d=>`博打で取られた一族の名馬を買い戻したい（${d.amt}G）`,
     ok:(S,a,d)=>a.gold>=d.amt,pay:d=>d.amt,msg:(a,d)=>`${a.name}が一族の名馬を買い戻した。`,ret:()=>chance(.5)?'名馬に乗って草原へ帰る':null,prog:(a,d)=>`貯金 ${a.gold} / ${d.amt}G`},
   crest:{w:0,ow:{'灰の荒野':2.5},mk:()=>({}),txt:()=>'宮廷のどこかに眠るエスタリア王家の紋章を、荒野の長老に届けたい',
-    ok:(S,a)=>a.deepest>=18,msg:a=>`${a.name}が宮廷の奥でエスタリア王家の紋章を見つけ、荒野の長老たちに届けた。流民たちは夜通し泣いたという。`,prog:a=>`これまでの最深 B${a.deepest}F`},
-  father:{w:0,ow:{'ロウエン':3},mk:()=>({f:GATE_F+ri(2,7)}),txt:d=>`帰ってこなかった親父が目指していたB${d.f}Fに、代わりに立ちたい`,
-    ok:(S,a,d)=>a.deepest>=d.f,msg:(a,d)=>`${a.name}が、父が目指したB${d.f}Fに立った。`,prog:a=>`これまでの最深 B${a.deepest}F`},
+    ok:(S,a)=>a.deepest>=18,msg:a=>`${a.name}が宮廷の奥でエスタリア王家の紋章を見つけ、荒野の長老たちに届けた。流民たちは夜通し泣いたという。`,prog:a=>`これまでの最深 ${FN(a.deepest)}`},
+  father:{w:0,ow:{'ロウエン':3},mk:()=>({f:GATE_F+ri(2,7)}),txt:d=>`帰ってこなかった親父が目指していた${FN(d.f)}に、代わりに立ちたい`,
+    ok:(S,a,d)=>a.deepest>=d.f,msg:(a,d)=>`${a.name}が、父が目指した${FN(d.f)}に立った。`,prog:a=>`これまでの最深 ${FN(a.deepest)}`},
   lord:{w:0,ow:{'東方の島国アズマ':3},mk:()=>({}),txt:()=>'亡き主君の墓前に、迷宮の名品を供えたい',
     ok:(S,a)=>eqList(a).some(i=>i.rare),msg:a=>`${a.name}が、亡き主君の墓前に供える名品を手に入れた。`,ret:()=>chance(.5)?'主君の墓前へ帰る':null,prog:()=>'伝説の品を探している'},
   elixir:{w:0,ow:{'砂の大陸ザハル':3},cw:{'錬金術師':4},mk:()=>({}),txt:()=>'澱が結晶した「澱晶」を持ち帰り、師の錬金術を完成させたい',
-    ok:(S,a)=>a.deepest>=24,msg:a=>`${a.name}が澱晶を手に入れ、師の研究を完成させた。`,ret:()=>chance(.5)?'澱晶を携えてザハルへ帰る':null,prog:a=>`これまでの最深 B${a.deepest}F`},
+    ok:(S,a)=>a.deepest>=24,msg:a=>`${a.name}が澱晶を手に入れ、師の研究を完成させた。`,ret:()=>chance(.5)?'澱晶を携えてザハルへ帰る':null,prog:a=>`これまでの最深 ${FN(a.deepest)}`},
   trapper:{w:0,cw:{'盗賊':2,'忍者':2},mk:a=>({n:Math.max(30,(a.disarms||0)+20)}),txt:d=>`迷宮一の罠外しと呼ばれたい（罠${d.n}個）`,
     ok:(S,a,d)=>(a.disarms||0)>=d.n,msg:(a,d)=>`${a.name}が外した罠が${d.n}個に達した。ロウエンで一番の罠外しだ。`,prog:a=>`外した罠 ${a.disarms||0}個`},
   thousand:{w:0,cw:{'戦士':1.2,'侍':1.2,'剣聖':2,'忍者':1},mk:a=>({n:Math.max(500,(a.kills||0)+300)}),txt:d=>`魔物を${d.n}体斬り伏せたい`,
@@ -743,11 +770,13 @@ const DREAMS={
   yomi:{w:0,cw:{'僧侶':1.5,'司教':1.5},mk:()=>({}),txt:()=>'寺院に頼らず、迷宮の中で仲間を蘇らせたい（ヨミガエリ）',
     ok:(S,a)=>(a.yomiN||0)>=1,msg:a=>`${a.name}が、迷宮の中でヨミガエリを成功させた。`,prog:a=>`いまレベル${a.lvl}`},
   ballad:{w:0,cw:{'吟遊詩人':4},mk:()=>({}),txt:()=>'迷宮の英雄たちの歌を、一曲に仕上げたい',
-    ok:(S,a)=>(a.trips||0)>=25&&a.deepest>=GATE_F+5,msg:a=>`${a.name}の新しい歌「沈んだ都の英雄たち」が、ロウエンじゅうの酒場で歌われはじめた。`,prog:a=>`探索${a.trips||0}回・最深B${a.deepest}F`},
-  partner:{w:0,cw:{'獣使い':4},mk:()=>({f:ri(GATE_F+3,GATE_F+10)}),txt:d=>`相棒と一緒に、B${d.f}Fの景色を見たい`,
-    ok:(S,a,d)=>a.deepest>=d.f,msg:(a,d)=>`${a.name}と相棒の${a.beast?a.beast.kind+'の'+a.beast.name:'獣'}が、B${d.f}Fの景色を見た。`,prog:a=>`これまでの最深 B${a.deepest}F`},
+    ok:(S,a)=>(a.trips||0)>=25&&a.deepest>=GATE_F+5,msg:a=>`${a.name}の新しい歌「沈んだ都の英雄たち」が、ロウエンじゅうの酒場で歌われはじめた。`,prog:a=>`探索${a.trips||0}回・最深${FN(a.deepest)}`},
+  partner:{w:0,cw:{'獣使い':4},mk:()=>({f:ri(GATE_F+3,GATE_F+10)}),txt:d=>`相棒と一緒に、${FN(d.f)}の景色を見たい`,
+    ok:(S,a,d)=>a.deepest>=d.f,msg:(a,d)=>`${a.name}と相棒の${a.beast?a.beast.kind+'の'+a.beast.name:'獣'}が、${FN(d.f)}の景色を見た。`,prog:a=>`これまでの最深 ${FN(a.deepest)}`},
 
 
+  minebottom:{w:0,can:(a,S)=>mineOpen(S),aw:a=>a.race==='ドワーフ'||a.origin==='鉄の山脈'||a.origin==='ベルクラント鉱山諸侯領'?4:1.5,mk:()=>({}),txt:()=>'鉄の山脈の坑道の底を、この目で見たい',
+    ok:(S,a)=>(a.mineDeep||0)>=MINE_N,msg:a=>`${a.name}が坑道の底にたどり着き、澱の湧く岩の玉座をその目で見た。`,prog:a=>a.mineDeep?`これまでの坑道の最深 ${FN(MAXF+a.mineDeep)}`:'まだ坑道に入っていない'},
   rarehunt:{w:.7,mk:a=>({n:(a.rareKills||0)+ri(2,3)}),txt:d=>`名のある魔物を${d.n}体、この手で討ちたい`,
     ok:(S,a,d)=>(a.rareKills||0)>=d.n,msg:(a,d)=>`${a.name}が討った名のある魔物が${d.n}体になった。`,prog:a=>`名のある魔物の討伐 ${a.rareKills||0}体`},
   firstfoot:{w:.7,aw:a=>a.pers==='無謀'?2.5:a.pers==='臆病'?.2:1,mk:a=>({n:(a.firsts||0)+1}),txt:()=>'まだ誰も踏み入れていない階に、一番乗りしたい',
@@ -755,13 +784,13 @@ const DREAMS={
   payback:{w:0,can:a=>a.tav==='ours'&&(a.favor||0)>=2,aw:a=>Math.min(4,1+(a.favor||0)/2),mk:a=>({amt:r100(Math.max(3000,incomeAt(depthOf(a)+2)*ri(6,10)))}),txt:d=>`世話になった黒猫亭の店主に、恩を返したい（${d.amt}G）`,
     ok:(S,a,d)=>a.gold>=d.amt,pay:d=>d.amt,act:(S,a,d)=>{if(a.tav==='ours'){S.taverns.ours.gold+=d.amt;S.taverns.ours.earned+=d.amt;}},msg:(a,d)=>`${a.name}が「借りを返す」と言って、黒猫亭の店主に${d.amt}Gを置いていった。`,prog:(a,d)=>`貯金 ${a.gold} / ${d.amt}G`},
   beatrival:{w:0,can:a=>a.tav==='ours',aw:()=>3,mk:()=>({}),txt:()=>'銀の杯亭の連中より先に、迷宮の深みへ行きたい',
-    ok:(S,a)=>S.deepest.ours>S.deepest.rival&&a.deepest>=S.deepest.ours,msg:a=>`${a.name}が、銀の杯亭の看板より深い階に立った。`,prog:()=>`最深到達 黒猫亭 B${S.deepest.ours}F / 銀の杯亭 B${S.deepest.rival}F`},
+    ok:(S,a)=>S.deepest.ours>S.deepest.rival&&a.deepest>=S.deepest.ours,msg:a=>`${a.name}が、銀の杯亭の看板より深い階に立った。`,prog:()=>`最深到達 黒猫亭 ${FN(S.deepest.ours)} / 銀の杯亭 ${FN(S.deepest.rival)}`},
   letters:{w:.6,can:a=>humanAge(a)<26&&a.lvl<14,mk:()=>({n:ri(8,14)}),txt:()=>'読み書きを覚えて、自分で故郷に手紙を書きたい',
     ok:(S,a,d)=>(a.trips||0)>=d.n,msg:a=>`${a.name}が、初めて自分の手で故郷へ手紙を書いた。`,prog:a=>`酒場の隅で、文字を練習している（探索${a.trips||0}回）`},
   pilgrim:{w:0,ow:{'聖オルド教国':1.5},cw:{'僧侶':1,'司教':1.2,'聖騎士':1},mk:a=>({amt:r100(Math.max(3000,incomeAt(depthOf(a)+2)*ri(6,9)))}),txt:d=>`聖都へ巡礼する旅費（${d.amt}G）を貯めたい`,
     ok:(S,a,d)=>a.gold>=d.amt,pay:d=>d.amt,msg:a=>`${a.name}が、聖都への巡礼に旅立つ支度を整えた。`,ret:()=>chance(.5)?'聖都へ巡礼に出る':null,prog:(a,d)=>`貯金 ${a.gold} / ${d.amt}G`},
   library:{w:0,aw:a=>a.quirk==='読書家'?1:0,mk:()=>({}),txt:()=>'迷宮で拾った古文書を、王都の図書館に寄贈したい',
-    ok:(S,a)=>a.deepest>=GATE_F+6&&(a.trips||0)>=15,msg:a=>`${a.name}が集めた古文書が、王都の図書館に収められた。`,prog:a=>`これまでの最深 B${a.deepest}F`},
+    ok:(S,a)=>a.deepest>=GATE_F+6&&(a.trips||0)>=15,msg:a=>`${a.name}が集めた古文書が、王都の図書館に収められた。`,prog:a=>`これまでの最深 ${FN(a.deepest)}`},
   catdream:{w:0,aw:a=>a.quirk==='猫好き'?1.5:0,mk:()=>({n:ri(10,20)}),txt:()=>'黒猫亭の黒猫に、膝の上で眠ってもらいたい',
     ok:(S,a,d)=>(a.trips||0)>=d.n,msg:a=>`黒猫亭の黒猫が、ついに${a.name}の膝の上で丸くなった。`,prog:()=>'黒猫は、まだそっぽを向いている'},
   jackpot:{w:0,aw:a=>a.quirk==='博打好き'?1.5:0,mk:a=>({amt:r100(Math.max(3000,incomeAt(depthOf(a)+2)*ri(8,12)))}),txt:d=>`賭場で一晩に${d.amt}G勝ってみたい`,
@@ -771,7 +800,7 @@ const DREAMS={
   grave:{w:0,can:(a,S)=>!!lostFriend(S,a),aw:()=>2,mk:(a,S)=>{const o=lostFriend(S,a);return {who:o?o.name:'仲間',amt:r100(Math.max(2000,incomeAt(depthOf(a)+1)*ri(4,7)))}},txt:d=>`迷宮で消えた${d.who}のために、墓地の丘に墓を立てたい（${d.amt}G）`,
     ok:(S,a,d)=>a.gold>=d.amt,pay:d=>d.amt,msg:(a,d)=>`${a.name}が、墓地の丘に${d.who}の墓を立てた。`,prog:(a,d)=>`貯金 ${a.gold} / ${d.amt}G`},
   avenge:{w:0,can:(a,S)=>{const o=lostFriend(S,a);return !!(o&&MON.some(m=>m.n===o.lastBy))},aw:()=>2.5,mk:(a,S)=>{const o=lostFriend(S,a);return {who:o?o.name:'仲間',m:o?o.lastBy:'黒竜'}},txt:d=>`${d.who}を殺した${d.m}に、仇を討ちたい`,
-    ok:(S,a,d)=>(a.slain||{})[d.m],msg:(a,d)=>`${a.name}が、${d.who}の仇の${d.m}を討った。`,prog:a=>`これまでの最深 B${a.deepest}F`},
+    ok:(S,a,d)=>(a.slain||{})[d.m],msg:(a,d)=>`${a.name}が、${d.who}の仇の${d.m}を討った。`,prog:a=>`これまでの最深 ${FN(a.deepest)}`},
   keepsake:{w:0,can:(a,S)=>!!lostFriend(S,a),aw:()=>1.2,mk:(a,S)=>{const o=lostFriend(S,a);return {who:o?o.name:'仲間',from:o?o.origin:'故郷',amt:r100(Math.max(2500,incomeAt(depthOf(a)+1)*ri(5,8)))}},txt:d=>`${d.who}の形見を、${d.from}の家族に届けたい（旅費${d.amt}G）`,
     ok:(S,a,d)=>a.gold>=d.amt,pay:d=>d.amt,msg:(a,d)=>`${a.name}が、${d.who}の形見を${d.from}の家族に届ける旅に出た。`,ret:()=>chance(.3)?'形見を届けたまま、故郷に留まる':null,prog:(a,d)=>`貯金 ${a.gold} / ${d.amt}G`},
   tour:{w:.4,mk:a=>({amt:r100(Math.max(8000,incomeAt(depthOf(a)+2)*ri(15,22)))}),txt:d=>`大陸の八つの国を、すべて巡ってみたい（${d.amt}G）`,
@@ -936,15 +965,15 @@ function kinEvent(S,p,a){
     plog(p,`${d.name}「……${a.name}？ ほんとうに ${a.name}なのか」`,'say');
     plog(p,`${a.name} は ${d.who}の ${d.name}を みつけだした！`,'loot');
     p.rescue=(p.rescue||[]).concat([{by:a.id,name:d.name,who:d.who,f:p.floor}]);
-    chron(S,a,`B${p.floor}Fで${d.who}の${d.name}を生きて見つけ出す`);
-    news(S,`${tn}の${a.name}が、B${p.floor}Fで行方知れずだった${d.who}の${d.name}を生きて見つけ出した！`,'record');
+    chron(S,a,`${FN(p.floor)}で${d.who}の${d.name}を生きて見つけ出す`);
+    news(S,`${tn}の${a.name}が、${FN(p.floor)}で行方知れずだった${d.who}の${d.name}を生きて見つけ出した！`,'record');
     p.state='return';p.trip.kin.alive=true;fulfill(S,a,'生きて見つけ出した');
   } else {
     const keep=pick(['ペンダント','折れた剣','日記','指輪','革の帽子','手紙']);d.keep=keep;p.trip.kin.keep=keep;fulfill(S,a,`${keep}だけが見つかった`);
     plog(p,`${a.name} は ふるい ${keep}を ひろいあげた……`,'death');
     plog(p,`${a.name}「……${d.who}の ものだ」`,'say');
-    chron(S,a,`B${p.floor}Fで${d.who}（${d.name}）の${keep}を見つける。探索は終わった`);
-    news(S,`${tn}の${a.name}が、B${p.floor}Fで行方知れずの${d.who}の${keep}を見つけた。`,'record');
+    chron(S,a,`${FN(p.floor)}で${d.who}（${d.name}）の${keep}を見つける。探索は終わった`);
+    news(S,`${tn}の${a.name}が、${FN(p.floor)}で行方知れずの${d.who}の${keep}を見つけた。`,'record');
     if(chance(.35)) a.retirePending='弔いの旅に出る';
   }
 }
@@ -989,13 +1018,14 @@ function formParties(S,tav,quiet,forced,fname){
   if(!quiet&&tav==='ours') news(S,`${L.name}が仲間を集め、${nm}（${take.filter(a=>a!==L).map(a=>a.name).join('・')}）を結成した。`,'info');
 }
 const SHOP_NAME='鉄床通りの武具屋';
-const SHOP_MAT={metal:['鉄','鋼','ミスリル','竜骨','神銀','アダマン','澱鉄'],wood:['樫','柊','黒檀','霊木','神木','冥樹','澱木'],cloth:['木綿','羅紗','絹','月絹','天衣','冥絹','澱糸'],leather:['なめし','硬化','魔獣','竜','古竜','黒竜','澱革'],jewel:['銅','銀','金','白金','金剛石','竜涙石','澱晶'],charm:['木彫り','骨','聖別','古代','精霊','冥府','澱']};
-const SHOP_TIERS=[null,{t:1,label:'鉄の品'},{t:2,mat:'銀鉱石',need:120,label:'鋼の品'},{t:3,mat:'ミスリル鉱',need:300,label:'ミスリルの品'},{t:4,mat:'竜骨',need:250,label:'竜骨の品'},{t:5,mat:'月長石',need:40,label:'神銀の品'},{t:6,mat:'冥銀鉱',need:60,label:'アダマンの品'},{t:7,mat:'澱晶',need:30,label:'澱鉄の品'}];
-const SHOP_PRICE=[0,150,1500,3000,4800,7000,11000,18000];
-function matTier(rf){const f=dz(rf);return f>=16?7:f>=11?6:f>=9?5:f>=7?4:f>=5?3:f>=3?2:0}
+const SHOP_MAT={metal:['鉄','鋼','ミスリル','竜骨','神銀','アダマン','澱鉄','黒曜鉄','澱金'],wood:['樫','柊','黒檀','霊木','神木','冥樹','澱木','化石樹','澱樹'],cloth:['木綿','羅紗','絹','月絹','天衣','冥絹','澱糸','岩蜘蛛糸','澱金糸'],leather:['なめし','硬化','魔獣','竜','古竜','黒竜','澱革','洞窟竜','澱竜'],jewel:['銅','銀','金','白金','金剛石','竜涙石','澱晶','黒曜石','澱金'],charm:['木彫り','骨','聖別','古代','精霊','冥府','澱','坑道','澱金']};
+const SHOP_TIERS=[null,{t:1,label:'鉄の品'},{t:2,mat:'銀鉱石',need:120,label:'鋼の品'},{t:3,mat:'ミスリル鉱',need:300,label:'ミスリルの品'},{t:4,mat:'竜骨',need:250,label:'竜骨の品'},{t:5,mat:'月長石',need:40,label:'神銀の品'},{t:6,mat:'冥銀鉱',need:60,label:'アダマンの品'},{t:7,mat:'澱晶',need:30,label:'澱鉄の品'},{t:8,mat:'黒曜鉄鉱',need:60,label:'黒曜鉄の品'},{t:9,mat:'澱金鉱',need:40,label:'澱金の品'}];
+const SHOP_PRICE=[0,150,1500,3000,4800,7000,11000,18000,28000,42000];
+const SHOP_TOP=SHOP_TIERS.length-1;
+function matTier(rf){if(inMine(rf))return rf-MAXF<=12?8:9;const f=dz(rf);return f>=16?7:f>=11?6:f>=9?5:f>=7?4:f>=5?3:f>=3?2:0}
 function shopInit(S){if(!S.shop)S.shop={tiers:{1:true},mats:{},serial:0,log:[]};return S.shop;}
 function shopPrice(b,t){return Math.round(SHOP_PRICE[t]*(b.two?1.4:1)*(b.slot==='acc'?1.2:1)*(b.slot==='shield'||b.slot==='head'?.7:1)/10)*10}
-function shopOffers(S,cls){const sh=shopInit(S);const out=[];for(let t=1;t<=7;t++){if(!sh.tiers[t])continue;for(const b of ITEM_BASES){if(cls&&!canUse(cls,b))continue;out.push({b,t,price:shopPrice(b,t)});}}return out;}
+function shopOffers(S,cls){const sh=shopInit(S);const out=[];for(let t=1;t<=SHOP_TOP;t++){if(!sh.tiers[t])continue;for(const b of ITEM_BASES){if(cls&&!canUse(cls,b))continue;out.push({b,t,price:shopPrice(b,t)});}}return out;}
 function shopMake(S,b,t){const sh=shopInit(S);sh.serial++;const st=b.st(t);
   return Object.assign({for:[...b.for],f:t,slot:b.slot,base:b.t,shop:true,n:`${SHOP_MAT[b.m][t-1]}の${b.t}（工房${sh.serial}番）`},b.two?{two:true}:{},st);}
 const MONEY_DREAMS=['debt','wealth','shop','temple','home','sendhome','marry','pension','mine','hobbithome','ship','absolve','grain','horse','dwarfaxe'];
@@ -1155,53 +1185,53 @@ function recordBonds(S,p,al,dead,share){
   if(close.length>=2)bondEv(S,close[0],close[1],{k:'close',f});
   if(close.length&&hl&&hl!==close[0])bondEv(S,hl,close[0],{k:'heal',a:hl.id,b:close[0].id,f});
   const rk=Object.entries(S.rares||{}).find(([rf,v])=>v.killed&&v.killed.party===p.name&&S.tick-v.killed.tk<TICKS_PER_DAY*6);
-  if(rk&&al.length>=2){const R0=RARES.find(r=>r.f===+rk[0]);bondEv(S,al[0],al[1],{k:'rare',m:R0?R0.n:'名のある魔物',f:+rk[0]});}
+  if(rk&&al.length>=2){const R0=rareDef(+rk[0]);bondEv(S,al[0],al[1],{k:'rare',m:R0?R0.n:'名のある魔物',f:+rk[0]});}
   if(p.trip.rec&&al.length>=2)bondEv(S,al[0],al[1],{k:'rec',f});
   const big=p.trip.big?p.trip.big.n:null;const kills=Object.values(p.trip.kills||{}).reduce((x,y)=>x+y,0);
   all.forEach(a=>{a.last={deep:f,zone:zoneOf(f),mon:big,kills,traps:(p.trip.traps||[]).slice(0,2),loot:share,tk:S.tick,party:p.name,deaths:(p.trip.deaths||[]).map(x=>x.n).filter(n=>n!==a.name),fled:p.trip.fledFrom||null,died:own.includes(a)};});
 }
 function fillT(t,c){return t.replace(/\{(\w+)\}/g,(m,k)=>c[k]!=null?c[k]:m).replace(/\[([^\[\]]+)\]/g,(m,x)=>pick(x.split('|')));}
-const ZONE_FEEL={'沈んだ城壁と地下牢':['鎖の音が[どこからか|ずっと]聞こえる','地下牢の[臭い|湿気]が[服に染みついた|抜けない]'],'王都の街区':['崩れた[家|店]の中に、まだ[食器|子どもの靴]が残ってた','広場の[噴水|時計塔]が、まだ[水を噴いてる|動いてる]'],
+const ZONE_FEEL={'放棄された坑道':['[つるはし|ランプ]が[そのまま|錆びたまま]転がってた','坑道の[支柱|天井]が[きしむ|ずっと鳴ってる]'],'坑道都市の跡':['ドワーフの[鍛冶場|酒蔵]が[まるごと|火を落としたまま]残ってた','[石の家|石の椅子]が[小さくて|低くて]腰が痛い'],'鉱脈の奥':['壁の鉱石が[光ってる|脈打ってる]','[熱い|息苦しい]。山の腹の中だ'],'澱の湧く底':['澱が[岩の割れ目から|足元から]湧いてる','迷宮の底と同じ[匂い|音]がする'],'沈んだ城壁と地下牢':['鎖の音が[どこからか|ずっと]聞こえる','地下牢の[臭い|湿気]が[服に染みついた|抜けない]'],'王都の街区':['崩れた[家|店]の中に、まだ[食器|子どもの靴]が残ってた','広場の[噴水|時計塔]が、まだ[水を噴いてる|動いてる]'],
   '王都の地下水路':['水の音が[一晩中|ずっと]耳から離れない','足首まで[水|泥]に浸かって[歩きどおし|戦いどおし]だった'],'宮廷と墓所':['墓所の[ランタン|燭台]が、誰もいないのに[灯ってた|揺れてた]','宮廷の[絵|鏡|玉座の間の扉]が、[こっちを見てる|何かを映してる]気がした'],
   '魔術師の塔':['塔の[階段|回廊]が、[上っても上っても|下っても下っても]終わらない','壁一面に[呪文|数式]が[刻まれて|書き殴られて]た'],'儀式の間':['床に描かれた[円|紋様]が、[脈打って|ぼんやり光って]た','[誰かの名前|祈りの声]が、[壁の奥から|足元から]聞こえた'],'玉座の間':['玉座の前は、[音が|息が]吸い込まれるみたいだった']};
 const TRIP_T=[
-  [a=>a.last.mon,'この前、B{deep}Fで{mon}の群れに[囲まれて|追い回されて|挟み撃ちにされて][死ぬかと思った|生きた心地がしなかった|笑うしかなかった]'],
+  [a=>a.last.mon,'この前、{deep}で{mon}の群れに[囲まれて|追い回されて|挟み撃ちにされて][死ぬかと思った|生きた心地がしなかった|笑うしかなかった]'],
   [a=>a.last.mon,'{mon}の[一撃|爪|牙]を[まともに|盾ごと|二度も]食らった。[まだ痛む|傷が疼く|もう治ったけどな]'],
-  [a=>a.last.loot>0,'B{deep}Fまで潜って、稼ぎは[たったの|ようやく]{loot}Gだ。[割に合わない|まあ悪くない|酒代で消える]'],
+  [a=>a.last.loot>0,'{deep}まで潜って、稼ぎは[たったの|ようやく]{loot}Gだ。[割に合わない|まあ悪くない|酒代で消える]'],
   [a=>a.last.traps.length,'{trap}の罠に[引っかかった|やられた]。[盗賊が欲しい|次は宝箱に近づかない|恥ずかしくて言えなかった]'],
-  [a=>a.last.deaths.length,'B{deep}Fで{dead}が倒れた。[担いで帰るのがやっとだった|寺院の代金が痛い|あいつ、ちゃんと生き返るかな]'],
+  [a=>a.last.deaths.length,'{deep}で{dead}が倒れた。[担いで帰るのがやっとだった|寺院の代金が痛い|あいつ、ちゃんと生き返るかな]'],
   [a=>a.last.fled,'{fled}から[逃げ出した|尻尾を巻いて逃げた]。[恥ずかしい話だが|生きてりゃ勝ちだ]'],
   [a=>a.last.died,'[寺院で目が覚めたら|生き返ったら]、[知らない天井だった|財布が軽くなってた|三日経ってた]'],
   [a=>a.last.kills>=8,'この前の探索で、魔物を{kills}体は[倒した|斬った]。[腕が上がらない|数えるのも面倒だ]'],
   [a=>ZONE_FEEL[a.last.zone],'{zone}は、{feel}'],
 ];
 const TRIP_R=['[生きて帰ったんなら上出来だ|運がよかったな|次は気をつけろ]','[一杯おごれよ|で、分け前は？|その話、三回目だぞ]','[{mon}なら|あいつには][火|雷|氷]がよく効くぞ','[地図は買ったのか|回復薬は足りてたか]','[知ってる。一緒にいたからな|隣で見てたよ]'];
-const TRIP_R2=['俺たちはB{bdeep}Fで[足止めさ|うろうろしてた]','[そっちはそっちで大変だったんだな|俺たちのほうが深かったぞ]'];
-const RUMOR_T=['[噂じゃ|聞いた話じゃ]B{rf}Fに[開かない扉|人の声がする部屋|光る祭壇|鏡ばかりの部屋]があるらしい','{zone2}には、[名のある魔物|昔の大部隊の生き残り|王の亡霊]がうろついてるって[話だ|噂だ]','[寺院|探索管理所|両替商|武具屋]の[連中|親方]、また[値上げ|人手が足りない|景気がいい]らしい','[酔っ払い|地図屋の梟|寺院の小僧]が言うには、B{rf}Fの[壁|床]は[生きてる|ときどき動く]んだと'];
+const TRIP_R2=['俺たちは{bdeep}で[足止めさ|うろうろしてた]','[そっちはそっちで大変だったんだな|俺たちのほうが深かったぞ]'];
+const RUMOR_T=['[噂じゃ|聞いた話じゃ]{rf}に[開かない扉|人の声がする部屋|光る祭壇|鏡ばかりの部屋]があるらしい','{zone2}には、[名のある魔物|昔の大部隊の生き残り|王の亡霊]がうろついてるって[話だ|噂だ]','[寺院|探索管理所|両替商|武具屋]の[連中|親方]、また[値上げ|人手が足りない|景気がいい]らしい','[酔っ払い|地図屋の梟|寺院の小僧]が言うには、{rf}の[壁|床]は[生きてる|ときどき動く]んだと'];
 const RUMOR_R=['[眉唾だな|本当なら面白い|誰が確かめたんだ]','[行ってみたいもんだ|俺は遠慮しとく|その話、銀の杯亭の連中も知ってるのか]'];
 function bondTopics(S,A,B,topics,say2){
   const bd=bondOf(S,A,B);
   if(bd){bd.ev.forEach(e=>{const mine=e.a===A.id,theirs=e.b===A.id;const w=S.tick-e.tk<TICKS_PER_DAY*30?3:1.2;
-    if(e.k==='carry'&&theirs)topics.push([w,()=>{say2(A,fillT(`B${e.f}Fで[担いで帰って|置いていかずに連れ帰って]くれた恩は、[忘れてない|一生忘れない]`,{}));say2(B,fillT('[あの時は重かった|礼はいい。次は俺を担いでくれ|生きてて何よりだ|置いていけるわけないだろう]',{}));}]);
-    if(e.k==='carry'&&mine)topics.push([w*.8,()=>{say2(A,fillT(`B${e.f}Fでお前を担いで帰ったときは、[背骨が折れるかと思った|もう駄目かと思った|お前が軽く感じた]`,{}));say2(B,fillT('[……その話はやめてくれ|感謝してるよ。一応な|一杯おごるから勘弁しろ]',{}));}]);
-    if(e.k==='yomi'&&theirs)topics.push([w*1.2,()=>{say2(A,fillT(`B${e.f}Fでヨミガエリをかけてくれたこと、[まだ礼を言ってなかった|今でも夢に見る]`,{}));say2(B,fillT('[灰にならなくてよかった|正直、賭けだった|二度目はないと思え]',{}));}]);
-    if(e.k==='heal'&&mine)topics.push([w,()=>{say2(A,fillT(`B${e.f}Fじゃ、あと少しイヤシが遅れてたら、お前[死んでたぞ|灰になってたぞ]`,{}));say2(B,fillT('[分かってる。感謝してる|恩着せがましいな|次は自分で避ける]',{}));}]);
-    if(e.k==='close')topics.push([w,()=>{say2(A,fillT(`B${e.f}Fのあれは、[二人とも死ぬかと思ったな|どっちが先に倒れるかと思った]`,{}));say2(B,fillT('[二度とごめんだ|今となっては笑い話さ|まだ手が震える]',{}));}]);
+    if(e.k==='carry'&&theirs)topics.push([w,()=>{say2(A,fillT(`${FN(e.f)}で[担いで帰って|置いていかずに連れ帰って]くれた恩は、[忘れてない|一生忘れない]`,{}));say2(B,fillT('[あの時は重かった|礼はいい。次は俺を担いでくれ|生きてて何よりだ|置いていけるわけないだろう]',{}));}]);
+    if(e.k==='carry'&&mine)topics.push([w*.8,()=>{say2(A,fillT(`${FN(e.f)}でお前を担いで帰ったときは、[背骨が折れるかと思った|もう駄目かと思った|お前が軽く感じた]`,{}));say2(B,fillT('[……その話はやめてくれ|感謝してるよ。一応な|一杯おごるから勘弁しろ]',{}));}]);
+    if(e.k==='yomi'&&theirs)topics.push([w*1.2,()=>{say2(A,fillT(`${FN(e.f)}でヨミガエリをかけてくれたこと、[まだ礼を言ってなかった|今でも夢に見る]`,{}));say2(B,fillT('[灰にならなくてよかった|正直、賭けだった|二度目はないと思え]',{}));}]);
+    if(e.k==='heal'&&mine)topics.push([w,()=>{say2(A,fillT(`${FN(e.f)}じゃ、あと少しイヤシが遅れてたら、お前[死んでたぞ|灰になってたぞ]`,{}));say2(B,fillT('[分かってる。感謝してる|恩着せがましいな|次は自分で避ける]',{}));}]);
+    if(e.k==='close')topics.push([w,()=>{say2(A,fillT(`${FN(e.f)}のあれは、[二人とも死ぬかと思ったな|どっちが先に倒れるかと思った]`,{}));say2(B,fillT('[二度とごめんだ|今となっては笑い話さ|まだ手が震える]',{}));}]);
     if(e.k==='rare')topics.push([w,()=>{say2(A,fillT(`あの「${e.m}」を仕留めた[夜|日]のこと、[まだ夢に見る|一生自慢できる]`,{}));say2(B,fillT('[あれは最高だった|お前の一撃が決め手だった|もう一度やれと言われても無理だ]',{}));}]);
-    if(e.k==='quarrel'&&mine)topics.push([w*1.3,()=>{say2(A,fillT(`B${e.f}Fでのあんたの判断は、[間違ってた|今でも納得できない|仲間を危うくした]`,{}));say2(B,fillT('[……生きて帰っただろう|文句があるなら抜ければいい|悪かったよ。次は聞く]',{}));}]);
+    if(e.k==='quarrel'&&mine)topics.push([w*1.3,()=>{say2(A,fillT(`${FN(e.f)}でのあんたの判断は、[間違ってた|今でも納得できない|仲間を危うくした]`,{}));say2(B,fillT('[……生きて帰っただろう|文句があるなら抜ければいい|悪かったよ。次は聞く]',{}));}]);
     if(e.k==='quarrel'&&theirs)topics.push([w*.8,()=>{say2(A,fillT('[この前は言い過ぎた|まだ怒ってるのか]',{}));say2(B,fillT('[……もういい|次は俺の話も聞いてくれ|怒ってない。呆れてるだけだ]',{}));}]);
-    if(e.k==='rec')topics.push([w,()=>{say2(A,fillT(`B${e.f}Fに一番乗りした[あの日|あの瞬間]は、[最高だった|忘れられない]`,{}));say2(B,fillT('[地図屋が記録を買いに来たな|次の一番乗りも俺たちだ]',{}));}]);});
+    if(e.k==='rec')topics.push([w,()=>{say2(A,fillT(`${FN(e.f)}に一番乗りした[あの日|あの瞬間]は、[最高だった|忘れられない]`,{}));say2(B,fillT('[地図屋が記録を買いに来たな|次の一番乗りも俺たちだ]',{}));}]);});
     if(bd.n>=8)topics.push([1.5,()=>{say2(A,`お前とは、もう${bd.n}回も一緒に潜ってるな`);say2(B,fillT('[腐れ縁だな|お前の背中なら、目をつぶっても分かる|次も頼むぜ|そろそろ飽きてきた]',{}));}]);
     else if(bd.n<=1&&A.party&&A.party===B.party)topics.push([1,()=>{say2(A,fillT('[まだ一緒に潜ったことがほとんどないな|そういえば、お前のことをよく知らない]',{}));say2(B,fillT('[次で分かるさ|俺は{origin}の出だ。よろしくな]',{origin:B.origin}));}]);}
   // friends who are gone
   const gone=Object.entries(S.bonds||{}).filter(([k,v])=>v.n>=3&&k.split('-').includes(String(A.id))).map(([k,v])=>{const oid=+k.split('-').find(x=>x!==String(A.id));return [S.adv[oid],v];}).filter(([o])=>o&&o!==B&&(o.status==='lost'||o.status==='retired'||o.tav!==A.tav));
   gone.forEach(([o,v])=>{
-    if(o.status==='lost')topics.push([2.5,()=>{say2(A,fillT(`${o.name}がいなくなってから、[この席は広すぎる|酒がまずい|B${o.lastFloor||'?'}Fには行く気がしない|${v.n}回も一緒に潜ったのにな]`,{}));say2(B,fillT('[……ああ|あいつの分まで潜るさ|俺も、あいつには借りがあった|記念碑に名前を見に行ったよ]',{}));}]);
+    if(o.status==='lost')topics.push([2.5,()=>{say2(A,fillT(`${o.name}がいなくなってから、[この席は広すぎる|酒がまずい|${FN(o.lastFloor||'?')}には行く気がしない|${v.n}回も一緒に潜ったのにな]`,{}));say2(B,fillT('[……ああ|あいつの分まで潜るさ|俺も、あいつには借りがあった|記念碑に名前を見に行ったよ]',{}));}]);
     else if(o.status==='retired')topics.push([1.5,()=>{say2(A,fillT(`${o.name}は今ごろ、[故郷で|どこかで]どうしてるかな`,{}));say2(B,fillT('[元気でやってるさ|手紙くらい寄こせばいいのにな|あいつは幸せ者だ]',{}));}]);
     else if(o.tav!==A.tav)topics.push([1.5,()=>{say2(A,fillT(`${o.name}のやつ、${S.taverns[o.tav].name}で[うまくやってるかな|借金まみれらしい|すれ違っても目を合わせない]`,{}));say2(B,fillT('[自分で決めたことだ|金に負けたのさ|戻ってくるなら席はあるさ]',{}));}]);});
 }
 function templTopics(S,A,B,topics,say2){
-  const L=A.last;if(L&&S.tick-L.tk<TICKS_PER_DAY*12){const c={deep:L.deep,mon:L.mon||'魔物',loot:L.loot,trap:L.traps[0]||'',dead:L.deaths[0]||'',fled:L.fled||'',kills:L.kills,zone:L.zone,feel:fillT(pick(ZONE_FEEL[L.zone]||['……']),{}),bdeep:B.last?B.last.deep:Math.max(1,B.deepest||1)};
+  const L=A.last;if(L&&S.tick-L.tk<TICKS_PER_DAY*12){const c={deep:FN(L.deep),mon:L.mon||'魔物',loot:L.loot,trap:L.traps[0]||'',dead:L.deaths[0]||'',fled:L.fled||'',kills:L.kills,zone:L.zone,feel:fillT(pick(ZONE_FEEL[L.zone]||['……']),{}),bdeep:FN(B.last?B.last.deep:Math.max(1,B.deepest||1))};
     const ok=TRIP_T.filter(([cond])=>cond(A));if(ok.length)topics.push([3,()=>{const t=pick(ok);say2(A,fillT(t[1],c));const same=B.last&&B.last.party===L.party&&B.last.tk===L.tk;say2(B,fillT(same?pick(['[知ってる。一緒にいたからな|隣で見てたよ|あれは忘れられない]','[生きて帰ったんなら上出来だ|二度とごめんだ]']):pick(B.last&&B.last.deep!==L.deep?TRIP_R.slice(0,4).concat(TRIP_R2):TRIP_R.slice(0,4)),c));}]);}
   const TRT={'怪力':['また扉の取っ手をもいでしまった','加減を覚えろよ'],'強運':['また罠が不発だった。運だけはいいんだ','その運、少し分けてくれ'],'俊足':['逃げ足なら誰にも負けない','自慢になるのか、それ'],'鷹の目':['あの暗がりの魔物、俺には最初から見えてた','先に言えよ'],'料理上手':['迷宮で作った煮込み、うまかっただろう','あれがあるから潜れる'],'博識':['あの魔物の弱点、古い本に書いてあった','本は読んでおくもんだな'],
     '鈍足':['また逃げ遅れた……','次は先に走り出せ'],'不運':['なんで罠は、いつも俺のところで作動するんだ','お前が近づくからだ'],'近眼':['あれ、魔物じゃなくて柱だったのか','しっかりしろよ'],'不器用':['宝箱は、もう二度と触らない','それがいい'],'浪費家':['気づいたら財布が空だった','またか'],'虚弱':['また寝込んでた。体がついてこない','無理するなよ']};
@@ -1211,7 +1241,7 @@ function templTopics(S,A,B,topics,say2){
   const ch=(A.changes||[]).filter(c=>S.tick-c.tk<TICKS_PER_DAY*60).pop();
   if(ch)topics.push([3,()=>{say2(B,`お前、変わったよな。${ch.t.split('、').pop()}`);say2(A,fillT('[……いろいろあったんだ|そうか？ 自分じゃ分からない|そうならなきゃ、生き残れなかった]',{}));}]);
   const deep=Math.max(S.deepest.ours,S.deepest.rival);const rf=ri(Math.max(GATE_F+1,deep-3),Math.min(MAXF,deep+3));
-  topics.push([1.2,()=>{say2(A,fillT(pick(RUMOR_T),{rf,zone2:zoneOf(rf)}));say2(B,fillT(pick(RUMOR_R),{}));}]);
+  topics.push([1.2,()=>{say2(A,fillT(pick(RUMOR_T),{rf:FN(rf),zone2:zoneOf(rf)}));say2(B,fillT(pick(RUMOR_R),{}));}]);
 }
 
 
@@ -1309,7 +1339,7 @@ function chatterTick(S){
   const topics=[];const recent=d=>S.tick-d<5*TICKS_PER_DAY;
   const ed=(S.edicts||[]).filter(e=>e.until>S.tick);
   if(ed.length)topics.push([2,()=>{const e=pick(ed);say2(A,`${e.from==='噂'?'噂だが、':e.from+'のお触れ、聞いたか？'}${e.t.replace(/。$/,'')}ってよ`);say2(B,pick(e.k==='tax'||e.k==='templeUp'?['お上はいつも取ることばかりだ','やってられないな']:REACT[B.pers]));}]);
-  if(S.deepest.rival>S.deepest.ours)topics.push([1.5,()=>{say2(A,`銀の杯亭の連中、もうB${S.deepest.rival}Fまで行ったらしい`);say2(B,pick(REACT[B.pers]));}]);
+  if(S.deepest.rival>S.deepest.ours)topics.push([1.5,()=>{say2(A,`銀の杯亭の連中、もう${FN(S.deepest.rival)}まで行ったらしい`);say2(B,pick(REACT[B.pers]));}]);
   const lost=S.memorial.filter(m=>m.tav==='ours'&&recent(m.tk));
   if(lost.length)topics.push([3,()=>{const m=pick(lost);say2(A,`${m.name.replace(/^「.*?」/,'')}のこと、聞いたか`);say2(B,pick(['……ああ。いいやつだった','あいつの分まで潜るさ','席が、ひとつ空いちまったな']));}]);
   const titled=Object.values(S.adv).filter(a=>a.tav==='ours'&&a.title&&a!==A&&a!==B);
@@ -1319,13 +1349,13 @@ function chatterTick(S){
   const fresh=Object.values(S.adv).filter(a=>a.tav==='ours'&&a.status==='idle'&&a.trips==null&&a.lvl<8);
   const vet=idle.filter(a=>a.lvl>=20);
   if(fresh.length&&vet.length)topics.push([2,()=>{const n=pick(fresh),v=pick(vet);L.length=0;say2(v,`新入り、${pick(['地図のない階では欲を出すな','宝箱は盗賊に任せろ','仲間が倒れたら、すぐ引き返せ','僧侶の呪文が尽きたら帰り時だ','名のある魔物を見たら逃げろ。勝てると思うな'])}`);say2(n,pick(['は、はい','わかってますよ','……覚えておきます']));}]);
-  const sh=S.shop||{};const top=[7,6,5,4,3,2].find(t=>sh.tiers&&sh.tiers[t]);
+  const sh=S.shop||{};const top=[9,8,7,6,5,4,3,2].find(t=>sh.tiers&&sh.tiers[t]);
   if(top&&top>1)topics.push([1,()=>{say2(A,`武具屋に${SHOP_TIERS[top].label}が並んでるらしいな`);say2(B,pick(['高くて手が出ないよ','いつか買ってやるさ','迷宮で拾ったほうが早い']));}]);
   const mp=Object.entries(S.floors||{}).filter(([f,v])=>v.map&&v.mapAt&&recent(v.mapAt)).map(([f])=>+f);
-  if(mp.length)topics.push([2,()=>{const f=pick(mp);say2(A,`B${f}Fの地図が出たぞ`);say2(B,pick(['これでやっと稼げる','高いんだろう、どうせ','地図があっても死ぬ時は死ぬ']));}]);
+  if(mp.length)topics.push([2,()=>{const f=pick(mp);say2(A,`${FN(f)}の地図が出たぞ`);say2(B,pick(['これでやっと稼げる','高いんだろう、どうせ','地図があっても死ぬ時は死ぬ']));}]);
   if(S.dragon&&S.dragon.kills)topics.push([1,()=>{say2(A,dragonAlive(S)?'黒竜がまた階段を塞いでるらしい':'黒竜が討たれたってよ');say2(B,pick(REACT[B.pers]));}]);
   const rk=Object.entries(S.rares||{}).filter(([f,v])=>v.killed&&recent(v.killed.tk));
-  if(rk.length)topics.push([2.5,()=>{const [f,v]=pick(rk);const R0=RARES.find(r=>r.f===+f);say2(A,`${v.killed.party}が「${R0.n}」を仕留めたらしい`);say2(B,pick(['見てみたかったな','運のいい連中だ',...REACT[B.pers]]));}]);
+  if(rk.length)topics.push([2.5,()=>{const [f,v]=pick(rk);const R0=rareDef(+f);say2(A,`${v.killed.party}が「${R0.n}」を仕留めたらしい`);say2(B,pick(['見てみたかったな','運のいい連中だ',...REACT[B.pers]]));}]);
   if(A.race!==B.race&&['エルフ','ドワーフ'].includes(A.race)&&['エルフ','ドワーフ'].includes(B.race))topics.push([2,()=>{say2(A,A.race==='ドワーフ'?'エルフは酒の飲み方も知らんのか':'ドワーフは、もう少し静かに飲めないのか');say2(B,B.race==='エルフ'?'樽ごと飲むのを飲み方とは呼ばない':'森の水でも飲んでろ');}]);
   if(A.origin&&A.origin===B.origin)topics.push([1.5,()=>{say2(A,`お前も${A.origin}の出か`);say2(B,pick(['ああ。もう何年も帰ってない','懐かしいな、あそこの飯','帰る理由もないがな']));}]);
   topics.push([1.5,()=>{const g=pick(GOSSIP);say2(A,g[0]);say2(B,g[1]);}]);
@@ -1333,7 +1363,7 @@ function chatterTick(S){
   if(To.debt>0)topics.push([1,()=>{say2(A,pick(['この店、まだ両替商に借金を返してるんだってな','店主、若いのに大した度胸だよ。借金して迷宮の街で店を開くなんて','取り立て人がまた来てたぞ']));say2(B,pick(['俺たちが稼げば、店も楽になるさ','……ツケは今度払うよ','潰れたら困る。ここの酒は安いんだ']));}]);
   if(To.late&&To.debt>0)topics.push([2,()=>{say2(A,'今月の返済、足りなかったらしいぞ');say2(B,pick(['店主の顔色が悪いと思った','次の探索で、少しでも多く飲んでやるか']));}]);
   topics.push([1,()=>{say2(A,pick([`銀の杯亭の${RO}、また誰か引き抜こうとしてるってよ`,`${RO}の旦那に声をかけられた。断ったけどな`,'銀の杯亭の装備、見た目だけは立派だよな']));say2(B,pick(['あそこで借りたら一生返せない','金で人を買う店だ','……正直、少し羨ましいがな']));}]);
-  if(ace)topics.push([1,()=>{say2(A,`銀の杯亭の看板の${ace.name}、B${ace.reach||S.deepest.rival}Fまで行ってるらしい`);say2(B,pick(['いつか追い抜いてやる','あいつら、借金を返すために潜ってるんだ。必死にもなる',...REACT[B.pers]]));}]);
+  if(ace)topics.push([1,()=>{say2(A,`銀の杯亭の看板の${ace.name}、${FN(ace.reach||S.deepest.rival)}まで行ってるらしい`);say2(B,pick(['いつか追い抜いてやる','あいつら、借金を返すために潜ってるんだ。必死にもなる',...REACT[B.pers]]));}]);
   if(To.overtook&&recent(To.overtook))topics.push([3,()=>{say2(A,'聞いたか。街じゃ、ロウエンいちの酒場はここだって言われてるらしい');say2(B,pick(['開いたばかりの頃は、客が五、六人しかいなかったのにな','銀の杯亭の連中の顔が見ものだ']));}]);
   const q=QUIRKS[A.quirk];if(q)topics.push([1,()=>{const jokes={'酒好き':['もう一杯だけ付き合え','またか'],'猫好き':['見ろ、黒猫が俺の膝に','……引っかかれてるぞ'],'博打好き':['次の帰還が何日後か、賭けないか','やめとけ。縁起でもない'],'大食い':['お前、それ食わないのか？','やらんぞ'],'方向音痴':['厠はどっちだったかな','三度目だぞ、それ']};const j=jokes[A.quirk];if(j){say2(A,j[0]);say2(B,j[1]);}else{say2(A,pick(['今日は静かだな','いい夜だ']));say2(B,pick(REACT[B.pers]));}}]);
   const ot=ORIGIN_TALK[A.origin];if(ot)topics.push([2,()=>{const t=pick(ot);say2(A,t[0]);say2(B,pick(t[1]));}]);
@@ -1375,9 +1405,9 @@ function tick(S){
   // the dungeon swallows parties nobody recovers. 遺体を運んでいる途中の一行は、運び手が帰るまでこの時計を止める
   for(const p of Object.values(S.parties)){
     if(p.state==='wiped'&&!p.retrieved&&S.tick-p.wipedAt>1000){
-      p.members.forEach(id=>{const a=A(S,id);if(a.status!=='missing')return;a.status='lost';a.party=null;chron(S,a,`B${p.floor}Fから戻ることなく、迷宮に呑まれる`);
+      p.members.forEach(id=>{const a=A(S,id);if(a.status!=='missing')return;a.status='lost';a.party=null;chron(S,a,`${FN(p.floor)}から戻ることなく、迷宮に呑まれる`);
         S.memorial.push({id:a.id,name:full(a),cls:a.cls,lvl:a.lvl,race:a.race,tav:a.tav,tk:S.tick,by:a.lastBy||p.killer||'不明',floor:p.floor,kills:a.kills,marked:a.tav==='ours'&&!!a.marked||undefined});onLostFriend(S,a);});
-      news(S,`${S.taverns[p.tav].name}の${p.name}は、ついに見つからなかった。B${p.floor}Fに消えた${p.members.length}人の名が記念碑に刻まれる。`,'lost');
+      news(S,`${S.taverns[p.tav].name}の${p.name}は、ついに見つからなかった。${FN(p.floor)}に消えた${p.members.length}人の名が記念碑に刻まれる。`,'lost');
       if(S.bounties[p.id]){S.taverns.ours.gold+=S.bounties[p.id];news(S,`${p.name}の死体回収の依頼を取り下げ、預けていた${S.bounties[p.id]}Gが戻った。`,'info');}
       delete S.bounties[p.id];delete S.parties[p.id];
     }
@@ -1386,13 +1416,13 @@ function tick(S){
   for(const p of Object.values(S.parties)){
     if(p.state==='wiped'&&!p.announced&&S.tick-p.wipedAt>=(p.tav==='ours'?15:25)){
       p.announced=true;
-      const WHY={race:'銀の杯亭に先を越されまいと深く潜った',first:'一番乗りを狙って最前線に挑んだ',bounty:'王国の報奨金を狙って無理をした',dream:'仲間の夢のために深みを目指した',avenge:'仇の魔物を追って深みに踏み込んだ',errand:'店主に回された話を果たしに向かった'};
-      if(p.tav==='ours') news(S,`${p.name}が予定を過ぎても戻らない。${p.pushWhy?WHY[p.pushWhy]+'という。':''}最後に向かったのはB${p.floor}Fだという。`,'death');
-      else news(S,`噂：銀の杯亭の${p.name}が、B${p.floor}Fから戻らないらしい。${p.pushWhy==='race'?'黒猫亭に負けまいと焦ったのだろう、と皆が言う。':p.pushWhy==='bounty'?'報奨金に目がくらんだのだろう。':''}`,'rumor');
+      const WHY={race:'銀の杯亭に先を越されまいと深く潜った',first:'一番乗りを狙って最前線に挑んだ',bounty:'王国の報奨金を狙って無理をした',dream:'仲間の夢のために深みを目指した',avenge:'仇の魔物を追って深みに踏み込んだ',errand:'店主に回された話を果たしに向かった',boss:'坑道王を討ちに底へ向かった'};
+      if(p.tav==='ours') news(S,`${p.name}が予定を過ぎても戻らない。${p.pushWhy?WHY[p.pushWhy]+'という。':''}最後に向かったのは${FN(p.floor)}だという。`,'death');
+      else news(S,`噂：銀の杯亭の${p.name}が、${FN(p.floor)}から戻らないらしい。${p.pushWhy==='race'?'黒猫亭に負けまいと焦ったのだろう、と皆が言う。':p.pushWhy==='bounty'?'報奨金に目がくらんだのだろう。':''}`,'rumor');
     }
   }
   releaseRetrieved(S);
-  errandTick(S);
+  errandTick(S);mineTick(S);
 }
 
 function stepParty(S,p){
@@ -1418,10 +1448,13 @@ function stepParty(S,p){
       p.wait=0;
       p.members=ms.map(a=>a.id); ms.forEach(a=>{a.status='party'});
       Object.assign(p,{floor:1,state:'explore',steps:0,fsteps:0,loot:0,carried:[],trip:newTrip(),rescue:[],tmap:{},guard:0,announced:false,knownWiped:false,retrieved:false});
-      plog(p,'――――――――――','move'); plog(p,`${p.name} が ふたたび めいきゅうへ`,'sys');supplyTeam(S,p);setPlan(S,p);
-      const pe=partyErrand(S,p);const lim=Math.min(p.reach||0,Math.floor(safeFloor(S,p)),p.cap||99,pe?pe.f:99);const st=STONES.filter(x=>x<=lim).pop();
-      if(st){p.floor=st;p.trip.deep=st;plog(p,`てんいの せきひで B${st}F へ（${zoneOf(st)}）`,'sys');}
-      floorArrive(S,p);
+      p.mineTrip=wantsMine(S,p);
+      plog(p,'――――――――――','move'); plog(p,`${p.name} が ふたたび ${p.mineTrip?'こうどうへ':'めいきゅうへ'}`,'sys');supplyTeam(S,p);setPlan(S,p);
+      if(p.mineTrip){const lim=Math.min(Math.floor(safeFloor(S,p)),p.cap||99);const st=MINE_STONES.filter(x=>x<=(p.mineReach||0)&&fx(x)<=lim).pop()||MINE_TOP;
+        p.floor=st;p.trip.deep=st;plog(p,`てんいの せきひで てつの さんみゃくの ${FN(st)} へ（${zoneOf(st)}）`,'sys');floorArrive(S,p);reachFloor(S,p,false);}
+      else{const pe=partyErrand(S,p);const lim=Math.min(p.reach||0,Math.floor(safeFloor(S,p)),p.cap||99,pe?pe.f:99);const st=STONES.filter(x=>x<=lim).pop();
+        if(st){p.floor=st;p.trip.deep=st;plog(p,`てんいの せきひで ${FN(st)} へ（${zoneOf(st)}）`,'sys');}
+        floorArrive(S,p);}
     } else {
       p.wait=(p.wait||0)+1;
       if(p.wait>450&&ms.length<3){disbandParty(S,p,'仲間がそろわず');}
@@ -1438,10 +1471,10 @@ function stepParty(S,p){
     if(chance(.18)){encounter(S,p);return;}
     findCorpses(S,p,.02);
     if(chance(.3)){
-      if(STONES.includes(p.floor)){plog(p,`てんいの せきひに ふれた……ちじょうへ`,'sys');p.floor=0;arrive(S,p);return;}
+      if(STONES.includes(p.floor)||MINE_STONES.includes(p.floor)||p.floor===MINE_TOP){plog(p,`てんいの せきひに ふれた……ちじょうへ`,'sys');p.floor=0;arrive(S,p);return;}
       p.floor--;
       if(p.floor<=0){arrive(S,p);return;}
-      plog(p,`かいだんを のぼった……B${p.floor}F`,'move');
+      plog(p,`かいだんを のぼった……${FN(p.floor)}`,'move');
     } else plog(p,pick(MOVE),'move');
     return;
   }
@@ -1470,12 +1503,12 @@ function stepParty(S,p){
   if(roll<.42){meetParty(S,p);return;}
   loreCheck(S,p);
   const safe=safeFloor(S,p);
-  if(p.fsteps>=stairSteps(p)&&p.floor<MAXF&&!pe&&p.floor<Math.min(p.cap||99,Math.max(safe+(owe?.7:0)+(p.plan==='push'?(p.pushWhy?1:.5):0),p.plan==='push'&&p.pushTo?p.pushTo:0))&&r>pers.th-(owe?.06:0)+.25&&chance(.3)){
+  if(p.fsteps>=stairSteps(p)&&p.floor<(inMine(p.floor)?MINE_BOT:MAXF)&&!pe&&fx(p.floor)<Math.min(p.cap||99,Math.max(safe+(owe?.7:0)+(p.plan==='push'?(p.pushWhy?1:.5):0),p.plan==='push'&&p.pushTo?p.pushTo:0))&&r>pers.th-(owe?.06:0)+.25&&chance(.3)){
     if(p.floor===DRAGON_F&&dragonAlive(S)){say(S,p,DESC[leader(S,p).pers]);dragonEncounter(S,p);return;}
     say(S,p,DESC[leader(S,p).pers]);
     p.floor++;p.fsteps=0;p.trip.deep=Math.max(p.trip.deep,p.floor);
     floorThrough(S,p,p.floor-1);
-    plog(p,`かいだんを おりた……B${p.floor}F`,'sys');p.reach=Math.max(p.reach||0,p.floor);
+    plog(p,`かいだんを おりた……${FN(p.floor)}`,'sys');
     floorArrive(S,p);if(isFrontier(S,p.floor))plog(p,'だれも しらない かいだ。くうきが ちがう','death');else if(!hasMap(p))plog(p,'ちずの ない かいだ。しんちょうに すすめ','move');
     reachFloor(S,p,false);
     return;
@@ -1507,15 +1540,15 @@ function findCorpses(S,p,base){
     plog(p,`${lp.name}「……そうびだけ いただいていく」`,'say');
     let got=[];
     for(const id of w.members){const a=A(S,id);
-      eqList(a).forEach(it=>{const tgt=giveBest(S,alive(S,p),it,p);if(tgt){a.eq[it.slot]=null;got.push(it.n);chron(S,tgt,`B${p.floor}Fで帰らぬ${a.name}の${it.n}を拾う`);chron(S,a,`遺体から${it.n}を${p.name}の${tgt.name}に持ち去られる`);if(got.length===1||it.rare)news(S,`${p.name}の${tgt.name}が、帰らぬ${a.name}の${it.n}を拾い、身につけた。`,'loot');}});
+      eqList(a).forEach(it=>{const tgt=giveBest(S,alive(S,p),it,p);if(tgt){a.eq[it.slot]=null;got.push(it.n);chron(S,tgt,`${FN(p.floor)}で帰らぬ${a.name}の${it.n}を拾う`);chron(S,a,`遺体から${it.n}を${p.name}の${tgt.name}に持ち去られる`);if(got.length===1||it.rare)news(S,`${p.name}の${tgt.name}が、帰らぬ${a.name}の${it.n}を拾い、身につけた。`,'loot');}});
       p.loot+=Math.max(0,a.gold); a.gold=Math.min(0,a.gold);}
     w.looted=true;
     return true;
   }
   plog(p,`${lp.name}「つれて かえろう」`,'say');
   for(const id of w.members){if(!(p.carried||[]).includes(id))p.carried.push(id); const a=A(S,id);if(!a)continue;a.carriedBy=p.id; chron(S,a,`${p.name}に遺体を見つけられ、街へ運ばれる`);}
-  if(!w.announced&&w.tav==='ours') news(S,`${p.name}がB${w.floor}Fで${w.name}を発見。遺体を連れ帰る。`,'info');
-  else news(S,`${p.name}${p.tav==='rival'?'（銀の杯亭）':''}がB${w.floor}Fで${w.name}の遺体を回収。${w.killer?w.killer+'にやられたらしい。':''}`,'info');
+  if(!w.announced&&w.tav==='ours') news(S,`${p.name}が${FN(w.floor)}で${w.name}を発見。遺体を連れ帰る。`,'info');
+  else news(S,`${p.name}${p.tav==='rival'?'（銀の杯亭）':''}が${FN(w.floor)}で${w.name}の遺体を回収。${w.killer?w.killer+'にやられたらしい。':''}`,'info');
   p.bountyFor=p.bountyFor||[]; if(bounty) p.bountyFor.push(bounty);
   // 街に着くまで消息不明のままにする。ここで仲間を入れ直すと、全滅した一行がその場で潜り直してしまう
   w.retrieved=true;w.announced=true;w.enemies=null;
@@ -1527,28 +1560,38 @@ function findCorpses(S,p,base){
 
 const ZONES=[[1,'沈んだ城壁と地下牢'],[6,'王都の街区'],[11,'王都の地下水路'],[16,'宮廷と墓所'],[21,'魔術師の塔'],[26,'儀式の間'],[30,'玉座の間']];
 const STONES=[6,11,16,21,26];
-function zoneOf(f){let z=ZONES[0][1];for(const [s,n] of ZONES)if(f>=s)z=n;return z;}
+const MINE_ZONES=[[MINE_TOP,'放棄された坑道'],[MINE_TOP+6,'坑道都市の跡'],[MINE_TOP+12,'鉱脈の奥'],[MINE_TOP+19,'澱の湧く底']];
+// 坑道の転移の石碑。入口（坑道B1F）にはいつでも飛べる
+const MINE_STONES=[MINE_TOP+6,MINE_TOP+12,MINE_TOP+19];
+function zoneOf(f){const Z=inMine(f)?MINE_ZONES:ZONES;let z=Z[0][1];for(const [s,n] of Z)if(f>=s)z=n;return z;}
 function isFrontier(S,f){const F=S.floors||{};return f>GATE_F&&!(F[f]&&F[f].through);}
-function mapTop(S){const F=S.floors||{};let m=0;for(const k in F)if(F[k].map)m=Math.max(m,+k);return m;}
+// 地図のある階のうち、いちばん深いもの（強さで見た深さ）。迷宮と坑道を分けて数える
+function mapTop(S,mine){const F=S.floors||{};let m=0;for(const k in F)if(F[k].map&&inMine(+k)===!!mine)m=Math.max(m,fx(+k));return m;}
 function setPlan(S,p){const al=alive(S,p);if(!al.length)return;const pls=al.map(PL);const av=pls.reduce((x,y)=>x+y,0)/pls.length;const weak=Math.min(...pls)<av-1.5;const lp=leader(S,p).pers;const owe=p.tav==='rival'&&al.some(a=>(a.debt||0)>0);
   const safe=safeFloor(S,p);let plan='normal';p.pushWhy=null;p.pushTo=0;
   const other=p.tav==='ours'?'rival':'ours';const front=Math.max(S.deepest.ours,S.deepest.rival);const near=safe>=front-4;
-  const reasons=[];const Ld=leader(S,p);
+  const reasons=[];const Ld=leader(S,p);const mine=!!p.mineTrip;
   if(near&&S.deepest[other]>S.deepest[p.tav])reasons.push([.45,'race',p.tav==='ours'?'ぎんのさかずきていに まけて たまるか':'くろねこていに さきを こされて たまるか']);
   if(near&&S.deepest[other]===S.deepest[p.tav]&&chance(.5))reasons.push([.25,'first','いちばんのりは おれたちが いただく']);
   const eb=edict(S,'bounty');if(eb&&!eb.paid&&eb.f<=safe+2.5)reasons.push([.5,'bounty','ほうしょうきんは おれたちの ものだ',eb.f]);
   al.forEach(a=>{const d=a.dream;if(!d)return;const lw=a===Ld?1:.5;
-    if((d.k==='deep'||d.k==='lastdive'||d.k==='father'||d.k==='partner'||d.k==='elfrelic')&&d.f&&d.f<=safe+4&&d.f>a.deepest)reasons.push([.3*lw,'dream',`${a.name}の ゆめの ためだ。B${d.f}Fまで いく`,d.f]);
+    if((d.k==='deep'||d.k==='lastdive'||d.k==='father'||d.k==='partner'||d.k==='elfrelic')&&d.f&&d.f<=safe+4&&d.f>a.deepest)reasons.push([.3*lw,'dream',`${a.name}の ゆめの ためだ。${FN(d.f)}まで いく`,d.f]);
     if((d.k==='firstfoot'||d.k==='beatrival')&&near)reasons.push([.3*lw,'first','いちばんのりは おれたちが いただく']);
     if(d.k==='avenge'&&d.m){const mm=MON.find(m=>m.n===d.m);if(mm){const rf=Math.ceil(mm.f*1.5);if(rf<=safe+4)reasons.push([.5*lw,'avenge',`${d.who}の かたきの ${d.m}を さがす`,rf]);}}});
   // 店主に回された話を引き受けていれば、その階を目指す
-  const pe=partyErrand(S,p);if(pe&&pe.f<=safe+2)reasons.unshift([.8,'errand',`${A(S,pe.hero).name}が たのまれた はなしだ。B${pe.f}Fへ いく`,pe.f]);
+  const pe=mine?null:partyErrand(S,p);if(pe&&pe.f<=safe+2)reasons.unshift([.8,'errand',`${A(S,pe.hero).name}が たのまれた はなしだ。${FN(pe.f)}へ いく`,pe.f]);
+  // 坑道では、坑道の最深の記録を争う。迷宮の記録や夢、引き受けた話の階は関わらない
+  if(mine){reasons.length=0;const md=S.mineDeep||{ours:0,rival:0};const mfront=fx(MAXF+Math.max(1,md.ours,md.rival));const mnear=safe>=mfront-4;
+    if(mnear&&md[other]>md[p.tav])reasons.push([.45,'race',p.tav==='ours'?'ぎんのさかずきていに まけて たまるか':'くろねこていに さきを こされて たまるか']);
+    if(mnear&&md[other]===md[p.tav]&&chance(.5))reasons.push([.25,'first','いちばんのりは おれたちが いただく']);
+    if(Math.max(md.ours,md.rival)>=MINE_N&&!S.mineConq&&safe>=fx(MINE_BOT)-3)reasons.push([.5,'boss','こうどうおうを うちに いく',fx(MINE_BOT)]);
+    al.forEach(a=>{const d=a.dream;if(d&&d.k==='minebottom'&&mnear)reasons.push([.3*(a===Ld?1:.5),'dream',`${a.name}の ゆめの ためだ。こうどうの そこまで いく`,fx(MINE_BOT)]);});}
   const r0=(!weak&&!(p.hurt&&chance(.5)))?reasons.find(r=>chance(r[0])):null;
   if(!r0&&(weak||p.hurt||(lp==='慎重'||lp==='臆病')&&chance(.5)))plan='grind';
   else{if(r0){plan='push';p.pushWhy=r0[1];p.pushTo=r0[3]||0;plog(p,`${Ld.name}「${r0[2]}」`,'say');}
     else if(lp==='無謀'&&chance(.6)||owe&&chance(.5))plan='push';}
   p.plan=plan;p.hurt=false;
-  if(plan==='grind'){let cap=Math.max(1,Math.floor(safe)-2);const mt=mapTop(S);if(mt>=cap-2)cap=Math.min(cap,Math.max(1,mt));if(pe&&pe.f<=safe+2)cap=Math.max(cap,pe.f);p.cap=cap;plog(p,`きょうは B${cap}F あたりで うでを みがく`,'sys');}
+  if(plan==='grind'){let cap=Math.max(1,Math.floor(safe)-2);const mt=mapTop(S,mine);if(mt>=cap-2)cap=Math.min(cap,Math.max(1,mt));if(pe&&pe.f<=safe+2)cap=Math.max(cap,pe.f);p.cap=cap;plog(p,`きょうは ${FN(cap)} あたりで うでを みがく`,'sys');}
   else{p.cap=99;if(plan==='push'&&!p.pushWhy)plog(p,'いけるところまで いくぞ','sys');}}
 function effPL(S,p){const m=alive(S,p);if(!m.length)return 1;const pls=m.map(PL);const av=pls.reduce((x,y)=>x+y,0)/pls.length;return Math.min(av,Math.min(...pls)+2.5);}
 function safeFloor(S,p){const pl=effPL(S,p),pers=PERS[leader(S,p).pers];const base=pl<=10?1+pl/1.5:1+10/1.5+(pl-10)*1.3;return (base+pers.deep*.5)*1.5;}
@@ -1564,26 +1607,54 @@ const LORE=[
 ];
 function loreCheck(S,p){
   S.loreFound=S.loreFound||{};
+  // 迷宮の断片は迷宮で、坑道の断片は坑道で見つかる。坑道の断片は「m」の付いた番号で記録する
+  if(inMine(p.floor)){MINE_LORE.forEach((L,i)=>{const k='m'+i;if(S.loreFound[k]||p.floor<L.f||!chance(.025))return;
+    S.loreFound[k]={tk:S.tick,party:p.name,tav:p.tav};plog(p,`ふるい ${L.what}を みつけた`,'loot');
+    news(S,`【坑道の記録】${S.taverns[p.tav].name}の${p.name}が、${FN(p.floor)}で${L.what}を見つけた。「${L.t}」`,'lore');});return;}
   LORE.forEach((L,i)=>{if(S.loreFound[i]||p.floor<L.f||!chance(.025))return;
     S.loreFound[i]={tk:S.tick,party:p.name,tav:p.tav};
     plog(p,`ふるい ${L.what}を みつけた`,'loot');
-    news(S,`【記録の断片】${S.taverns[p.tav].name}の${p.name}が、B${p.floor}Fで${L.what}を見つけた。「${L.t}」`,'lore');});
+    news(S,`【記録の断片】${S.taverns[p.tav].name}の${p.name}が、${FN(p.floor)}で${L.what}を見つけた。「${L.t}」`,'lore');});
 }
-function dragonAlive(S){S.dragon=S.dragon||{alive:true};if(!S.dragon.alive&&S.tick>=S.dragon.respawnAt){S.dragon.alive=true;news(S,`【噂】黒竜が澱の中から再び姿を現し、B${DRAGON_F}Fの階段を塞いでいるという。`,'rumor');}return S.dragon.alive;}
+function dragonAlive(S){S.dragon=S.dragon||{alive:true};if(!S.dragon.alive&&S.tick>=S.dragon.respawnAt){S.dragon.alive=true;news(S,`【噂】黒竜が澱の中から再び姿を現し、${FN(DRAGON_F)}の階段を塞いでいるという。`,'rumor');}return S.dragon.alive;}
 function dragonEncounter(S,p){const t=MON.find(m=>m.gate);p.enemies=[{hp:t.hp,sleep:0}];p.etype=t;p.ident=true;p.fought=true;
   plog(p,'＊ かいだんの まえに くろい りゅうが よこたわっている ＊','sys');plog(p,'黒竜','sys');}
 function dragonSlain(S,p){const al=alive(S,p);const first=!S.dragon.kills;S.dragon.alive=false;S.dragon.kills=(S.dragon.kills||0)+1;S.dragon.respawnAt=S.tick+ri(25,35)*TICKS_PER_DAY;
   plog(p,'くろい りゅうは たおれた。かいだんへの みちが ひらけた','sys');
-  al.forEach(a=>{chron(S,a,`B${DRAGON_F}Fで門番の黒竜を討つ`);});
-  news(S,`${S.taverns[p.tav].name}の${p.name}が、B${DRAGON_F}Fの門番・黒竜を討ち果たした。${first?'下への道が初めて開かれた。':'しばらくは下への道が開く。'}`,'record');}
+  al.forEach(a=>{chron(S,a,`${FN(DRAGON_F)}で門番の黒竜を討つ`);});
+  news(S,`${S.taverns[p.tav].name}の${p.name}が、${FN(DRAGON_F)}の門番・黒竜を討ち果たした。${first?'下への道が初めて開かれた。':'しばらくは下への道が開く。'}`,'record');}
 function conquest(S,p){
-  floorThrough(S,p,MAXF);const al=alive(S,p);S.conquered={tk:S.tick,tav:p.tav,party:p.name,names:al.map(a=>a.name),ending:true};
+  floorThrough(S,p,MAXF);const al=alive(S,p);S.mine=S.mine||{openAt:S.tick+ri(5,10)*TICKS_PER_DAY};S.conquered={tk:S.tick,tav:p.tav,party:p.name,names:al.map(a=>a.name),ending:true};
   plog(p,'……ぎょくざの ひとかげが くずれおちた','sys');plog(p,'めいきゅうは しずまりかえった','sys');
-  const CR=r100(incomeAt(20)*20);al.forEach(a=>{a.conq=true;a.gold+=CR;chron(S,a,`B${MAXF}F玉座の間で、沈んだ王を討つ。迷宮踏破`);title(S,a);});
-  news(S,`${S.taverns[p.tav].name}の${p.name}（${al.map(a=>a.name).join('・')}）が、B${MAXF}F玉座の間で「沈んだ王」を討ち果たした。迷宮暦81年以来、初めての踏破である。`,'record');
+  const CR=r100(incomeAt(20)*20);al.forEach(a=>{a.conq=true;a.gold+=CR;chron(S,a,`${FN(MAXF)}玉座の間で、沈んだ王を討つ。迷宮踏破`);title(S,a);});
+  news(S,`${S.taverns[p.tav].name}の${p.name}（${al.map(a=>a.name).join('・')}）が、${FN(MAXF)}玉座の間で「沈んだ王」を討ち果たした。迷宮暦81年以来、初めての踏破である。`,'record');
   news(S,`【ラウレンツ王国のお触れ】迷宮踏破の功を讃え、${p.name}の一人ひとりに${CR}Gを授ける。`,'edict');
   news(S,'王が討たれても、大穴から澱は湧き続けた。寺院の蘇生は、何事もなかったかのように続いている。','rumor');
   if(p.tav==='ours'){S.taverns.ours.rep+=50;S.taverns.ours.gold+=50000;news(S,'黒猫亭の名がロウエンじゅうに響いた。王都からの祝い金50000Gが店に届いた。','loot');}
+}
+// 迷宮が踏破されて5〜10日たつと、鉄の山脈の坑道が開く。古い記録で踏破済みなら、ここで開く日を決める
+function mineOpen(S){return !!(S.mine&&S.mine.open!=null);}
+function mineTick(S){
+  if(S.conquered&&!S.mine)S.mine={openAt:S.tick+ri(5,10)*TICKS_PER_DAY};
+  if(!S.mine||mineOpen(S)||S.tick<S.mine.openAt)return;
+  S.mine.open=S.tick;S.mineDeep=S.mineDeep||{ours:0,rival:0};
+  news(S,'【ベルクラント鉱山諸侯のお触れ】鉄の山脈の古い坑道の奥で、澱が湧き出した。坑道の入口で見つかった転移の石碑は、ロウエンの石碑と対になっている。腕に覚えのある者は、坑道の探索に加われ。','edict');
+  news(S,S.conquered&&S.conquered.tav==='ours'?'沈んだ王を討った黒猫亭の名は、鉄の山脈にも届いている。坑道の噂を聞いた常連たちが、さっそく支度を始めた。':`銀の杯亭の${S.taverns.rival.owner||RIVAL_OWNER}は、坑道の権利を同盟の商人ギルドに掛け合っているらしい。黒猫亭の常連たちも、黙ってはいない。`,'rumor');}
+// 出発のとき、坑道に潜るかどうか。坑道の入口に見合う強さの一行だけが行く。性格や出身、引き受けた話でも変わる
+function wantsMine(S,p){if(!mineOpen(S)||partyErrands(S,p).length)return false;const safe=safeFloor(S,p);if(safe<MINE_E0)return false;
+  const al=alive(S,p),L=leader(S,p);let pr=.7+Math.min(.2,(safe-MINE_E0)*.04);
+  if(al.some(a=>a.race==='ドワーフ'||a.origin==='鉄の山脈'||a.origin==='ベルクラント鉱山諸侯領'))pr+=.1;
+  if(L.pers==='強欲'||L.pers==='無謀')pr+=.1;if((L.pers==='慎重'||L.pers==='臆病')&&safe<MINE_E0+4)pr-=.25;
+  return chance(clamp(pr,.05,.95));}
+// 坑道の底の主を討つ。迷宮の踏破と同じく、一度きり
+function mineConquest(S,p){
+  floorThrough(S,p,MINE_BOT);const al=alive(S,p);S.mineConq={tk:S.tick,tav:p.tav,party:p.name,names:al.map(a=>a.name)};
+  plog(p,'……いわの ぎょくざが くずれおちた','sys');plog(p,'こうどうの そこで、おりが しずかに ゆれている','sys');
+  const CR=r100(incomeAt(dz(MINE_BOT))*20);al.forEach(a=>{a.mconq=true;a.gold+=CR;chron(S,a,`${FN(MINE_BOT)}で、澱呑みの坑道王を討つ。坑道踏破`);title(S,a);});
+  news(S,`${S.taverns[p.tav].name}の${p.name}（${al.map(a=>a.name).join('・')}）が、${FN(MINE_BOT)}の岩の玉座で「澱呑みの坑道王」を討ち果たした。鉄の山脈の坑道は踏破された。`,'record');
+  news(S,`【ベルクラント鉱山諸侯のお触れ】坑道踏破の功を讃え、${p.name}の一人ひとりに${CR}Gを授ける。`,'edict');
+  news(S,'坑道王が討たれても、坑道の底から澱は湧き続けた。大穴が開いている限り、澱は山の底へも流れてくる。','rumor');
+  if(p.tav==='ours'){S.taverns.ours.rep+=50;S.taverns.ours.gold+=80000;S.taverns.ours.earned+=80000;news(S,'黒猫亭の名が鉄の山脈にまで響いた。鉱山諸侯からの祝い金80000Gが店に届いた。','loot');}
 }
 const CARTO='梟の地図屋';
 function mapPrice(f){const d=dz(f);return f<=3?[0,40,80,150][f]:Math.round((30*d*d+100*d)/10)*10}
@@ -1591,31 +1662,41 @@ const HIST=[null,['迷宮の最初の冒険者たち',null,5],['迷宮の最初�
 function floorsInit(S){if(!S.floors){S.floors={};for(let f=1;f<=GATE_F;f++){const h=HIST[f]||HIST[1],h2=HIST[f+1]||['王国の調査隊二百人',null,62];S.floors[f]={arrive:{party:h[0],tav:h[1]||undefined,tk:0,yr:h[2]},through:{party:h2[0],tav:h2[1]||undefined,tk:0,yr:h2[2]},map:true};}
   S.floors[GATE_F+1]={arrive:{party:'王国の調査隊二百人（全滅）',tk:0,yr:62}};}return S.floors;}
 // 新しい階に着いたときの記録（最深、初到達の知らせ、報奨金など）。階段で降りたときも、罠で飛ばされたときも通る
-function reachFloor(S,p,byTrap){p.reach=Math.max(p.reach||0,p.floor);
+function reachFloor(S,p,byTrap){if(inMine(p.floor)){reachMine(S,p,byTrap);return;}p.reach=Math.max(p.reach||0,p.floor);
   if(ZONES.some(z=>z[0]===p.floor))plog(p,`――ここから先は ${zoneOf(p.floor)}――`,'sys');
   if(p.floor===MAXF&&!S.conquered){encounter(S,p);}
-  alive(S,p).forEach(a=>{if(p.floor>a.deepest){a.deepest=p.floor;if(p.floor>=3)chron(S,a,`はじめてB${p.floor}Fに足を踏み入れる`);}
-    const d=a.dream;if(d&&(d.k==='deep'&&p.floor===d.f||d.k==='abyss'&&p.floor===MAXF))plog(p,`${a.name}「……これが B${p.floor}Fの けしき……」`,'say');});
+  alive(S,p).forEach(a=>{if(p.floor>a.deepest){a.deepest=p.floor;if(p.floor>=3)chron(S,a,`はじめて${FN(p.floor)}に足を踏み入れる`);}
+    const d=a.dream;if(d&&(d.k==='deep'&&p.floor===d.f||d.k==='abyss'&&p.floor===MAXF))plog(p,`${a.name}「……これが ${FN(p.floor)}の けしき……」`,'say');});
   const eb=edict(S,'bounty');
-  if(eb&&p.floor>=eb.f&&!eb.paid){eb.paid=true;eb.until=S.tick;alive(S,p).forEach(a=>{a.gold+=eb.amt;chron(S,a,`王国の報奨金${eb.amt}Gを受け取る（B${eb.f}F到達）`);});
-    news(S,`${S.taverns[p.tav].name}の${p.name}がB${eb.f}Fに到達し、王国の報奨金を手にした。`,'record');plog(p,`おうこくの ほうしょうきん ${eb.amt} G を てにいれた`,'loot');}
+  if(eb&&p.floor>=eb.f&&!eb.paid){eb.paid=true;eb.until=S.tick;alive(S,p).forEach(a=>{a.gold+=eb.amt;chron(S,a,`王国の報奨金${eb.amt}Gを受け取る（${FN(eb.f)}到達）`);});
+    news(S,`${S.taverns[p.tav].name}の${p.name}が${FN(eb.f)}に到達し、王国の報奨金を手にした。`,'record');plog(p,`おうこくの ほうしょうきん ${eb.amt} G を てにいれた`,'loot');}
   if(p.floor>S.deepest[p.tav]){
     const both=Math.max(S.deepest.ours,S.deepest.rival,GATE_F);
     S.deepest[p.tav]=p.floor;
-    if(p.floor>both){p.trip.rec=true;alive(S,p).forEach(a=>a.firsts=(a.firsts||0)+1);} if(p.floor>both) news(S,p.floor===GATE_F+1?`${p.tav==='ours'?'':'銀の杯亭の'}${p.name}が封じの門を越え、19年ぶりにB${GATE_F+1}Fへ足を踏み入れた。二百人の調査隊が消えた階だ。`:`${p.tav==='ours'?'':'銀の杯亭の'}${p.name}が、${byTrap?'罠で飛ばされ、':''}誰も踏み入れたことのないB${p.floor}Fに到達した。`,'record');
+    if(p.floor>both){p.trip.rec=true;alive(S,p).forEach(a=>a.firsts=(a.firsts||0)+1);} if(p.floor>both) news(S,p.floor===GATE_F+1?`${p.tav==='ours'?'':'銀の杯亭の'}${p.name}が封じの門を越え、19年ぶりに${FN(GATE_F+1)}へ足を踏み入れた。二百人の調査隊が消えた階だ。`:`${p.tav==='ours'?'':'銀の杯亭の'}${p.name}が、${byTrap?'罠で飛ばされ、':''}誰も踏み入れたことのない${FN(p.floor)}に到達した。`,'record');
     S.taverns[p.tav].rep+=3;
     if(p.floor>both&&p.floor>=5)rivalryNews(S,p);
   }
 }
+// 坑道の新しい階に着いたときの記録。坑道の最深は、迷宮の最深とは別に数える
+function reachMine(S,p,byTrap){const m=p.floor-MAXF;p.mineReach=Math.max(p.mineReach||0,p.floor);S.mineDeep=S.mineDeep||{ours:0,rival:0};
+  if(MINE_ZONES.some(z=>z[0]===p.floor))plog(p,`――ここから先は ${zoneOf(p.floor)}――`,'sys');
+  if(p.floor===MINE_BOT&&!S.mineConq){encounter(S,p);}
+  alive(S,p).forEach(a=>{if(m>(a.mineDeep||0)){a.mineDeep=m;chron(S,a,`はじめて${FN(p.floor)}に足を踏み入れる`);}
+    const d=a.dream;if(d&&d.k==='minebottom'&&p.floor===MINE_BOT)plog(p,`${a.name}「……これが こうどうの そこ……」`,'say');});
+  if(m>S.mineDeep[p.tav]){const both=Math.max(S.mineDeep.ours,S.mineDeep.rival);S.mineDeep[p.tav]=m;S.taverns[p.tav].rep+=3;
+    if(m>both){p.trip.rec=true;alive(S,p).forEach(a=>a.firsts=(a.firsts||0)+1);
+      news(S,m===1?`${p.tav==='ours'?'':'銀の杯亭の'}${p.name}が、転移の石碑で鉄の山脈の坑道に降り立った。坑道に入った最初の一行だ。`:`${p.tav==='ours'?'':'銀の杯亭の'}${p.name}が、${byTrap?'罠で飛ばされ、':''}誰も踏み入れたことのない${FN(p.floor)}に到達した。`,'record');}}}
 // 地図のない階は、深いほど階段を見つけるまでに歩き回る
-function stairSteps(p){return hasMap(p)?6:10+p.floor}
+// 坑道の階は、迷宮のB30Fより歩き回らない
+function stairSteps(p){return hasMap(p)?6:10+Math.round(Math.min(fx(p.floor),MAXF))}
 function hasMap(p){return !!((p.maps&&p.maps[p.floor])||(p.tmap&&p.tmap[p.floor]))}
 function floorArrive(S,p,byTrap){const F=floorsInit(S);const f=p.floor;if(f<1)return;F[f]=F[f]||{};
   // 上の階がまだ突破されていないのに罠で飛ばされて着いたときは、そうと分かるよう印を付ける
   if(!F[f].arrive)F[f].arrive={party:p.name,tav:p.tav,tk:S.tick,trap:!!(byTrap&&f>1&&!(F[f-1]&&F[f-1].through))||undefined};
   useMap(S,p);
   {const fz=alive(S,p).find(a=>{const fo=fearOf(a);return fo&&((fo.zone&&zoneOf(f)===fo.zone)||(fo.nomap&&!((p.maps&&p.maps[f])||(p.tmap&&p.tmap[f]))));});if(fz&&chance(.3))plog(p,`${fz.name}「${FEAR_SAY[fz.fear]}」`,'say');}
-  if(!hasMap(p)&&f>3){const c=alive(S,p).find(a=>CAN.mitooshi(a)&&a.mp>=3);if(c&&chance(.6)){c.mp-=3;p.tmap=p.tmap||{};p.tmap[f]=1;plog(p,`${c.name} は ミトオシ を となえた。B${f}Fの みちすじが うかびあがる`,'loot');}}}
+  if(!hasMap(p)&&f>3){const c=alive(S,p).find(a=>CAN.mitooshi(a)&&a.mp>=3);if(c&&chance(.6)){c.mp-=3;p.tmap=p.tmap||{};p.tmap[f]=1;plog(p,`${c.name} は ミトオシ を となえた。${FN(f)}の みちすじが うかびあがる`,'loot');}}}
 function floorThrough(S,p,f){const F=floorsInit(S);F[f]=F[f]||{};if(F[f].through)return;
   F[f].through={party:p.name,tav:p.tav,tk:S.tick,names:alive(S,p).map(a=>a.name)};
   if(!F[f].map)F[f].mapAt=S.tick+(ri(4,8)+Math.ceil(dz(f)/2))*TICKS_PER_DAY;}
@@ -1623,7 +1704,7 @@ function mapTick(S){const F=floorsInit(S);
   for(const [k,v] of Object.entries(F)){if(v.map||!v.mapAt||S.tick<v.mapAt)continue;const f=+k;v.map=true;
     const pay=Math.round(mapPrice(f)*.5/10)*10;const th=v.through;const team=Object.values(S.parties).find(q=>q.name===th.party&&q.tav===th.tav);
     const ms=team?Object.values(S.adv).filter(a=>a.party===team.id&&a.status!=='lost'&&a.status!=='retired'):[];ms.forEach(a=>a.gold+=Math.floor(pay/ms.length));
-    news(S,`【${CARTO}】B${f}Fの地図を売り出した（${mapPrice(f)}G）。この階を最初に突破したのは${th.tav?S.taverns[th.tav].name+'の':''}${th.party}。${ms.length?`地図屋は彼らの記録を${pay}Gで買い取った。`:'地図屋は記録の代金を払おうとしたが、もう受け取る者はいなかった。'}`,'edict');}}
+    news(S,`【${CARTO}】${FN(f)}の地図を売り出した（${mapPrice(f)}G）。この階を最初に突破したのは${th.tav?S.taverns[th.tav].name+'の':''}${th.party}。${ms.length?`地図屋は彼らの記録を${pay}Gで買い取った。`:'地図屋は記録の代金を払おうとしたが、もう受け取る者はいなかった。'}`,'edict');}}
 function policy(S){S.policy=S.policy||{potion:0,mapPay:false,revive:false,rookie:false};return S.policy;}
 function favor(a,n){a.favor=(a.favor||0)+n;}
 function potionPrice(S,p){const al=p.members.map(id=>A(S,id)).filter(Boolean);const d=al.length?Math.round(al.reduce((s,a)=>s+depthOf(a),0)/al.length):1;return Math.max(20,Math.round(incomeAt(d)*.12/10)*10);}
@@ -1641,7 +1722,7 @@ function blessed(S,a){return a.tav==='ours'&&(S.blessUntil||0)>S.tick;}
 function donatePrice(S){return r100(incomeAt(dz(Math.max(1,S.deepest.ours)))*30);}
 function donate(S){const T0=S.taverns.ours,c=donatePrice(S);if(T0.gold<c)return false;T0.gold-=c;T0.support=(T0.support||0)+c;S.blessUntil=Math.max(S.tick,S.blessUntil||0)+30*TICKS_PER_DAY;
   news(S,`黒猫亭の店主が、灰の寺院に${c}Gを寄進した。しばらくのあいだ、黒猫亭の常連の蘇生には司祭たちが念を入れるという。`,'info');return true;}
-function customOffer(S,a){const sh=shopInit(S);if(!sh.tiers[7]||a.lvl<20)return null;const n=a.custom||0,t=8+Math.min(n,4);let best=null,sc=0;
+function customOffer(S,a){const sh=shopInit(S);if(!sh.tiers[7]||a.lvl<20)return null;const top=[9,8,7].find(x=>sh.tiers[x]);const n=a.custom||0,t=top+1+Math.min(n,4);let best=null,sc=0;
   for(const b of ITEM_BASES){if(!canUse(a.cls,b))continue;const it=Object.assign({for:b.for,slot:b.slot},b.two?{two:true}:{},b.st(t));const g=gainOf(a,it);if(g<1.5)continue;if(g>sc){sc=g;best={b,t};}}
   if(best)best.price=Math.round(150000*Math.pow(1.35,n)/1000)*1000;return best;}
 function orderCustom(S,a,o){const T0=S.taverns.ours;if(!o||T0.gold<o.price)return null;T0.gold-=o.price;T0.support=(T0.support||0)+o.price;a.custom=(a.custom||0)+1;
@@ -1656,11 +1737,11 @@ function poach(S,a){const T0=S.taverns.ours,c=poachPrice(S,a),d=a.debt||0;if(T0.
   news(S,`噂：銀の杯亭の${S.taverns.rival.owner||RIVAL_OWNER}「客を金で買うとは、黒猫亭さんも品がなくなりましたね」`,'rumor');return true;}
 function useMap(S,p){const F=floorsInit(S);const f=p.floor;if(!F[f]||!F[f].map)return;p.maps=p.maps||{};if(p.maps[f])return;
   const price=mapPrice(f);const al=alive(S,p);
-  if(p.tav==='ours'&&policy(S).mapPay&&S.taverns.ours.gold>=price){S.taverns.ours.gold-=price;S.taverns.ours.support=(S.taverns.ours.support||0)+price;p.maps[f]=1;F[f].sold=(F[f].sold||0)+1;al.forEach(a=>favor(a,.2));plog(p,`くろねこていの もちで B${f}Fの ちずを ひろげた`,'loot');return;}
+  if(p.tav==='ours'&&policy(S).mapPay&&S.taverns.ours.gold>=price){S.taverns.ours.gold-=price;S.taverns.ours.support=(S.taverns.ours.support||0)+price;p.maps[f]=1;F[f].sold=(F[f].sold||0)+1;al.forEach(a=>favor(a,.2));plog(p,`くろねこていの もちで ${FN(f)}の ちずを ひろげた`,'loot');return;}
   const pool=al.reduce((s,a)=>s+Math.max(0,a.gold),0);
-  if(pool<price*1.5){plog(p,`B${f}Fの ちずは たかすぎて かえなかった`,'move');return;}
+  if(pool<price*1.5){plog(p,`${FN(f)}の ちずは たかすぎて かえなかった`,'move');return;}
   let need=price;al.forEach(a=>{const x=Math.min(Math.max(0,a.gold),Math.ceil(price/al.length));a.gold-=x;need-=x;});al.forEach(a=>{if(need>0){const x=Math.min(Math.max(0,a.gold),need);a.gold-=x;need-=x;}});
-  p.maps[f]=1;F[f].sold=(F[f].sold||0)+1;plog(p,`${CARTO}で かった B${f}Fの ちずを ひろげた`,'loot');}
+  p.maps[f]=1;F[f].sold=(F[f].sold||0)+1;plog(p,`${CARTO}で かった ${FN(f)}の ちずを ひろげた`,'loot');}
 const RARES=[
   {f:1,n:'ドブ王',u:'やけに おおきな ネズミ',rw:'gold',lore:'下水を統べる太った大ネズミ。腹に金貨を溜め込んでいるという'},
   {f:2,n:'片耳のコボルド王',u:'かんむりの コボルド',rw:'gold',lore:'冒険者から盗んだ金貨を溶かして冠にしたコボルドの王'},
@@ -1693,11 +1774,35 @@ const RARES=[
   {f:29,n:'仮面の司祭長',u:'きんの かめんの ひとかげ',rw:'item',sp:'drain',lore:'王の不死の儀式を執り行った司祭長。金の仮面の下を見た者はいない',item:{n:'司祭長の金仮面',slot:'head',ac:12,dodge:.1,mp:4,for:['戦士','侍','盗賊','僧侶','魔術師'],lore:'儀式を執り行った司祭長の仮面。素顔を見た者はいない'}},
   {f:30,n:'玉座の影',u:'ぎょくざに のこる かげ',rw:'xp',lore:'王が去った玉座に残った影。王の記憶をなぞるように剣を振るう'},
 ];
+// 坑道の名のある魔物。f は内部の階（坑道B1F＝31）
+const MINE_RARES=[
+  {f:MINE_TOP+1,n:'金歯のトロール',u:'きんばの おおきな ひとかげ',rw:'gold',lore:'坑夫から奪った金を歯に打ち込んだトロール。笑うと坑道が明るくなる'},
+  {f:MINE_TOP+3,n:'ランプ持ちの坑夫頭',u:'ランプの ひとかげ',rw:'xp',lore:'崩落の日に部下を見捨てた坑夫頭の亡霊。いまも部下を探して坑道を回る'},
+  {f:MINE_TOP+5,n:'天井の母蜘蛛',u:'てんじょうを おおう むし',rw:'mat',sp:'poison',lore:'坑道の天井一面に巣を張る大蜘蛛。巣に黒曜鉄の欠片を貼りつけて飾る'},
+  {f:MINE_TOP+8,n:'石の鍛冶頭',u:'かなづちを ふる いしの すがた',rw:'item',lore:'坑道都市の鍛冶頭が、死ぬ間際に自分を石の像に打ち直したものという',item:{n:'鍛冶頭の大槌',slot:'wpn',two:true,atk:38,hit:.05,for:['戦士','僧侶'],lore:'坑道都市の鍛冶頭が最後に振るった大槌。打つたびに火花が散る'}},
+  {f:MINE_TOP+10,n:'酒蔵の主',u:'たるを かかえた ひとかげ',rw:'gold',lore:'坑道都市の酒蔵を守り続けるドワーフの亡霊。樽の底に金貨を沈めている'},
+  {f:MINE_TOP+13,n:'鉱脈喰らい',u:'いわを のむ ながい かげ',rw:'mat',sp:'poison',lore:'鉱脈ごと岩を呑み込む大蛇。腹の中で澱金が育つ'},
+  {f:MINE_TOP+15,n:'黒曜の騎士',u:'くろく ひかる よろい',rw:'item',lore:'坑道王に仕えた騎士。鎧が澱を吸って黒曜石に変わった',item:{n:'黒曜の鎧',slot:'body',ac:24,dodge:.02,for:['戦士','侍'],lore:'澱を吸って黒曜石に変わった騎士の鎧。刃がすべって通らない'}},
+  {f:MINE_TOP+18,n:'溶鉱炉の竜',u:'ほのおを はく いわの りゅう',rw:'xp',sp:'breath',lore:'坑道都市の溶鉱炉に棲みついた竜。炉の火を今も絶やさない'},
+  {f:MINE_TOP+21,n:'澱の乳母',u:'こどもを だく ひとかげ',rw:'item',sp:'drain',lore:'澱を呑んで死ねなくなった子らを抱き続けるドワーフの乳母',item:{n:'乳母の護符',slot:'acc',ac:6,mp:8,heal:.4,pois:.5,for:['僧侶','魔術師','侍'],lore:'死ねなくなった子らに乳母がかけた護符。持ち主の傷をふさぐ'}},
+  {f:MINE_TOP+23,n:'坑道王の盾持ち',u:'おおきな たてを もつ よろい',rw:'mat',lore:'坑道王の前に立ち、王の代わりに千の刃を受けた盾持ち。盾は澱金で打たれている'},
+];
+function rareDef(f){return RARES.find(r=>r.f===f)||MINE_RARES.find(r=>r.f===f)||null;}
+// 坑道の記録の断片。澱がなぜ坑道まで湧いたのかが、少しずつわかる
+const MINE_LORE=[
+  {f:MINE_TOP+2,what:'坑夫の落書き',t:'エスタリアの魔術師どもが、また石の門をくぐってきた。今度の注文は、塔を地の底まで掘り下げることだそうだ'},
+  {f:MINE_TOP+5,what:'坑道都市の契約書',t:'掘削の代価として、エスタリア王家は対の石碑を坑道王に贈る。いつでも王都へ往来できるように'},
+  {f:MINE_TOP+9,what:'坑夫の日記',t:'王都が沈んだ。石の門の向こうから、黒いものが流れてくる。坑道王は扉を閉ざせと命じなかった'},
+  {f:MINE_TOP+13,what:'坑道王の布告',t:'沈んだ王は死なずにいるという。ならば我らも、その澱を呑めばよい'},
+  {f:MINE_TOP+17,what:'鍛冶頭の遺言',t:'王は澱を呑み、民にも呑ませた。死ななくなった者から、言葉を忘れていった'},
+  {f:MINE_TOP+21,what:'坑道王の碑文',t:'鉄の山脈の命は、地の底でエスタリアの命と混じり合う。我は死なず、山もまた死なず'},
+  {f:MINE_TOP+24,what:'最後の坑夫の手紙',t:'澱は低きへ流れる。大穴の底から、この山の底へ。王を討っても、穴が開いている限り澱は来る'},
+];
 const RW_N={gold:'大金',xp:'経験',mat:'大量の素材',item:'伝説の品'};
-function rareMonOf(rf){const R0=RARES.find(r=>r.f===rf);const f=dz(rf);const top=MON.filter(m=>!m.boss&&!m.gate&&m.f<=Math.max(1,f)).pop();
+function rareMonOf(rf){const R0=rareDef(rf);const f=dz(rf);const top=MON.filter(m=>!m.boss&&!m.gate&&!!m.mine===inMine(rf)&&m.f<=Math.max(1,f)).pop();
   return {n:R0.n,u:R0.u,f,rf,hp:Math.round(top.hp*5+30+f*10),atk:Math.round(top.atk*1.5)+3,sp:R0.sp,rare:true,acts:f>=8?2:1};}
 function rareSlain(S,p,t){
-  S.rares=S.rares||{};if(S.rares[t.rf]&&S.rares[t.rf].killed){plog(p,`${t.n}は ちりと なって きえた`,'sys');return;}const R0=RARES.find(r=>r.f===t.rf);const al=alive(S,p);const tn=S.taverns[p.tav].name;
+  S.rares=S.rares||{};if(S.rares[t.rf]&&S.rares[t.rf].killed){plog(p,`${t.n}は ちりと なって きえた`,'sys');return;}const R0=rareDef(t.rf);const al=alive(S,p);const tn=S.taverns[p.tav].name;
   S.rares[t.rf]=Object.assign(S.rares[t.rf]||{},{killed:{party:p.name,tav:p.tav,names:al.map(a=>a.name),tk:S.tick}});
   let what='';
   if(R0.rw==='gold'){const g=r100(incomeAt(t.f)*ri(10,14));p.loot+=g;what=`${g}Gの財宝`;}
@@ -1706,8 +1811,8 @@ function rareSlain(S,p,t){
   if(R0.rw==='item'){const it=Object.assign({f:6,rare:true,named:true},R0.item,{for:[...R0.item.for]});S.uniqFound=S.uniqFound||{};S.uniqFound[it.n]=1;
     const tgt=giveBest(S,al,it,p);what=it.n+(tgt?`（${tgt.name}が手にした）`:'（使える者がおらず、売られた）');if(!tgt)p.loot+=3000;else chron(S,tgt,`名のある魔物「${t.n}」から${it.n}を得る`);}
   plog(p,`${t.n}を たおした！ ${what}を てにいれた`,'loot');
-  al.forEach(a=>{chron(S,a,`B${t.rf}Fで名のある魔物「${t.n}」を討つ`);a.rareKills=(a.rareKills||0)+1;title(S,a);if(['臆病','慎重'].includes(a.pers)&&chance(.4))changeOf(S,a,`「${t.n}」を討って、自信がついた`,x=>x.pers=x.pers==='臆病'?'慎重':'普通');});
-  news(S,`${tn}の${p.name}が、B${t.rf}Fの名のある魔物「${t.n}」を討ち取った。手に入れたのは${what}。`,'record');
+  al.forEach(a=>{chron(S,a,`${FN(t.rf)}で名のある魔物「${t.n}」を討つ`);a.rareKills=(a.rareKills||0)+1;title(S,a);if(['臆病','慎重'].includes(a.pers)&&chance(.4))changeOf(S,a,`「${t.n}」を討って、自信がついた`,x=>x.pers=x.pers==='臆病'?'慎重':'普通');});
+  news(S,`${tn}の${p.name}が、${FN(t.rf)}の名のある魔物「${t.n}」を討ち取った。手に入れたのは${what}。`,'record');
 }
 const ELEM_TABLE=[[/骸|溺れた|墓守|生贄/,{fire:1.5,ice:.7}],[/大蛇|水路の主/,{bolt:1.5,fire:.8}],[/ガーゴイル|巨像|ゴーレム|鉄の巨人/,{fire:.5,ice:.5,bolt:1.6}],[/黒竜|キメラ|番犬|竜/,{fire:.4,ice:1.5}],[/スライム|澱の/,{bolt:.6,ice:1.5,fire:1.2}],
   [/ゾンビ|骸骨|レイス|亡霊|屍|吸魂|首なし|泣き女|影/,{fire:1.5,ice:.7}],[/蜘蛛|コウモリ|ネズミ/,{fire:1.3}],[/騎士|旗手|守護者|司祭/,{bolt:1.3}]];
@@ -1731,14 +1836,14 @@ const SPELL_LIST=[
   ['ネムリ','B6Fまでの敵の群れを眠らせる','魔術師・魔導士'],['ミトオシ','地図のない階でも、その探索のあいだ道筋を見通す','魔術師Lv15〜・司教Lv19〜・魔導士'],
 ];
 function escape(S,p,a){a.mp-=3;plog(p,`${a.name} は ダッシュツ を となえた！\n　いっこうは ひかりに つつまれ ちじょうへ`,'loot');p.trip.escaped=a.name;p.enemies=null;p.buff=0;p.guard=0;
-  chron(S,a,`B${p.floor}Fでダッシュツを唱え、一行を地上へ逃がす`);p.floor=0;arrive(S,p);}
+  chron(S,a,`${FN(p.floor)}でダッシュツを唱え、一行を地上へ逃がす`);p.floor=0;arrive(S,p);}
 function tryYomi(S,p){if(p.floor<YOMI_F)return;const c=alive(S,p).find(a=>CAN.yomi(a)&&a.mp>=4);if(!c)return;
   const d=p.members.map(id=>A(S,id)).find(a=>a.hp<=0&&!a.dungeonAsh);if(!d)return;
   c.mp-=4;plog(p,`${c.name} は ヨミガエリ を となえた……`,'sys');
   if(chance(Math.min(.85,.45+PL(c)*.015))){d.hp=Math.ceil(d.mhp/3);d.status='party';d.poison=0;d.lastBy=null;
-    plog(p,`　${d.name} は いきを ふきかえした！`,'loot');chron(S,d,`B${p.floor}Fで${c.name}のヨミガエリにより息を吹き返す`);chron(S,c,`B${p.floor}Fでヨミガエリを唱え、${d.name}を蘇らせる`);c.yomiN=(c.yomiN||0)+1;
+    plog(p,`　${d.name} は いきを ふきかえした！`,'loot');chron(S,d,`${FN(p.floor)}で${c.name}のヨミガエリにより息を吹き返す`);chron(S,c,`${FN(p.floor)}でヨミガエリを唱え、${d.name}を蘇らせる`);c.yomiN=(c.yomiN||0)+1;
     if(p.trip.deaths)p.trip.deaths=p.trip.deaths.filter(x=>x.n!==d.name);p.trip.yomi={c:c.name,d:d.name};}
-  else{d.dungeonAsh=true;plog(p,`　しかし ${d.name} は はいに なってしまった……`,'death');chron(S,d,`B${p.floor}Fでヨミガエリに失敗し、灰になる`);}}
+  else{d.dungeonAsh=true;plog(p,`　しかし ${d.name} は はいに なってしまった……`,'death');chron(S,d,`${FN(p.floor)}でヨミガエリに失敗し、灰になる`);}}
 const VARIANTS=[
   {k:'wound',n:'手負いの',hp:.6,atk:.85,xp:.8,w:3},
   {k:'old',n:'年老いた',hp:.8,atk:.8,xp:.9,w:2},
@@ -1750,16 +1855,18 @@ const VARIANTS=[
   {k:'ori',n:'澱にまみれた',hp:1.5,atk:1.35,xp:1.8,w:1,minF:10},
 ];
 function encounter(S,p){
-  if(p.floor>=1&&p.floor<=MAXF&&!(p.floor===MAXF&&!S.conquered)){S.rares=S.rares||{};const rr=S.rares[p.floor]||{};
+  if(rareDef(p.floor)&&!(p.floor===MAXF&&!S.conquered)&&!(p.floor===MINE_BOT&&!S.mineConq)){S.rares=S.rares||{};const rr=S.rares[p.floor]||{};
     // 名のある魔物は1体きり。ほかの一行が戦っているあいだは、別の一行の前には現れない
     const busy=Object.values(S.parties).some(q=>q!==p&&q.enemies&&q.etype&&q.etype.rare&&q.etype.rf===p.floor);
     if(!rr.killed&&!busy&&chance(.004)){const t=rareMonOf(p.floor);S.rares[p.floor]=Object.assign(rr,{seen:rr.seen||{party:p.name,tav:p.tav,tk:S.tick}});
       p.enemies=[{hp:t.hp,sleep:0}];p.etype=t;p.ident=true;p.fought=true;
       plog(p,'＊ ただならぬ けはいが する ＊','sys');plog(p,`名のある魔物「${t.n}」`,'sys');encounterFlavor(S,p,t,true);(p.trip.rareSeen=p.trip.rareSeen||[]).push(t.n);return;}}
-  if(p.floor>=MAXF&&!S.conquered){const t=MON.find(m=>m.boss);p.enemies=[{hp:t.hp,sleep:0}];p.etype=t;p.ident=true;
+  if(p.floor===MINE_BOT&&!S.mineConq){const t=MON.find(m=>m.mboss);p.enemies=[{hp:t.hp,sleep:0}];p.etype=t;p.ident=true;
+    plog(p,'＊ いわの ぎょくざに だれかが すわっている ＊','sys');plog(p,`${t.n}`,'sys');return;}
+  if(p.floor===MAXF&&!S.conquered){const t=MON.find(m=>m.boss&&!m.mboss);p.enemies=[{hp:t.hp,sleep:0}];p.etype=t;p.ident=true;
     plog(p,'＊ ぎょくざの まえに なにかが いる ＊','sys');plog(p,`${t.n}`,'sys');return;}
   const fr=isFrontier(S,p.floor);const f=dz(Math.max(1,p.floor))+(fr?1.8:0);
-  let pool=MON.filter(m=>!m.boss&&!m.gate&&m.f<=f+.4&&m.f>=f-2);if(!pool.length)pool=MON.filter(m=>!m.boss&&!m.gate).slice(-3);
+  const here=MON.filter(m=>!m.boss&&!m.gate&&!!m.mine===inMine(p.floor));let pool=here.filter(m=>m.f<=f+.4&&m.f>=f-2);if(!pool.length)pool=here.filter(m=>m.f<=f+.4).slice(-3);if(!pool.length)pool=here.slice(0,3);
   const t=pick(pool);
   const n=f>10?(t.f<f?ri(1,3):ri(1,2)):t.f<f?ri(2,3+Math.floor(f/3)):ri(1,Math.min(4,1+Math.ceil(f/3)));
   const k=1+(f-t.f)*0.15;
@@ -1796,7 +1903,7 @@ function combat(S,p){
     const tg=alive(S,p); if(!tg.length)break;
     if(t.boss&&chance(.4)){
       plog(p,`${t.n} は ふるい じゅもんを となえた！\n　くろい ほのおが いっこうを つつむ`,'death');
-      tg.forEach(a=>{a.hp-=ri(14,26);});tg.forEach(a=>{if(a.hp<=0){a.hp=0;die(S,p,a,t.n)}});continue;
+      tg.forEach(a=>{a.hp-=t.fire?ri(...t.fire):ri(14,26);});tg.forEach(a=>{if(a.hp<=0){a.hp=0;die(S,p,a,t.n)}});continue;
     }
     if(t.sp==='blast'&&chance(.3)){
       plog(p,`${t.n} は じゅもんを となえた！`,'death');
@@ -1905,14 +2012,15 @@ function combat(S,p){
   if(!alive(S,p).length) wipe(S,p,t.n);
 }
 function kill(p,a){a.kills++;p._kills=(p._kills||0)+1}
-function dieInDungeon(S,p,a,by){if(p.trip&&p.trip.deaths)p.trip.deaths.push({n:a.name,by});a.status='party';a.poison=0;a.lastBy=by;a.lastFloor=p.floor;chron(S,a,`B${p.floor}Fで${by}に倒れる`);}
+function dieInDungeon(S,p,a,by){if(p.trip&&p.trip.deaths)p.trip.deaths.push({n:a.name,by});a.status='party';a.poison=0;a.lastBy=by;a.lastFloor=p.floor;chron(S,a,`${FN(p.floor)}で${by}に倒れる`);}
 function victory(S,p){
   const t=p.etype,f=Math.max(1,p.floor),n=p.enemies.length;
   const al=alive(S,p);
-  if(t.boss){conquest(S,p);p.state='return';}
+  if(t.mboss){mineConquest(S,p);p.state='return';}
+  else if(t.boss){conquest(S,p);p.state='return';}
   if(t.rare){rareSlain(S,p,t);}
   if(t.gate){dragonSlain(S,p);p.fsteps=99;}
-  const mf=(hasMap(p)?1:.7)*(t.xpm||1);const bn=t.base||t.n;const xp=Math.round((6*Math.pow(t.f,1.6)+3)*n/al.length*mf);const g=Math.round(ri(5,12)*t.f*n*mf);
+  const mf=(hasMap(p)?1:.7)*(t.xpm||1)*(t.mine?MINE_XP:1);const bn=t.base||t.n;const xp=Math.round((6*Math.pow(t.f,1.6)+3)*n/al.length*mf);const g=Math.round(ri(5,12)*t.f*n*mf);
   al.forEach(a=>{a.xp+=Math.round(xp*(TAL[a.tal]||TAL['並']).g*rc(a).xp*trXp(a)*(a.tav==='ours'&&fac(S,'dojo')?1.15:1));a.slain=a.slain||{};a.slain[bn]=(a.slain[bn]||0)+n;});p.loot+=g;
   p.trip.kills[bn]=(p.trip.kills[bn]||0)+n;if(t.variant&&t.xpm>=1.4)(p.trip.vars=p.trip.vars||[]).push(t.n);
   if(!p.trip.big||t.f>p.trip.big.f)p.trip.big={n:t.n,f:t.f,c:n};
@@ -1944,7 +2052,7 @@ function chest(S,p){
     else if(trap==='いしつぶて'){al.forEach(a=>a.hp-=Math.round((ri(1,4)+f)*tdm));}
     else if(trap==='ばくだん'){al.forEach(a=>a.hp-=Math.round((ri(1,4)+f)*1.5*tdm));}
     else if(trap==='まひガス'){al.forEach(a=>a.hp-=ri(1,3));plog(p,'からだが しびれる……','move');}
-    else {const nf=clamp(rf+ri(-1,2),1,dragonAlive(S)?DRAGON_F:MAXF-1);p.floor=nf;floorArrive(S,p,true);p.fsteps=0;plog(p,`きがつくと B${nf}F に いた`,'sys');p.trip.deep=Math.max(p.trip.deep,nf);reachFloor(S,p,true);}
+    else {const nf=inMine(rf)?clamp(rf+ri(-1,2),MINE_TOP,MINE_BOT-1):clamp(rf+ri(-1,2),1,dragonAlive(S)?DRAGON_F:MAXF-1);p.floor=nf;floorArrive(S,p,true);p.fsteps=0;plog(p,`きがつくと ${FN(nf)} に いた`,'sys');p.trip.deep=Math.max(p.trip.deep,nf);reachFloor(S,p,true);}
     al.forEach(a=>{if(a.hp<=0){a.hp=0;die(S,p,a,'宝箱の'+trap);}});
     if(!alive(S,p).length){wipe(S,p,'宝箱の'+trap);return;}
   }
@@ -1955,9 +2063,9 @@ function chest(S,p){
     line+=` と ${it.n}`;p.trip.items.push(it.n);
     plog(p,line,'loot');
     const tgt=giveBest(S,alive(S,p),it,p);
-    if(tgt){chron(S,tgt,`B${rf}Fの宝箱から${it.n}を得る`);plog(p,`${tgt.name} は ${it.n}（${itemStat(it)}）を そうびした`,'loot');}
+    if(tgt){chron(S,tgt,`${FN(rf)}の宝箱から${it.n}を得る`);plog(p,`${tgt.name} は ${it.n}（${itemStat(it)}）を そうびした`,'loot');}
     else {plog(p,'つかえる ものは いない。うりに だそう','move');p.loot+=it.f*60;if(!it.rare){delete S.usedItems[it.n];const m=it.n.match(/「(.+)」/);if(m)delete S.usedItems['ep:'+m[1]];}}
-    if(it.rare) news(S,`${S.taverns[p.tav].name}の${p.name}が、B${rf}Fの宝箱から${it.n}を見つけた。`,'record');
+    if(it.rare) news(S,`${S.taverns[p.tav].name}の${p.name}が、${FN(rf)}の宝箱から${it.n}を見つけた。`,'record');
     return;
   }
   plog(p,line,'loot');
@@ -1970,7 +2078,7 @@ function wipe(S,p,by){
   (p.carried||[]).forEach(id=>{const a=A(S,id);if(!a)return;a.status='missing';if(!p.members.includes(id))p.members.push(id);});p.carried=[];
   (p.bountyFor||[]).forEach(b=>{if(b)S.taverns.ours.gold+=b;});p.bountyFor=[];
   const watched=S.watch.includes(p.id);
-  if(watched&&p.tav==='ours'){p.knownWiped=true;p.announced=true;news(S,`水晶が${p.name}の最期を映した。B${p.floor}F、${by}に倒れる。${p.pushWhy==='race'?'銀の杯亭に先を越されまいとした末だった。':p.pushWhy==='first'?'一番乗りを狙った末だった。':p.pushWhy==='bounty'?'報奨金を狙った末だった。':p.pushWhy==='avenge'?'仇を追った末だった。':p.pushWhy==='errand'?'店主に回された話を果たしに向かった末だった。':''}`,'death');}
+  if(watched&&p.tav==='ours'){p.knownWiped=true;p.announced=true;news(S,`水晶が${p.name}の最期を映した。${FN(p.floor)}、${by}に倒れる。${p.pushWhy==='race'?'銀の杯亭に先を越されまいとした末だった。':p.pushWhy==='first'?'一番乗りを狙った末だった。':p.pushWhy==='bounty'?'報奨金を狙った末だった。':p.pushWhy==='avenge'?'仇を追った末だった。':p.pushWhy==='errand'?'店主に回された話を果たしに向かった末だった。':p.pushWhy==='boss'?'坑道王を討ちに向かった末だった。':''}`,'death');}
   if(p.tav==='rival'&&S.ace===p.id){p.ace=false;S.ace=null;pickAce(S);}
 }
 // 運ばれていた遺体が街に着いた（あるいは途中でロストした）ら、一行を街の支度に戻す
@@ -2000,8 +2108,8 @@ function arrive(S,p){
     if(a.loan&&p.tav==='ours'){tav.gold+=Math.round(a.loan*1.5);tav.earned+=Math.round(a.loan*.5);plog(p,`${a.name} は ツケを はらった`,'move');chron(S,a,'店主へのツケを返す');a.loan=0;}
     title(S,a);
   });
-  if(p.tav==='rival')tav.rep+=Math.floor(p.trip.deep/3);
-  if(p.tav==='ours'){const cut=al.reduce((s,a)=>s+(a.spent||0)+(a.lodge||0),0);tav.gold+=cut;tav.earned+=cut;tav.rep+=1+Math.floor(p.trip.deep/2);
+  if(p.tav==='rival')tav.rep+=Math.floor(fx(p.trip.deep)/3);
+  if(p.tav==='ours'){const cut=al.reduce((s,a)=>s+(a.spent||0)+(a.lodge||0),0);tav.gold+=cut;tav.earned+=cut;tav.rep+=1+Math.floor(fx(p.trip.deep)/2);
     if(cut>=300)plog(p,`さかばで ${cut} G を つかった`,'loot');}
   // bounties
   (p.bountyFor||[]).forEach(b=>{if(b){news(S,`${p.name}に死体回収の報酬 ${b}G を支払った。`,'info');al.forEach(a=>a.gold+=Math.floor(b/Math.max(1,al.length)));}});
@@ -2022,7 +2130,7 @@ function arrive(S,p){
   // 席が埋まっているときは、救い出された身内を客にしない。本人が戻れていれば二人で故郷へ帰る
   (p.rescue||[]).forEach(r=>{const a=A(S,r.by);const full=seatsUsed(S,p.tav)>=seatCap(S,p.tav);
     if(a&&a.status==='idle'&&(full||chance(.5))){retire(S,a,`見つけ出した${r.who}の${r.name}と故郷へ帰る`);}
-    else if(!full){const d0=a&&a.dream||{};const ka=KIN_AGE[r.who]||[0,0];const k=makeAdv(S,p.tav,{name:r.name,sex:d0.g||KIN_G[r.who],race:a?a.race:null,origin:a?a.origin:null,age:a?a.age+ri(ka[0],ka[1]):null,lvl:ri(3,11),bg:`B${r.f}Fで${a?a.name:'仲間'}に救い出された${r.who}`});k.dream=makeDream(S,k);
+    else if(!full){const d0=a&&a.dream||{};const ka=KIN_AGE[r.who]||[0,0];const k=makeAdv(S,p.tav,{name:r.name,sex:d0.g||KIN_G[r.who],race:a?a.race:null,origin:a?a.origin:null,age:a?a.age+ri(ka[0],ka[1]):null,lvl:ri(3,11),bg:`${FN(r.f)}で${a?a.name:'仲間'}に救い出された${r.who}`});k.dream=makeDream(S,k);
       news(S,`救い出された${r.name}が${S.taverns[p.tav].name}の客になった。`,'info');}
     else news(S,`救い出された${r.name}は、${S.taverns[p.tav].name}に空きがなかったので、故郷へ帰った。`,'info');
   });p.rescue=[];
@@ -2043,15 +2151,15 @@ const QUIRK_TALES={
   '酒好き':['迷宮の奥に湧き水があってな。あれが酒だったらと何度思ったか','帰ったらまずこの一杯だと決めて、それだけを支えに歩いた','{other}が隠し持ってた酒を見つけちまった。もちろん没収だ'],
   '甘党':['干し葡萄が尽きたときが一番つらかった','{other}が蜂蜜飴を一粒くれてな。あれで生き返った','迷宮の宝箱に砂糖菓子が入ってたらいいのに'],
   '験担ぎ':['左足から入ったおかげで助かった。間違いない','黒猫が前を横切った日に潜ると、必ず無事に帰れるんだ','お守りの紐が切れた。……次は気をつけないとな'],
-  '無口':['……（黙って杯を掲げた）','……生きて帰った。それで十分だ','……B{deep}Fは、静かだった'],
-  '歌好き':['迷宮の歌を一曲作った。題は「B{deep}Fの夜」だ','{mon}の鳴き声に合わせて歌ったら、{other}に怒られた','暗闇で歌うと、少しだけ怖さが紛れるんだ'],
-  '猫好き':['迷宮にも猫がいた気がする。……たぶん化け物だったが','帰ったら店の黒猫をなでる。そう決めてたんだ','猫の足跡みたいなものを見た。B{deep}Fにだぞ'],
-  '方向音痴':['帰り道がわからなくなってな。仲間がいなけりゃ今もさまよってた','地図を逆さに持ってたらしい。どうりで同じ扉ばかり開けるわけだ','B{deep}Fに行ったつもりが、気づいたら一階上だった'],
-  '几帳面':['地図を清書した。B{deep}Fまでなら目をつぶっても歩ける','罠の位置を全部帳面に書き留めた。高く売れるぞ','{mon}の出る区画を数えてみた。北の通路は避けたほうがいい'],
+  '無口':['……（黙って杯を掲げた）','……生きて帰った。それで十分だ','……{deep}は、静かだった'],
+  '歌好き':['迷宮の歌を一曲作った。題は「{deep}の夜」だ','{mon}の鳴き声に合わせて歌ったら、{other}に怒られた','暗闇で歌うと、少しだけ怖さが紛れるんだ'],
+  '猫好き':['迷宮にも猫がいた気がする。……たぶん化け物だったが','帰ったら店の黒猫をなでる。そう決めてたんだ','猫の足跡みたいなものを見た。{deep}にだぞ'],
+  '方向音痴':['帰り道がわからなくなってな。仲間がいなけりゃ今もさまよってた','地図を逆さに持ってたらしい。どうりで同じ扉ばかり開けるわけだ','{deep}に行ったつもりが、気づいたら一階上だった'],
+  '几帳面':['地図を清書した。{deep}までなら目をつぶっても歩ける','罠の位置を全部帳面に書き留めた。高く売れるぞ','{mon}の出る区画を数えてみた。北の通路は避けたほうがいい'],
   '大食い':['持っていった干し肉、三日分を一日で食べちまった','{mon}って食えるのかな。……いや、聞かなかったことにしてくれ','腹が減って力が出なかった。次はもっと食料を持っていく'],
   '世話焼き':['{other}の傷の手当てをしてやった。無茶ばかりするんだ','新入りが震えてたから、ずっと隣を歩いてやったよ','みんなの靴紐を結び直してやった。迷宮では足元が命だ'],
   '博打好き':['宝箱の中身で賭けをして、{win}','{other}と次の敵の数で賭けたんだ。{win}','罠があるかないかに10G賭けた。……当たったが、痛かった'],
-  '読書家':['壁の古文字を少し読めた。「ここより先、帰る者なし」だとさ','B{deep}Fの壁画に、昔の冒険者の名前が刻まれていた','{mon}について古い本に書いてあった。弱点は……忘れた'],
+  '読書家':['壁の古文字を少し読めた。「ここより先、帰る者なし」だとさ','{deep}の壁画に、昔の冒険者の名前が刻まれていた','{mon}について古い本に書いてあった。弱点は……忘れた'],
 };
 function tale(S,p,al,second){
   const tr=p.trip;
@@ -2065,7 +2173,7 @@ function tale(S,p,al,second){
   const deep=tr.deep;const big=tr.big;
   const CAND=[];const add=(k,w,t)=>CAND.push([w,t,k]);
   // fights
-  if(cnt){add('1',2,pick([`B${deep}Fで${mon}を${cnt*m}匹は斬ったぜ`,`${mon}を${cnt*m}匹。数えるのも途中で嫌になった`,`B${deep}Fは${mon}だらけでな。${cnt*m}匹は片付けた`,`${mon}の返り血がまだ落ちない。${cnt*m}匹分だ`]));
+  if(cnt){add('1',2,pick([`${FN(deep)}で${mon}を${cnt*m}匹は斬ったぜ`,`${mon}を${cnt*m}匹。数えるのも途中で嫌になった`,`${FN(deep)}は${mon}だらけでな。${cnt*m}匹は片付けた`,`${mon}の返り血がまだ落ちない。${cnt*m}匹分だ`]));
     add('2',1,pick([`${mon}の群れに囲まれてな。${m>1?'ほとんど俺ひとりで':'みんなで'}片付けてやった`,`角を曲がったら${mon}がぞろぞろいた。${m>1?'俺が前に出て蹴散らした':'背中合わせでしのいだ'}`,`${mon}の群れってのは、一匹ずつなら大したことないんだがな`]));
     add('3',1,pick([`${mon}なんて、もう目をつぶってても倒せる`,`${mon}の動きは、もう全部読める`,`${mon}？ ああ、あれはもう慣れた`]));}
   if(big&&big.f>=4){add('4',2.5,pick([`${big.n}を見たことあるか？ ${m>1?'城の門ほど':'家の戸口ほど'}の大きさだった`,`${big.n}の気配が、まだ背中に張りついてる`,`${big.n}が${m>1?'百人力で':'すごい力で'}壁を叩いてな。迷宮ごと揺れた`]));
@@ -2075,7 +2183,7 @@ function tale(S,p,al,second){
     if(c.n===sp.name)add('6',3,`${c.m}の首を一太刀ではねてやった。手応えがまだ残ってる`);
     else add('7',3,pick([`${c.n}が${c.m}の首を一太刀で落としたんだ。あれは見ものだった`,`${c.n}の剣が${c.m}の首を飛ばした。音もしなかった`,`${c.m}がこっちを向いた瞬間、${c.n}が首を落としてた`]));}
   if(tr.slept>=3)add('8',2,`${tr.sleeper===sp.name?'俺':tr.sleeper}のネムリで${tr.slept*m}匹まとめて眠らせた。寝首をかくのは楽な仕事さ`);
-  if(tr.heals>=4)add('9',1.2,tr.healer===sp.name?`イヤシを${tr.heals}回も唱えた。喉がからからだ`:`${tr.healer}がいなけりゃ、全員B${deep}Fの土になってた`);
+  if(tr.heals>=4)add('9',1.2,tr.healer===sp.name?`イヤシを${tr.heals}回も唱えた。喉がからからだ`:`${tr.healer}がいなけりゃ、全員${FN(deep)}の土になってた`);
   // danger
   const close=(tr.close||[]);
   if(close.length){const c=pick(close);
@@ -2097,12 +2205,12 @@ function tale(S,p,al,second){
   if(p.loot<80&&!tr.items.length)add('19',1.5,'骨折り損だ。宝箱は空っぽ、財布も空っぽ');
   // exploration
   if(tr.potion)add('20',2,`黒猫亭の差し入れの回復薬がなかったら、危なかった`);
-  if(tr.escaped)add('21',5,`${tr.escaped===sp.name?'俺の':tr.escaped+'の'}ダッシュツがなかったら、全員B${deep}Fの土になってた`);
+  if(tr.escaped)add('21',5,`${tr.escaped===sp.name?'俺の':tr.escaped+'の'}ダッシュツがなかったら、全員${FN(deep)}の土になってた`);
   if(tr.yomi)add('22',5,`${tr.yomi.c}のヨミガエリで、${tr.yomi.d}が息を吹き返した。……奇跡だよ`);
   if((tr.vars||[]).length){const v=pick(tr.vars);add('23',2.5,pick([`${v}に出くわした。ふつうのとは比べものにならない`,`${v}ってのがいてな。名前だけで嫌な予感がしたよ`,`${v}の相手は、もうごめんだ`]));}
   if((tr.rareSeen||[]).length)add('24',4,`${tr.rareSeen[0]}を見た。あれは格が違う`);
-  if(tr.rec)add('25',5,`誰も行ったことのないB${deep}Fに足を踏み入れた。最初の足跡は俺たちのだ`);
-  if(deep>=4){add('26',1.5,pick([`B${deep+(m>1?1:0)}Fまで潜ってきた。あそこは空気がちがう`,`B${deep+(m>1?1:0)}Fは、灯りの火まで小さくなる`,`B${deep+(m>1?1:0)}Fまで行くと、上の階の音がまるで聞こえない`]));add('27',1,pick([`B${deep}Fの壁には誰かの名前が刻まれてた。古い字でな`,`B${deep}Fに、誰かの錆びた兜が転がってた`,`B${deep}Fで古い焚き火の跡を見つけた。誰のだろうな`]));}
+  if(tr.rec)add('25',5,`誰も行ったことのない${FN(deep)}に足を踏み入れた。最初の足跡は俺たちのだ`);
+  if(deep>=4){add('26',1.5,pick([`${FN(deep+(m>1?1:0))}まで潜ってきた。あそこは空気がちがう`,`${FN(deep+(m>1?1:0))}は、灯りの火まで小さくなる`,`${FN(deep+(m>1?1:0))}まで行くと、上の階の音がまるで聞こえない`]));add('27',1,pick([`${FN(deep)}の壁には誰かの名前が刻まれてた。古い字でな`,`${FN(deep)}に、誰かの錆びた兜が転がってた`,`${FN(deep)}で古い焚き火の跡を見つけた。誰のだろうな`]));}
   if(deep<=2)add('28',.8,'浅いところをぐるっと回ってきただけさ。今日は様子見だ');
   const met=(tr.met||[]);
   if(met.length){const o=pick(met);add('29',1.5,o.rival?pick([`銀の杯亭の${o.n}とすれ違った。あいつら、愛想ってものがない`,`${o.n}の連中、銀の杯亭の看板を背負って偉そうにしてたよ`,`銀の杯亭の${o.n}に道を譲られた。……妙に気味が悪い`]):pick([`${o.n}の連中とすれ違ったよ。元気そうだった`,`${o.n}と通路で鉢合わせてな。干し肉を分けてもらった`,`${o.n}の連中が手を振ってた。迷宮で知った顔を見るとほっとする`]));}
@@ -2113,7 +2221,7 @@ function tale(S,p,al,second){
   if(lv)add('32',2,pick(['剣が前より軽く感じる。ようやく一人前に近づいた','レベルが上がった。体が軽い',`ようやくレベル${lv.l}だ。まだまだ先は長い`,'強くなった気がする。気のせいじゃないといいが']));
   // quirk & dream
   const qt=QUIRK_TALES[sp.quirk];
-  if(qt)add('33',1.5,pick(qt).replace('{other}',other).replace('{deep}',deep).replace('{mon}',mon).replace('{win}',chance(.5)?'大勝ちした':'すっからかんになった'));
+  if(qt)add('33',1.5,pick(qt).replace('{other}',other).replace('{deep}',FN(deep)).replace('{mon}',mon).replace('{win}',chance(.5)?'大勝ちした':'すっからかんになった'));
   const d=sp.dream;
   if(d&&DREAMS[d.k]){
     if(d.k==='debt'||d.k==='wealth'||d.k==='shop'||d.k==='temple')add('34',1,`${dreamText(d).replace(/（.*?）/,'')}。あと${Math.max(0,(d.amt||0)-sp.gold)}Gだ。気が遠くなる`);
@@ -2121,10 +2229,10 @@ function tale(S,p,al,second){
     if(d.k==='dragon')add('36',1,'黒竜はまだ遠い。だが、近づいてる');
     if(d.k==='kin')add('37',1,`${d.who}の手がかりは、今回もなかった`);
   }
-  const ot=sp.origin&&ORIGINS[sp.origin];if(ot)add('38',1.3,pick(ot.tale).replace('{deep}',deep));
+  const ot=sp.origin&&ORIGINS[sp.origin];if(ot)add('38',1.3,pick(ot.tale).replace('{deep}',FN(deep)));
   if(sp.pers==='臆病')add('39',1,pick(['……もう二度と潜りたくない','足の震えがまだ止まらない','次は……次こそは、浅いところだけにする']));
-  if(sp.pers==='無謀')add('40',1,pick(['次はもっと深く行く。止めても無駄だ','B'+(deep+2)+'Fくらい、どうってことないさ','今回は物足りなかった。次はもっと下だ']));
-  if(sp.pers==='慎重')add('pers',1,pick(['引き返す頃合いを決めるのが一番難しい',`B${deep}Fで止めたのは正解だった。あれ以上は欲張りだ`,'地図に印をつけながら進んだ。だから帰ってこられた']));
+  if(sp.pers==='無謀')add('40',1,pick(['次はもっと深く行く。止めても無駄だ',FN(deep+2)+'くらい、どうってことないさ','今回は物足りなかった。次はもっと下だ']));
+  if(sp.pers==='慎重')add('pers',1,pick(['引き返す頃合いを決めるのが一番難しい',`${FN(deep)}で止めたのは正解だった。あれ以上は欲張りだ`,'地図に印をつけながら進んだ。だから帰ってこられた']));
   if(sp.pers==='強欲')add('pers',1,pick([`もう一部屋開けていれば、もっと稼げたんだ`,'取り分の話は、帰ってからじっくりしようか','宝箱を置いてきたのが、今でも悔しい']));
   if(sp.pers==='普通')add('pers',.8,pick(['まあ、いつもどおりの潜りだったよ','可もなく不可もなく。それが一番だ','無事に帰ってきた。今日はそれで十分だ']));
   // 好物・怖いもの・口癖
@@ -2138,11 +2246,11 @@ function tale(S,p,al,second){
   // 職業
   const sc=C(sp);
   if(sp.beast)add('cls',2,pick([`相棒の${sp.beast.name}が${mon}に飛びかかってな。俺より勇ましい`,`${sp.beast.name}のおかげで、罠の匂いに気づけた`,`${sp.beast.name}に、帰ったら一番いい肉をやる約束なんだ`]));
-  else if(sc.song)add('cls',1.5,pick([`迷宮で歌うと、仲間の足取りが軽くなるんだ`,`B${deep}Fは声がよく響く。いい舞台だった`,'竪琴の弦が一本切れた。張り替えないと']));
+  else if(sc.song)add('cls',1.5,pick([`迷宮で歌うと、仲間の足取りが軽くなるんだ`,`${FN(deep)}は声がよく響く。いい舞台だった`,'竪琴の弦が一本切れた。張り替えないと']));
   else if(sc.bomb)add('cls',1.5,pick([`調合した薬で${mon}を吹き飛ばした。分量はちょっと多すぎた`,'フラスコを三本割った。いや、二本は敵にぶつけたんだが','迷宮の苔は、いい薬の材料になる']));
-  else if(sc.thief)add('cls',1.5,pick(['宝箱の鍵は、どれも素直だった','罠の針を一本、記念に持って帰ってきた',`B${deep}Fの宝箱は、鍵が一段と意地悪になる`]));
+  else if(sc.thief)add('cls',1.5,pick(['宝箱の鍵は、どれも素直だった','罠の針を一本、記念に持って帰ってきた',`${FN(deep)}の宝箱は、鍵が一段と意地悪になる`]));
   else if(sc.heal)add('cls',1.5,pick(['祈りの言葉が、途中で何度も詰まった','傷を塞ぐたびに、少しずつ自分の力が削れていく','神様も、迷宮の底までは見ていないのかもしれない']));
-  else if(sc.mage&&!sc.front)add('cls',1.5,pick(['呪文が尽きたら、俺はただの杖持ちだ',`B${deep}Fの空気は、呪文の通りが悪い`,'呪文を唱えすぎて、頭が割れそうだ']));
+  else if(sc.mage&&!sc.front)add('cls',1.5,pick(['呪文が尽きたら、俺はただの杖持ちだ',`${FN(deep)}の空気は、呪文の通りが悪い`,'呪文を唱えすぎて、頭が割れそうだ']));
   else if(sc.front)add('cls',1.5,pick(['ずっと前に立ちっぱなしだった。盾がへこんだよ','剣の刃こぼれを数えたら、両手じゃ足りない',`${mon}の攻撃は、全部俺が受け止めた`]));
   // 仲間との絆
   if(others.length){const bo=others.map(o=>[o,(bondOf(S,sp,o)||{n:0}).n]).sort((x,y)=>y[1]-x[1])[0];
@@ -2180,7 +2288,7 @@ function temple(S,a,paidByTavern){
 const TITLE_ADJ={'怪力':'剛力の','俊足':'疾風の','鷹の目':'鷹の目の','強運':'幸運の','頑健':'鉄身の','不屈':'不屈の','博識':'賢者の','信心深い':'敬虔な','器用':'千手の','夜目':'闇見の','料理上手':'鍋釜の','人望':'皆の'};
 function titleCands(S,a,kind){const sl=Object.entries(a.slain||{}).filter(([k])=>!/ネズミ|スライム/.test(k)).sort((x,y)=>y[1]-x[1]);const ms=sl.length?sl[0][0]:'魔物';const ms2=sl[1]?sl[1][0]:ms;
   const os=ORIGINS[a.origin]?ORIGINS[a.origin].short:'';const w=a.eq&&a.eq.wpn?(a.eq.wpn.base||''):'';const g=a.sex==='女';
-  const rk=Object.entries(S.rares||{}).filter(([f,v])=>v.killed&&v.killed.names&&v.killed.names.includes(a.name)).map(([f])=>(RARES.find(r=>r.f===+f)||{}).n).filter(Boolean);
+  const rk=Object.entries(S.rares||{}).filter(([f,v])=>v.killed&&v.killed.names&&v.killed.names.includes(a.name)).map(([f])=>(rareDef(+f)||{}).n).filter(Boolean);
   const it=eqList(a).find(x=>x.rare);const P=(st,t)=>[st,t];
   const PER={'無謀':[P('命知らず','命知らず'),P('向こう見ず','向こう見ず')],'慎重':[P('石橋','石橋叩き'),P('しんがり','しんがり')],'強欲':[P('金の亡者','金の亡者'),P('宝箱荒らし','宝箱荒らし')],'臆病':[P('逃げ足','逃げ足'),P('震える刃','震える刃')],'普通':[P('職人','迷宮職人')]}[a.pers]||[];
   const CL={'侍':[P('人斬り','人斬り'),P('居合','居合の'+(g?'姫':'鬼'))],'僧侶':[P('癒し手','癒し手'),P('祈り','祈りの盾')],'魔術師':[P('火の手','火の手'),P('雷鳴','雷鳴')],'盗賊':[P('影','影法師'),P('早業','早業')],'戦士':[P('壁','動く壁'),P('鉄塊','鉄塊')],'忍者':[P('朧','朧'),P('音無し','音無し')],'司教':[P('鑑定眼','鑑定眼'),P('説教','説教屋')],'聖騎士':[P('光の盾','光の盾')],'剣聖':[P('一閃','一閃')],'狂戦士':[P('狂犬','狂犬')],'吟遊詩人':[P('歌う剣','歌う剣')],'錬金術師':[P('爆炎','爆炎')],'獣使い':[P('獣連れ','獣連れ')],'竜騎士':[P('竜の友','竜の友')],'魔導士':[P('星読み','星読み')]}[a.cls]||[];
@@ -2197,14 +2305,16 @@ function titleCands(S,a,kind){const sl=Object.entries(a.slain||{}).filter(([k])=
     rare:rk.map(n=>P('rare:'+n,`${n}殺し`)),
     dragon:[P('竜殺し','竜殺し'),P('黒竜狩り','黒竜狩り'),P('竜の鱗','竜の鱗を纏う者'),P('黒き炎','黒き炎をくぐった者'),P('竜の血浴び','竜の血浴び')],
     item:it?[P('item:'+it.n,`${it.n.replace(/[「」]/g,'')}の主`)]:[],
+    mdeep:[P('坑道帰り','坑道帰り'),P('山の腹','山の腹を歩く者'),P('鉱脈読み','鉱脈読み'),P('黒曜','黒曜の'+(g?'女':'男')),P('地底の灯','地底の灯')],
+    mconq:[P('坑道王殺し','坑道王殺し'),P('二つの底','二つの底を見た者'),P('山の主','山の主を討った者'),P('鉄の山脈の英雄','鉄の山脈の英雄'),P('澱断ち','澱断ち')],
     conq:[P('王殺し','王殺し'),P('玉座を見た','玉座を見た者'),P('踏破者','踏破者'),P('最後の一太刀','最後の一太刀'),P('迷宮踏破者','迷宮踏破者'),P('沈黙の玉座','沈黙の玉座'),P('王の介錯人','王の介錯人')],
   })[kind]||[];}
-const TITLE_TIER={k80:1,disarm:1,rev2:1,errand:1,deep:2,rare:2,rev3:2,k300:3,dragon:3,item:3,conq:4};
+const TITLE_TIER={k80:1,disarm:1,rev2:1,errand:1,deep:2,rare:2,rev3:2,k300:3,dragon:3,item:3,mdeep:3,conq:4,mconq:5};
 function title(S,a,quiet){
   const ach=[];
   if(a.kills>=80)ach.push('k80');if(a.disarms>=8)ach.push('disarm');if((a.rareKills||0)>=1)ach.push('rare');if(a.deepest>=GATE_F+8)ach.push('deep');
   if(a.revived>=3)ach.push('rev2');if(a.kills>=500)ach.push('k300');if((a.slain||{})['黒竜'])ach.push('dragon');if(a.revived>=5)ach.push('rev3');
-  if(eqList(a).some(it=>it.rare))ach.push('item');if(a.conq)ach.push('conq');if((a.errandsDone||0)>=3)ach.push('errand');
+  if(eqList(a).some(it=>it.rare))ach.push('item');if(a.conq)ach.push('conq');if((a.mineDeep||0)>=13)ach.push('mdeep');if(a.mconq)ach.push('mconq');if((a.errandsDone||0)>=3)ach.push('errand');
   if(!ach.length)return;
   const top=Math.max(...ach.map(k=>TITLE_TIER[k]));if(a.titleKind&&(TITLE_TIER[a.titleKind]||0)>=top)return;
   const others=Object.values(S.adv).filter(b=>b!==a&&b.title&&b.status!=='lost'&&b.status!=='retired');
@@ -2233,7 +2343,7 @@ function pickAce(S,quiet){const ps=Object.values(S.parties).filter(p=>p.tav==='r
   ps.sort((x,y)=>avgLvl(S,y)-avgLvl(S,x));const b=ps[0];if(S.ace===b.id)return;Object.values(S.parties).forEach(p=>{p.ace=false;});S.ace=b.id;b.ace=true;
   if(!quiet)news(S,`噂：銀の杯亭の看板は、${b.name}に代わったらしい。`,'rumor');}
 function rivalryNews(S,p){const RO=S.taverns.rival.owner||RIVAL_OWNER;
-  if(p.tav==='rival'&&S.deepest.ours<p.floor-1&&chance(.5))news(S,`銀の杯亭の${RO}「黒猫亭さんの客は、まだB${S.deepest.ours}Fあたりですか。若い店主さんには、荷が重いでしょう」`,'rumor');
+  if(p.tav==='rival'&&S.deepest.ours<p.floor-1&&chance(.5))news(S,`銀の杯亭の${RO}「黒猫亭さんの客は、まだ${FN(S.deepest.ours)}あたりですか。若い店主さんには、荷が重いでしょう」`,'rumor');
   else if(p.tav==='ours'&&S.deepest.rival<p.floor&&chance(.6))news(S,`噂：黒猫亭の${p.name}の名を聞いて、銀の杯亭の${RO}が舌打ちしたらしい。`,'rumor');}
 function smallEvent(S){const list=smallOf(S);
   const deep=Math.max(3,Math.min(S.deepest.ours,S.deepest.rival));const f=ri(Math.max(1,deep-4),Math.max(1,deep-1));
@@ -2250,8 +2360,8 @@ function smallEvent(S){const list=smallOf(S);
   if((k<.15||!list.length)&&canOpen){const t=newSmall(S,nn,S.tick,list);list.push(t);smallLog(S,t,'店を開いた',0);
     news(S,`裏通りに新しい酒場、${t.n}が開いた。主人は${t.owner}。${t.trait}店だという。`,'info');return;}
   const free=list.filter(x=>!x.owned);if(!free.length)return;const t=pick(free);
-  if(k<.4){smallLog(S,t,`B${f}Fで一行が全滅した`,-1);t.log[t.log.length-1].bad='wipe';news(S,`噂：裏通りの${t.n}の一行が、B${f}Fで全滅したらしい。`,'rumor');}
-  else if(k<.6){smallLog(S,t,`B${f}Fから大きな稼ぎを持ち帰った`,1);news(S,`噂：裏通りの${t.n}の一行が、B${f}Fから大きな稼ぎを持ち帰ったらしい。`,'rumor');}
+  if(k<.4){smallLog(S,t,`${FN(f)}で一行が全滅した`,-1);t.log[t.log.length-1].bad='wipe';news(S,`噂：裏通りの${t.n}の一行が、${FN(f)}で全滅したらしい。`,'rumor');}
+  else if(k<.6){smallLog(S,t,`${FN(f)}から大きな稼ぎを持ち帰った`,1);news(S,`噂：裏通りの${t.n}の一行が、${FN(f)}から大きな稼ぎを持ち帰ったらしい。`,'rumor');}
   else if(k<.72&&t.patron){smallLog(S,t,'銀の杯亭が常連に声をかけたが、黒猫亭の後ろ盾を知って引き下がった',0);news(S,`噂：銀の杯亭が裏通りの${t.n}の常連に声をかけたが、黒猫亭の後ろ盾があると知って引き下がったらしい。`,'rumor');}
   else if(k<.72){smallLog(S,t,'常連が銀の杯亭に引き抜かれた',-1);t.log[t.log.length-1].bad='poach';news(S,`噂：裏通りの${t.n}の常連が、銀の杯亭に引き抜かれたらしい。`,'rumor');}
   else if(k<.84){smallLog(S,t,'客が銀の杯亭の客と殴り合った',-1);t.log[t.log.length-1].bad='fight';news(S,`噂：裏通りの${t.n}の客と銀の杯亭の客が、店の前で殴り合いになったらしい。`,'rumor');}
@@ -2282,39 +2392,39 @@ const BOARD_MAX=3,MARK_MAX=3;
 const FIT={fear:(k,w,why)=>({t:a=>a.fear===k,w,why,fear:k}),tr:(k,w,why)=>({t:a=>has(a,k),w,why}),cls:(cs,w,why)=>({t:a=>cs.includes(a.cls),w,why}),
   race:(r,w,why)=>({t:a=>a.race===r,w,why}),og:(o,w,why)=>({t:a=>a.origin===o,w,why}),qk:(q,w,why)=>({t:a=>a.quirk===q,w,why}),ps:(p,w,why)=>({t:a=>a.pers===p,w,why})};
 const ERRANDS=[
-  {k:'kitten',n:'迷い込んだ子猫',from:'黒猫亭の厨房',f:[1,4],at:'地下牢の暗がり',txt:f=>`店の黒猫の子が、大穴に落ちてB${f}Fの地下牢へ迷い込んだらしい。猫の扱いに慣れた、気の長い者なら`,got:'子猫は外套の中で丸くなって、無事に厨房へ戻った',
+  {k:'kitten',n:'迷い込んだ子猫',from:'黒猫亭の厨房',f:[1,4],at:'地下牢の暗がり',txt:f=>`店の黒猫の子が、大穴に落ちて${FN(f)}の地下牢へ迷い込んだらしい。猫の扱いに慣れた、気の長い者なら`,got:'子猫は外套の中で丸くなって、無事に厨房へ戻った',
     fit:[FIT.qk('猫好き',1.2,n=>`猫好きの${n}が、子猫を外套の中に誘い込んだ`),FIT.ps('慎重',.6,n=>`気の長い${n}が、子猫が寄ってくるまでじっと待った`),FIT.ps('無謀',-1,n=>`気の短い${n}が追い回して、子猫は奥へ逃げてしまった`),FIT.fear('獣',-1,n=>`獣を嫌う${n}は、子猫に手を伸ばせなかった`)]},
-  {k:'ledger',n:'牢番の名簿',from:'灰の寺院の書記',f:[2,5],at:'牢の抜け道',txt:f=>`B${f}Fの牢番部屋に、昔の囚人の名簿が残っているという。狭いところを苦にしない、字の読める者なら`,got:'名簿は寺院の書庫に収められた',
+  {k:'ledger',n:'牢番の名簿',from:'灰の寺院の書記',f:[2,5],at:'牢の抜け道',txt:f=>`${FN(f)}の牢番部屋に、昔の囚人の名簿が残っているという。狭いところを苦にしない、字の読める者なら`,got:'名簿は寺院の書庫に収められた',
     fit:[FIT.fear('狭い所',-2,n=>`狭いところを怖がる${n}が、牢の抜け道で息を詰まらせた`),FIT.tr('博識',1,n=>`物知りの${n}が、すすけた名簿の文字を読み解いた`),FIT.qk('読書家',.8,n=>`本の虫の${n}が、崩れた書棚から名簿を探し当てた`),FIT.qk('几帳面',.5,n=>`几帳面な${n}が、牢番部屋を端から順に調べ上げた`),FIT.qk('方向音痴',-1,n=>`方向音痴の${n}が、牢の迷路で道を見失った`)]},
-  {k:'ring',n:'蜘蛛の巣の指輪',from:'ロウエンの花売り',f:[3,9],at:'大蜘蛛の巣',txt:f=>`B${f}Fの大蜘蛛の巣に、求婚の指輪が引っかかっているという。蜘蛛を平気で払いのけられる、手先の器用な者なら`,got:'指輪は花売りの手に戻り、ひと月後に式が挙がった',
+  {k:'ring',n:'蜘蛛の巣の指輪',from:'ロウエンの花売り',f:[3,9],at:'大蜘蛛の巣',txt:f=>`${FN(f)}の大蜘蛛の巣に、求婚の指輪が引っかかっているという。蜘蛛を平気で払いのけられる、手先の器用な者なら`,got:'指輪は花売りの手に戻り、ひと月後に式が挙がった',
     fit:[FIT.fear('蜘蛛',-2,n=>`蜘蛛を怖がる${n}が、巣の前で立ちすくんだ`),FIT.tr('器用',1,n=>`手先の器用な${n}が、糸を切らずに指輪を外した`),FIT.cls(['盗賊','忍者'],.6,n=>`${n}が盗賊の手つきで、巣から指輪をすくい取った`),FIT.tr('不器用',-1,n=>`不器用な${n}が糸を引きちぎり、指輪は巣の奥へ落ちた`)]},
-  {k:'mushroom',n:'光る茸',from:'裏通りの料理屋',f:[6,12],at:'茸の群れ',txt:f=>`B${f}Fの暗がりに生える光る茸を、籠いっぱいに。食べられる茸を見分けられる、暗がりを怖がらない者なら`,got:'その夜、裏通りの料理屋に光る茸の煮込みが出た',
+  {k:'mushroom',n:'光る茸',from:'裏通りの料理屋',f:[6,12],at:'茸の群れ',txt:f=>`${FN(f)}の暗がりに生える光る茸を、籠いっぱいに。食べられる茸を見分けられる、暗がりを怖がらない者なら`,got:'その夜、裏通りの料理屋に光る茸の煮込みが出た',
     fit:[FIT.tr('料理上手',1,n=>`料理上手の${n}が、毒のない茸だけを選り分けた`),FIT.tr('夜目',.7,n=>`夜目の利く${n}が、光の薄い茸まで見つけた`),FIT.qk('大食い',.4,n=>`食い意地の張った${n}が、味見で毒茸を見分けた`),FIT.fear('暗闇',-1.5,n=>`暗がりを怖がる${n}が、茸の群れまで進めなかった`),FIT.tr('病弱',-1,n=>`体の弱い${n}が、胞子を吸って寝込んだ`)]},
-  {k:'bell',n:'鐘楼の光',from:'梟の地図屋',f:[6,10],at:'崩れた鐘楼',txt:f=>`B${f}Fの崩れた鐘楼の上で、何かが光る。高いところを怖がらない、身の軽い者なら`,got:'光っていたのは、封鎖の前に誰かが鐘の中へ隠した金貨の袋だった',
+  {k:'bell',n:'鐘楼の光',from:'梟の地図屋',f:[6,10],at:'崩れた鐘楼',txt:f=>`${FN(f)}の崩れた鐘楼の上で、何かが光る。高いところを怖がらない、身の軽い者なら`,got:'光っていたのは、封鎖の前に誰かが鐘の中へ隠した金貨の袋だった',
     fit:[FIT.fear('高い所',-2,n=>`高いところを怖がる${n}が、鐘楼の途中で足をすくませた`),FIT.tr('俊足',1,n=>`身の軽い${n}が、崩れた鐘楼を駆け上がった`),FIT.race('ホビット',.6,n=>`小柄な${n}が、鐘の中まで潜り込んだ`),FIT.tr('鈍足',-1,n=>`足の重い${n}は、崩れかけた階段を登りきれなかった`)]},
-  {k:'letter',n:'帝国兵の手紙',from:'帝国くずれの傭兵',f:[6,12],at:'崩れた兵舎',txt:f=>`B${f}Fで消えた帝国の兵が、故郷への手紙を隠したという。帝国の兵の隠し方を知る者なら`,got:'手紙は傭兵の手で、帝国の村へ送られた',
+  {k:'letter',n:'帝国兵の手紙',from:'帝国くずれの傭兵',f:[6,12],at:'崩れた兵舎',txt:f=>`${FN(f)}で消えた帝国の兵が、故郷への手紙を隠したという。帝国の兵の隠し方を知る者なら`,got:'手紙は傭兵の手で、帝国の村へ送られた',
     fit:[FIT.og('グラウ帝国',1.2,n=>`帝国の出の${n}が、兵の隠し場所の見当をつけた`),FIT.qk('几帳面',.5,n=>`几帳面な${n}が、兵舎の床板を一枚ずつ剥がした`),FIT.og('ラウレンツ王国',-.8,n=>`王国の出の${n}には、帝国の兵の隠し場所の見当がつかなかった`),FIT.qk('方向音痴',-1,n=>`方向音痴の${n}が、兵舎にたどり着けなかった`)]},
-  {k:'barge',n:'渡し場の沈んだ荷',from:'セーレの荷主',f:[11,15],at:'水路の渡し場',txt:f=>`B${f}Fの水路の渡し場に、運びそこねた荷が沈んでいる。水を怖がらない、力のある者なら`,got:'引き上げた荷は、セーレの荷主が言い値で引き取った',
+  {k:'barge',n:'渡し場の沈んだ荷',from:'セーレの荷主',f:[11,15],at:'水路の渡し場',txt:f=>`${FN(f)}の水路の渡し場に、運びそこねた荷が沈んでいる。水を怖がらない、力のある者なら`,got:'引き上げた荷は、セーレの荷主が言い値で引き取った',
     fit:[FIT.fear('水',-2,n=>`水を怖がる${n}が、渡し場で足をすくませた`),FIT.tr('怪力',1,n=>`力自慢の${n}が、沈んだ荷をひとりで引き上げた`),FIT.tr('頑健',.5,n=>`体の丈夫な${n}が、冷たい水に長く浸かっていられた`),FIT.tr('虚弱',-1,n=>`体の弱い${n}が、冷たい水に体を持っていかれた`)]},
-  {k:'scale',n:'竜の古い鱗',from:'鉄床通りの武具屋',f:[11,15],at:'キメラの巣',txt:f=>`B${f}Fのキメラの巣に、竜の古い鱗が落ちているという。竜のたぐいを怖がらない、炎に焼かれても倒れない者なら`,got:'グンター親方は鱗を炉にくべ、ひと晩じっと火を見ていた',
+  {k:'scale',n:'竜の古い鱗',from:'鉄床通りの武具屋',f:[11,15],at:'キメラの巣',txt:f=>`${FN(f)}のキメラの巣に、竜の古い鱗が落ちているという。竜のたぐいを怖がらない、炎に焼かれても倒れない者なら`,got:'グンター親方は鱗を炉にくべ、ひと晩じっと火を見ていた',
     fit:[FIT.fear('竜',-2,n=>`竜を怖がる${n}が、巣の前で動けなくなった`),FIT.cls(['竜騎士'],1.2,n=>`竜の血を引く${n}を、巣の主は襲わなかった`),FIT.tr('頑健',.7,n=>`頑丈な${n}が、炎をくぐって鱗を拾った`),FIT.tr('不屈',.5,n=>`焼かれても退かない${n}が、鱗を抱えて戻った`),FIT.tr('虚弱',-1,n=>`体の弱い${n}が、巣の熱気に倒れかけた`)]},
-  {k:'grave',n:'墓所への祈り',from:'荒野の流民',f:[16,20],at:'宮廷の墓所',txt:f=>`宮廷の墓所（B${f}F）に眠る先祖へ、祈りを届けてほしいという。亡霊にひるまない、祈りを知る者なら`,got:'流民の老人は、祈りの言葉を聞いて泣いた',
+  {k:'grave',n:'墓所への祈り',from:'荒野の流民',f:[16,20],at:'宮廷の墓所',txt:f=>`宮廷の墓所（${FN(f)}）に眠る先祖へ、祈りを届けてほしいという。亡霊にひるまない、祈りを知る者なら`,got:'流民の老人は、祈りの言葉を聞いて泣いた',
     fit:[FIT.fear('亡霊',-2,n=>`亡霊を怖がる${n}が、墓所の入口から先へ進めなかった`),FIT.tr('信心深い',1,n=>`信心深い${n}の祈りに、墓所の亡霊たちが道を空けた`),FIT.cls(['僧侶','司教','聖騎士'],.6,n=>`${n}が墓所で、正しい祈りの言葉を唱えた`),FIT.og('灰の荒野',.6,n=>`荒野の出の${n}が、エスタリアの古い祈りを知っていた`),FIT.ps('臆病',-1,n=>`臆病な${n}は、墓所の奥の物音に逃げ帰った`)]},
-  {k:'tome',n:'塔の呪文書',from:'王都の学者',f:[21,25],at:'塔の吹き抜け',txt:f=>`魔術師の塔のB${f}Fの書庫から、焼け残った呪文書を一冊。高いところを怖がらない、呪文に通じた者なら`,got:'呪文書を受け取った王都の学者は、ひと月ほど誰とも口をきかなくなったという',
+  {k:'tome',n:'塔の呪文書',from:'王都の学者',f:[21,25],at:'塔の吹き抜け',txt:f=>`魔術師の塔の${FN(f)}の書庫から、焼け残った呪文書を一冊。高いところを怖がらない、呪文に通じた者なら`,got:'呪文書を受け取った王都の学者は、ひと月ほど誰とも口をきかなくなったという',
     fit:[FIT.fear('高い所',-2,n=>`高いところを怖がる${n}が、塔の吹き抜けで足をすくませた`),FIT.cls(['魔術師','魔導士','司教'],1,n=>`呪文に通じた${n}が、封じの呪文を解いて書庫を開けた`),FIT.tr('博識',.7,n=>`物知りの${n}が、焼け残りの中から目当ての一冊を選んだ`),FIT.tr('不器用',-1,n=>`不器用な${n}が、焼けた頁を崩してしまった`)]},
 ];
 // 続きものの筋。段を果たすと次の段が来る。最後の段だけ、主役の出身で中身が変わる
 const ARCS={gate:{n:'封じの門の抜け穴',stages:[
-  {n:'抜け穴の印',from:'荒野の流民の老婆',f:[7,10],at:'崩れた井戸',txt:f=>`封鎖のあいだに門の抜け穴から潜った息子の消息を知りたい、と老婆が言う。B${f}Fの崩れた井戸のそばに、抜け穴を使った者の印があるらしい。暗がりを怖がらず、地べたを這える者なら`,
+  {n:'抜け穴の印',from:'荒野の流民の老婆',f:[7,10],at:'崩れた井戸',txt:f=>`封鎖のあいだに門の抜け穴から潜った息子の消息を知りたい、と老婆が言う。${FN(f)}の崩れた井戸のそばに、抜け穴を使った者の印があるらしい。暗がりを怖がらず、地べたを這える者なら`,
     got:'井戸の底の壁に、矢印と日付と、知らない名前がいくつも刻まれていた。日付はどれも封鎖のあいだのものだった',
     fit:[FIT.fear('暗闇',-2,n=>`暗がりを怖がる${n}が、井戸の底へ降りられなかった`),FIT.tr('夜目',1,n=>`夜目の利く${n}が、井戸の底に刻まれた印を見つけた`),FIT.race('ホビット',.6,n=>`小柄な${n}が、井戸の脇の狭い穴を這い進んだ`),FIT.cls(['盗賊','忍者'],.6,n=>`身軽な${n}が、崩れた石組みをすり抜けた`),FIT.fear('狭い所',-1,n=>`狭いところを怖がる${n}が、穴の手前で引き返した`)]},
-  {n:'封じの門の裏',from:'荒野の流民の老婆',f:[11,11],at:'調査隊の骨の山',txt:f=>`印の矢印は、B${f}Fを指していた。二百人の調査隊が消えた階だ。抜け穴の出口がそこにあるという。死体を怖がらず、古い文字の読める者なら`,
+  {n:'封じの門の裏',from:'荒野の流民の老婆',f:[11,11],at:'調査隊の骨の山',txt:f=>`印の矢印は、${FN(f)}を指していた。二百人の調査隊が消えた階だ。抜け穴の出口がそこにあるという。死体を怖がらず、古い文字の読める者なら`,
     got:'抜け穴の出口には、縄と梯子が残っていた。梯子の脇の柱に、王国の探索管理所の焼き印が押してあった',
     fit:[FIT.fear('死体',-2,n=>`死体を怖がる${n}が、調査隊の骨の山の前で動けなくなった`),FIT.tr('博識',1,n=>`物知りの${n}が、壁の古い文字から出口の場所を割り出した`),FIT.qk('読書家',.7,n=>`本の虫の${n}が、調査隊の日誌から出口の場所を読み取った`),FIT.ps('臆病',-1,n=>`臆病な${n}は、骨の山を見て逃げ帰った`)]},
-  {n:'水路の隠れ家',from:'荒野の流民の老婆',f:[12,14],at:'澱んだ水路',txt:f=>`抜け穴を使った者たちは、B${f}Fの水路の奥に隠れ家を作っていたらしい。水を怖がらず、毒の水にも負けない者なら`,
+  {n:'水路の隠れ家',from:'荒野の流民の老婆',f:[12,14],at:'澱んだ水路',txt:f=>`抜け穴を使った者たちは、${FN(f)}の水路の奥に隠れ家を作っていたらしい。水を怖がらず、毒の水にも負けない者なら`,
     got:'隠れ家には寝床が二十ほどと、通行料の受け取りが束になって残っていた。払った者の名と、受け取った探索管理所の役人の名が並んでいた',
     fit:[FIT.fear('水',-2,n=>`水を怖がる${n}が、水路の手前で足をすくませた`),FIT.tr('毒に強い',1,n=>`毒に強い${n}が、澱んだ水の底を歩いて隠れ家に着いた`),FIT.tr('頑健',.5,n=>`体の丈夫な${n}が、冷たい水を泳ぎ切った`),FIT.tr('病弱',-1,n=>`体の弱い${n}が、澱んだ水にあたって倒れた`)]},
-  {n:'流民の言葉',from:'荒野の流民の老婆',f:[15,16],at:'隠れ家の奥',txt:f=>`隠れ家の奥、B${f}Fの壁に、流民の言葉で何かが刻まれているという。エスタリアの言葉がわかる者がいれば`,
+  {n:'流民の言葉',from:'荒野の流民の老婆',f:[15,16],at:'隠れ家の奥',txt:f=>`隠れ家の奥、${FN(f)}の壁に、流民の言葉で何かが刻まれているという。エスタリアの言葉がわかる者がいれば`,
     got:'壁には、潜った者たちの名と、ひとつの言葉が刻まれていた。「我らは故郷へ帰る。金を払って、己の国の墓へ」',
     fit:[FIT.og('灰の荒野',1.2,n=>`荒野の出の${n}が、エスタリアの言葉を読み上げた`),FIT.tr('博識',.7,n=>`物知りの${n}が、古い言葉を少しずつ読み解いた`),FIT.race('エルフ',.5,n=>`長く生きた${n}が、沈む前のエスタリアの言葉を覚えていた`),FIT.fear('暗闇',-1,n=>`暗がりを怖がる${n}が、隠れ家の奥へ進めなかった`)]},
 ],
@@ -2353,7 +2463,7 @@ function offerErrand(S,e,a){
     chron(S,a,`店主に回された「${def.n}」を断る`);news(S,`${a.name}が、店主に回された「${def.n}」を断った。「${voice(a,pick(['……その話は、ほかを当たってくれ','わ、悪いけど、それは無理だ','あそこは、俺には向いてない','命あっての物種だ']))}」`,'errand');return 'refused';}
   // 引き受けた話は、引き受けてから少なくとも5日は待ってもらえる
   e.hero=a.id;e.taken=S.tick;e.until=Math.max(e.until,S.tick+5*TICKS_PER_DAY);chron(S,a,`店主に「${def.n}」を回され、引き受ける`);
-  news(S,`黒猫亭の店主が、「${def.n}」を${a.name}に回した。${p.name}が引き受け、次の探索でB${e.f}Fに立ち寄る。`,'errand');return 'ok';}
+  news(S,`黒猫亭の店主が、「${def.n}」を${a.name}に回した。${p.name}が引き受け、次の探索で${FN(e.f)}に立ち寄る。`,'errand');return 'ok';}
 function markAdv(S,a,on){
   if(on){if(!boardOpen(S)||a.marked||a.tav!=='ours'||a.status==='lost'||a.status==='retired'||markedOf(S).length>=MARK_MAX)return false;a.marked=true;chron(S,a,'黒猫亭の店主に見込まれる');return true;}
   if(!a.marked)return false;a.marked=false;a.favor=Math.max(0,(a.favor||0)-1);chron(S,a,'店主の見込みを外される');
@@ -2426,7 +2536,7 @@ function arcAdvance(S,e,a){const A0=ARCS[e.arc],arc=S.arcs[e.arc];arc.stage=e.st
   news(S,`【${A0.n}】${e.stage===A0.stages.length&&est?`荒野の出の${a.name}が、壁の言葉を最後まで読んだ。`:''}${t}`,'lore');
   // 隠れ家の受け取りの束には、身内を探す常連の探し人の名もある。手がかりを得た者は、身内のいる階で見つけやすくなる
   if(e.arc==='gate'&&e.stage===3)Object.values(S.adv).forEach(b=>{const d=b.dream;if(b.tav!=='ours'||b.status==='lost'||b.status==='retired'||!d||d.k!=='kin'||d.hint)return;d.hint=true;
-    chron(S,b,`抜け穴の受け取りの束に、${d.who}の${d.name}の名が見つかる`);news(S,`抜け穴の受け取りの束に、${b.name}が探す${d.who}の${d.name}の名があった。B${d.f}Fの方へ向かったらしい。`,'record');});
+    chron(S,b,`抜け穴の受け取りの束に、${d.who}の${d.name}の名が見つかる`);news(S,`抜け穴の受け取りの束に、${b.name}が探す${d.who}の${d.name}の名があった。${FN(d.f)}の方へ向かったらしい。`,'record');});
   if(e.stage===A0.stages.length){arc.done=S.tick;S.taverns.ours.rep+=5;}}
 /*ENGINE END*/
 
@@ -2479,7 +2589,7 @@ function migrate(S){
       if(a.chron&&a.chron[0]&&old)a.chron[0].t=a.chron[0].t.replace(old+'歳、',a.age+'歳、');
       if(a.status==='lost'||a.status==='retired')return;
       const d=a.dream;a.pastDreams=a.pastDreams||[];
-      if(d&&d.done){a.pastDreams.push({k:d.k==='lvl'?'hero':d.k,t:(d.k==='kin'?`迷宮で消えた${d.who}の${d.name}を探している`:d.k==='lvl'?`一人前（レベル${d.l}）になりたい`:d.k==='fame'?'二つ名で呼ばれる冒険者になりたい':d.k==='debt'?`故郷に残した借金${d.amt}Gを返したい`:d.k==='shop'?`いつか${d.what}を開きたい`:d.k==='deep'?`B${d.f}Fの景色をこの目で見たい`:d.k==='slay'?`故郷を襲った${d.m}を討ちたい`:'夢'),tk:S.tick,note:d.keep?`${d.keep}だけが見つかった`:''});a.dream=null;a.nextDreamAt=S.tick+ri(50,200);}
+      if(d&&d.done){a.pastDreams.push({k:d.k==='lvl'?'hero':d.k,t:(d.k==='kin'?`迷宮で消えた${d.who}の${d.name}を探している`:d.k==='lvl'?`一人前（レベル${d.l}）になりたい`:d.k==='fame'?'二つ名で呼ばれる冒険者になりたい':d.k==='debt'?`故郷に残した借金${d.amt}Gを返したい`:d.k==='shop'?`いつか${d.what}を開きたい`:d.k==='deep'?`${FN(d.f)}の景色をこの目で見たい`:d.k==='slay'?`故郷を襲った${d.m}を討ちたい`:'夢'),tk:S.tick,note:d.keep?`${d.keep}だけが見つかった`:''});a.dream=null;a.nextDreamAt=S.tick+ri(50,200);}
       else if(d&&d.k==='kin'){d.f=Math.max(d.f,4);}
       else {a.dream=makeDream(S,a);}
     });
@@ -2642,18 +2752,18 @@ function autoWatch(){
 function render(){
   const T=S.taverns.ours;
   $('day').textContent=day(S);{const c=calDate(S.tick);$('year').textContent=c.y;$('md').textContent=` ${c.m}月${c.d}日 `;$('hr').textContent=`${c.h}時`;}$('gold').textContent=T.gold;$('rep').textContent=T.rep;$('debt').textContent=T.debt||0;$('debtw').hidden=!(T.debt>0);
-  $('deep').textContent='B'+Math.max(S.deepest.ours,1)+'F'+(S.conquered?'・踏破済み':'');
+  {const md=(S.mineDeep||{}).ours||0;$('deep').textContent=FN(Math.max(S.deepest.ours,1))+(S.conquered?'・踏破済み':'')+(md?'／'+FN(MAXF+md)+(S.mineConq?'・踏破済み':''):'');}
   renderCrystals();renderParties();renderSide();renderAdv();maybeEnding();
 }
 function stateText(p){
   if(p.state==='wiped'){
-    if(p.tav==='ours') return p.knownWiped?[`全滅（B${p.floor}F）`,true]:(!p.retrieved&&S.tick-p.wipedAt<15?[`B${p.floor}F 探索中…？`,false]:[`消息不明（B${p.floor}F）`,true]);
+    if(p.tav==='ours') return p.knownWiped?[`全滅（${FN(p.floor)}）`,true]:(!p.retrieved&&S.tick-p.wipedAt<15?[`${FN(p.floor)} 探索中…？`,false]:[`消息不明（${FN(p.floor)}）`,true]);
     return [`消息不明（噂）`,true];
   }
   if(p.state==='town') return [(p.wait||0)>10?'仲間の回復を待っている':'酒場で休息中',false];
-  if(p.enemies) return [`B${p.floor}F 戦闘中`,false];
-  if(p.state==='return') return [`B${p.floor}F 帰還中`,false];
-  return [`B${p.floor}F ${p.plan==='grind'?'腕を磨いている':p.plan==='push'?'深く攻めている':'探索中'}`,false];
+  if(p.enemies) return [`${FN(p.floor)} 戦闘中`,false];
+  if(p.state==='return') return [`${FN(p.floor)} 帰還中`,false];
+  return [`${FN(p.floor)} ${p.plan==='grind'?'腕を磨いている':p.plan==='push'?'深く攻めている':'探索中'}`,false];
 }
 function renderCrystals(){
   const box=$('crystals');
@@ -2770,14 +2880,16 @@ function sideDesk(){
 <div class="sect"><h3>銀の杯亭の客を引き抜く</h3><p class="note">銀の杯亭で酒場にいる客を、借金を肩代わりして黒猫亭に迎え入れる。借金に加えて、腕に見合った支度金がかかる。席が空いているときだけ声をかけられる。</p>
   ${(()=>{const L=poachList(S);return L.length?L.map(a=>`<div class="row"><span class="who"><b>${esc(a.name)}</b> <span class="meta">Lv${a.lvl} ${a.race}の${a.cls}・借金${a.debt||0}G</span></span><button class="btn sm" data-act="poach" data-a="${a.id}" ${T().gold<poachPrice(S,a)?'disabled':''}>迎え入れる ${poachPrice(S,a)}G</button></div>`).join(''):`<p class="note">${seatsUsed(S,'ours')>=seatCap(S,'ours')?'黒猫亭の席が埋まっている。':'いま声をかけられる客はいない。'}</p>`;})()}</div>
 <div class="sect"><h3>死体回収の依頼</h3><p class="note">依頼を出すと、同じ階を歩く一行が見つけやすくなり、欲深い者も遺体を連れ帰るようになる。報酬はその階の深さに応じて決まり、回収されたときに支払う。</p>
-  ${miss.map(p=>`<div class="row"><span class="who"><b>${esc(p.name)}</b> <span class="meta">${S.taverns[p.tav].name}・B${p.floor}F・${p.members.length}人${p.looted?'・装備が持ち去られた形跡':''}</span></span>${S.bounties[p.id]?`<span class="chip">依頼中 ${S.bounties[p.id]}G</span>`:`<button class="btn sm" data-act="bounty" data-p="${p.id}" ${T().gold<bountyPrice(p)?'disabled':''}>依頼を出す ${bountyPrice(p)}G</button>`}</div>`).join('')||'<p class="note">消息不明の一行はいない。</p>'}</div>
+  ${miss.map(p=>`<div class="row"><span class="who"><b>${esc(p.name)}</b> <span class="meta">${S.taverns[p.tav].name}・${FN(p.floor)}・${p.members.length}人${p.looted?'・装備が持ち去られた形跡':''}</span></span>${S.bounties[p.id]?`<span class="chip">依頼中 ${S.bounties[p.id]}G</span>`:`<button class="btn sm" data-act="bounty" data-p="${p.id}" ${T().gold<bountyPrice(p)?'disabled':''}>依頼を出す ${bountyPrice(p)}G</button>`}</div>`).join('')||'<p class="note">消息不明の一行はいない。</p>'}</div>
   <div class="sect"><h3>店の帳簿</h3><div class="row"><span class="who">これまでの売上</span><span class="meta">${T().earned}G</span></div><div class="row"><span class="who">これまでの支援</span><span class="meta">${T().support||0}G</span></div></div>
   <div class="sect"><h3>記録</h3><div class="row"><span class="who"><b>最初から始める</b><span class="does">いまの記録を消して、若い店主が借金をして黒猫亭を開くところから始め直す。消した記録は戻らない。</span></span><button class="btn sm" data-act="reset">最初から始める</button></div></div>`;
 }
 function sideRank(){
   return `${banzuke()}${sideSmall()}
-  <div class="sect"><h3>迷宮の記録　${Object.keys(S.loreFound||{}).length} / ${LORE.length}</h3>${LORE.map((L,i)=>{const f=(S.loreFound||{})[i];return f?`<div class="quote">「${esc(L.t)}」<span class="by">B${L.f}F付近の${esc(L.what)}・${esc(S.taverns[f.tav].name)}の${esc(f.party)}が発見</span></div>`:`<div class="quote"><span class="by">B${L.f}Fより深く……まだ見つかっていない</span></div>`}).join('')}
+  <div class="sect"><h3>迷宮の記録　${LORE.filter((L,i)=>(S.loreFound||{})[i]).length} / ${LORE.length}</h3>${LORE.map((L,i)=>{const f=(S.loreFound||{})[i];return f?`<div class="quote">「${esc(L.t)}」<span class="by">${FN(L.f)}付近の${esc(L.what)}・${esc(S.taverns[f.tav].name)}の${esc(f.party)}が発見</span></div>`:`<div class="quote"><span class="by">${FN(L.f)}より深く……まだ見つかっていない</span></div>`}).join('')}
+  ${mineOpen(S)?`<h3 style="margin-top:12px">坑道の記録　${MINE_LORE.filter((L,i)=>(S.loreFound||{})['m'+i]).length} / ${MINE_LORE.length}</h3>${MINE_LORE.map((L,i)=>{const f=(S.loreFound||{})['m'+i];return f?`<div class="quote">「${esc(L.t)}」<span class="by">${FN(L.f)}付近の${esc(L.what)}・${esc(S.taverns[f.tav].name)}の${esc(f.party)}が発見</span></div>`:`<div class="quote"><span class="by">${FN(L.f)}より深く……まだ見つかっていない</span></div>`}).join('')}`:''}
   ${sideArcs()}
+  ${S.mineConq?`<p class="note">解禁から${Math.floor(S.mineConq.tk/TICKS_PER_DAY)+1}日目、${esc(S.taverns[S.mineConq.tav].name)}の${esc(S.mineConq.party)}が澱呑みの坑道王を討ち、鉄の山脈の坑道は踏破された。</p>`:''}
   ${S.conquered?`<p class="note">迷宮暦81年・解禁から${Math.floor(S.conquered.tk/TICKS_PER_DAY)+1}日目、${esc(S.taverns[S.conquered.tav].name)}の${esc(S.conquered.party)}が沈んだ王を討ち、迷宮は踏破された。</p>`:''}</div>`;
 }
 function sideArcs(){if(!boardOpen(S))return '';errandsOf(S);
@@ -2795,12 +2907,13 @@ function sideRef(){
 }
 function banzuke(){
   const F=floorsInit(S);const cnt=(fn)=>{const c={ours:0,rival:0};fn(c);return c;};
-  const arr=cnt(c=>{for(let f=1;f<=MAXF;f++){const v=F[f];if(v&&v.arrive&&!v.arrive.yr&&c[v.arrive.tav]!=null)c[v.arrive.tav]++;}});
-  const thr=cnt(c=>{for(let f=1;f<=MAXF;f++){const v=F[f];if(v&&v.through&&!v.through.yr&&c[v.through.tav]!=null)c[v.through.tav]++;}});
+  const arr=cnt(c=>{for(let f=1;f<=MINE_BOT;f++){const v=F[f];if(v&&v.arrive&&!v.arrive.yr&&c[v.arrive.tav]!=null)c[v.arrive.tav]++;}});
+  const thr=cnt(c=>{for(let f=1;f<=MINE_BOT;f++){const v=F[f];if(v&&v.through&&!v.through.yr&&c[v.through.tav]!=null)c[v.through.tav]++;}});
   const rar=cnt(c=>{Object.values(S.rares||{}).forEach(v=>{if(v.killed&&c[v.killed.tav]!=null)c[v.killed.tav]++;});});
   const lost=cnt(c=>{S.memorial.forEach(m=>{if(c[m.tav]!=null)c[m.tav]++;});});
   const dr=(S.stats&&S.stats.dreams)||{ours:0,rival:0};
-  const rows=[['最深到達',`B${S.deepest.ours}F`,`B${S.deepest.rival}F`,S.deepest.ours-S.deepest.rival],['初到達した階（解禁後）',arr.ours,arr.rival,arr.ours-arr.rival],['最初に突破した階',thr.ours,thr.rival,thr.ours-thr.rival],['名のある魔物の討伐',rar.ours,rar.rival,rar.ours-rar.rival],['かなえた夢',dr.ours||0,dr.rival||0,(dr.ours||0)-(dr.rival||0)],['常連の数',seatsUsed(S,'ours'),seatsUsed(S,'rival'),seatsUsed(S,'ours')-seatsUsed(S,'rival')],['評判',T().rep,S.taverns.rival.rep,T().rep-S.taverns.rival.rep],['ロストした者',lost.ours,lost.rival,lost.rival-lost.ours]];
+  const md=S.mineDeep||{ours:0,rival:0};
+  const rows=[['最深到達',`${FN(S.deepest.ours)}`,`${FN(S.deepest.rival)}`,S.deepest.ours-S.deepest.rival],...(mineOpen(S)?[['坑道の最深到達',md.ours?FN(MAXF+md.ours):'―',md.rival?FN(MAXF+md.rival):'―',md.ours-md.rival]]:[]),['初到達した階（解禁後）',arr.ours,arr.rival,arr.ours-arr.rival],['最初に突破した階',thr.ours,thr.rival,thr.ours-thr.rival],['名のある魔物の討伐',rar.ours,rar.rival,rar.ours-rar.rival],['かなえた夢',dr.ours||0,dr.rival||0,(dr.ours||0)-(dr.rival||0)],['常連の数',seatsUsed(S,'ours'),seatsUsed(S,'rival'),seatsUsed(S,'ours')-seatsUsed(S,'rival')],['評判',T().rep,S.taverns.rival.rep,T().rep-S.taverns.rival.rep],['ロストした者',lost.ours,lost.rival,lost.rival-lost.ours]];
   const aceP=S.parties[S.ace];const ace=aceP&&aceP.state!=='wiped'?aceP:null;const won=rows.filter(r=>r[3]>0).length;
   return `<div class="sect"><h3>番付　黒猫亭 対 銀の杯亭</h3><p class="note">銀の杯亭の主人は${esc(S.taverns.rival.owner||RIVAL_OWNER)}。看板の一行は${ace?esc(ace.name):'いまはいない'}。${won>=6?'もう、黒猫亭を新参と呼ぶ者はいない。':won>=4?'黒猫亭は、銀の杯亭と肩を並べはじめている。':'黒猫亭は、まだ追いかける側だ。'}</p>
   <div class="tblwrap"><table class="maptbl"><thead><tr><th></th><th>黒猫亭</th><th>銀の杯亭</th></tr></thead><tbody>${rows.map(r=>`<tr><td>${r[0]}</td><td>${r[3]>0?'<b>'+r[1]+'</b>':r[1]}</td><td>${r[3]<0?'<b>'+r[2]+'</b>':r[2]}</td></tr>`).join('')}</tbody></table></div></div>`;
@@ -2809,21 +2922,22 @@ function sideMaps(){
   const F=floorsInit(S);const who=r=>r?`${r.tav?esc(S.taverns[r.tav].name)+'の':''}${esc(r.party)}<span class="meta">${r.yr?'・迷宮暦'+r.yr+'年':r.tk?'・'+(Math.floor(r.tk/TICKS_PER_DAY)+1)+'日目':''}</span>`:'<span class="meta">―</span>';
   const whoA=r=>who(r)+(r&&r.trap?'<span class="meta">（罠で飛ばされて）</span>':'');
   let rows='',lastZone='';
-  for(let f=1;f<=MAXF;f++){const v=F[f]||{};const z=zoneOf(f);
-    if(z!==lastZone){rows+=`<tr class="zone"><td colspan="4">${esc(z)}${STONES.includes(f)?'（転移の石碑あり）':''}</td></tr>`;lastZone=z;}
+  for(let f=1;f<=(mineOpen(S)?MINE_BOT:MAXF);f++){const v=F[f]||{};const z=zoneOf(f);
+    if(f===MINE_TOP)rows+=`<tr class="zone"><td colspan="4">―― 鉄の山脈の坑道 ――（入口に転移の石碑あり）</td></tr>`;
+    if(z!==lastZone){rows+=`<tr class="zone"><td colspan="4">${esc(z)}${STONES.includes(f)||MINE_STONES.includes(f)?'（転移の石碑あり）':''}</td></tr>`;lastZone=z;}
     const st=v.map?`<span class="mok">販売中 ${mapPrice(f)}G</span>${v.sold?`<span class="meta">・${v.sold}部</span>`:''}`:v.mapAt?`<span class="mwip">作成中・あと${Math.max(1,Math.ceil((v.mapAt-S.tick)/TICKS_PER_DAY))}日</span>`:v.arrive?'<span class="meta">突破待ち</span>':'<span class="meta">未踏</span>';
-    rows+=`<tr><td class="fl">B${f}F</td><td>${whoA(v.arrive)}</td><td>${who(v.through)}</td><td>${st}</td></tr>`;}
+    rows+=`<tr><td class="fl">${FN(f)}</td><td>${whoA(v.arrive)}</td><td>${who(v.through)}</td><td>${st}</td></tr>`;}
   return `<p class="note">${CARTO}。ある階を誰かが最初に突破すると、地図屋がその一行の記録を買い取り、しばらくして地図を売り出す。地図のある階では罠を避けやすく、不意打ちも受けにくいので、腰を据えて稼げる。地図のない階は魔物に地の利があり、罠も重い。そこでの目標は稼ぐことより、無事に階段を見つけて抜けることだ。</p>
   <div class="tblwrap"><table class="maptbl"><thead><tr><th>階</th><th>初到達</th><th>初突破</th><th>地図</th></tr></thead><tbody>${rows}</tbody></table></div>
   <div class="sect" style="margin-top:14px"><h3>名のある魔物</h3><p class="note">各階に一体ずつ潜む。めったに姿を見せず、倒した一行には財宝・経験・素材・伝説の品のいずれかが手に入る。今のところ、一度討たれた魔物が再び現れたという話はない。</p>
-  <div class="tblwrap"><table class="maptbl"><thead><tr><th>階</th><th>名</th><th>討伐</th></tr></thead><tbody>${RARES.map(R0=>{const r=(S.rares||{})[R0.f]||{};const k=r.killed;
-    return `<tr><td class="fl">B${R0.f}F</td><td>${r.seen||k?`<b>${esc(R0.n)}</b><div class="meta">${esc(R0.lore)}</div>`:'<span class="meta">？？？</span>'}</td><td>${k?`${esc(S.taverns[k.tav].name)}の${esc(k.party)}<div class="meta">${Math.floor(k.tk/TICKS_PER_DAY)+1}日目・${esc(k.names.join('・'))}・${RW_N[R0.rw]}</div>`:r.seen?`<span class="meta">${esc(S.taverns[r.seen.tav].name)}の${esc(r.seen.party)}が目撃</span>`:'<span class="meta">―</span>'}</td></tr>`}).join('')}</tbody></table></div></div>
-  <p class="note" style="margin-top:10px">B${DRAGON_F}Fの門番・黒竜：${dragonAlive(S)?`健在。倒さなければB${DRAGON_F+1}Fより下へは降りられない`:'討伐済み。あと'+Math.max(1,Math.ceil((S.dragon.respawnAt-S.tick)/TICKS_PER_DAY))+'日ほどで澱からよみがえる'}${S.dragon&&S.dragon.kills?`（これまでに${S.dragon.kills}回討たれた）`:''}</p>`;
+  <div class="tblwrap"><table class="maptbl"><thead><tr><th>階</th><th>名</th><th>討伐</th></tr></thead><tbody>${RARES.concat(mineOpen(S)?MINE_RARES:[]).map(R0=>{const r=(S.rares||{})[R0.f]||{};const k=r.killed;
+    return `<tr><td class="fl">${FN(R0.f)}</td><td>${r.seen||k?`<b>${esc(R0.n)}</b><div class="meta">${esc(R0.lore)}</div>`:'<span class="meta">？？？</span>'}</td><td>${k?`${esc(S.taverns[k.tav].name)}の${esc(k.party)}<div class="meta">${Math.floor(k.tk/TICKS_PER_DAY)+1}日目・${esc(k.names.join('・'))}・${RW_N[R0.rw]}</div>`:r.seen?`<span class="meta">${esc(S.taverns[r.seen.tav].name)}の${esc(r.seen.party)}が目撃</span>`:'<span class="meta">―</span>'}</td></tr>`}).join('')}</tbody></table></div></div>
+  <p class="note" style="margin-top:10px">${FN(DRAGON_F)}の門番・黒竜：${dragonAlive(S)?`健在。倒さなければ${FN(DRAGON_F+1)}より下へは降りられない`:'討伐済み。あと'+Math.max(1,Math.ceil((S.dragon.respawnAt-S.tick)/TICKS_PER_DAY))+'日ほどで澱からよみがえる'}${S.dragon&&S.dragon.kills?`（これまでに${S.dragon.kills}回討たれた）`:''}</p>`;
 }
 let shopTier=1;
 function sideShop(){
-  const sh=shopInit(S);const open=[1,2,3,4,5,6,7].filter(t=>sh.tiers[t]);if(!sh.tiers[shopTier])shopTier=open.at(-1);
-  const prog=[2,3,4,5,6,7].map(t=>{const T=SHOP_TIERS[t];const have=Math.min(T.need,sh.mats[T.mat]||0);
+  const sh=shopInit(S);const open=SHOP_TIERS.map((x,t)=>t).filter(t=>t&&sh.tiers[t]);if(!sh.tiers[shopTier])shopTier=open.at(-1);
+  const prog=SHOP_TIERS.map((x,t)=>t).filter(t=>t>=2&&(t<=7||mineOpen(S))).map(t=>{const T=SHOP_TIERS[t];const have=Math.min(T.need,sh.mats[T.mat]||0);
     return `<div class="mat"><span>${T.mat}</span><span class="matbar"><i style="width:${Math.round(have/T.need*100)}%"></i></span><span class="meta">${sh.tiers[t]?'入荷済み':have+' / '+T.need}</span><span class="meta">→ ${T.label}</span></div>`}).join('');
   const SLOTN={wpn:'武器',shield:'盾',head:'頭',body:'胴',acc:'装飾'};
   const rows=ITEM_BASES.map(b=>{const t=shopTier;const desc=b.t==='指輪'?`命中+${4*t}% か 攻+${t+1}`:b.t==='お守り'?`毒耐性${30+10*t}% か 罠解除+${6*t}%`:itemStat(Object.assign({},b.two?{two:true}:{},b.st(t)));
@@ -2841,7 +2955,7 @@ function sideStone(){
   const fw=(S.farewells||[]).slice().reverse();
   const ln=(id,name)=>id&&S.adv[id]?`<button class="nm-link" data-act="adv" data-a="${id}">${esc(name)}</button>`:`<b>${esc(name)}</b>`;
   return `<div class="sect"><h3>店を去った者　${fw.length}人</h3>${fw.map(f=>`<div class="stone">${ln(f.id,f.name)} <span class="meta">${f.age?f.sex+'・'+(f.hage||f.age)+'歳'+(f.race&&f.race!=='人間'?'相当':'')+' ':''}Lv${f.lvl} ${f.race}の${f.cls}</span><div class="ep">${f.tav==='ours'?'黒猫亭':'銀の杯亭'}の客。${Math.floor(f.tk/TICKS_PER_DAY)+1}日目、${esc(f.why)}ため旅立った。</div></div>`).join('')||'<p class="note">まだ誰も去っていない。</p>'}</div>
-  <div class="sect"><h3>ロストした者　${S.memorial.length}人</h3>`+(S.memorial.slice().reverse().map(m=>`<div class="stone">${ln(m.id,m.name)} <span class="meta">Lv${m.lvl} ${m.race}の${m.cls}</span><div class="ep">${m.marked?'店主が見込んだ者。':''}${m.tav==='ours'?'黒猫亭':'銀の杯亭'}の客。B${m.floor}Fにて${esc(m.by)}に倒れ、蘇ることなく${Math.floor(m.tk/TICKS_PER_DAY)+1}日目に眠る。討伐${m.kills}。</div></div>`).join('')||'<p class="note">まだ誰の名も刻まれていない。</p>')+'</div>';
+  <div class="sect"><h3>ロストした者　${S.memorial.length}人</h3>`+(S.memorial.slice().reverse().map(m=>`<div class="stone">${ln(m.id,m.name)} <span class="meta">Lv${m.lvl} ${m.race}の${m.cls}</span><div class="ep">${m.marked?'店主が見込んだ者。':''}${m.tav==='ours'?'黒猫亭':'銀の杯亭'}の客。${FN(m.floor)}にて${esc(m.by)}に倒れ、蘇ることなく${Math.floor(m.tk/TICKS_PER_DAY)+1}日目に眠る。討伐${m.kills}。</div></div>`).join('')||'<p class="note">まだ誰の名も刻まれていない。</p>')+'</div>';
 }
 function nmLink(a){return `<button class="nm-link" data-act="adv" data-a="${a.id}">${esc(a.name)}</button>`}
 function teamOf(a){const p=a.party&&S.parties[a.party];return p&&p.tav===a.tav?p:null}
@@ -2880,8 +2994,8 @@ function renderAdv(){
   const d=a.dream;
   const canMark=boardOpen(S)&&a.tav==='ours'&&a.status!=='lost'&&a.status!=='retired';const he=a.tav==='ours'&&heroErrand(S,a),pe=a.tav==='ours'&&boardOpen(S)&&errandsOf(S).board.find(e=>e.pend===a.id);
   box.innerHTML=`<div class="adv-h"><h2>${a.title?`<span class="ttl">「${esc(a.title)}」</span>`:''}${esc(a.name)}</h2><span class="chip ${a.status}">${status}</span>${teamTag(a)}${markTag(a)}${canMark?`<button class="btn sm" data-act="mark" data-a="${a.id}" ${!a.marked&&markedOf(S).length>=MARK_MAX?'disabled':''}>${a.marked?'見込みを外す':'見込む'}</button>`:''}</div>
-  ${he?`<div class="dream"><small>引き受けている話</small>「${esc(he.n)}」B${he.f}F・あと${Math.max(1,Math.ceil((he.until-S.tick)/TICKS_PER_DAY))}日</div>`:''}
-  ${pe?`<div class="dream"><small>回すつもりの話（次に酒場で会えたら伝える）</small>「${esc(pe.n)}」B${pe.f}F・掲示はあと${Math.max(1,Math.ceil((pe.until-S.tick)/TICKS_PER_DAY))}日</div>`:''}
+  ${he?`<div class="dream"><small>引き受けている話</small>「${esc(he.n)}」${FN(he.f)}・あと${Math.max(1,Math.ceil((he.until-S.tick)/TICKS_PER_DAY))}日</div>`:''}
+  ${pe?`<div class="dream"><small>回すつもりの話（次に酒場で会えたら伝える）</small>「${esc(pe.n)}」${FN(pe.f)}・掲示はあと${Math.max(1,Math.ceil((pe.until-S.tick)/TICKS_PER_DAY))}日</div>`:''}
   <div class="adv-sub">${S.taverns[a.tav].name}の客・出身：${esc(originOf(a))}${a.origin&&ORIGINS[a.origin].far?'（大陸の外）':''}・${sexAge(a)}${a.race!=='人間'?'（実年齢'+a.age+'歳）':''}・レベル${a.lvl}（${rankOf(a.lvl)}） ${a.race}の${a.cls}・${a.pers}・${esc(a.quirk)}・素質「${a.tal}」<br>${esc(a.bg)}<br>口調：${esc(a.tone||'普通')}・口癖「${esc(a.catch||'')}」・好物：${esc(a.food||'')}${a.fear?'・怖いもの：'+esc(a.fear):''}</div>
   ${(a.traits||[]).length?`<div class="dream${a.blessed?' odd':''}"><small>${a.blessed?'天に愛された者・':a.cursed?'星回りの悪い者・':''}得意と不得意</small>${trGood(a).map(t=>`<b>${t}</b>　${esc(TRAITS[t].d)}`).join('<br>')}${trGood(a).length&&trBad(a).length?'<br>':''}${trBad(a).map(t=>`<span style="opacity:.75">${t}</span>　${esc(TRAITS[t].d)}`).join('<br>')}</div>`:''}
   ${(a.changes||[]).length?`<div class="dream"><small>変わったこと</small>${a.changes.map(c=>`${Math.floor(c.tk/TICKS_PER_DAY)+1}日目　${esc(c.t)}`).join('<br>')}</div>`:''}
@@ -2890,7 +3004,7 @@ function renderAdv(){
   <div class="note">${a.race}：得意　${esc(rc(a).good)}／苦手　${esc(rc(a).bad)}${a.odd?'（克服している）':''}</div>
   ${d?`<div class="dream"><small>夢</small>${esc(dreamText(d))}${dreamProgress(a)?`<small>${esc(dreamProgress(a))}</small>`:''}</div>`:`<div class="dream"><small>夢</small>${a.status==='lost'||a.status==='retired'?'――':'次の夢を探している'}</div>`}
   ${(a.pastDreams||[]).map(x=>`<div class="dream done"><small>かなえた夢・${Math.floor(x.tk/TICKS_PER_DAY)+1}日目</small>${esc(x.t)}${x.note?`<small>${esc(x.note)}</small>`:''}</div>`).join('')}
-  <div class="kv"><div><b>${a.kills}</b>討伐</div><div><b>B${a.deepest||0}F</b>最深到達</div><div><b>${a.revived}</b>蘇生</div><div><b>${a.disarms}</b>罠解除</div>${a.errandsDone?`<div><b>${a.errandsDone}</b>果たした話</div>`:''}<div><b>${a.gold}G</b>所持金</div><div><b>${Math.max(0,a.hp)}/${a.mhp}</b>HP</div></div>
+  <div class="kv"><div><b>${a.kills}</b>討伐</div><div><b>${FN(a.deepest||0)}</b>最深到達</div><div><b>${a.revived}</b>蘇生</div><div><b>${a.disarms}</b>罠解除</div>${a.errandsDone?`<div><b>${a.errandsDone}</b>果たした話</div>`:''}<div><b>${a.gold}G</b>所持金</div><div><b>${Math.max(0,a.hp)}/${a.mhp}</b>HP</div></div>
   <div class="eqtab">${SLOTS.map(k=>{const it=a.eq&&a.eq[k];const two=k==='shield'&&a.eq&&a.eq.wpn&&a.eq.wpn.two;
     return `<div><span class="sl">${SLOT_N[k]}${k==='wpn'&&it?(it.two?'（両手）':'（片手）'):''}</span><span class="${it&&it.rare?'rare':''}">${it?esc(it.n):two?'――（両手持ち）':'<span class="none">ありあわせ</span>'}</span><span class="st">${it?esc(itemStat(it)):''}</span>${it&&it.lore?`<span class="lore">${esc(it.lore)}</span>`:''}</div>`}).join('')}</div>
   <div class="note">攻撃 ${atkOf(a)}・守り ${acOf(a)}・MP ${mmpOf(a)}${a.loan?'・店から借りた装備あり':''}　所属：${esc(team)}${a.party&&S.parties[a.party]&&S.parties[a.party].leader===a.id?'（リーダー）':''}</div>
