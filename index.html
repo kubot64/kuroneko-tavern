@@ -2411,9 +2411,8 @@ function fastForward(n,awaySec){
   const st=ff={n,i:0,awaySec,startTick:S.tick,g0:S.taverns.ours.gold,lost0:S.memorial.length,returns:0,wipes:0};
   const btn=document.querySelector('[data-act="closedigest"]');btn.disabled=true;btn.textContent='時が流れている…';
   $('digest').hidden=false;drawDigest(st);
-  const per=Math.max(1,Math.ceil(n/60));
   const run=()=>{
-    const end=Math.min(st.n,st.i+per);
+    const end=Math.min(st.n,st.i+Math.max(1,Math.ceil(st.n/60)));// 途中で裏にいた分が足されても、60回ほどで流しきる
     for(;st.i<end;st.i++){
       const before=Object.values(S.parties).map(p=>[p.id,p.state]);
       tick(S);rivalTemple(S);
