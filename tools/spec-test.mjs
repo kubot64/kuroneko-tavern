@@ -19,7 +19,8 @@ const JOBS=Math.max(1,opt('--jobs',availableParallelism()));
 const html=readFileSync(new URL('../index.html',import.meta.url),'utf8');
 const ENGINE=html.match(/\/\*ENGINE START\*\/([\s\S]*?)\/\*ENGINE END\*\//)[1];
 const EXPORTS=['newState','tick','rivalTemple','seatCap','seatsUsed','nextSeats','newcomerLvl','buyPrice','investPrice','FACILITIES',
-  'RARES','MAXF','DRAGON_F','TICKS_PER_DAY','awayPlan','smallOf','debtTick','DEBT0','encounter','rareSlain','rareMonOf','arrive'];
+  'RARES','MAXF','DRAGON_F','TICKS_PER_DAY','awayPlan','smallOf','debtTick','DEBT0','encounter','rareSlain','rareMonOf','arrive',
+  'repay','errandsOf','assignErrand','errandBlock','markAdv','markedOf','BOARD_MAX','MARK_MAX','ARCS'];
 
 // 乱数の種を固定したゲームの中身を1つ作る。中身の Math.random だけを差し替える
 function load(seed,fixed){
@@ -113,13 +114,53 @@ function checkScenes(){
     check('身内探し：席が空いていれば、半々で故郷へ帰るか客になる',joined&&home,'席に空き',`客になる:${joined} 帰る:${home}`);}
 }
 
+// 「持ち込まれる話と、見込んだ者」の場面。主役に回せる形（酒場にいて、街で休む一行に入っている）にそろえる
+function errandScene(E,S,o){S.taverns.ours.debt=0;S.taverns.ours.debtFree=S.tick;const B=E.errandsOf(S);B.board=[];
+  const p=Object.values(S.parties).find(x=>x.tav==='ours');p.state='town';p.rest=99;
+  p.members.forEach(id=>{const a=S.adv[id];a.status='idle';a.hp=a.mhp;});
+  const e=Object.assign({id:900,hero:null,refused:[],tk:S.tick,until:S.tick+2*E.TICKS_PER_DAY},o);B.board.push(e);return {p,e,B};}
+function checkErrands(){
+  // 話が来るのは、借金を返し終えてから
+  {const E=load(1),S=E.newState();for(let i=0;i<20*E.TICKS_PER_DAY;i++)E.tick(S);
+    check('持ち込まれる話：借金を返し終えるまでは、話が来ない',E.errandsOf(S).board.length===0,'借金ありで20日',`掲示${E.errandsOf(S).board.length}`);
+    E.repay(S,0);S.taverns.ours.gold=999999;E.repay(S,S.taverns.ours.debt);for(let i=0;i<10*E.TICKS_PER_DAY;i++)E.tick(S);
+    check('持ち込まれる話：借金を返し終えると、話が来る',E.errandsOf(S).board.length+E.errandsOf(S).log.length>0,'返し終えて10日','話が来ない');}
+  // 臆病な者は、怖いものに正面から当たる話を断ることがある（乱数を0にして、起きうることを必ず起こす）
+  {const E=load(1,1e-9),S=E.newState();const {p,e}=errandScene(E,S,{k:'bell',f:8,n:'鐘楼の光'});const [a,b]=p.members.map(id=>S.adv[id]);
+    a.pers='臆病';a.fear='高い所';b.pers='普通';b.fear=null;
+    const r1=E.assignErrand(S,e,a),r2=E.assignErrand(S,e,a),r3=E.assignErrand(S,e,b);
+    check('持ち込まれる話：臆病な者は、怖いものに当たる話を断ることがある',r1==='refused','高い所を怖がる臆病者に鐘楼の話',r1);
+    check('持ち込まれる話：断った者には、同じ話をもう回せない',r2===null,'断った者にもう一度',r2);
+    check('持ち込まれる話：主役は1人で、引き受けたら5日は待ってもらえる',r3==='ok'&&e.hero===b.id&&e.until>=S.tick+5*E.TICKS_PER_DAY&&E.assignErrand(S,e,S.adv[p.members[2]])===null,'普通の者に回す',`${r3} 期限${e.until-S.tick}刻`);}
+  // 主役は、酒場にいて、街で休んでいる一行に入っている者だけ
+  {const E=load(1),S=E.newState();const {p,e}=errandScene(E,S,{k:'kitten',f:2,n:'迷い込んだ子猫'});const a=S.adv[p.members[0]];
+    p.state='explore';const b1=E.errandBlock(S,e,a);p.state='town';a.party=null;const b2=E.errandBlock(S,e,a);
+    check('持ち込まれる話：一行が迷宮にいるとき、一行に入っていないときは回せない',!!b1&&!!b2,'一行が迷宮・一行なし',`${b1} / ${b2}`);}
+  // 期限を過ぎた続きものの段は銀の杯亭に流れ、筋はそこで止まる
+  {const E=load(1),S=E.newState();const {e,B}=errandScene(E,S,{arc:'gate',stage:1,f:8,n:'抜け穴の印',until:S.tick+1});E.tick(S);
+    check('続きもの：期限を過ぎた段は銀の杯亭に流れ、筋が止まる',!B.board.includes(e)&&S.arcs.gate.stopped===1&&S.news.some(n=>n.t===E.ARCS.gate.half),'期限切れ',`掲示に${B.board.includes(e)?'残る':'ない'} 止まった段${S.arcs.gate.stopped}`);
+    for(let i=0;i<40*E.TICKS_PER_DAY;i++)E.tick(S);
+    check('続きもの：止まった筋の話は、もう来ない',!B.board.some(x=>x.arc==='gate')&&S.arcs.gate.stage===0,'止まってから40日',`段${S.arcs.gate.stage}`);}
+  // 見込めるのは3人まで。外すと恩が少し減る
+  {const E=load(1),S=E.newState();S.taverns.ours.debt=0;S.taverns.ours.debtFree=S.tick;const ours=Object.values(S.adv).filter(a=>a.tav==='ours');
+    const r=ours.slice(0,4).map(a=>E.markAdv(S,a,true));
+    check('見込む：見込めるのは3人まで',r.join(',')==='true,true,true,false'&&E.markedOf(S).length===3,'4人を見込む',r.join(','));
+    ours[0].favor=3;E.markAdv(S,ours[0],false);
+    check('見込む：外すと恩が1減る',ours[0].favor===2&&!ours[0].marked,'恩3で外す',`恩${ours[0].favor}`);}
+}
+
 // ---- 何百日も回しながら、毎刻成り立つはずの性質 ----
 function runSeed(seed){
   const E=load(seed),S=E.newState();
   for(let i=0;i<6;i++)E.tick(S);// 画面側の開店と同じ
-  const prevState={},killed={},lore={};let conquered=null;
+  const prevState={},killed={},lore={};let conquered=null,arcStage=0;
+  // 種の半分では、店主が借金を返し、話を回し、常連を見込む（話の仕組みを動かすため）
+  const owner=seed%2===1;
   for(let i=0;i<TICKS;i++){
     E.tick(S);E.rivalTemple(S);// 画面側の step と同じく、銀の杯亭の蘇生も毎刻呼ぶ
+    if(owner&&S.tick%10===0){E.repay(S,Math.max(0,S.taverns.ours.gold-3000));const ours=Object.values(S.adv).filter(a=>a.tav==='ours'&&live(a));
+      if(S.tick%500===0&&ours.length){const a=ours[(S.tick/10)%ours.length];E.markAdv(S,a,!a.marked);}
+      for(const e of E.errandsOf(S).board)if(!e.hero){const c=ours.filter(a=>!E.errandBlock(S,e,a));if(c.length)E.assignErrand(S,e,c[(S.tick/10)%c.length]);}}
     const at=`種${seed}・${S.tick}刻（${Math.floor(S.tick/E.TICKS_PER_DAY)+1}日目）`;
     const advs=Object.values(S.adv),parties=Object.values(S.parties),T0=S.taverns.ours;
 
@@ -171,6 +212,17 @@ function runSeed(seed){
       check('お触れ：蘇生代の値上げと半額は重ならない',!(act.includes('templeUp')&&act.includes('templeDown')),at,act.join(','));}
     // 「裏通りの酒場」：多くて6軒
     check('裏通りの酒場：多くて6軒',E.smallOf(S).length<=6,at,E.smallOf(S).length);
+    // 「持ち込まれる話と、見込んだ者」
+    {const B=E.errandsOf(S).board;
+      check('持ち込まれる話：掲示は3つを超えない',B.length<=E.BOARD_MAX,at,B.length);
+      check('持ち込まれる話：借金を返し終えるまでは、話が来ない',T0.debtFree!=null||B.length===0,at,B.length);
+      check('持ち込まれる話：期限を過ぎた話は掲示に残らない',B.every(e=>e.until>S.tick),at,()=>B.filter(e=>e.until<=S.tick).map(e=>e.n).join('、'));
+      const hs=B.filter(e=>e.hero).map(e=>e.hero);
+      check('持ち込まれる話：主役は黒猫亭の常連で、1人が2つの話を持たない',new Set(hs).size===hs.length&&hs.every(id=>S.adv[id]&&S.adv[id].tav==='ours'&&live(S.adv[id])),at,()=>hs.map(id=>S.adv[id]&&`${S.adv[id].name}（${S.adv[id].tav}・${S.adv[id].status}）`).join('、'));
+      check('見込む：見込んだ者は3人を超えない',E.markedOf(S).length<=E.MARK_MAX,at,E.markedOf(S).length);
+      const arc=S.arcs&&S.arcs.gate;if(arc){
+        check('続きもの：筋の段は順に進み、飛ばさない',arc.stage===arcStage||arc.stage===arcStage+1,at,`${arcStage}→${arc.stage}`);arcStage=arc.stage;
+        check('続きもの：掲示の段は、次に果たす段',B.filter(e=>e.arc==='gate').every(e=>e.stage===arc.stage+1),at,()=>B.filter(e=>e.arc).map(e=>e.stage).join(','));}}
   }
   // 「新顔の来店」：評判を聞いて来る新顔は、常連の平均レベルの前後3以内（0は、これまでどおりの散らばりで来る印）
   {const rs=Object.values(S.adv).filter(a=>a.tav==='ours'&&live(a));const avg=Math.round(rs.reduce((s,a)=>s+a.lvl,0)/rs.length);
@@ -180,7 +232,7 @@ function runSeed(seed){
 
 if(!isMainThread){const line=runSeed(workerData.seed);parentPort.postMessage({line,res:[...results]});}
 else{
-  checkTables();checkScenes();
+  checkTables();checkScenes();checkErrands();
   // 種ごとの結果は、種の順に重ねる。反例は、いちばん若い種の最初のものを残す
   const out=new Array(SEEDS.length);let next=0;
   const runOne=()=>{if(next>=SEEDS.length)return Promise.resolve();const k=next++;
