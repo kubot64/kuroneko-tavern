@@ -2247,7 +2247,7 @@ function rivalTick(S){
   if(S.tick>=S.nextSmall){S.nextSmall=S.tick+ri(6,12)*TICKS_PER_DAY;smallEvent(S);}
   if(S.tick%TICKS_PER_DAY)return;const d=day(S);const RO=S.taverns.rival.owner||RIVAL_OWNER;const To=S.taverns.ours,Tr=S.taverns.rival;
   const ace=S.parties[S.ace];if(!ace||ace.state==='wiped')pickAce(S);
-  if(d%10===0&&d>20&&chance(.6)){const c=Object.values(S.adv).filter(a=>a.tav==='ours'&&a.status==='idle'&&a.lvl>=8&&!(a.dream&&a.dream.k==='kin')).sort((x,y)=>y.lvl-x.lvl)[0];
+  if(d%10===0&&d>20&&seatsUsed(S,'rival')<seatCap(S,'rival')&&chance(.6)){const c=Object.values(S.adv).filter(a=>a.tav==='ours'&&a.status==='idle'&&a.lvl>=8&&!(a.dream&&a.dream.k==='kin')).sort((x,y)=>y.lvl-x.lvl)[0];
     if(c){const pr=clamp(.35-(c.favor||0)*.05-(To.rep/Math.max(1,Tr.rep)-1)*.25,.03,.5);
       if(chance(pr)&&moveTav(S,c,'rival')){news(S,`銀の杯亭の${RO}が、黒猫亭の${c.name}（レベル${c.lvl}）を引き抜いた。「うちなら宿も装備も上等ですよ」`,'lost');}
       else{favor(c,1);chron(S,c,`銀の杯亭の${RO}に誘われたが、断る`);news(S,`噂：銀の杯亭の${RO}が黒猫亭の${c.name}に声をかけたが、断られたらしい。「${pick(['黒猫亭には借りがある','あの店の酒のほうが口に合う','金で動く安い剣じゃない','借りた装備で潜るのは性に合わない'])}」`,'rumor');}}}
