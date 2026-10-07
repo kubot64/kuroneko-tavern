@@ -20,7 +20,7 @@ const html=readFileSync(new URL('../index.html',import.meta.url),'utf8');
 const ENGINE=html.match(/\/\*ENGINE START\*\/([\s\S]*?)\/\*ENGINE END\*\//)[1];
 const EXPORTS=['newState','tick','rivalTemple','seatCap','seatsUsed','nextSeats','newcomerLvl','buyPrice','investPrice','FACILITIES',
   'RARES','MAXF','DRAGON_F','TICKS_PER_DAY','awayPlan','smallOf','debtTick','DEBT0','encounter','rareSlain','rareMonOf','arrive',
-  'repay','errandsOf','assignErrand','errandBlock','designateBlock','markAdv','markedOf','BOARD_MAX','MARK_MAX','ARCS'];
+  'repay','errandsOf','assignErrand','errandBlock','designateBlock','MAXF','MINE_TOP','MINE_BOT','MINE_N','FN','mineOpen','conquest','alive','markAdv','markedOf','BOARD_MAX','MARK_MAX','ARCS'];
 
 // 乱数の種を固定したゲームの中身を1つ作る。中身の Math.random だけを差し替える
 function load(seed,fixed){
@@ -153,11 +153,22 @@ function checkErrands(){
     check('見込む：外すと恩が1減る',ours[0].favor===2&&!ours[0].marked,'恩3で外す',`恩${ours[0].favor}`);}
 }
 
+// 「鉄の山脈の坑道」の場面
+function checkMine(){
+  const E=load(1),S=E.newState();
+  check('坑道：階の呼び方は坑道B1F〜B25F',E.FN(E.MINE_TOP)==='坑道B1F'&&E.FN(E.MINE_BOT)==='坑道B25F'&&E.FN(E.MAXF)==='B30F','呼び方',`${E.FN(E.MINE_TOP)} ${E.FN(E.MINE_BOT)} ${E.FN(E.MAXF)}`);
+  for(let i=0;i<20*E.TICKS_PER_DAY;i++)E.tick(S);
+  check('坑道：迷宮が踏破されるまでは開かない',!E.mineOpen(S),'踏破なしで20日','開いた');
+  const p=Object.values(S.parties).find(x=>x.tav==='ours');p.floor=E.MAXF;E.conquest(S,p);const t0=S.tick;let opened=null;
+  for(let i=0;i<12*E.TICKS_PER_DAY&&opened==null;i++){E.tick(S);if(E.mineOpen(S))opened=S.tick-t0;}
+  check('坑道：迷宮の踏破から5〜10日で開く',opened!=null&&opened>=5*E.TICKS_PER_DAY&&opened<=10*E.TICKS_PER_DAY+1,'踏破のあと',`${opened}刻`);
+}
+
 // ---- 何百日も回しながら、毎刻成り立つはずの性質 ----
 function runSeed(seed){
   const E=load(seed),S=E.newState();
   for(let i=0;i<6;i++)E.tick(S);// 画面側の開店と同じ
-  const prevState={},killed={},lore={};let conquered=null,arcStage=0;
+  const prevState={},killed={},lore={};let conquered=null,arcStage=0,mineConq=null;
   // 種の半分では、店主が借金を返し、話を回し、常連を見込む（話の仕組みを動かすため）
   const owner=seed%2===1;
   for(let i=0;i<TICKS;i++){
@@ -214,6 +225,11 @@ function runSeed(seed){
     {const act=(S.edicts||[]).filter(e=>e.until>S.tick).map(e=>e.k);
       check('お触れ：同じ種類は重ならない',new Set(act).size===act.length,at,act.join(','));
       check('お触れ：蘇生代の値上げと半額は重ならない',!(act.includes('templeUp')&&act.includes('templeDown')),at,act.join(','));}
+    // 「鉄の山脈の坑道」：坑道に入るのは開いてから。坑道の階は坑道B25Fまで。坑道王の踏破は一度きり
+    for(const p of parties)if(p.floor>E.MAXF&&p.state!=='town'){
+      check('坑道：開くまでは誰も入らない',E.mineOpen(S),at,()=>`${p.name} ${E.FN(p.floor)}`);
+      check('坑道：坑道B25Fより下はない',p.floor<=E.MINE_BOT,at,()=>`${p.name} ${p.floor}`);}
+    if(S.mineConq){const k=JSON.stringify({tk:S.mineConq.tk,party:S.mineConq.party});if(!mineConq)mineConq=k;check('坑道：坑道王の踏破は一度きり',mineConq===k,at,S.mineConq.party);}
     // 「裏通りの酒場」：多くて6軒
     check('裏通りの酒場：多くて6軒',E.smallOf(S).length<=6,at,E.smallOf(S).length);
     // 「持ち込まれる話と、見込んだ者」
@@ -237,7 +253,7 @@ function runSeed(seed){
 
 if(!isMainThread){const line=runSeed(workerData.seed);parentPort.postMessage({line,res:[...results]});}
 else{
-  checkTables();checkScenes();checkErrands();
+  checkTables();checkScenes();checkErrands();checkMine();
   // 種ごとの結果は、種の順に重ねる。反例は、いちばん若い種の最初のものを残す
   const out=new Array(SEEDS.length);let next=0;
   const runOne=()=>{if(next>=SEEDS.length)return Promise.resolve();const k=next++;
