@@ -20,7 +20,7 @@ const html=readFileSync(new URL('../index.html',import.meta.url),'utf8');
 const ENGINE=html.match(/\/\*ENGINE START\*\/([\s\S]*?)\/\*ENGINE END\*\//)[1];
 const EXPORTS=['newState','tick','rivalTemple','seatCap','seatsUsed','nextSeats','newcomerLvl','buyPrice','investPrice','FACILITIES',
   'RARES','MAXF','DRAGON_F','TICKS_PER_DAY','awayPlan','smallOf','debtTick','DEBT0','encounter','rareSlain','rareMonOf','arrive',
-  'repay','errandsOf','assignErrand','errandBlock','markAdv','markedOf','BOARD_MAX','MARK_MAX','ARCS'];
+  'repay','errandsOf','assignErrand','errandBlock','designateBlock','markAdv','markedOf','BOARD_MAX','MARK_MAX','ARCS'];
 
 // 乱数の種を固定したゲームの中身を1つ作る。中身の Math.random だけを差し替える
 function load(seed,fixed){
@@ -132,10 +132,14 @@ function checkErrands(){
     check('持ち込まれる話：臆病な者は、怖いものに当たる話を断ることがある',r1==='refused','高い所を怖がる臆病者に鐘楼の話',r1);
     check('持ち込まれる話：断った者には、同じ話をもう回せない',r2===null,'断った者にもう一度',r2);
     check('持ち込まれる話：主役は1人で、引き受けたら5日は待ってもらえる',r3==='ok'&&e.hero===b.id&&e.until>=S.tick+5*E.TICKS_PER_DAY&&E.assignErrand(S,e,S.adv[p.members[2]])===null,'普通の者に回す',`${r3} 期限${e.until-S.tick}刻`);}
-  // 主役は、酒場にいて、街で休んでいる一行に入っている者だけ
-  {const E=load(1),S=E.newState();const {p,e}=errandScene(E,S,{k:'kitten',f:2,n:'迷い込んだ子猫'});const a=S.adv[p.members[0]];
-    p.state='explore';const b1=E.errandBlock(S,e,a);p.state='town';a.party=null;const b2=E.errandBlock(S,e,a);
-    check('持ち込まれる話：一行が迷宮にいるとき、一行に入っていないときは回せない',!!b1&&!!b2,'一行が迷宮・一行なし',`${b1} / ${b2}`);}
+  // 一行が迷宮にいる者も主役に指定でき、酒場にいて一行が街で休んでいるときに伝わる
+  {const E=load(1),S=E.newState();const {p,e}=errandScene(E,S,{k:'kitten',f:2,n:'迷い込んだ子猫'});const a=S.adv[p.members[0]];a.pers='普通';
+    p.state='explore';const r=E.assignErrand(S,e,a);E.tick(S);const waiting=e.pend===a.id&&!e.hero;
+    check('持ち込まれる話：一行が迷宮にいる者を指定すると、伝えるのを待つ',r==='pending'&&waiting,'一行が迷宮',`${r} 待ち${waiting}`);
+    const b=S.adv[p.members[1]];const r2=E.assignErrand(S,e,b);
+    check('持ち込まれる話：伝えるのを待つあいだに選び直すと、主役が入れ替わる',r2==='pending'&&e.pend===b.id,'待ちのあいだに別の者',`${r2} 待ち${e.pend}`);
+    e.pend=a.id;p.state='town';p.rest=99;a.status='idle';E.tick(S);
+    check('持ち込まれる話：酒場にいて一行が街で休んでいれば、伝わる',e.hero===a.id&&!e.pend,'一行が街に戻る',`主役${e.hero} 待ち${e.pend}`);}
   // 期限を過ぎた続きものの段は銀の杯亭に流れ、筋はそこで止まる
   {const E=load(1),S=E.newState();const {e,B}=errandScene(E,S,{arc:'gate',stage:1,f:8,n:'抜け穴の印',until:S.tick+1});E.tick(S);
     check('続きもの：期限を過ぎた段は銀の杯亭に流れ、筋が止まる',!B.board.includes(e)&&S.arcs.gate.stopped===1&&S.news.some(n=>n.t===E.ARCS.gate.half),'期限切れ',`掲示に${B.board.includes(e)?'残る':'ない'} 止まった段${S.arcs.gate.stopped}`);
@@ -160,7 +164,7 @@ function runSeed(seed){
     E.tick(S);E.rivalTemple(S);// 画面側の step と同じく、銀の杯亭の蘇生も毎刻呼ぶ
     if(owner&&S.tick%10===0){E.repay(S,Math.max(0,S.taverns.ours.gold-3000));const ours=Object.values(S.adv).filter(a=>a.tav==='ours'&&live(a));
       if(S.tick%500===0&&ours.length){const a=ours[(S.tick/10)%ours.length];E.markAdv(S,a,!a.marked);}
-      for(const e of E.errandsOf(S).board)if(!e.hero){const c=ours.filter(a=>!E.errandBlock(S,e,a));if(c.length)E.assignErrand(S,e,c[(S.tick/10)%c.length]);}}
+      for(const e of E.errandsOf(S).board)if(!e.hero&&!e.pend){const c=ours.filter(a=>!E.designateBlock(S,e,a));if(c.length)E.assignErrand(S,e,c[(S.tick/10)%c.length]);}}
     const at=`種${seed}・${S.tick}刻（${Math.floor(S.tick/E.TICKS_PER_DAY)+1}日目）`;
     const advs=Object.values(S.adv),parties=Object.values(S.parties),T0=S.taverns.ours;
 
@@ -217,7 +221,8 @@ function runSeed(seed){
       check('持ち込まれる話：掲示は3つを超えない',B.length<=E.BOARD_MAX,at,B.length);
       check('持ち込まれる話：借金を返し終えるまでは、話が来ない',T0.debtFree!=null||B.length===0,at,B.length);
       check('持ち込まれる話：期限を過ぎた話は掲示に残らない',B.every(e=>e.until>S.tick),at,()=>B.filter(e=>e.until<=S.tick).map(e=>e.n).join('、'));
-      const hs=B.filter(e=>e.hero).map(e=>e.hero);
+      check('持ち込まれる話：引き受けた話に、伝えるのを待つ主役は残らない',B.every(e=>!(e.hero&&e.pend)),at,()=>B.filter(e=>e.hero&&e.pend).map(e=>e.n).join('、'));
+      const hs=B.map(e=>e.hero||e.pend).filter(Boolean);
       check('持ち込まれる話：主役は黒猫亭の常連で、1人が2つの話を持たない',new Set(hs).size===hs.length&&hs.every(id=>S.adv[id]&&S.adv[id].tav==='ours'&&live(S.adv[id])),at,()=>hs.map(id=>S.adv[id]&&`${S.adv[id].name}（${S.adv[id].tav}・${S.adv[id].status}）`).join('、'));
       check('見込む：見込んだ者は3人を超えない',E.markedOf(S).length<=E.MARK_MAX,at,E.markedOf(S).length);
       const arc=S.arcs&&S.arcs.gate;if(arc){

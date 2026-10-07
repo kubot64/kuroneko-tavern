@@ -2332,11 +2332,21 @@ function fitOf(def,a){let s=0,neg=0,best=null,worst=null;for(const r of def.fit)
 function markedOf(S){return Object.values(S.adv).filter(a=>a.marked&&a.tav==='ours'&&a.status!=='lost'&&a.status!=='retired');}
 function heroErrand(S,a){return errandsOf(S).board.find(e=>e.hero===a.id)||null;}
 // 主役に回せないときは、その理由を返す
+// 主役に指定できないときは、その理由を返す。ほかの話の主役や、ほかの話で伝えるのを待っている者は指定できない
+function designateBlock(S,e,a){
+  if(e.hero)return '引き受け済み';if(a.tav!=='ours'||a.status==='lost'||a.status==='retired')return '黒猫亭の常連でない';
+  if(errandsOf(S).board.some(x=>x!==e&&(x.hero===a.id||x.pend===a.id)))return '別の話を引き受けている';if((e.refused||[]).includes(a.id))return '断られた';return null;}
+// いますぐ伝えられないときは、その理由を返す。伝えられるのは、酒場にいて、一行が街で休んでいるとき
 function errandBlock(S,e,a){
-  if(e.hero)return '引き受け済み';if(a.tav!=='ours'||a.status!=='idle')return '酒場にいない';if(heroErrand(S,a))return '別の話を引き受けている';
-  if((e.refused||[]).includes(a.id))return '断られた';const p=a.party&&S.parties[a.party];if(!p||p.tav!==a.tav)return '一行に入っていない';if(p.state!=='town')return '一行が迷宮に出ている';return null;}
+  const b=designateBlock(S,e,a);if(b)return b;if(a.status!=='idle')return '酒場にいない';
+  const p=a.party&&S.parties[a.party];if(!p||p.tav!==a.tav)return '一行に入っていない';if(p.state!=='town')return '一行が迷宮に出ている';return null;}
+// 主役を指定する。いま伝えられれば伝え、伝えられなければ、次に酒場で会えたときに伝える
 function assignErrand(S,e,a){
-  if(!boardOpen(S)||!errandsOf(S).board.includes(e)||errandBlock(S,e,a))return null;const def=errandDef(e);const f=fitOf(def,a);const p=S.parties[a.party];
+  if(!boardOpen(S)||!errandsOf(S).board.includes(e)||designateBlock(S,e,a))return null;
+  if(errandBlock(S,e,a)){e.pend=a.id;news(S,`黒猫亭の店主は、「${e.n}」を${a.name}に回すことにした。次に酒場で会えたときに伝える。`,'errand');return 'pending';}
+  return offerErrand(S,e,a);}
+function offerErrand(S,e,a){
+  e.pend=null;const def=errandDef(e);const f=fitOf(def,a);const p=S.parties[a.party];
   // 臆病な者と慎重な者は、手がかりを自分で読んで危ない話を断ることがある
   const pr=a.pers==='臆病'?(f.neg>=2?.8:f.neg>=1?.4:0):a.pers==='慎重'?(f.neg>=2?.6:f.neg>=1?.2:0):0;
   if(chance(pr)){e.refused=(e.refused||[]).concat(a.id);
@@ -2373,6 +2383,10 @@ function errandTick(S){
   if(!boardOpen(S))return;const E=errandsOf(S);
   for(const e of E.board.slice()){const a=e.hero&&S.adv[e.hero];
     if(a&&(a.tav!=='ours'||a.status==='lost'||a.status==='retired')){e.hero=null;news(S,`「${e.n}」を引き受けた${a.name}がいなくなり、話は掲示に戻った。`,'errand');}
+    // 伝えるのを待っている主役が、酒場にいて一行が街で休んでいれば、ここで伝える
+    const w=e.pend&&S.adv[e.pend];
+    if(w&&designateBlock(S,e,w)){e.pend=null;news(S,`「${e.n}」を回すつもりだった${w.name}がいなくなり、話は掲示に戻った。`,'errand');}
+    else if(w&&!errandBlock(S,e,w)&&e.until>S.tick)offerErrand(S,e,w);
     if(e.until<=S.tick)expireErrand(S,e);}
   if(E.next==null)E.next=S.tick+ri(1,3)*TICKS_PER_DAY;
   if(S.tick<E.next)return;E.next=S.tick+ri(2,4)*TICKS_PER_DAY;
@@ -2681,7 +2695,7 @@ function renderParties(){
 const TAB_GROUPS=[['見る',[['news','迷宮日報'],['bar','酒場'],['roster','名簿'],['rank','番付'],['stone','記念碑'],['ref','資料']]],['店',[['desk','帳場'],['shop','武具屋'],['maps','地図屋']]]];
 function renderSide(){
   const waiting=Object.values(S.adv).filter(a=>a.tav==='ours'&&(a.status==='dead'||a.status==='ash')).length;
-  if(tab==='board')tab='desk';const To=T();const openErr=boardOpen(S)?errandsOf(S).board.filter(e=>!e.hero).length:0;const pay=To.debt>0&&((To.nextPay||0)-S.tick)<TICKS_PER_DAY*3;
+  if(tab==='board')tab='desk';const To=T();const openErr=boardOpen(S)?errandsOf(S).board.filter(e=>!e.hero&&!e.pend).length:0;const pay=To.debt>0&&((To.nextPay||0)-S.tick)<TICKS_PER_DAY*3;
   $('tabs').innerHTML=TAB_GROUPS.map(([g,ts])=>`<div class="tabrow"><span class="tg">${g}</span>${ts.map(([k,l])=>`<button class="${tab===k?'on':''}" data-act="tab" data-v="${k}">${l}${k==='desk'&&waiting?`<span class="cnt">寺院${waiting}</span>`:''}${k==='desk'&&pay?'<span class="cnt">返済</span>':''}${k==='stone'&&S.memorial.length?`<span class="cnt">${S.memorial.length}</span>`:''}${k==='bar'&&openErr?`<span class="cnt">話${openErr}</span>`:''}</button>`).join('')}</div>`).join('');
   const tb=$('tbody');const st=tb.scrollTop;
   tb.innerHTML=({news:sideNews,bar:sideBar,roster:sideRoster,shop:sideShop,maps:sideMaps,desk:sideDesk,rank:sideRank,ref:sideRef,stone:sideStone})[tab]();
@@ -2692,16 +2706,19 @@ function markTag(a){return a.marked&&a.tav==='ours'&&a.status!=='lost'&&a.status
 // 酒場の掲示。持ち込まれた話と、誰に回すか
 function sideBoard(){
   if(!boardOpen(S))return '';const E=errandsOf(S),mk=markedOf(S),dd=tk=>Math.max(1,Math.ceil((tk-S.tick)/TICKS_PER_DAY));
-  const card=e=>{const h=e.hero&&S.adv[e.hero],hp=h&&h.party&&S.parties[h.party];let foot='';
+  const card=e=>{const h=e.hero&&S.adv[e.hero],hp=h&&h.party&&S.parties[h.party],w=!h&&e.pend&&S.adv[e.pend];let foot='';
     if(h)foot=`<span class="by">主役：${nmLink(h)}${hp?`（${esc(hp.name)}）`:''}が引き受けている・あと${dd(e.until)}日</span>`;
+    else if(w)foot=`<div style="margin-top:6px"><span class="meta">主役：${nmLink(w)}に、次に酒場で会えたら伝える（いまは${esc(errandBlock(S,e,w)||'まもなく伝わる')}）</span> <button class="btn sm" data-act="unpend" data-e="${e.id}">取り消す</button></div>`;
     else if(pickErr!==e.id)foot=`<div style="margin-top:6px"><button class="btn sm" data-act="pickerr" data-e="${e.id}">主役を選ぶ</button>${(e.refused||[]).length?` <span class="meta">断った者：${e.refused.map(id=>S.adv[id]?esc(S.adv[id].name):'').join('・')}</span>`:''}</div>`;
-    else{const cs=Object.values(S.adv).filter(a=>a.tav==='ours'&&(a.status==='idle'||a.marked)&&a.status!=='lost'&&a.status!=='retired').map(a=>({a,b:errandBlock(S,e,a)}))
-        .sort((x,y)=>(!!x.b-!!y.b)||(!!y.a.marked-!!x.a.marked)||byTeam(x.a,y.a));
-      foot=`<div class="pick"><p class="note" style="margin:4px 0">誰を主役にするか。名前を押すと手帳が開く。<button class="btn sm" data-act="pickerr" data-e="">やめる</button></p>${cs.map(({a,b})=>`<div class="row"><span class="who">${nmLink(a)}${markTag(a)}${teamTag(a)} <span class="meta">Lv${a.lvl} ${a.race}の${a.cls}・${a.pers}</span></span>${b?`<span class="chip">${b}</span>`:`<button class="btn sm" data-act="assign" data-e="${e.id}" data-a="${a.id}">回す</button>`}</div>`).join('')||'<p class="note">酒場にいる常連がいない。</p>'}</div>`;}
+    else{// いま伝えられる者、次に酒場で会えたら伝える者、指定できない者の順に並べる
+      const rank=x=>!x.d?(x.b?1:0):2;
+      const cs=Object.values(S.adv).filter(a=>a.tav==='ours'&&a.status!=='lost'&&a.status!=='retired').map(a=>({a,d:designateBlock(S,e,a),b:errandBlock(S,e,a)}))
+        .sort((x,y)=>(rank(x)-rank(y))||(!!y.a.marked-!!x.a.marked)||byTeam(x.a,y.a));
+      foot=`<div class="pick"><p class="note" style="margin:4px 0">誰を主役にするか。名前を押すと手帳が開く。迷宮や寺院にいる者を選んだときは、次に酒場で会えたときに伝える。<button class="btn sm" data-act="pickerr" data-e="">やめる</button></p>${cs.map(({a,d,b})=>`<div class="row"><span class="who">${nmLink(a)}${markTag(a)}${teamTag(a)} <span class="meta">Lv${a.lvl} ${a.race}の${a.cls}・${a.pers}${b&&!d?'・'+esc(b):''}</span></span>${d?`<span class="chip">${d}</span>`:`<button class="btn sm" data-act="assign" data-e="${e.id}" data-a="${a.id}">${b?'戻ったら伝える':'回す'}</button>`}</div>`).join('')||'<p class="note">黒猫亭の常連がいない。</p>'}</div>`;}
     return `<div class="quote board"><b>${esc(e.n)}</b>${e.arc?`<span class="markmark">続きもの・${esc(ARCS[e.arc].n)}　${e.stage}/${ARCS[e.arc].stages.length}</span>`:''}<span class="by">${esc(e.from)}から・${h?'引き受け済み':`掲示はあと${dd(e.until)}日`}</span>「${esc(e.t)}」${foot}</div>`;};
   const log=E.log.slice(-5).reverse().map(l=>`<div class="row"><span class="who">${l.ok?'<span class="chip">果たした</span>':'<span class="chip ash">果たせず</span>'} ${esc(l.n)}${l.who?`・${l.id&&S.adv[l.id]?nmLink(S.adv[l.id]):esc(l.who)}`:''}<span class="does">${esc(l.t)}</span></span><span class="meta">${Math.floor(l.tk/TICKS_PER_DAY)+1}日目</span></div>`).join('');
   return `<div class="sect"><h3>掲示　持ち込まれた話　${E.board.length} / ${BOARD_MAX}</h3>
-  <p class="note">店主が決めるのは、話を誰に回すかだけ。向き不向きは話の文面ににじむ。手帳を開いて、怖いものや得意不得意、出身と照らし合わせること。主役は酒場にいて、街で休んでいる一行に入っている者に限る。</p>
+  <p class="note">店主が決めるのは、話を誰に回すかだけ。向き不向きは話の文面ににじむ。手帳を開いて、怖いものや得意不得意、出身と照らし合わせること。話が伝わるのは、主役が酒場にいて、一行が街で休んでいるとき。迷宮に出ている者を選んでおけば、戻ったときに伝える。</p>
   ${E.board.map(card).join('')||'<p class="note">いまは、持ち込まれた話はない。</p>'}
   <p class="note">見込んだ者　${mk.length} / ${MARK_MAX}${mk.length?'：'+mk.map(a=>nmLink(a)).join('・'):''}。手帳から見込める。見込んだ者に噛み合う話が来やすくなる。</p>
   ${log?`<h3 style="margin-top:8px">これまでの話</h3>${log}`:''}</div>`;
@@ -2861,9 +2878,10 @@ function renderAdv(){
   const status={idle:'酒場にいる',party:'探索中',missing:'行方不明',dead:'寺院で眠る（死）',ash:'寺院で眠る（灰）',lost:'ロスト',retired:'店を去った'}[a.status];
   const team=a.party&&S.parties[a.party]?S.parties[a.party].name:'なし';
   const d=a.dream;
-  const canMark=boardOpen(S)&&a.tav==='ours'&&a.status!=='lost'&&a.status!=='retired';const he=a.tav==='ours'&&heroErrand(S,a);
+  const canMark=boardOpen(S)&&a.tav==='ours'&&a.status!=='lost'&&a.status!=='retired';const he=a.tav==='ours'&&heroErrand(S,a),pe=a.tav==='ours'&&boardOpen(S)&&errandsOf(S).board.find(e=>e.pend===a.id);
   box.innerHTML=`<div class="adv-h"><h2>${a.title?`<span class="ttl">「${esc(a.title)}」</span>`:''}${esc(a.name)}</h2><span class="chip ${a.status}">${status}</span>${teamTag(a)}${markTag(a)}${canMark?`<button class="btn sm" data-act="mark" data-a="${a.id}" ${!a.marked&&markedOf(S).length>=MARK_MAX?'disabled':''}>${a.marked?'見込みを外す':'見込む'}</button>`:''}</div>
   ${he?`<div class="dream"><small>引き受けている話</small>「${esc(he.n)}」B${he.f}F・あと${Math.max(1,Math.ceil((he.until-S.tick)/TICKS_PER_DAY))}日</div>`:''}
+  ${pe?`<div class="dream"><small>回すつもりの話（次に酒場で会えたら伝える）</small>「${esc(pe.n)}」B${pe.f}F・掲示はあと${Math.max(1,Math.ceil((pe.until-S.tick)/TICKS_PER_DAY))}日</div>`:''}
   <div class="adv-sub">${S.taverns[a.tav].name}の客・出身：${esc(originOf(a))}${a.origin&&ORIGINS[a.origin].far?'（大陸の外）':''}・${sexAge(a)}${a.race!=='人間'?'（実年齢'+a.age+'歳）':''}・レベル${a.lvl}（${rankOf(a.lvl)}） ${a.race}の${a.cls}・${a.pers}・${esc(a.quirk)}・素質「${a.tal}」<br>${esc(a.bg)}<br>口調：${esc(a.tone||'普通')}・口癖「${esc(a.catch||'')}」・好物：${esc(a.food||'')}${a.fear?'・怖いもの：'+esc(a.fear):''}</div>
   ${(a.traits||[]).length?`<div class="dream${a.blessed?' odd':''}"><small>${a.blessed?'天に愛された者・':a.cursed?'星回りの悪い者・':''}得意と不得意</small>${trGood(a).map(t=>`<b>${t}</b>　${esc(TRAITS[t].d)}`).join('<br>')}${trGood(a).length&&trBad(a).length?'<br>':''}${trBad(a).map(t=>`<span style="opacity:.75">${t}</span>　${esc(TRAITS[t].d)}`).join('<br>')}</div>`:''}
   ${(a.changes||[]).length?`<div class="dream"><small>変わったこと</small>${a.changes.map(c=>`${Math.floor(c.tk/TICKS_PER_DAY)+1}日目　${esc(c.t)}`).join('<br>')}</div>`:''}
@@ -2916,7 +2934,8 @@ document.addEventListener('click',e=>{
   if(act==='revive'){const a=S.adv[b.dataset.a];const c=templeCost(S,a);if(T().gold>=c){T().gold-=c;const r=temple(S,a,true);toast(r==='ok'?`${a.name}が蘇った`:r==='ash'?`${a.name}は灰になった…`:`${a.name}はロストした`);render();save();}return;}
   if(act==='pickerr'){pickErr=b.dataset.e?+b.dataset.e:null;renderSide();return;}
   if(act==='assign'){const e=errandsOf(S).board.find(x=>x.id===+b.dataset.e),a=S.adv[b.dataset.a];const r=e&&a&&assignErrand(S,e,a);
-    if(r==='ok'){pickErr=null;toast(`「${e.n}」を${a.name}に回した`);}else if(r==='refused')toast(`${a.name}は「${e.n}」を断った`);render();save();return;}
+    if(r==='ok'){pickErr=null;toast(`「${e.n}」を${a.name}に回した`);}else if(r==='pending'){pickErr=null;toast(`「${e.n}」は、次に酒場で会えたら${a.name}に伝える`);}else if(r==='refused')toast(`${a.name}は「${e.n}」を断った`);render();save();return;}
+  if(act==='unpend'){const e=errandsOf(S).board.find(x=>x.id===+b.dataset.e);if(e&&e.pend){e.pend=null;toast(`「${e.n}」の主役の指定を取り消した`);}render();save();return;}
   if(act==='mark'){const a=S.adv[b.dataset.a];if(a&&markAdv(S,a,!a.marked))toast(a.marked?`${a.name}を見込んだ`:`${a.name}の見込みを外した`);render();save();return;}
   if(act==='bounty'){const p=S.parties[b.dataset.p];if(!p||S.bounties[p.id])return;const c=bountyPrice(p);if(T().gold<c){toast('お金が足りない');return;}T().gold-=c;S.bounties[p.id]=c;toast(`掲示板に依頼を貼り出した（${c}Gを預けた）`);render();save();return;}
 });
