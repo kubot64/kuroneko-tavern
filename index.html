@@ -280,6 +280,10 @@ const pick=a=>a[Math.floor(R()*a.length)];
 const chance=p=>R()<p;
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 const TICKS_PER_DAY=50;
+const TICK_SEC=2.5;
+// 留守にしていた秒数（と前回の早送りの残り）から、進める刻の数と「留守のあいだに」を出すかを決める
+// 10日の上限は新しく経過した刻だけにかけ、早送りの残りはそのあとで足す
+function awayPlan(sec,pend=0){const n=Math.min(Math.floor(Math.max(0,sec)/TICK_SEC),TICKS_PER_DAY*10)+pend;return {n,digest:n>=30||pend>0};}
 
 const NAMES_M=["ガルド", "ローエン", "ドルフ", "バルト", "ザック", "オルグ", "カイン", "グレン", "ユーリ", "ボッツ", "ハーゲン", "マルコ", "ヴィクト", "ノア", "ギルム", "アシュレイ", "ダイン", "トーマ", "ブラム", "ヨハン", "ジン", "オスカ", "ポム", "ウルス", "ベルン", "ラグ", "タキ", "カスパー", "リコ", "ゼフ", "アデル", "フーゴ", "イェン", "コルト", "シン", "ギデオン", "オットー", "ニコ", "ルドルフ", "ケヴィ", "テオ", "アルノー", "ダリオ", "エミール", "ファビアン", "イグナス", "ユリアン", "レオポルト", "マティアス", "パトリク", "クィン", "トビアス", "ゼノ", "ボリス", "セシル", "ディーター", "ゴットフリート", "ハインツ", "ヨアヒム", "クラウス", "ミロ", "ノルベルト", "ピエトロ", "ルーカス", "タデウス", "ウィレム", "アンセルム", "コンラート", "フェリクス", "グスタフ", "イザーク", "カール", "ニクラス", "オラフ", "ラファエル", "シグルト", "ウーヴェ", "ヴォルフ", "イリヤ", "ベネディクト", "デメル", "エリアス", "ゲオルク", "ハーラル", "ヨナス", "ランベルト", "ネストル", "オイゲン", "ペール", "セバルト", "ウルリヒ", "ヴェンデル", "バルナバス", "エルンスト", "フィン", "ホルスト", "イェルク", "カスミル", "ラウル", "ドミニク", "バスティアン", "クレメンス"];
 const NAMES_F=["ミナ", "セリカ", "イリス", "フィオ", "ネル", "リーゼ", "ティア", "シエラ", "ルゥ", "エダ", "ペトラ", "キリエ", "メル", "クロエ", "レア", "ヘルガ", "ナナ", "ソフィ", "エルマ", "モーラ", "ミレイユ", "ドーラ", "ハンナ", "ロッタ", "パウラ", "スー", "ヴェラ", "イーダ", "マグダ", "ベアトリス", "カミラ", "ゲルダ", "ヒルデ", "カタリナ", "ニーナ", "オフェリア", "ロザリンド", "ステラ", "ウルスラ", "ヴァレリア", "ヴィルマ", "アガタ", "エスター", "フリーダ", "イルゼ", "リーナ", "オリガ", "サビーネ", "ヤスミン", "ゾフィア", "ブリギッテ", "ドロテア", "エッダ", "ヘレナ", "ユッタ", "ルイーゼ", "マルタ", "プリシラ", "テレーゼ", "アニカ", "クララ", "フローラ", "インガ", "カリン", "モニカ", "ローザ", "ティルダ", "アストリッド", "ツェツィーリエ", "ダグマル", "ギーゼラ", "レナ", "ジゼル", "マリエ", "エリン", "アデーレ", "ノエミ", "オルガ", "ザビーナ", "リディア", "ミリアム", "ハイジ", "グレタ", "エミリア", "ベルタ", "イングリト", "アンナ", "ルチア", "セラ", "ヨハンナ", "フェリシア", "マーヤ", "カティア", "ヴィオラ", "テア", "ロミ"];
@@ -2264,7 +2268,6 @@ function rivalTemple(S){
 
 /* ---------- UI ---------- */
 const KEY='kuroneko-tavern-v1';
-const TICK_SEC=2.5;
 const shown={};
 let S,speed=1,tab='news',timer=null,toastT=null,ff=null,hiddenAt=null;
 const $=id=>document.getElementById(id);
@@ -2390,8 +2393,8 @@ function boot(){
     migrate(S);
     const away=Math.floor((Date.now()-saved.at)/1000);
     const pend=saved.pend||0;
-    const n=Math.min(Math.floor(away/TICK_SEC),TICKS_PER_DAY*10)+pend;
-    if(n>=30||pend>0) fastForward(n,away);
+    const {n,digest}=awayPlan(away,pend);
+    if(digest) fastForward(n,away);
   } else {
     S=newState();
     for(let i=0;i<6;i++)tick(S);
@@ -2745,10 +2748,10 @@ function onHide(){if(hiddenAt==null)hiddenAt=Date.now();clearInterval(timer);sav
 function onShow(){
   if(hiddenAt==null)return;
   const away=Math.floor((Date.now()-hiddenAt)/1000);hiddenAt=null;
-  const n=speed>0?Math.min(Math.floor(away/TICK_SEC),TICKS_PER_DAY*10):0;
+  const {n,digest}=speed>0?awayPlan(away):{n:0};
   if(n>0){
     if(ff)ff.n+=n;
-    else if(n>=30)fastForward(n,away);
+    else if(digest)fastForward(n,away);
     else{for(let i=0;i<n;i++){tick(S);rivalTemple(S);}autoWatch();render();save();}
   }
   setSpeed(speed);

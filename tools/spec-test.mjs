@@ -19,7 +19,7 @@ const JOBS=Math.max(1,opt('--jobs',availableParallelism()));
 const html=readFileSync(new URL('../index.html',import.meta.url),'utf8');
 const ENGINE=html.match(/\/\*ENGINE START\*\/([\s\S]*?)\/\*ENGINE END\*\//)[1];
 const EXPORTS=['newState','tick','rivalTemple','seatCap','seatsUsed','nextSeats','newcomerLvl','buyPrice','investPrice','FACILITIES',
-  'RARES','MAXF','DRAGON_F','TICKS_PER_DAY','smallOf','debtTick','DEBT0','encounter','rareSlain','rareMonOf','arrive'];
+  'RARES','MAXF','DRAGON_F','TICKS_PER_DAY','awayPlan','smallOf','debtTick','DEBT0','encounter','rareSlain','rareMonOf','arrive'];
 
 // 乱数の種を固定したゲームの中身を1つ作る。中身の Math.random だけを差し替える
 function load(seed,fixed){
@@ -67,6 +67,12 @@ function checkTables(){
 
 // ---- わざと作った場面で確かめる性質 ----
 function checkScenes(){
+  // 「保存と、閉じているあいだの時間」：2.5秒で1刻、10日分（500刻）まで。30刻以上か早送りの残りがあれば「留守のあいだに」を出す
+  // ページを閉じていたときも、開いたまま裏に回っていたときも、同じ決まりで進める
+  {const E=load(1);const plan=(sec,pend)=>{const r=E.awayPlan(sec,pend);return `${r.n}${r.digest?'出す':'出さない'}`;};
+    const cases=[[0,0,'0出さない'],[2.4,0,'0出さない'],[2.5,0,'1出さない'],[74,0,'29出さない'],[75,0,'30出す'],[3600,0,'500出す'],[86400*30,0,'500出す'],
+      [0,3,'3出す'],[86400*30,7,'507出す'],[-100,0,'0出さない']];
+    for(const [sec,pend,want] of cases)check('時間と保存：留守にしていた時間から進める刻と画面が決まりのとおり',plan(sec,pend)===want,`${sec}秒・早送りの残り${pend}刻`,`${plan(sec,pend)}（決まりは${want}）`);}
   // 「名のある魔物」：各階に1体きり。ある一行が戦っているあいだは、同じ階の別の一行の前には現れない
   // 乱数をいつも0にして、出会えるときは必ず出会うようにする
   const meet=fighting=>{const E=load(1,1e-9),S=E.newState();const [p,q]=Object.values(S.parties);
