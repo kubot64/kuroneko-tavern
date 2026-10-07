@@ -1019,7 +1019,7 @@ function formParties(S,tav,quiet,forced,fname){
 }
 const SHOP_NAME='鉄床通りの武具屋';
 const SHOP_MAT={metal:['鉄','鋼','ミスリル','竜骨','神銀','アダマン','澱鉄','黒曜鉄','澱金'],wood:['樫','柊','黒檀','霊木','神木','冥樹','澱木','化石樹','澱樹'],cloth:['木綿','羅紗','絹','月絹','天衣','冥絹','澱糸','岩蜘蛛糸','澱金糸'],leather:['なめし','硬化','魔獣','竜','古竜','黒竜','澱革','洞窟竜','澱竜'],jewel:['銅','銀','金','白金','金剛石','竜涙石','澱晶','黒曜石','澱金'],charm:['木彫り','骨','聖別','古代','精霊','冥府','澱','坑道','澱金']};
-const SHOP_TIERS=[null,{t:1,label:'鉄の品'},{t:2,mat:'銀鉱石',need:120,label:'鋼の品'},{t:3,mat:'ミスリル鉱',need:300,label:'ミスリルの品'},{t:4,mat:'竜骨',need:250,label:'竜骨の品'},{t:5,mat:'月長石',need:40,label:'神銀の品'},{t:6,mat:'冥銀鉱',need:60,label:'アダマンの品'},{t:7,mat:'澱晶',need:30,label:'澱鉄の品'},{t:8,mat:'黒曜鉄鉱',need:60,label:'黒曜鉄の品'},{t:9,mat:'澱金鉱',need:40,label:'澱金の品'}];
+const SHOP_TIERS=[null,{t:1,label:'鉄の品'},{t:2,mat:'銀鉱石',need:120,label:'鋼の品'},{t:3,mat:'ミスリル鉱',need:300,label:'ミスリルの品'},{t:4,mat:'竜骨',need:250,label:'竜骨の品'},{t:5,mat:'月長石',need:40,label:'神銀の品'},{t:6,mat:'冥銀鉱',need:60,label:'アダマンの品'},{t:7,mat:'澱晶',need:30,label:'澱鉄の品'},{t:8,mat:'黒曜鉄鉱',need:1500,label:'黒曜鉄の品'},{t:9,mat:'澱金鉱',need:2000,label:'澱金の品'}];
 const SHOP_PRICE=[0,150,1500,3000,4800,7000,11000,18000,28000,42000];
 const SHOP_TOP=SHOP_TIERS.length-1;
 function matTier(rf){if(inMine(rf))return rf-MAXF<=12?8:9;const f=dz(rf);return f>=16?7:f>=11?6:f>=9?5:f>=7?4:f>=5?3:f>=3?2:0}
