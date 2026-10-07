@@ -2361,7 +2361,7 @@ function markAdv(S,a,on){
   if(a.status!=='lost'&&a.status!=='retired'){S.chatter=S.chatter||[];S.chatter.push({tk:S.tick,lines:[{id:a.id,who:a.name,t:voice(a,pick(['店主は、もう俺には期待してないらしい','まあ、見込み違いってやつさ','……見込まれるってのも、肩が凝るもんだ','次は、見返してやる']))}]});if(S.chatter.length>40)S.chatter.shift();}
   return true;}
 function postErrand(S){const E=errandsOf(S),reach=Math.max(1,S.deepest.ours);
-  const post=o=>{const e=Object.assign({id:E.nid++,tk:S.tick,until:S.tick+ri(5,8)*TICKS_PER_DAY,hero:null,refused:[]},o);const def=errandDef(e);e.n=def.n;e.from=def.from;e.t=def.txt(e.f);E.board.push(e);
+  const post=o=>{const e=Object.assign({id:E.nid++,tk:S.tick,until:S.tick+ri(28,32)*TICKS_PER_DAY,hero:null,refused:[]},o);const def=errandDef(e);e.n=def.n;e.from=def.from;e.t=def.txt(e.f);E.board.push(e);
     news(S,`【黒猫亭の掲示】${def.from}から話が持ち込まれた。「${e.t}」`,'errand');};
   const arc=S.arcs.gate,st=ARCS.gate.stages;
   if(!arc.stopped&&arc.stage<st.length&&!E.board.some(e=>e.arc==='gate')&&(arc.retryAt||0)<=S.tick){const d=st[arc.stage];
