@@ -3057,7 +3057,8 @@ document.addEventListener('click',e=>{
 });
 document.addEventListener('keydown',e=>{if(e.key==='Escape'&&advOpen!=null){advOpen=null;$('advm').hidden=true;return;}if((e.key==='Enter'||e.key===' ')&&e.target.matches('.c-head')){e.preventDefault();e.target.click();}});
 // 開いたまま裏に回ったタブは、ブラウザがタイマーを止めたり間引いたりする。戻ったときに、裏にいた時間を進める
-function onHide(){if(hiddenAt==null)hiddenAt=Date.now();clearInterval(timer);save();}
+// 裏に回ったときに一度保存する。そのあとページが捨てられて pagehide が来ても、保存し直すと時刻が閉じた瞬間まで進み、裏にいた時間が消える
+function onHide(){if(hiddenAt!=null)return;hiddenAt=Date.now();clearInterval(timer);save();}
 function onShow(){
   if(hiddenAt==null)return;
   const away=Math.floor((Date.now()-hiddenAt)/1000);hiddenAt=null;
