@@ -78,9 +78,9 @@ button:focus-visible,[tabindex]:focus-visible{outline:2px solid var(--amber);out
 .c-foot .btn{background:#151c36;border-color:#2a3666;color:var(--crystal-fg)}
 .c-foot .btn:hover{border-color:var(--glow)}
 
-/* party strip */
-.parties{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px}
-.pcard{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:9px 11px;text-align:left;display:flex;flex-direction:column;gap:5px;min-width:0}
+/* party strip. Facts stay in the same order on every card so parties can be compared by eye. */
+.parties{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:10px;align-items:start}
+.pcard{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:10px 12px;text-align:left;display:flex;flex-direction:column;gap:6px;min-width:0}
 .pcard:hover{border-color:var(--amber-dim)}
 .pcard.watching{border-color:var(--glow)}
 .pcard.rival{background:#1b1a1c}
@@ -89,8 +89,16 @@ button:focus-visible,[tabindex]:focus-visible{outline:2px solid var(--amber);out
 .tag{font-size:10px;padding:0 6px;border-radius:9px;border:1px solid var(--line);color:var(--muted);white-space:nowrap;flex:none}
 .tag.ours{color:var(--amber);border-color:var(--amber-dim)}
 .tag.rival{color:var(--rival);border-color:#3c4a66}
+.pcard .facts{display:flex;flex-wrap:wrap;gap:2px 12px;font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
+.pcard .facts b{color:var(--fg);font-weight:700;margin-inline-start:3px}
 .pcard .st{font-size:12px;color:var(--muted)}
 .pcard .st.bad{color:var(--blood)}
+.pcard .roster{display:grid;grid-template-columns:repeat(auto-fill,minmax(11em,1fr));gap:1px 10px;font-size:12px;line-height:1.45}
+.pcard .who{display:flex;align-items:baseline;gap:4px;min-width:0}
+.pcard .who .nm{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pcard .who .cls{flex:none;color:var(--muted);font-size:11px;font-variant-numeric:tabular-nums}
+.pcard .who.lead .nm{color:var(--amber)}
+.pcard .who.down .nm,.pcard .who.down .cls{color:var(--blood)}
 .hpstrip{display:flex;gap:3px}
 .hpstrip i{flex:1;height:5px;border-radius:2px;background:#0003;position:relative;overflow:hidden}
 .hpstrip i::after{content:"";position:absolute;inset:0;width:var(--w);background:var(--c)}
@@ -586,6 +594,15 @@ const MDAYS=[31,28,31,30,31,30,31,31,30,31,30,31];
 function calDate(tick){const dd=Math.floor(tick/TICKS_PER_DAY);let r=dd%365,m=0;while(r>=MDAYS[m]){r-=MDAYS[m];m++;}return {y:81+Math.floor(dd/365),m:m+1,d:r+1,h:Math.floor((tick%TICKS_PER_DAY)*24/TICKS_PER_DAY)};}
 function day(S){return Math.floor(S.tick/TICKS_PER_DAY)+1}
 function news(S,t,k){S.news.push({tk:S.tick,t,k:k||'info'}); if(S.news.length>300)S.news.shift();}
+// 黒猫亭の出発を日報に出す。400G以上の帰還の知らせと同じく黒猫亭だけ。同じ日の出発は一つにまとめ、新しい順の位置へ上げる
+function departLine(g){const bits=[];if(g['迷宮'].length)bits.push(g['迷宮'].join('、')+'が迷宮へ');if(g['坑道'].length)bits.push(g['坑道'].join('、')+'が坑道へ');return bits.join('、')+'出発した。'}
+function parseDepart(t){const g={迷宮:[],坑道:[]};const body=t.replace(/出発した。$/,'');
+  for(const chunk of body.split('へ、')){const c=chunk.endsWith('へ')?chunk.slice(0,-1):chunk;const m=c.match(/^(.*)が(迷宮|坑道)$/);if(!m)return null;g[m[2]]=m[1].split('、').filter(Boolean);}return g;}
+function noteDepart(S,p){if(!p||p.tav!=='ours')return;const where=p.mineTrip?'坑道':'迷宮';const day0=Math.floor(S.tick/TICKS_PER_DAY);
+  for(let i=S.news.length-1;i>=0;i--){const n=S.news[i];if(Math.floor(n.tk/TICKS_PER_DAY)!==day0)break;
+    if(n.k!=='info'||!n.t.endsWith('出発した。'))continue;const g=parseDepart(n.t);if(!g)continue;
+    if(g[where].includes(p.name))return;g[where].push(p.name);S.news.splice(i,1);news(S,departLine(g),'info');return;}
+  news(S,`${p.name}が${where}へ出発した。`,'info');}
 const BAD_NAMES=new Set(['ボイン','バック','ベルト','サイン','ハイン','ガリア','セルド','カナ','タナ','マナ','ハナ','ハム','カム','ダム','ラム','ベル','タラン','マリア','ミルク']);
 const SYL_A=['ア','イ','エ','オ','カ','キ','ク','ケ','コ','サ','シ','セ','ソ','タ','テ','ト','ナ','ニ','ネ','ノ','ハ','フ','ヘ','ホ','マ','ミ','メ','モ','ラ','リ','ル','レ','ロ','ヴァ','ヴィ','ガ','ギ','グ','ゲ','ゴ','ザ','ジ','ゼ','ダ','ド','バ','ビ','ブ','ベ','ボ','ユ','ヨ'];
 const SYL_B=['ルド','ナ','エン','リカ','ルフ','リス','ルト','ルグ','ーゼ','レン','ーリ','ッツ','エラ','ーゲン','ルコ','クト','ラム','ロエ','スカ','ルガ','ルス','ルン','ルマ','ーラ','デル','ーゴ','イユ','ンナ','ッタ','デオン','ウラ','ニカ','ドルフ','ーダ','グダ','リオ','ミル','ネア','ザン','ベル','シュ','ティス','ヴァン','ルカ','ノン','リア','ッド','ラン'];
@@ -1013,9 +1030,10 @@ function formParties(S,tav,quiet,forced,fname){
     log:[],loot:0,carried:[],enemies:null,etype:null,ident:false,rest:0,trip:newTrip(),wipedAt:0,knownWiped:false,announced:false,retrieved:false,seen:-999,killer:''};
   take.forEach(a=>{a.party=p.id;a.status='party';chron(S,a,a===L?`仲間を集め、${nm}を結成してリーダーになる`:`${L.name}に誘われ、${nm}に加わる`)});
   S.parties[p.id]=p;
-  plog(p,`${nm} が めいきゅうへ おりていく`,'sys');p.maps={};supplyTeam(S,p);setPlan(S,p);floorArrive(S,p);
+  plog(p,`${nm} が めいきゅうへ しゅっぱつした`,'sys');p.maps={};supplyTeam(S,p);setPlan(S,p);floorArrive(S,p);
   plog(p,'B1F いりぐち','move');
   if(!quiet&&tav==='ours') news(S,`${L.name}が仲間を集め、${nm}（${take.filter(a=>a!==L).map(a=>a.name).join('・')}）を結成した。`,'info');
+  if(!quiet) noteDepart(S,p);
 }
 const SHOP_NAME='鉄床通りの武具屋';
 const SHOP_MAT={metal:['鉄','鋼','ミスリル','竜骨','神銀','アダマン','澱鉄','黒曜鉄','澱金'],wood:['樫','柊','黒檀','霊木','神木','冥樹','澱木','化石樹','澱樹'],cloth:['木綿','羅紗','絹','月絹','天衣','冥絹','澱糸','岩蜘蛛糸','澱金糸'],leather:['なめし','硬化','魔獣','竜','古竜','黒竜','澱革','洞窟竜','澱竜'],jewel:['銅','銀','金','白金','金剛石','竜涙石','澱晶','黒曜石','澱金'],charm:['木彫り','骨','聖別','古代','精霊','冥府','澱','坑道','澱金']};
@@ -1449,12 +1467,13 @@ function stepParty(S,p){
       p.members=ms.map(a=>a.id); ms.forEach(a=>{a.status='party'});
       Object.assign(p,{floor:1,state:'explore',steps:0,fsteps:0,loot:0,carried:[],trip:newTrip(),rescue:[],tmap:{},guard:0,announced:false,knownWiped:false,retrieved:false});
       p.mineTrip=wantsMine(S,p);
-      plog(p,'――――――――――','move'); plog(p,`${p.name} が ふたたび ${p.mineTrip?'こうどうへ':'めいきゅうへ'}`,'sys');supplyTeam(S,p);setPlan(S,p);
+      plog(p,'――――――――――','move'); plog(p,`${p.mineTrip?'こうどう':'めいきゅう'}へ しゅっぱつした`,'sys');supplyTeam(S,p);setPlan(S,p);
       if(p.mineTrip){const lim=Math.min(Math.floor(safeFloor(S,p)),p.cap||99);const st=MINE_STONES.filter(x=>x<=(p.mineReach||0)&&fx(x)<=lim).pop()||MINE_TOP;
         p.floor=st;p.trip.deep=st;plog(p,`てんいの せきひで てつの さんみゃくの ${FN(st)} へ（${zoneOf(st)}）`,'sys');floorArrive(S,p);reachFloor(S,p,false);}
       else{const pe=partyErrand(S,p);const lim=Math.min(p.reach||0,Math.floor(safeFloor(S,p)),p.cap||99,pe?pe.f:99);const st=STONES.filter(x=>x<=lim).pop();
         if(st){p.floor=st;p.trip.deep=st;plog(p,`てんいの せきひで ${FN(st)} へ（${zoneOf(st)}）`,'sys');}
         floorArrive(S,p);}
+      noteDepart(S,p);
     } else {
       p.wait=(p.wait||0)+1;
       if(p.wait>450&&ms.length<3){disbandParty(S,p,'仲間がそろわず');}
@@ -2802,15 +2821,38 @@ function renderCrystals(){
 }
 const T=()=>S.taverns.ours;
 const speedNow=()=>speed>0?speed:1;
+function partyMembers(p){
+  if(p.state==='town')return Object.values(S.adv).filter(x=>x.party===p.id&&x.status!=='lost'&&x.status!=='retired');
+  return (p.members||[]).map(id=>S.adv[id]).filter(Boolean);
+}
+function partyDepth(p){
+  let lab=p.reach||0,mine=p.mineReach||0;
+  if(p.floor>0){if(inMine(p.floor))mine=Math.max(mine,p.floor);else lab=Math.max(lab,p.floor);}
+  return {lab,mine,key:Math.max(lab?fx(lab):0,mine?fx(mine):0)};
+}
+function reachText(p){const d=partyDepth(p),bits=[];if(d.lab)bits.push(FN(d.lab));if(d.mine)bits.push(FN(d.mine));return bits.join('・')||'まだ'}
+function rosterMark(a){if(a.status==='dead'||a.status==='ash')return '眠';if(a.status==='missing'||a.hp<=0)return '倒';return ''}
 function renderParties(){
-  const ps=Object.values(S.parties).filter(p=>!(p.tav==='rival'&&p.state==='wiped'&&!p.announced)).sort((a,b)=>(a.tav===b.tav?0:a.tav==='ours'?-1:1));
+  const ps=Object.values(S.parties).filter(p=>!(p.tav==='rival'&&p.state==='wiped'&&!p.announced)).sort((a,b)=>{
+    if(a.tav!==b.tav)return a.tav==='ours'?-1:1;
+    const dk=partyDepth(b).key-partyDepth(a).key;if(dk)return dk;
+    const avg=q=>{const m=partyMembers(q);return m.length?m.reduce((t,x)=>t+x.lvl,0)/m.length:0;};
+    const lk=avg(b)-avg(a);if(lk)return lk;
+    return a.name<b.name?-1:a.name>b.name?1:0;
+  });
   $('parties').innerHTML=ps.map(p=>{
     const [st,bad]=stateText(p);const vis=visible(p);
-    const showHp=p.tav==='ours'&&!(p.state==='wiped'&&!p.knownWiped);
-    const hp=showHp?`<div class="hpstrip">${p.members.map(id=>{const a=S.adv[id];const r=a.hp/a.mhp;return `<i style="--w:${Math.round(r*100)}%;--c:${r<=0?'var(--ash)':r<.35?'var(--blood)':r<.65?'var(--amber)':'var(--heal)'}"></i>`}).join('')}</div>`:'';
+    const ms=partyMembers(p).slice().sort((a,b)=>((b.id===p.leader)-(a.id===p.leader))||(b.lvl-a.lvl)||(a.name<b.name?-1:a.name>b.name?1:0));
+    const avg=ms.length?Math.round(ms.reduce((t,x)=>t+x.lvl,0)/ms.length):0;
+    const max=ms.length?Math.max(...ms.map(x=>x.lvl)):0;
+    const showHp=p.tav==='ours'&&!(p.state==='wiped'&&!p.knownWiped)&&ms.length;
+    const hp=showHp?`<div class="hpstrip">${ms.map(a=>{const r=a.mhp?a.hp/a.mhp:0;return `<i style="--w:${Math.round(Math.max(0,r)*100)}%;--c:${r<=0?'var(--ash)':r<.35?'var(--blood)':r<.65?'var(--amber)':'var(--heal)'}"></i>`}).join('')}</div>`:'';
+    const roster=ms.length?`<div class="roster">${ms.map(a=>{const mark=rosterMark(a);return `<span class="who${a.id===p.leader?' lead':''}${mark?' down':''}"><span class="nm">${a.id===p.leader?'★':''}${esc(a.name)}</span><span class="cls">${esc(a.cls)} ${a.lvl}${mark?' '+mark:''}</span></span>`}).join('')}</div>`:'';
     return `<button class="pcard${p.tav==='rival'?' rival':''}${S.watch.includes(p.id)?' watching':''}" data-act="watch" data-p="${p.id}" ${vis?'':'aria-disabled="true"'}>
       <div class="top"><span class="pn">${esc(p.name)}</span><span class="tag ${p.tav}">${S.taverns[p.tav].name}${p.ace?'の看板':''}</span></div>
-      <div class="st${bad?' bad':''}">${(()=>{const ms=(p.state==='town'?Object.values(S.adv).filter(x=>x.party===p.id&&x.status!=='lost'&&x.status!=='retired'):p.members.map(id=>S.adv[id]).filter(Boolean));return ms.length?`平均Lv${Math.round(ms.reduce((t,x)=>t+x.lvl,0)/ms.length)}・${ms.length}人・`:''})()}${p.leader&&S.adv[p.leader]?esc(S.adv[p.leader].name)+'が率いる・':''}${esc(st)}</div>${hp}
+      <div class="facts">${ms.length?`<span>平均<b>Lv${avg}</b></span><span>最高<b>Lv${max}</b></span><span><b>${ms.length}</b>人</span>`:''}<span>到達<b>${esc(reachText(p))}</b></span></div>
+      <div class="st${bad?' bad':''}">${esc(st)}</div>
+      ${roster}${hp}
     </button>`;
   }).join('')||'<p class="note">いま迷宮に潜っている一行はいない。</p>';
 }
