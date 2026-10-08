@@ -1673,7 +1673,7 @@ function reachFloor(S,p,byTrap){if(inMine(p.floor)){reachMine(S,p,byTrap);return
   if(p.floor>S.deepest[p.tav]){
     const both=Math.max(S.deepest.ours,S.deepest.rival,GATE_F);
     S.deepest[p.tav]=p.floor;
-    if(p.floor>both){p.trip.rec=true;alive(S,p).forEach(a=>a.firsts=(a.firsts||0)+1);} if(p.floor>both) news(S,p.floor===GATE_F+1?`${p.tav==='ours'?'':'銀の杯亭の'}${p.name}が封じの門を越え、19年ぶりに${FN(GATE_F+1)}へ足を踏み入れた。二百人の調査隊が消えた階だ。`:`${p.tav==='ours'?'':'銀の杯亭の'}${p.name}が、${byTrap?'罠で飛ばされ、':''}誰も踏み入れたことのない${FN(p.floor)}に到達した。`,'record');
+    if(p.floor>both){p.trip.rec=true;alive(S,p).forEach(a=>a.firsts=(a.firsts||0)+1);} if(p.floor>both) news(S,p.floor===GATE_F+1?`${p.tav==='ours'?'':'銀の杯亭の'}${p.name}が封じの門を越え、19年ぶりに${FN(GATE_F+1)}へ足を踏み入れた。二百人の調査隊が消えた階だ。`:both===GATE_F?`${p.tav==='ours'?'':'銀の杯亭の'}${p.name}が封じの門を越え、19年ぶりに門の先へ足を踏み入れた。罠で飛ばされて着いたのは、二百人の調査隊が消えた${FN(GATE_F+1)}より下の${FN(p.floor)}だ。`:`${p.tav==='ours'?'':'銀の杯亭の'}${p.name}が、${byTrap?'罠で飛ばされ、':''}誰も踏み入れたことのない${FN(p.floor)}に到達した。`,'record');
     S.taverns[p.tav].rep+=3;
     if(p.floor>both&&p.floor>=5)rivalryNews(S,p);
   }
@@ -2624,7 +2624,9 @@ function migrate(S){
     Object.keys(S.bounties).forEach(id=>{const c=S.bounties[id];if(T0.gold>=c)T0.gold-=c;else delete S.bounties[id];});
     Object.values(S.parties).forEach(p=>{p.bountyFor=(p.bountyFor||[]).map(c=>{const x=Math.max(0,Math.min(T0.gold,c||0));T0.gold-=x;return x;});});S.v=17;}
   if(!(S.v>=18)){const R=S.rares||{},o={...R};// 王国に仕えた名のある魔物をB21Fより下へ移した。記録も魔物について移す
-    [[13,23],[18,26],[23,18],[26,13]].forEach(([to,from])=>{if(o[from])R[to]=o[from];else delete R[to];});S.rares=R;S.v=18;}
+    [[13,23],[18,26],[23,18],[26,13]].forEach(([to,from])=>{if(o[from])R[to]=o[from];else delete R[to];});S.rares=R;
+    // 戦いの途中で保存した記録は、相手の名のある魔物も新しい配置に読み替える
+    Object.values(S.parties||{}).forEach(p=>{if(p.etype&&p.etype.rare&&[13,18,23,26].includes(p.etype.rf))p.etype=rareMonOf(p.etype.rf);});S.v=18;}
   if(!(S.v>=19)){// 全滅した一行が、遺体が街に着く前に別の仲間で潜り直していた。運んでいる途中の一行は消息不明に戻す
     Object.values(S.parties||{}).forEach(p=>{
       if(p.announced==null)p.announced=false;if(p.knownWiped==null)p.knownWiped=false;if(p.retrieved==null)p.retrieved=false;if(!p.carried)p.carried=[];
