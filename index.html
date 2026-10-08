@@ -2739,7 +2739,8 @@ function drawDigest(st){
   $('dg-sum').innerHTML=[[st.returns,'帰還'],[st.wipes,'消息不明'],[S.memorial.length-st.lost0,'ロスト'],[(gd>=0?'+':'')+gd+'G','売上']].map(([v,l])=>`<div><b>${v}</b><span>${l}</span></div>`).join('');
   $('dg-news').innerHTML=items.length?items.slice(-30).reverse().map(newsLi).join(''):`<li><span></span><span class="note">${done?'静かな日々だった。':'……'}</span></li>`;
 }
-function fmtAway(s){if(s<3600)return Math.round(s/60)+'分';if(s<86400)return Math.round(s/3600)+'時間';return Math.round(s/86400)+'日'}
+// 丸めて60分や24時間になるときは、上の単位で出す
+function fmtAway(s){const m=Math.round(s/60);if(m<60)return m+'分';const h=Math.round(s/3600);if(h<24)return h+'時間';return Math.round(s/86400)+'日'}
 function newsLi(x){const d=Math.floor(x.tk/TICKS_PER_DAY)+1;return `<li><span class="d">${d}日目</span><span class="${x.k}">${esc(x.t)}</span></li>`}
 
 function visible(p){
