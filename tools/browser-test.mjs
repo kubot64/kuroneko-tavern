@@ -90,6 +90,59 @@ test('早送りの途中で裏に回ったら、裏にいた分を早送りに�
   assert.deepEqual(errors,[]);await ctx.close();
 });
 
+test('一行の札に、平均と最高と到達と顔ぶれが出て、狭い画面でも札の中がはみ出さない',async()=>{
+  const {ctx,page,errors}=await open();
+  const cards=page.locator('.pcard');
+  assert.ok(await cards.count()>0,'一行の札がない');
+  const sample=await cards.first().innerText();
+  assert.match(sample,/平均/);
+  assert.match(sample,/最高/);
+  assert.match(sample,/到達/);
+  assert.match(sample,/★/);
+  const fit=await page.evaluate(()=>{
+    const bad=[];
+    for(const el of document.querySelectorAll('.pcard')){
+      const id=el.dataset.p,p=S.parties[id];
+      const ms=partyMembers(p);
+      const text=el.textContent;
+      if(ms.length&&!text.includes('平均'))bad.push(p.name+' 平均がない');
+      if(ms.length&&!text.includes('最高'))bad.push(p.name+' 最高がない');
+      if(!text.includes('到達'))bad.push(p.name+' 到達がない');
+      for(const a of ms){if(!text.includes(a.name)||!text.includes(a.cls))bad.push(`${p.name} に ${a.name}（${a.cls}）がいない`);}
+      if(p.leader&&S.adv[p.leader]&&ms.some(a=>a.id===p.leader)&&!text.includes('★'+S.adv[p.leader].name))bad.push(p.name+' のリーダー');
+      if(el.scrollWidth>el.clientWidth+1)bad.push(p.name+' が横にはみ出す');
+    }
+    const ours=[...document.querySelectorAll('.pcard')].filter(el=>S.parties[el.dataset.p].tav==='ours');
+    const rival=[...document.querySelectorAll('.pcard')].filter(el=>S.parties[el.dataset.p].tav==='rival');
+    if(ours.length&&rival.length){
+      const y=el=>el.getBoundingClientRect().top;
+      if(Math.min(...rival.map(y))<Math.max(...ours.map(y))-1)bad.push('銀の杯亭が黒猫亭より前');
+    }
+    return bad;
+  });
+  assert.deepEqual(fit,[]);
+  await page.setViewportSize({width:360,height:740});
+  const narrow=await page.evaluate(()=>[...document.querySelectorAll('.pcard')].filter(el=>el.scrollWidth>el.clientWidth+1).map(el=>el.textContent.slice(0,20)));
+  assert.deepEqual(narrow,[]);
+  assert.deepEqual(errors,[]);await ctx.close();
+});
+
+test('黒猫亭の出発は日報に出て、同じ日の迷宮と坑道は一つにまとまる。銀の杯亭は出ない',async()=>{
+  const {ctx,page,errors}=await open();
+  const lines=await page.evaluate(()=>{
+    noteDepart(S,{tav:'ours',name:'試しの剣',mineTrip:false});
+    noteDepart(S,{tav:'ours',name:'樽ころがし',mineTrip:false});
+    noteDepart(S,{tav:'ours',name:'試しの盾',mineTrip:true});
+    noteDepart(S,{tav:'rival',name:'出ない牙',mineTrip:false});
+    noteDepart(S,{tav:'ours',name:'試しの剣',mineTrip:false});
+    render();
+    return S.news.filter(n=>n.t.includes('出発')||n.t.includes('出ない牙')).map(n=>n.t);
+  });
+  assert.deepEqual(lines,['試しの剣、樽ころがしが迷宮へ、試しの盾が坑道へ出発した。']);
+  assert.match(await page.locator('#tbody').innerText(),/試しの剣、樽ころがしが迷宮へ、試しの盾が坑道へ出発した。/);
+  assert.deepEqual(errors,[]);await ctx.close();
+});
+
 test('裏に回ったときに保存するので、そのまま閉じられても次に開いたとき留守の時間が進む',async()=>{
   const {ctx,page,errors}=await open();
   await page.clock.runFor(1000);// 最後の保存（開店時）より時計を進めておく
