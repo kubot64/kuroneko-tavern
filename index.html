@@ -533,7 +533,7 @@ const PUSH={
 function newState(){
   const S={tick:0,nid:1,adv:{},parties:{},news:[],tales:[],memorial:[],
     taverns:{ours:{name:'黒猫亭',gold:400,rep:0,crystals:1,earned:0,debt:DEBT0,seats:12,nextPay:30*TICKS_PER_DAY,late:0},rival:{name:'銀の杯亭',gold:99999,rep:60,owner:RIVAL_OWNER}},
-    bounties:{},deepest:{ours:1,rival:GATE_F},usedNames:{[RIVAL_OWNER]:1},usedParty:{'鉄の誓い':1,'黄金の剣':1,'七つ星':1,'夜鷹':1,'鉄の誓い傭兵団':1,'黄金の剣団':1},usedItems:{},uniqFound:{},farewells:[],edicts:[],v:19,loreFound:{},shop:{tiers:{1:true},mats:{},serial:0,log:[]},watch:[null,null],sel:0,stats:{dreams:{ours:0,rival:0}},small:SMALL_TAV.slice(0,5)};
+    bounties:{},deepest:{ours:1,rival:GATE_F},usedNames:{[RIVAL_OWNER]:1},usedParty:{'鉄の誓い':1,'黄金の剣':1,'七つ星':1,'夜鷹':1,'鉄の誓い傭兵団':1,'黄金の剣団':1},usedItems:{},uniqFound:{},farewells:[],edicts:[],v:20,loreFound:{},shop:{tiers:{1:true},mats:{},serial:0,log:[]},watch:[null,null],sel:0,stats:{dreams:{ours:0,rival:0}},small:SMALL_TAV.slice(0,5)};
   for(let i=0;i<7;i++) makeAdv(S,'ours',{lvl:pick([1,1,1,2,2,3,3,4,5,6])});
   const vets=[];for(let i=0;i<6;i++) vets.push(makeAdv(S,'rival',{lvl:ri(12,17)}));
   for(let i=0;i<22;i++) makeAdv(S,'rival');
@@ -1708,16 +1708,23 @@ function mapTick(S){const F=floorsInit(S);
 function policy(S){S.policy=S.policy||{potion:0,mapPay:false,revive:false,rookie:false};return S.policy;}
 function favor(a,n){a.favor=(a.favor||0)+n;}
 function potionPrice(S,p){const al=p.members.map(id=>A(S,id)).filter(Boolean);const d=al.length?Math.round(al.reduce((s,a)=>s+depthOf(a),0)/al.length):1;return Math.max(20,Math.round(incomeAt(d)*.12/10)*10);}
-function supplyTeam(S,p){if(p.tav!=='ours')return;const n=[0,2,5][policy(S).potion||0];if(!n)return;const c=n*potionPrice(S,p);const T0=S.taverns.ours;
+function supplyTeam(S,p){if(p.tav!=='ours')return;const n=[0,2,5,10][policy(S).potion||0];if(!n)return;const c=n*potionPrice(S,p);const T0=S.taverns.ours;
   if(T0.gold<c){plog(p,'さしいれの かいふくやくは とどかなかった（みせの かねが たりない）','move');return;}
   T0.gold-=c;T0.support=(T0.support||0)+c;p.potions=n;plog(p,`くろねこていからの さしいれ：かいふくやく ${n}ほん`,'loot');}
 function giftOffer(S,a){let best=null,sc=0;for(const o of shopOffers(S,a.cls)){const prev=Object.assign({for:o.b.for,slot:o.b.slot},o.b.two?{two:true}:{},o.b.st(o.t));const g=gainOf(a,prev);if(g<1.5)continue;const v=g/Math.sqrt(o.price);if(v>sc){sc=v;best=o;}}return best;}
 function giveGift(S,a,o,why){const T0=S.taverns.ours;if(!o||T0.gold<o.price)return null;T0.gold-=o.price;T0.support=(T0.support||0)+o.price;const it=shopMake(S,o.b,o.t);
   const out=equip(a,it);out.forEach(x=>{a.gold+=Math.round((x.f||1)*30);});favor(a,2);chron(S,a,`${why}${it.n}を贈られる`);return it;}
-// 終盤の大きな使い道。上限のないもの（特注・引き抜き・寄進）と、一度きりの店の設備
-const FACILITIES=[['dojo','修練場',300000,'裏庭の稽古場。常連が迷宮で得る経験が15%増える'],['info','情報屋',500000,'店の隅で迷宮の噂を買い集める男。常連の一行は宝箱の罠を外しやすくなり、不意打ちを受けにくくなる'],['inn','療養所',800000,'店の離れの寝台と薬湯。帰還した常連の休みが短くなる']];
-function fac(S,k){return !!(S.fac&&S.fac[k]);}
-function buildFac(S,k){const F=FACILITIES.find(x=>x[0]===k),T0=S.taverns.ours;if(!F||fac(S,k)||T0.gold<F[2])return false;T0.gold-=F[2];S.fac=S.fac||{};S.fac[k]=S.tick;news(S,`黒猫亭に${F[1]}ができた。${F[3]}。`,'record');return true;}
+// 大きな使い道。上限のないもの（特注・引き抜き・寄進）と、店の設備
+// 店の設備は段になっていて、下の段から順に建て増す。上の段ほど高く、よく効く。安い段は借金を返したころから手が届く
+const FACILITIES=[
+  ['dojo',[['稽古場',15000,'裏庭に木人を立てた稽古場。レベル30未満の常連が戦いで得る経験が10%増える'],['道場',60000,'稽古場を屋根のある道場に建て替える。レベル35未満の常連が戦いで得る経験が20%増える'],['修練場',300000,'師範を招いた修練場。レベルを問わず、常連が戦いで得る経験が30%増える']]],
+  ['info',[['情報屋',50000,'店の隅で迷宮の噂を買い集める男。常連の一行は地図のない階で不意打ちを受けにくくなる'],['情報網',300000,'情報屋が迷宮の外にも網を広げる。不意打ちをさらに受けにくくなり、宝箱の罠も外しやすくなる']]],
+  ['inn',[['療養所',800000,'店の離れの寝台と薬湯。帰還した常連の休みが短くなる']]]];
+// 稽古場と道場は、腕の立つ者にはもう教えることがない
+const DOJO_XP=[1,1.1,1.2,1.3],DOJO_LV=[0,30,35,Infinity],INFO_AMBUSH=[1,.7,.5];
+function fac(S,k){return (S.fac&&S.fac[k])||0;}
+function nextFac(S,k){const F=FACILITIES.find(x=>x[0]===k);return F&&F[1][fac(S,k)]||null;}
+function buildFac(S,k){const t=nextFac(S,k),T0=S.taverns.ours;if(!t||T0.gold<t[1])return false;T0.gold-=t[1];S.fac=S.fac||{};S.fac[k]=fac(S,k)+1;news(S,`黒猫亭に${t[0]}ができた。${t[2]}。`,'record');return true;}
 function blessed(S,a){return a.tav==='ours'&&(S.blessUntil||0)>S.tick;}
 function donatePrice(S){return r100(incomeAt(dz(Math.max(1,S.deepest.ours)))*30);}
 function donate(S){const T0=S.taverns.ours,c=donatePrice(S);if(T0.gold<c)return false;T0.gold-=c;T0.support=(T0.support||0)+c;S.blessUntil=Math.max(S.tick,S.blessUntil||0)+30*TICKS_PER_DAY;
@@ -1877,7 +1884,7 @@ function encounter(S,p){
   p.etype=tt;p.ident=chance(.6)||alive(S,p).some(a=>has(a,'博識'));p.fought=false;
   plog(p,'＊ かいぶつが あらわれた ＊','sys');
   plog(p,`${p.ident?t.n:t.u} ×${n}`,'sys');
-  if(!hasMap(p)&&chance((fr?.35:.2)*(p.tav==='ours'&&fac(S,'info')?.5:1)))p.ambush=true;
+  if(!hasMap(p)&&chance((fr?.35:.2)*(p.tav==='ours'?INFO_AMBUSH[fac(S,'info')]:1)))p.ambush=true;
   encounterFlavor(S,p,tt);
 }
 function encounterFlavor(S,p,t,big){const al=alive(S,p);if(!al.length)return;
@@ -2021,7 +2028,7 @@ function victory(S,p){
   if(t.rare){rareSlain(S,p,t);}
   if(t.gate){dragonSlain(S,p);p.fsteps=99;}
   const mf=(hasMap(p)?1:.7)*(t.xpm||1)*(t.mine?MINE_XP:1);const bn=t.base||t.n;const xp=Math.round((6*Math.pow(t.f,1.6)+3)*n/al.length*mf);const g=Math.round(ri(5,12)*t.f*n*mf);
-  al.forEach(a=>{a.xp+=Math.round(xp*(TAL[a.tal]||TAL['並']).g*rc(a).xp*trXp(a)*(a.tav==='ours'&&fac(S,'dojo')?1.15:1));a.slain=a.slain||{};a.slain[bn]=(a.slain[bn]||0)+n;});p.loot+=g;
+  al.forEach(a=>{a.xp+=Math.round(xp*(TAL[a.tal]||TAL['並']).g*rc(a).xp*trXp(a)*(a.tav==='ours'&&a.lvl<DOJO_LV[fac(S,'dojo')]?DOJO_XP[fac(S,'dojo')]:1));a.slain=a.slain||{};a.slain[bn]=(a.slain[bn]||0)+n;});p.loot+=g;
   p.trip.kills[bn]=(p.trip.kills[bn]||0)+n;if(t.variant&&t.xpm>=1.4)(p.trip.vars=p.trip.vars||[]).push(t.n);
   if(!p.trip.big||t.f>p.trip.big.f)p.trip.big={n:t.n,f:t.f,c:n};
   const mt=matTier(Math.max(1,p.floor));if(mt&&chance(.3)){const m=SHOP_TIERS[mt].mat,q=ri(1,2);p.trip.mats=p.trip.mats||{};p.trip.mats[m]=(p.trip.mats[m]||0)+q;plog(p,`${m}を ${q}こ ひろった`,'loot');}
@@ -2041,7 +2048,7 @@ function chest(S,p){
   plog(p,'たからばこが ある','sys');
   if(!th&&(lp.pers==='慎重'||lp.pers==='臆病')){plog(p,`${lp.name}「わなが こわい。あけずに すすむ」`,'say');return;}
   const opener=th||pick(al);
-  const tm=hasMap(p);const tdm=tm?.7:isFrontier(S,rf)?1.9:1.4;const ok=chance((tm?.15:-.1)+(p.tav==='ours'&&fac(S,'info')?.1:0)+(th?clamp(.62+PL(th)*.04-f*.03+trTrap(th)+rc(th).trap+eqSum(th,'trap'),.3,.97):.3+rc(opener).trap+eqSum(opener,'trap')));
+  const tm=hasMap(p);const tdm=tm?.7:isFrontier(S,rf)?1.9:1.4;const ok=chance((tm?.15:-.1)+(p.tav==='ours'&&fac(S,'info')>=2?.1:0)+(th?clamp(.62+PL(th)*.04-f*.03+trTrap(th)+rc(th).trap+eqSum(th,'trap'),.3,.97):.3+rc(opener).trap+eqSum(opener,'trap')));
   if(ok){
     if(th){th.disarms++;plog(p,`${opener.name} は わなを はずした`);}
     else plog(p,`${opener.name} は たからばこを こじあけた`);
@@ -2636,6 +2643,8 @@ function migrate(S){
           p.state='wiped';p.retrieved=true;p.announced=true;p.members=missing.map(a=>a.id);if(!p.wipedAt)p.wipedAt=S.tick;if(!p.floor)p.floor=missing[0].lastFloor||1;}
       }
     });S.v=19;}
+  if(!(S.v>=20)){// 店の設備が段になった。前から建ててあった設備は、いちばん上の段を建てたことにする
+    const F0=S.fac||{};S.fac={};FACILITIES.forEach(([k,ts])=>{if(F0[k])S.fac[k]=ts.length;});S.v=20;}
   Object.values(S.adv).forEach(a=>{if(!a.tone)personalize(a);if(!a.traits)assignTraits(S,a,true);});
   smallOf(S);
   Object.values(S.adv).filter(a=>a.title&&!a.titleKind&&a.status!=='lost'&&a.status!=='retired').forEach(a=>{a.title='';title(S,a,true);});
@@ -2730,7 +2739,8 @@ function drawDigest(st){
   $('dg-sum').innerHTML=[[st.returns,'帰還'],[st.wipes,'消息不明'],[S.memorial.length-st.lost0,'ロスト'],[(gd>=0?'+':'')+gd+'G','売上']].map(([v,l])=>`<div><b>${v}</b><span>${l}</span></div>`).join('');
   $('dg-news').innerHTML=items.length?items.slice(-30).reverse().map(newsLi).join(''):`<li><span></span><span class="note">${done?'静かな日々だった。':'……'}</span></li>`;
 }
-function fmtAway(s){if(s<3600)return Math.round(s/60)+'分';if(s<86400)return Math.round(s/3600)+'時間';return Math.round(s/86400)+'日'}
+// 丸めて60分や24時間になるときは、上の単位で出す
+function fmtAway(s){const m=Math.round(s/60);if(m<60)return m+'分';const h=Math.round(s/3600);if(h<24)return h+'時間';return Math.round(s/86400)+'日'}
 function newsLi(x){const d=Math.floor(x.tk/TICKS_PER_DAY)+1;return `<li><span class="d">${d}日目</span><span class="${x.k}">${esc(x.t)}</span></li>`}
 
 function visible(p){
@@ -2866,7 +2876,7 @@ function sideDesk(){
   <div class="row"><span class="who"><b>常連の席 ${seatCap(S,'ours')}席</b><span class="does">${ns?`店を広げると、${ns[1]}席まで常連を迎えられる。`:'これ以上は広げられない。'}銀の杯亭は${seatCap(S,'rival')}席。</span></span>${ns?`<button class="btn sm" data-act="seats" ${To.gold<ns[2]?'disabled':''}>店を広げる ${ns[2]}G</button>`:''}</div></div>`;
   return debtSect+`<div class="sect"><h3>店の方針　冒険者への支援</h3>
   <p class="note">店の金で常連を支える。生きて帰る者が増え、恩を感じた者は店でよく飲む。これまでの支援 ${T().support||0}G・売上 ${T().earned}G。</p>
-  <div class="row"><span class="who"><b>回復薬の差し入れ</b><span class="does">出発する一行に持たせる。1本 ${potionPrice(S,{members:Object.values(S.adv).filter(a=>a.tav==='ours'&&a.status!=='lost'&&a.status!=='retired').map(a=>a.id)})}G前後（深さで変わる）</span></span>${[['なし',0],['2本',1],['5本',2]].map(([l,v])=>`<button class="btn sm${policy(S).potion===v?' on':''}" data-act="pol" data-k="potion" data-v="${v}">${l}</button>`).join('')}</div>
+  <div class="row"><span class="who"><b>回復薬の差し入れ</b><span class="does">出発する一行に持たせる。1本 ${potionPrice(S,{members:Object.values(S.adv).filter(a=>a.tav==='ours'&&a.status!=='lost'&&a.status!=='retired').map(a=>a.id)})}G前後（深さで変わる）</span></span>${[['なし',0],['2本',1],['5本',2],['10本',3]].map(([l,v])=>`<button class="btn sm${policy(S).potion===v?' on':''}" data-act="pol" data-k="potion" data-v="${v}">${l}</button>`).join('')}</div>
   ${[['mapPay','地図を店のもちで買う','常連の一行が地図を買うとき、店が払う'],['revive','蘇生代を肩代わりする','常連が寺院に運ばれたら、すぐ店が払って蘇生を頼む'],['rookie','新人に支度の品を贈る','レベル10未満の新顔が来たら、武具屋の品を2つまで贈る']].map(([k,l,d])=>`<div class="row"><span class="who"><b>${l}</b><span class="does">${d}</span></span><button class="btn sm${policy(S)[k]?' on':''}" data-act="pol" data-k="${k}" data-v="${policy(S)[k]?0:1}">${policy(S)[k]?'している':'していない'}</button></div>`).join('')}
   </div>
 <div class="sect"><h3>常連への手当て</h3>
@@ -2877,8 +2887,8 @@ function sideDesk(){
   </div>
 <div class="sect"><h3>寺院への寄進</h3><p class="note">灰の寺院に寄進すると、30日のあいだ黒猫亭の常連の蘇生に司祭たちが念を入れ、死からも灰からも生き返りやすくなる。重ねて寄進すれば、そのぶん日が延びる。額は常連の潜る深さで決まる。</p>
   <div class="row"><span class="who"><b>${(S.blessUntil||0)>S.tick?`寄進の効き目 あと${Math.ceil((S.blessUntil-S.tick)/TICKS_PER_DAY)}日`:'いまは寄進していない'}</b></span><button class="btn sm" data-act="donate" ${T().gold<donatePrice(S)?'disabled':''}>寄進する ${donatePrice(S)}G</button></div></div>
-<div class="sect"><h3>店の設備</h3><p class="note">大きな金を出して、店に設備を建てる。どれも一度建てれば、ずっと効く。</p>
-  ${FACILITIES.map(([k,n,c,d])=>`<div class="row"><span class="who"><b>${n}</b><span class="does">${d}</span></span>${fac(S,k)?'<span class="chip">建てた</span>':`<button class="btn sm" data-act="fac" data-k="${k}" ${T().gold<c?'disabled':''}>建てる ${c}G</button>`}</div>`).join('')}</div>
+<div class="sect"><h3>店の設備</h3><p class="note">店の金で設備を建てる。どれも一度建てれば、ずっと効く。下の段から順に建て増すと、よく効くようになる。</p>
+  ${FACILITIES.map(([k,ts])=>{const lv=fac(S,k),t=nextFac(S,k),now=ts[lv-1];return `<div class="row"><span class="who"><b>${now?now[0]:ts[0][0]}</b><span class="does">${now?now[2]:ts[0][2]}${t&&now?`。建て増すと${t[0]}：${t[2]}`:''}</span></span>${t?`<button class="btn sm" data-act="fac" data-k="${k}" ${T().gold<t[1]?'disabled':''}>${now?'建て増す':'建てる'} ${t[1]}G</button>`:'<span class="chip">建てた</span>'}</div>`;}).join('')}</div>
 <div class="sect"><h3>銀の杯亭の客を引き抜く</h3><p class="note">銀の杯亭で酒場にいる客を、借金を肩代わりして黒猫亭に迎え入れる。借金に加えて、腕に見合った支度金がかかる。席が空いているときだけ声をかけられる。</p>
   ${(()=>{const L=poachList(S);return L.length?L.map(a=>`<div class="row"><span class="who"><b>${esc(a.name)}</b> <span class="meta">Lv${a.lvl} ${a.race}の${a.cls}・借金${a.debt||0}G</span></span><button class="btn sm" data-act="poach" data-a="${a.id}" ${T().gold<poachPrice(S,a)?'disabled':''}>迎え入れる ${poachPrice(S,a)}G</button></div>`).join(''):`<p class="note">${seatsUsed(S,'ours')>=seatCap(S,'ours')?'黒猫亭の席が埋まっている。':'いま声をかけられる客はいない。'}</p>`;})()}</div>
 <div class="sect"><h3>死体回収の依頼</h3><p class="note">依頼を出すと、同じ階を歩く一行が見つけやすくなり、欲深い者も遺体を連れ帰るようになる。報酬はその階の深さに応じて決まり、回収されたときに支払う。</p>
@@ -3043,7 +3053,7 @@ document.addEventListener('click',e=>{
   if(act==='gift'){const a=S.adv[b.dataset.a];const o=a&&giftOffer(S,a);const it=o&&giveGift(S,a,o,'店主から');if(it){toast(`${a.name}に${it.n}を贈った`);news(S,`黒猫亭の店主が${a.name}に${it.n}を贈った。`,'info');}render();save();return;}
   if(act==='loan'){const a=S.adv[b.dataset.a];if(a&&T().gold>=100){T().gold-=100;a.loan=100;chron(S,a,'店主からツケで装備を借りる');toast(`${a.name}に装備を貸した`);render();save();}return;}
   if(act==='donate'){if(donate(S))toast('灰の寺院に寄進した');render();save();return;}
-  if(act==='fac'){if(buildFac(S,b.dataset.k))toast(`${FACILITIES.find(x=>x[0]===b.dataset.k)[1]}を建てた`);render();save();return;}
+  if(act==='fac'){{const t=nextFac(S,b.dataset.k);if(buildFac(S,b.dataset.k))toast(`${t[0]}を建てた`);};render();save();return;}
   if(act==='poach'){const a=S.adv[b.dataset.a];if(a&&poach(S,a))toast(`${a.name}を黒猫亭に迎え入れた`);render();save();return;}
   if(act==='custom'){const a=S.adv[b.dataset.a];const it=a&&orderCustom(S,a,customOffer(S,a));if(it)toast(`${a.name}に${it.n}が届いた`);render();save();return;}
   if(act==='invest'||act==='buysmall'){const t=smallOf(S).find(x=>x.n===b.dataset.n);if(t&&(act==='invest'?invest(S,t):buySmall(S,t)))toast(act==='invest'?`${t.n}に出資した`:`${t.n}を買い取った`);render();save();return;}

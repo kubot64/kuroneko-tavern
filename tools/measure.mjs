@@ -19,17 +19,17 @@ const MODE_N={none:'支援なし',support:'支援あり'};
 const html=readFileSync(new URL('../index.html',import.meta.url),'utf8');
 const ENGINE=html.match(/\/\*ENGINE START\*\/([\s\S]*?)\/\*ENGINE END\*\//)[1];
 const EXPORTS=['newState','tick','rivalTemple','TICKS_PER_DAY','MINE_N','repay','nextSeats','policy','giftOffer','giveGift','donate','donatePrice',
-  'FACILITIES','fac','buildFac','customOffer','orderCustom'];
+  'FACILITIES','nextFac','buildFac','customOffer','orderCustom'];
 
 // 支援ありの店主。毎日1度、帳場と武具屋でできる支援を、手元に蓄えを残しながら使う。
 // 引き抜き・裏通りの酒場・持ち込まれる話・見込みは使わない（常連を支える支援だけを測る）
 function supportOwner(E,S,day){
   const T0=S.taverns.ours,pol=E.policy(S);
-  Object.assign(pol,{potion:2,mapPay:true,revive:true,rookie:true});
+  Object.assign(pol,{potion:3,mapPay:true,revive:true,rookie:true});
   const keep=T0.debt>0?6000:3000;const spare=()=>T0.gold-keep;
   if(T0.debt>0){E.repay(S,Math.max(0,spare()));return;}
   const ns=E.nextSeats(S);if(ns&&spare()>=ns[2]){T0.gold-=ns[2];T0.seats=ns[1];}
-  for(const [k,,c] of E.FACILITIES)if(!E.fac(S,k)&&spare()>=c)E.buildFac(S,k);
+  for(const [k] of E.FACILITIES){const t=E.nextFac(S,k);if(t&&spare()>=t[1])E.buildFac(S,k);}
   if((S.blessUntil||0)<=S.tick&&spare()>=E.donatePrice(S)*2)E.donate(S);
   // 贈り物と特注は、強い順に1日3人まで
   const idle=Object.values(S.adv).filter(a=>a.tav==='ours'&&a.status==='idle').sort((x,y)=>y.lvl-x.lvl);let n=0;
@@ -42,13 +42,14 @@ function run(seed,mode){
   const E=new Function('Math',`${ENGINE};return {${EXPORTS.join(',')}};`)(M);
   const S=E.newState();const D=E.TICKS_PER_DAY;for(let i=0;i<6;i++)E.tick(S);
   const lv=names=>names.map(n=>(Object.values(S.adv).find(a=>a.name===n)||{}).lvl).join(',');
-  const r={seed,mode,fights:0,pre:{}};const marks=[];
+  const r={seed,mode,fights:0,pre:{},fac:{}};const marks=[];
   for(let d=1;d<=DAYS;d++){
     if(mode==='support')supportOwner(E,S,d);
     for(let i=0;i<D;i++){E.tick(S);E.rivalTemple(S);
       // 坑道王との戦いを数え、戦いが始まったときの一行のレベルを残す（坑道王はレベルを吸うので、勝ったあとのレベルは下がっている）
       for(const p of Object.values(S.parties))if(p.enemies&&p.etype&&p.etype.mboss){if(!p.bossKey){p.bossKey=S.tick;r.fights++;r.pre[p.name]=p.members.map(id=>S.adv[id].lvl).join(',');}}else if(p.bossKey)p.bossKey=0;}
     const md=S.mineDeep||{ours:0,rival:0};
+    for(const [k,ts] of E.FACILITIES)ts.forEach((t,i)=>{if(((S.fac||{})[k]||0)>i&&r.fac[t[0]]==null)r.fac[t[0]]=d;});
     if(S.conquered&&!r.conq)r.conq={d:Math.floor(S.conquered.tk/D),tav:S.conquered.tav,lv:lv(S.conquered.names)};
     if(S.mine&&S.mine.open!=null&&r.open==null)r.open=Math.floor(S.mine.open/D);
     if(r.open!=null&&r.bottom==null&&Math.max(md.ours,md.rival)>=E.MINE_N)r.bottom=d-r.open;
@@ -68,10 +69,11 @@ function line(r){
 }
 function summary(rs){
   const n=rs.length,cnt=(f)=>rs.filter(f).length,med=a=>{if(!a.length)return '-';a=[...a].sort((x,y)=>x-y);return a[Math.floor((a.length-1)/2)];};
-  const mz=rs.filter(r=>r.conq),mn=rs.filter(r=>r.mconq);
+  const mz=rs.filter(r=>r.conq),mn=rs.filter(r=>r.mconq),fs=[...new Set(rs.flatMap(r=>Object.keys(r.fac)))];
   return [
     `迷宮を踏破した店：黒猫亭 ${cnt(r=>r.conq&&r.conq.tav==='ours')}／銀の杯亭 ${cnt(r=>r.conq&&r.conq.tav==='rival')}／なし ${n-mz.length}（${n}種）。踏破日の中央値 ${med(mz.map(r=>r.conq.d))}日目`,
     `坑道を踏破した店：黒猫亭 ${cnt(r=>r.mconq&&r.mconq.tav==='ours')}／銀の杯亭 ${cnt(r=>r.mconq&&r.mconq.tav==='rival')}／なし ${n-mn.length}。開いてから踏破までの中央値 ${med(mn.map(r=>r.mconq.d-r.open))}日`,
+    ...(fs.length?[`設備を建てた日の中央値：${fs.map(n=>{const ds=rs.filter(r=>r.fac[n]!=null).map(r=>r.fac[n]);return `${n} ${med(ds)}日目（${ds.length}種）`;}).join('／')}`]:[]),
     `借金完済の中央値 ${med(rs.filter(r=>r.debtFree!=null).map(r=>r.debtFree))}日目（完済なし ${cnt(r=>r.debtFree==null)}種）。最後の評判の中央値 黒猫亭${med(rs.map(r=>r.rep.ours))}／銀の杯亭${med(rs.map(r=>r.rep.rival))}`,
   ].join('\n');
 }
