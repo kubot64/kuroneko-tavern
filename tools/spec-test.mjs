@@ -20,7 +20,7 @@ const html=readFileSync(new URL('../index.html',import.meta.url),'utf8');
 const ENGINE=html.match(/\/\*ENGINE START\*\/([\s\S]*?)\/\*ENGINE END\*\//)[1];
 const EXPORTS=['newState','tick','rivalTemple','seatCap','seatsUsed','nextSeats','newcomerLvl','buyPrice','investPrice','FACILITIES',
   'RARES','MAXF','DRAGON_F','TICKS_PER_DAY','awayPlan','smallOf','debtTick','DEBT0','encounter','rareSlain','rareMonOf','arrive',
-  'repay','errandsOf','assignErrand','errandBlock','designateBlock','MAXF','MINE_TOP','MINE_BOT','MINE_N','FN','mineOpen','conquest','alive','markAdv','markedOf','BOARD_MAX','MARK_MAX','ARCS','reachFloor','GATE_F','fac','nextFac','buildFac','migrate'];
+  'repay','errandsOf','assignErrand','errandBlock','designateBlock','MAXF','MINE_TOP','MINE_BOT','MINE_N','FN','mineOpen','conquest','alive','markAdv','markedOf','BOARD_MAX','MARK_MAX','ARCS','reachFloor','GATE_F','fac','nextFac','buildFac','migrate','partyShown','crestJa','glossText','PT_A','PT_B'];
 
 // 乱数の種を固定したゲームの中身を1つ作る。中身の Math.random だけを差し替える
 function load(seed,fixed){
@@ -194,6 +194,20 @@ function checkErrands(){
     check('一行の名前：付け替えは一度だけ',rest.map(p=>p.name).join(',')===again&&ace.name==='白銀の牙', '二度目の読み込み', rest.map(p=>p.name).join(','));}
 }
 
+// 紋章名の訳。記録には書かず、名前から引く
+function checkCrest(){
+  const E=load(1);
+  check('一行の名前：紋章名には日本語の訳が付く',E.partyShown('ナハト・ラーベ')==='ナハト・ラーベ（夜の大鴉）'&&E.partyShown('ゴルト・グリフ')==='ゴルト・グリフ（金のグリフォン）'&&E.partyShown('シルバ・クロウ')==='シルバ・クロウ（銀の鴉）','訳',E.partyShown('ナハト・ラーベ')+' / '+E.partyShown('ゴルト・グリフ')+' / '+E.partyShown('シルバ・クロウ'));
+  const all=E.PT_A.flatMap(a=>E.PT_B.map(b=>E.crestJa(a+'・'+b)));
+  check('一行の名前：どの紋章名にも別の訳がある',all.length===E.PT_A.length*E.PT_B.length&&all.every(t=>t&&t.includes('の'))&&new Set(all).size===all.length,'訳の数',`${new Set(all).size}/${all.length}`);
+  const plain=['白銀の牙','鉄鍋隊','泥ねずみ','葡萄酒隊','ローエンの一行','無名の一行・2'];
+  check('一行の名前：看板と旧名と「の一行」には訳が付かない',plain.every(n=>E.partyShown(n)===n&&E.glossText(`知らせ：${n}が戻った`)===`知らせ：${n}が戻った`),'訳なし',plain.map(n=>E.partyShown(n)).join('、'));
+  const line='ローエンが仲間を集め、ナハト・ラーベを結成した。仲間はエリアス・フリーダ。';
+  const g=E.glossText(line);
+  check('一行の名前：知らせの訳は文の中に添え、二度は付けない',g==='ローエンが仲間を集め、ナハト・ラーベ（夜の大鴉）を結成した。仲間はエリアス・フリーダ。'&&E.glossText(g)===g,'知らせ',g);
+  const S=E.newState();
+  check('一行の名前：訳は記録に残さない',Object.values(S.parties).every(p=>!('ja' in p)&&!('gloss' in p)&&p.name===p.name.replace(/（.+）$/,''))&&!JSON.stringify(S).includes('夜の大鴉'),'記録',Object.values(S.parties).map(p=>p.name).slice(0,4).join('、'));
+}
 // 「鉄の山脈の坑道」の場面
 function checkMine(){
   const E=load(1),S=E.newState();
@@ -297,7 +311,7 @@ function runSeed(seed){
 
 if(!isMainThread){const line=runSeed(workerData.seed);parentPort.postMessage({line,res:[...results]});}
 else{
-  checkTables();checkScenes();checkErrands();checkMine();
+  checkTables();checkScenes();checkErrands();checkCrest();checkMine();
   // 種ごとの結果は、種の順に重ねる。反例は、いちばん若い種の最初のものを残す
   const out=new Array(SEEDS.length);let next=0;
   const runOne=()=>{if(next>=SEEDS.length)return Promise.resolve();const k=next++;

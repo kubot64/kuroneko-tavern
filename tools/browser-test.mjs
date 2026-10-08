@@ -110,6 +110,9 @@ test('一行の札に、平均と最高と到達と顔ぶれが出て、狭い�
       if(!text.includes('到達'))bad.push(p.name+' 到達がない');
       for(const a of ms){if(!text.includes(a.name)||!text.includes(a.cls))bad.push(`${p.name} に ${a.name}（${a.cls}）がいない`);}
       if(p.leader&&S.adv[p.leader]&&ms.some(a=>a.id===p.leader)&&!text.includes('★'+S.adv[p.leader].name))bad.push(p.name+' のリーダー');
+      const ja=crestJa(p.name);
+      if(ja&&!text.includes(p.name+'（'+ja+'）'))bad.push(p.name+' の訳がない');
+      if(!ja&&text.includes(p.name+'（'))bad.push(p.name+' に訳が付いた');
       if(el.scrollWidth>el.clientWidth+1)bad.push(p.name+' が横にはみ出す');
     }
     const ours=[...document.querySelectorAll('.pcard')].filter(el=>S.parties[el.dataset.p].tav==='ours');
