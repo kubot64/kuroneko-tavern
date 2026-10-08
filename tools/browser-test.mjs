@@ -97,8 +97,10 @@ test('裏に回ったときに保存するので、そのまま閉じられて�
   await hideFor(page,0,{show:false});
   const saved=await page.evaluate(()=>JSON.parse(localStorage.getItem('kuroneko-tavern-v1')));
   assert.ok(saved.at>=hid,'裏に回ったときに保存されていない');
-  await page.close();// スマホでは、裏に回ったページが pagehide なしで消されることがある。閉じたときに保存されても、時刻は裏に回ったときと同じ
+  await page.close();// スマホでは、裏に回ったページが pagehide なしで消されることがある。pagehide が来ても、保存した時刻は裏に回ったときのまま
+  await ctx.addInitScript(()=>{try{window.__atAtLoad=JSON.parse(localStorage.getItem('kuroneko-tavern-v1')).at}catch(e){window.__atAtLoad=null}});
   const again=await open({ctx,time:saved.at+HOUR});
+  assert.equal(await again.page.evaluate(()=>window.__atAtLoad),saved.at,'閉じたときに保存時刻が動いた');
   assert.ok(await digestShown(again.page),'次に開いたときに留守のあいだにが出ていない');
   await again.page.clock.runFor(5000);
   assert.match(await again.page.locator('#dg-sub').textContent(),/店をあけていたのは約1時間。/);
