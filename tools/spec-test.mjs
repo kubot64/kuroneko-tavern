@@ -20,7 +20,7 @@ const html=readFileSync(new URL('../index.html',import.meta.url),'utf8');
 const ENGINE=html.match(/\/\*ENGINE START\*\/([\s\S]*?)\/\*ENGINE END\*\//)[1];
 const EXPORTS=['newState','tick','rivalTemple','seatCap','seatsUsed','nextSeats','newcomerLvl','buyPrice','investPrice','FACILITIES',
   'RARES','MAXF','DRAGON_F','TICKS_PER_DAY','awayPlan','smallOf','debtTick','DEBT0','encounter','rareSlain','rareMonOf','arrive',
-  'repay','errandsOf','assignErrand','errandBlock','designateBlock','MAXF','MINE_TOP','MINE_BOT','MINE_N','FN','mineOpen','conquest','alive','markAdv','markedOf','BOARD_MAX','MARK_MAX','ARCS','reachFloor','GATE_F'];
+  'repay','errandsOf','assignErrand','errandBlock','designateBlock','MAXF','MINE_TOP','MINE_BOT','MINE_N','FN','mineOpen','conquest','alive','markAdv','markedOf','BOARD_MAX','MARK_MAX','ARCS','reachFloor','GATE_F','fac','nextFac','buildFac'];
 
 // 乱数の種を固定したゲームの中身を1つ作る。中身の Math.random だけを差し替える
 function load(seed,fixed){
@@ -48,7 +48,14 @@ function checkTables(){
   check('名のある魔物：B1〜30Fに1体ずつ',fl===Array.from({length:E.MAXF},(_,i)=>i+1).join(','),'RARES',fl);
   for(const r of E.RARES)check('名のある魔物：どれにも説明がある',typeof r.lore==='string'&&r.lore.length>0,`B${r.f}F`,r.n);
   // 「大きな使い道」：店の設備の費用
-  check('大きな使い道：設備の費用が表のとおり',E.FACILITIES.map(f=>f[1]+f[2]).join(' ')==='修練場300000 情報屋500000 療養所800000','表',E.FACILITIES.map(f=>f[1]+f[2]).join(' '));
+  {const got=E.FACILITIES.map(([,ts])=>ts.map(t=>t[0]+t[1]).join('→')).join(' ');
+    check('大きな使い道：設備の段と費用が表のとおり',got==='稽古場15000→道場60000→修練場300000 情報屋50000→情報網300000 療養所800000','表',got);}
+  // 「店の設備」：下の段から順に建て増し、その段の費用を払う。いちばん上より先はない
+  {const S2=E.newState(),T0=S2.taverns.ours;T0.gold=1e6;const paid=[];
+    for(let i=0;i<4;i++){const g=T0.gold;const ok=E.buildFac(S2,'dojo');paid.push(ok?`${E.fac(S2,'dojo')}段${g-T0.gold}`:'建たない');}
+    check('大きな使い道：設備は下の段から順に建て増す',paid.join(' ')==='1段15000 2段60000 3段300000 建たない','修練場を4回建てる',paid.join(' '));
+    const S3=E.newState();S3.taverns.ours.gold=59999;E.buildFac(S3,'dojo');S3.taverns.ours.gold=59999;
+    check('大きな使い道：金が足りなければ建て増せない',!E.buildFac(S3,'dojo')&&E.fac(S3,'dojo')===1,'道場に59999G',`${E.fac(S3,'dojo')}段`);}
   // 「借金と返済」：最初の借金と所持金
   check('借金と返済：80000Gの借金と400Gで始まる',S.taverns.ours.debt===80000&&S.taverns.ours.gold===400,'開店',`借金${S.taverns.ours.debt} 所持金${S.taverns.ours.gold}`);
   // 「借金と返済」：返済日には利息2%を足し、4000G＋利息を払う。足りれば借金は4000G減る
