@@ -20,7 +20,7 @@ const html=readFileSync(new URL('../index.html',import.meta.url),'utf8');
 const ENGINE=html.match(/\/\*ENGINE START\*\/([\s\S]*?)\/\*ENGINE END\*\//)[1];
 const EXPORTS=['newState','tick','rivalTemple','seatCap','seatsUsed','nextSeats','newcomerLvl','buyPrice','investPrice','FACILITIES',
   'RARES','MAXF','DRAGON_F','TICKS_PER_DAY','awayPlan','smallOf','debtTick','DEBT0','encounter','rareSlain','rareMonOf','arrive',
-  'repay','errandsOf','assignErrand','errandBlock','designateBlock','MAXF','MINE_TOP','MINE_BOT','MINE_N','FN','mineOpen','conquest','alive','markAdv','markedOf','BOARD_MAX','MARK_MAX','ARCS','reachFloor','GATE_F','fac','nextFac','buildFac'];
+  'repay','errandsOf','assignErrand','errandBlock','designateBlock','MAXF','MINE_TOP','MINE_BOT','MINE_N','FN','mineOpen','conquest','alive','markAdv','markedOf','BOARD_MAX','MARK_MAX','ARCS','reachFloor','GATE_F','fac','nextFac','buildFac','migrate'];
 
 // 乱数の種を固定したゲームの中身を1つ作る。中身の Math.random だけを差し替える
 function load(seed,fixed){
@@ -163,6 +163,35 @@ function checkErrands(){
     check('見込む：見込めるのは3人まで',r.join(',')==='true,true,true,false'&&E.markedOf(S).length===3,'4人を見込む',r.join(','));
     ours[0].favor=3;E.markAdv(S,ours[0],false);
     check('見込む：外すと恩が1減る',ours[0].favor===2&&!ours[0].marked,'恩3で外す',`恩${ours[0].favor}`);}
+  // 古い記録の一行名は、読み込み時に紋章名へ付け替える。看板と封鎖前の大部隊、店の名、食べ物の語は残す
+  {const E=load(1),S=E.newState();
+    const crest=/^[\u30A1-\u30F6\u30FC]+・[\u30A1-\u30F6\u30FC]+$/;
+    const ps=Object.values(S.parties).sort((a,b)=>a.id-b.id);
+    const ace=ps.find(p=>p.name==='白銀の牙');
+    const olds=['鉄鍋隊','泥ねずみ','石橋組','葡萄酒隊','灯り持ち','黒猫の旗','錆びた剣','月影隊'];
+    const rest=ps.filter(p=>p!==ace);
+    rest.forEach((p,i)=>{delete S.usedParty[p.name];p.name=olds[i]||`北風隊${i}`;S.usedParty[p.name]=1;});
+    const names0=Object.fromEntries(ps.map(p=>[p.id,p.name]));
+    const leader=S.adv[rest[0].leader];
+    const blob=rest.map(p=>p.name).join('と')+'が葡萄酒を飲んだ。鉄の誓い傭兵団（四十人）と七つ星団（赤い樽亭・三十人）と夜鷹団と黄金の剣団の話は昔。黒猫亭と銀の杯亭。白銀の牙は看板。錆びた兜が転がっていて、灯りの火が小さい。';
+    S.news.push({tk:1,t:blob,k:'info'});
+    leader.chron.push({tk:1,t:`仲間を集め、${rest[0].name}を結成してリーダーになる`});
+    rest[0].log.push({t:`${rest[0].name} が めいきゅうへ しゅっぱつした`,k:'sys',n:99});
+    S.floors[3].arrive={party:rest[0].name,tav:rest[0].tav,tk:1};
+    const hist=S.floors[1].through.party;
+    S.rares=S.rares||{};S.rares[1]=Object.assign(S.rares[1]||{},{killed:{party:rest[0].name,tav:rest[0].tav,names:[leader.name],tk:1}});
+    leader.last={party:rest[0].name,tk:1,deep:1};
+    const gold=S.taverns.ours.gold, member=leader.name;
+    S.v=20;E.migrate(S);
+    const renamed=rest.every(p=>crest.test(p.name)&&p.name!==names0[p.id]);
+    const news=S.news.at(-1).t;
+    const oldGone=olds.every(n=>!news.includes(n));
+    const kept=news.includes('葡萄酒を飲んだ')&&news.includes('鉄の誓い傭兵団（四十人）')&&news.includes('七つ星団（赤い樽亭・三十人）')&&news.includes('夜鷹団')&&news.includes('黄金の剣団')&&news.includes('黒猫亭')&&news.includes('銀の杯亭')&&news.includes('白銀の牙は看板')&&news.includes('錆びた兜')&&news.includes('灯りの火');
+    check('一行の名前：古い記録のいまいる一行は紋章名に付け替わる',!!ace&&ace.name==='白銀の牙'&&renamed&&rest.every(p=>news.includes(p.name))&&oldGone&&kept, '付け替え', news);
+    check('一行の名前：付け替えは手帳と迷宮の記録にも行き渡る',leader.chron.at(-1).t.includes(rest[0].name)&&!leader.chron.at(-1).t.includes(names0[rest[0].id])&&rest[0].log.at(-1).t.includes(rest[0].name)&&S.floors[3].arrive.party===rest[0].name&&S.floors[1].through.party===hist&&S.rares[1].killed.party===rest[0].name&&leader.last.party===rest[0].name, '手帳と記録', `${leader.chron.at(-1).t} / ${hist}`);
+    check('一行の名前：付け替えで店の金や冒険者の名は変わらない',S.taverns.ours.gold===gold&&S.taverns.ours.name==='黒猫亭'&&leader.name===member&&S.v===21, '付け替え後', `金${S.taverns.ours.gold} ${leader.name}`);
+    const again=rest.map(p=>p.name).join(',');E.migrate(S);
+    check('一行の名前：付け替えは一度だけ',rest.map(p=>p.name).join(',')===again&&ace.name==='白銀の牙', '二度目の読み込み', rest.map(p=>p.name).join(','));}
 }
 
 // 「鉄の山脈の坑道」の場面
@@ -196,8 +225,11 @@ function runSeed(seed){
     check('席と拡張：銀の杯亭の常連も席の数を超えない',E.seatsUsed(S,'rival')<=E.seatCap(S,'rival'),at,()=>`${E.seatsUsed(S,'rival')}人 / ${E.seatCap(S,'rival')}席`);
     // 「新顔の来店」：名前はほかの冒険者と重ならない
     {const seen=new Map();let dup=null;for(const a of advs){if(seen.has(a.name))dup=a.name;seen.set(a.name,1);}check('新顔の来店：冒険者の名前は重ならない',!dup,at,dup);}
-    // 「一行の結成」：一行の名前は重ならない
-    {const ns=parties.map(p=>p.name);check('一行の結成：一行の名前は重ならない',new Set(ns).size===ns.length,at,ns.join('、'));}
+    // 「一行の結成」：一行の名前は重ならない。大陸の言葉の紋章名（看板の白銀の牙、名前が尽きたときの「の一行」も許す）
+    {const ns=parties.map(p=>p.name);check('一行の結成：一行の名前は重ならない',new Set(ns).size===ns.length,at,ns.join('、'));
+      const crest=/^[\u30A1-\u30F6\u30FC]+・[\u30A1-\u30F6\u30FC]+$/;
+      const bad=ns.filter(n=>n!=='白銀の牙'&&!crest.test(n)&&!n.includes('の一行'));
+      check('一行の結成：名前は大陸の言葉の紋章名',!bad.length,at,bad.join('、'));}
     for(const p of parties){
       // 「一行の結成」：人数は基本6人、最大6人
       if(p.state!=='wiped')check('一行の結成：潜っている一行は6人まで',p.members.length<=6,at,()=>`${p.name} ${p.members.length}人`);

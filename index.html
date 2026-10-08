@@ -366,9 +366,11 @@ const PERS={
   '強欲':{th:.35,deep:2},
   '臆病':{th:.65,deep:-1},
 };
-const PT_A=['鉄','月','赤犬','灰','夜明け','白鷺','黒猫','錆','北風','石','葡萄','樽','灯','霧','狼','鴉','茨','銀貨','角笛','火酒','蹄','長靴','麦','鐘','風車','鍵','蝋燭','砂時計','鉛','柘榴'];
-const PT_B=['隊','団','組','一家','の旗','の会','党','連'];
-const PARTY_NAMES=['鉄鍋隊','月影隊','赤犬団','灰色の旗','夜明け団','三本角','ひとつ星','泥ねずみ','黒百合隊','石橋組','北風隊','錆びた剣','七番テーブル','樽ころがし','白い烏','遠吠え団','葡萄酒隊','灯り持ち'];
+// 一行の紋章名。冒険者の名簿と同じ大陸の言葉で付け、人の名と並んでも違わないようにする。
+// 人の名前そのものにはせず、二つの言葉を中黒でつなぐ（ナハト・ラーベ、のような呼び方）
+const PT_A=['ナハト','ゴルト','ローゼ','ドルン','ロート','ブラウ','ゾンネ','フラム','シルバ','アシェ','ルーネ','ブルク','ベルク','ホルン','ターク','トーア','アルト','ホーフ','エーア'];
+const PT_B=['クロウ','グリフ','レーヴ','ラーベ','オイレ','シルト','クラウ','ランス','ヘルム','フクス','ヴルム','ガルム','ベーレ','ドラコ','リート','ネスト','ルナ','ムート'];
+const PARTY_NAMES=PT_A.flatMap(a=>PT_B.map(b=>a+'・'+b));
 const MON=[
   {n:'大ネズミ',u:'ちいさな けもの',f:1,hp:4,atk:2},
   {n:'スライム',u:'うごめく もの',f:1,hp:6,atk:2},
@@ -541,7 +543,7 @@ const PUSH={
 function newState(){
   const S={tick:0,nid:1,adv:{},parties:{},news:[],tales:[],memorial:[],
     taverns:{ours:{name:'黒猫亭',gold:400,rep:0,crystals:1,earned:0,debt:DEBT0,seats:12,nextPay:30*TICKS_PER_DAY,late:0},rival:{name:'銀の杯亭',gold:99999,rep:60,owner:RIVAL_OWNER}},
-    bounties:{},deepest:{ours:1,rival:GATE_F},usedNames:{[RIVAL_OWNER]:1},usedParty:{'鉄の誓い':1,'黄金の剣':1,'七つ星':1,'夜鷹':1,'鉄の誓い傭兵団':1,'黄金の剣団':1},usedItems:{},uniqFound:{},farewells:[],edicts:[],v:20,loreFound:{},shop:{tiers:{1:true},mats:{},serial:0,log:[]},watch:[null,null],sel:0,stats:{dreams:{ours:0,rival:0}},small:SMALL_TAV.slice(0,5)};
+    bounties:{},deepest:{ours:1,rival:GATE_F},usedNames:{[RIVAL_OWNER]:1},usedParty:{'鉄の誓い':1,'黄金の剣':1,'七つ星':1,'夜鷹':1,'鉄の誓い傭兵団':1,'黄金の剣団':1},usedItems:{},uniqFound:{},farewells:[],edicts:[],v:21,loreFound:{},shop:{tiers:{1:true},mats:{},serial:0,log:[]},watch:[null,null],sel:0,stats:{dreams:{ours:0,rival:0}},small:SMALL_TAV.slice(0,5)};
   for(let i=0;i<7;i++) makeAdv(S,'ours',{lvl:pick([1,1,1,2,2,3,3,4,5,6])});
   const vets=[];for(let i=0;i<6;i++) vets.push(makeAdv(S,'rival',{lvl:ri(12,17)}));
   for(let i=0;i<22;i++) makeAdv(S,'rival');
@@ -1000,6 +1002,21 @@ function acOf(a){return a.ac+eqSum(a,'ac')+(a.loan?1:0)}
 function mmpOf(a){return a.mmp+eqSum(a,'mp')}
 function full(a){return a.title?`「${a.title}」${a.name}`:a.name}
 
+// 一行の名前を一つ取る。prefer が空いていればそれを使う（看板の「白銀の牙」）。乱数の回数は、一覧から一つ引くときだけ
+function newPartyName(S,prefer,who){
+  let nm=prefer&&!S.usedParty[prefer]?prefer:null;const freeP=PARTY_NAMES.filter(x=>!S.usedParty[x]);
+  if(!nm&&freeP.length) nm=pick(freeP);
+  for(let i=0;!nm&&i<300;i++){const c=pick(PT_A)+'・'+pick(PT_B);if(!S.usedParty[c])nm=c;}
+  if(!nm){const base=(who||'無名')+'の一行';nm=base;let i=2;while(S.usedParty[nm])nm=base+'・'+(i++);}
+  S.usedParty[nm]=1;return nm;
+}
+// 読み込み時の付け替え用。乱数は使わない（いまの遊びの進み方をずらさない）
+function takeCrest(S){
+  let nm=PARTY_NAMES.find(n=>!S.usedParty[n]);
+  if(!nm){outer:for(const a of PT_A)for(const b of PT_B){const c=a+'・'+b;if(!S.usedParty[c]){nm=c;break outer;}}}
+  if(!nm){let i=1;do{nm='無名の一行・'+(++i)}while(S.usedParty[nm]);}
+  S.usedParty[nm]=1;return nm;
+}
 function formParties(S,tav,quiet,forced,fname){
   const active=Object.values(S.parties).filter(p=>p.tav===tav&&p.state!=='wiped').length;
   if(active>=(tav==='ours'?6:6)) return;
@@ -1021,11 +1038,7 @@ function formParties(S,tav,quiet,forced,fname){
   while(take.length<size&&pool.length) take.push(pool.splice(filled?0:Math.floor(R()*pool.length),1)[0]);
   if(take.length<3) return;
   take.sort((x,y)=>(C(y).front?1:0)-(C(x).front?1:0));
-  let nm=fname&&!S.usedParty[fname]?fname:null;const freeP=PARTY_NAMES.filter(x=>!S.usedParty[x]);
-  if(!nm&&freeP.length) nm=pick(freeP);
-  for(let i=0;!nm&&i<300;i++){const c=pick(PT_A)+pick(PT_B);if(!S.usedParty[c])nm=c;}
-  if(!nm){let i=1;do{nm=take[0].name+'隊・'+(++i)}while(S.usedParty[nm]);}
-  S.usedParty[nm]=1;
+  const nm=newPartyName(S,fname,take[0].name);
   const p={id:S.nid++,name:nm,tav,leader:L.id,size,members:take.map(a=>a.id),floor:1,state:'explore',steps:0,fsteps:0,
     log:[],loot:0,carried:[],enemies:null,etype:null,ident:false,rest:0,trip:newTrip(),wipedAt:0,knownWiped:false,announced:false,retrieved:false,seen:-999,killer:''};
   take.forEach(a=>{a.party=p.id;a.status='party';chron(S,a,a===L?`仲間を集め、${nm}を結成してリーダーになる`:`${L.name}に誘われ、${nm}に加わる`)});
@@ -2564,16 +2577,6 @@ function arcAdvance(S,e,a){const A0=ARCS[e.arc],arc=S.arcs[e.arc];arc.stage=e.st
   if(e.arc==='gate'&&e.stage===3)Object.values(S.adv).forEach(b=>{const d=b.dream;if(b.tav!=='ours'||b.status==='lost'||b.status==='retired'||!d||d.k!=='kin'||d.hint)return;d.hint=true;
     chron(S,b,`抜け穴の受け取りの束に、${d.who}の${d.name}の名が見つかる`);news(S,`抜け穴の受け取りの束に、${b.name}が探す${d.who}の${d.name}の名があった。${FN(d.f)}の方へ向かったらしい。`,'record');});
   if(e.stage===A0.stages.length){arc.done=S.tick;S.taverns.ours.rep+=5;}}
-/*ENGINE END*/
-
-/* ---------- UI ---------- */
-const KEY='kuroneko-tavern-v1';
-const shown={};
-let S,speed=1,tab='news',timer=null,toastT=null,ff=null,hiddenAt=null,pickErr=null;
-const $=id=>document.getElementById(id);
-const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-
-function save(){try{localStorage.setItem(KEY,JSON.stringify({S,at:Date.now(),pend:ff?ff.n-ff.i:0}))}catch(e){}}
 function migrate(S){
   if(!(S.v>=2)){migrateV2(S);}
   if(!(S.v>=3)){
@@ -2664,6 +2667,44 @@ function migrate(S){
     });S.v=19;}
   if(!(S.v>=20)){// 店の設備が段になった。前から建ててあった設備は、いちばん上の段を建てたことにする
     const F0=S.fac||{};S.fac={};FACILITIES.forEach(([k,ts])=>{if(F0[k])S.fac[k]=ts.length;});S.v=20;}
+  if(!(S.v>=21)){// 一行の名前を、冒険者と同じ大陸の言葉の紋章名に付け替える。看板と封鎖前の大部隊の名は残す
+    const KEEP=['鉄の誓い傭兵団','黄金の剣団','七つ星団','夜鷹団','白銀の牙','鉄の誓い','黄金の剣','七つ星','夜鷹'];
+    const keep=new Set(KEEP);
+    S.usedParty=S.usedParty||{};
+    const pairs=[];
+    Object.values(S.parties||{}).sort((a,b)=>a.id-b.id).forEach(p=>{
+      if(!p||!p.name||keep.has(p.name))return;
+      const old=p.name,neu=takeCrest(S);
+      if(!neu||neu===old)return;
+      p.name=neu;pairs.push([old,neu]);
+    });
+    pairs.sort((a,b)=>b[0].length-a[0].length);
+    if(pairs.length){
+      const protect=KEEP.slice().sort((a,b)=>b.length-a.length);
+      const scrub=s=>{
+        if(typeof s!=='string'||s.length<2)return s;
+        let t=s;const hold=[];
+        protect.forEach((w,i)=>{if(!t.includes(w))return;const token='\u0001'+i+'\u0001';t=t.split(w).join(token);hold.push([token,w]);});
+        pairs.forEach(([a,b])=>{if(t.includes(a))t=t.split(a).join(b);});
+        hold.forEach(([token,w])=>{t=t.split(token).join(w);});
+        return t;
+      };
+      const walk=v=>{
+        if(typeof v==='string')return scrub(v);
+        if(Array.isArray(v)){for(let i=0;i<v.length;i++)v[i]=walk(v[i]);return v;}
+        if(v&&typeof v==='object'){
+          for(const k of Object.keys(v)){
+            const nv=walk(v[k]),nk=scrub(k);
+            if(nk!==k){delete v[k];v[nk]=nv;}
+            else v[k]=nv;
+          }
+        }
+        return v;
+      };
+      walk(S);
+    }
+    S.v=21;
+  }
   Object.values(S.adv).forEach(a=>{if(!a.tone)personalize(a);if(!a.traits)assignTraits(S,a,true);});
   smallOf(S);
   Object.values(S.adv).filter(a=>a.title&&!a.titleKind&&a.status!=='lost'&&a.status!=='retired').forEach(a=>{a.title='';title(S,a,true);});
@@ -2686,6 +2727,17 @@ function migrateV2(S){
   S.usedParty=Object.assign(S.usedParty||{},pseen);
   S.v=2;
 }
+/*ENGINE END*/
+
+
+/* ---------- UI ---------- */
+const KEY='kuroneko-tavern-v1';
+const shown={};
+let S,speed=1,tab='news',timer=null,toastT=null,ff=null,hiddenAt=null,pickErr=null;
+const $=id=>document.getElementById(id);
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+function save(){try{localStorage.setItem(KEY,JSON.stringify({S,at:Date.now(),pend:ff?ff.n-ff.i:0}))}catch(e){}}
 function boot(){
   let saved=null;try{saved=JSON.parse(localStorage.getItem(KEY)||'null')}catch(e){}
   if(saved&&saved.S&&!(saved.S.v>=16)){
