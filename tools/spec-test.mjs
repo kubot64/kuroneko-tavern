@@ -20,7 +20,7 @@ const html=readFileSync(new URL('../index.html',import.meta.url),'utf8');
 const ENGINE=html.match(/\/\*ENGINE START\*\/([\s\S]*?)\/\*ENGINE END\*\//)[1];
 const EXPORTS=['newState','tick','rivalTemple','seatCap','seatsUsed','nextSeats','newcomerLvl','buyPrice','investPrice','FACILITIES',
   'RARES','MAXF','DRAGON_F','TICKS_PER_DAY','awayPlan','smallOf','debtTick','DEBT0','encounter','rareSlain','rareMonOf','arrive',
-  'repay','errandsOf','assignErrand','errandBlock','designateBlock','MAXF','MINE_TOP','MINE_BOT','MINE_N','FN','mineOpen','conquest','alive','markAdv','markedOf','BOARD_MAX','MARK_MAX','ARCS','reachFloor','GATE_F','fac','nextFac','buildFac','supplyTeam','potionPrice'];
+  'repay','errandsOf','assignErrand','errandBlock','designateBlock','MAXF','MINE_TOP','MINE_BOT','MINE_N','FN','mineOpen','conquest','alive','markAdv','markedOf','BOARD_MAX','MARK_MAX','ARCS','reachFloor','GATE_F','fac','nextFac','buildFac','migrate','partyShown','crestJa','glossText','PT_A','PT_B','takeCrest','pickCrest','newPartyName','combat','MON','supplyTeam','potionPrice'];
 
 // 乱数の種を固定したゲームの中身を1つ作る。中身の Math.random だけを差し替える
 function load(seed,fixed){
@@ -94,6 +94,13 @@ function checkScenes(){
     const al=p.members.map(id=>S.adv[id]);const d0=al.reduce((s,a)=>s+(a.debt||0),0);p.mineTrip=mine;p.potions=0;const c=5*E.potionPrice(S,p);E.supplyTeam(S,p);
     const d1=al.reduce((s,a)=>s+(a.debt||0),0);const ok=mine?p.potions===5&&d1-d0>=c&&d1-d0<c+al.length:p.potions===0&&d1===d0;
     check('貸し付け：坑道に潜る銀の杯亭の一行だけが回復薬5本を借り、代金が借金に足される',ok,mine?'坑道へ':'迷宮へ',`回復薬${p.potions}本・借金+${d1-d0}G（代金${c}G）`);}
+  // 「戦闘」：群れで出ても、炎の息を吐くのはひと巡りに1体まで。黒竜は1ラウンドに2回とも吐ける
+  // 乱数をいつも0にして、吐けるときは必ず吐くようにする。B6Fより下の記録は文字が乱れるので、B5Fで戦わせる
+  for(const [name,want] of [['キメラ',1],['黒竜',2]]){const E=load(1,1e-9),S=E.newState();const p=Object.values(S.parties).find(x=>x.tav==='ours');
+    p.members.forEach(id=>{const a=S.adv[id];a.status='party';a.mhp=a.hp=99999;});
+    const t=E.MON.find(m=>m.n===name);p.floor=5;p.state='explore';p.etype=t;p.ident=true;p.fought=true;p.enemies=Array.from({length:name==='黒竜'?1:3},()=>({hp:1e9,sleep:0}));p.log=[];
+    E.combat(S,p);const n=p.log.filter(x=>x.t.startsWith(`${name} は `)&&x.t.includes('を はいた！')).length;
+    check('戦闘：炎の息は、群れでもひと巡りに1体まで（黒竜は2回）',n===want,`${name}${p.enemies.length}体`,`${n}回吐いた（決まりは${want}回）`);}
   // 「前人未踏の階」：まだ誰もB11Fに着いていないうちに罠でB12F以降へ飛ばされても、封じの門を越えた知らせが出る
   for(const f of [11,13]){const E=load(1),S=E.newState();const p=Object.values(S.parties).find(x=>x.tav==='ours');
     p.members.forEach(id=>{const a=S.adv[id];a.hp=a.mhp;a.status='party';});S.deepest.ours=S.deepest.rival=E.GATE_F;p.floor=f;p.trip=p.trip||{};
@@ -168,8 +175,86 @@ function checkErrands(){
     check('見込む：見込めるのは3人まで',r.join(',')==='true,true,true,false'&&E.markedOf(S).length===3,'4人を見込む',r.join(','));
     ours[0].favor=3;E.markAdv(S,ours[0],false);
     check('見込む：外すと恩が1減る',ours[0].favor===2&&!ours[0].marked,'恩3で外す',`恩${ours[0].favor}`);}
+  // 古い記録の一行名は、読み込み時に紋章名へ付け替える。看板と封鎖前の大部隊、店の名、食べ物の語は残す
+  {const E=load(1),S=E.newState();
+    const crest=/^[\u30A1-\u30F6\u30FC]+・[\u30A1-\u30F6\u30FC]+$/;
+    const ps=Object.values(S.parties).sort((a,b)=>a.id-b.id);
+    const ace=ps.find(p=>p.name==='白銀の牙');
+    const olds=['鉄鍋隊','泥ねずみ','石橋組','葡萄酒隊','灯り持ち','黒猫の旗','錆びた剣','月影隊'];
+    const rest=ps.filter(p=>p!==ace);
+    rest.forEach((p,i)=>{delete S.usedParty[p.name];p.name=olds[i]||`北風隊${i}`;S.usedParty[p.name]=1;});
+    const names0=Object.fromEntries(ps.map(p=>[p.id,p.name]));
+    const leader=S.adv[rest[0].leader];
+    const blob=rest.map(p=>p.name).join('と')+'が葡萄酒を飲んだ。鉄の誓い傭兵団（四十人）と七つ星団（赤い樽亭・三十人）と夜鷹団と黄金の剣団の話は昔。黒猫亭と銀の杯亭。白銀の牙は看板。錆びた兜が転がっていて、灯りの火が小さい。';
+    S.news.push({tk:1,t:blob,k:'info'});
+    leader.chron.push({tk:1,t:`仲間を集め、${rest[0].name}を結成してリーダーになる`});
+    rest[0].log.push({t:`${rest[0].name} が めいきゅうへ しゅっぱつした`,k:'sys',n:99});
+    S.floors[3].arrive={party:rest[0].name,tav:rest[0].tav,tk:1};
+    const hist=S.floors[1].through.party;
+    S.rares=S.rares||{};S.rares[1]=Object.assign(S.rares[1]||{},{killed:{party:rest[0].name,tav:rest[0].tav,names:[leader.name],tk:1}});
+    leader.last={party:rest[0].name,tk:1,deep:1};
+    const gold=S.taverns.ours.gold, member=leader.name;
+    S.v=20;E.migrate(S);
+    const renamed=rest.every(p=>crest.test(p.name)&&p.name!==names0[p.id]);
+    const news=S.news.at(-1).t;
+    const oldGone=olds.every(n=>!news.includes(n));
+    const kept=news.includes('葡萄酒を飲んだ')&&news.includes('鉄の誓い傭兵団（四十人）')&&news.includes('七つ星団（赤い樽亭・三十人）')&&news.includes('夜鷹団')&&news.includes('黄金の剣団')&&news.includes('黒猫亭')&&news.includes('銀の杯亭')&&news.includes('白銀の牙は看板')&&news.includes('錆びた兜')&&news.includes('灯りの火');
+    check('一行の名前：古い記録のいまいる一行は紋章名に付け替わる',!!ace&&ace.name==='白銀の牙'&&renamed&&rest.every(p=>news.includes(p.name))&&oldGone&&kept, '付け替え', news);
+    check('一行の名前：付け替えは手帳と迷宮の記録にも行き渡る',leader.chron.at(-1).t.includes(rest[0].name)&&!leader.chron.at(-1).t.includes(names0[rest[0].id])&&rest[0].log.at(-1).t.includes(rest[0].name)&&S.floors[3].arrive.party===rest[0].name&&S.floors[1].through.party===hist&&S.rares[1].killed.party===rest[0].name&&leader.last.party===rest[0].name, '手帳と記録', `${leader.chron.at(-1).t} / ${hist}`);
+    check('一行の名前：付け替えで店の金や冒険者の名は変わらない',S.taverns.ours.gold===gold&&S.taverns.ours.name==='黒猫亭'&&leader.name===member&&S.v===21, '付け替え後', `金${S.taverns.ours.gold} ${leader.name}`);
+    const again=rest.map(p=>p.name).join(',');E.migrate(S);
+    check('一行の名前：付け替えは一度だけ',rest.map(p=>p.name).join(',')===again&&ace.name==='白銀の牙', '二度目の読み込み', rest.map(p=>p.name).join(','));}
 }
 
+// 紋章名の訳。記録には書かず、名前から引く
+function checkCrest(){
+  const E=load(1);
+  check('一行の名前：紋章名には日本語の訳が付く',E.partyShown('ナハト・ラーベ')==='ナハト・ラーベ（夜の大鴉）'&&E.partyShown('ゴルト・グリフ')==='ゴルト・グリフ（金のグリフォン）'&&E.partyShown('シルバ・クロウ')==='シルバ・クロウ（銀の鴉）','訳',E.partyShown('ナハト・ラーベ')+' / '+E.partyShown('ゴルト・グリフ')+' / '+E.partyShown('シルバ・クロウ'));
+  const all=E.PT_A.flatMap(a=>E.PT_B.map(b=>E.crestJa(a.t+'・'+b.t)));
+  check('一行の名前：どの紋章名にも別の訳がある',all.length===E.PT_A.length*E.PT_B.length&&all.every(t=>t&&t.includes('の'))&&new Set(all).size===all.length&&new Set(E.PT_A.map(w=>w.ja)).size===E.PT_A.length&&new Set(E.PT_B.map(w=>w.ja)).size===E.PT_B.length,'訳の数',`${new Set(all).size}/${all.length}`);
+  const plain=['白銀の牙','鉄鍋隊','泥ねずみ','葡萄酒隊','ローエンの一行','無名の一行・2'];
+  check('一行の名前：看板と旧名と「の一行」には訳が付かない',plain.every(n=>E.partyShown(n)===n&&E.glossText(`知らせ：${n}が戻った`)===`知らせ：${n}が戻った`),'訳なし',plain.map(n=>E.partyShown(n)).join('、'));
+  const line='ローエンが仲間を集め、ナハト・ラーベを結成した。仲間はエリアス・フリーダ。';
+  const g=E.glossText(line);
+  check('一行の名前：知らせの訳は文の中に添え、二度は付けない',g==='ローエンが仲間を集め、ナハト・ラーベ（夜の大鴉）を結成した。仲間はエリアス・フリーダ。'&&E.glossText(g)===g,'知らせ',g);
+  const S=E.newState();
+  check('一行の名前：訳は記録に残さない',Object.values(S.parties).every(p=>!('ja' in p)&&!('gloss' in p)&&p.name===p.name.replace(/（.+）$/,''))&&!JSON.stringify(S).includes('夜の大鴉'),'記録',Object.values(S.parties).map(p=>p.name).slice(0,4).join('、'));
+  const themed=(leader)=>{const U={usedParty:{}};const nm=E.takeCrest(U,leader);const [at,bt]=nm.split('・');return {nm,shown:E.partyShown(nm),a:E.PT_A.find(w=>w.t===at),b:E.PT_B.find(w=>w.t===bt)};};
+  const fit=(x,lang,cls)=>!!x.a&&!!x.b&&x.a.lang.includes(lang)&&(x.b.lang.includes(lang)||x.b.cls.includes(cls));
+  const samples=[
+    [{origin:'東方の島国アズマ',race:'人間',cls:'侍',name:'レン'},'アズマ','侍','ヤミ・ヤイバ'],
+    [{origin:'霧の森',race:'エルフ',cls:'魔術師',name:'シエラ'},'森','魔術師','ステルン・クロウ'],
+    [{origin:'鉄の山脈',race:'ドワーフ',cls:'戦士',name:'ドルフ'},'山','戦士','アイゼン・ハンマー'],
+    [{origin:'麦穂の丘',race:'ホビット',cls:'盗賊',name:'ピピン'},'丘','盗賊','コルン・フクス'],
+    [{origin:'聖オルド教国',race:'人間',cls:'僧侶',name:'ルカ'},'教','僧侶','ルクス・オイレ'],
+    [{origin:'北の氷海ノルデン',race:'人間',cls:'獣使い',name:'オラフ'},'ノルデン','獣使い','アイス・ウルフ'],
+    [{origin:'砂の大陸ザハル',race:'人間',cls:'竜騎士',name:'ラシド'},'ザハル','竜騎士','ラムル・ドラコ'],
+    [{origin:'グラウ帝国',race:'人間',cls:'戦士',name:'カール'},'帝国','戦士','シュタール・アドラー'],
+    [{origin:'ラウレンツ王国',race:'人間',cls:'吟遊詩人',name:'レオ'},'大陸','吟遊詩人','ナハト・リート'],
+  ];
+  const got=samples.map(([L,lang,cls,want])=>{const x=themed(L);return {ok:x.nm===want&&fit(x,lang,cls),t:`${L.origin}の${L.race}の${L.cls}→${x.shown}`};});
+  check('一行の名前：リーダーの出身と種族と職業に合う',got.every(g=>g.ok),'付け方',got.map(g=>g.t).join(' / '));
+  const blank={usedParty:{}};
+  const spread=[0.02,0.18,0.4,0.62,0.84,0.97].map(u=>E.pickCrest(blank,samples[0][0],u));
+  check('一行の名前：同じリーダーでも重みの中でばらける',new Set(spread).size>=3&&spread.every(n=>E.crestJa(n)),'ばらけ',spread.join('、'));
+  const one=Object.values(S.parties).find(p=>p.name!=='白銀の牙');
+  const keep={};Object.keys(S.usedParty).forEach(k=>{if(!/・/.test(k))keep[k]=1;});
+  S.parties={[one.id]:one};one.name='鉄鍋隊';S.usedParty=Object.assign(keep,{'鉄鍋隊':1});
+  S.adv[one.leader].origin='東方の島国アズマ';S.adv[one.leader].race='人間';S.adv[one.leader].cls='侍';
+  S.v=20;E.migrate(S);
+  check('一行の名前：付け替えもリーダーに合わせ、乱数の名は記録しない',one.name==='ヤミ・ヤイバ'&&S.v===21&&!('ja' in one),'付け替え',one.name);
+}
+// 仕様「紋章名が尽きたときは、リーダーの名前に『の一行』を添える。重なれば『・2』から番号を添える」
+function checkRowFallback(){
+  const E=load(4),S=E.newState();
+  for(const a of E.PT_A)for(const b of E.PT_B)S.usedParty[a.t+'・'+b.t]=1;
+  S.usedParty['ミナの一行']=1;
+  const row=(name,prefer)=>E.newPartyName(S,prefer||null,name?{name,origin:'ラウレンツ王国',race:'人間',cls:'戦士'}:{origin:'ラウレンツ王国',race:'人間',cls:'戦士'});
+  const got={n1:row('ローエン'),n2:row('ローエン'),n3:row('ローエン'),u1:row(null),u2:row(null),m:row('ミナ'),ace:E.newPartyName(S,'白銀の牙',{name:'ケヴィ',origin:'聖オルド教国',race:'人間',cls:'魔術師'})};
+  const want={n1:'ローエンの一行',n2:'ローエンの一行・2',n3:'ローエンの一行・3',u1:'無名の一行',u2:'無名の一行・2',m:'ミナの一行・2',ace:'ケヴィの一行'};
+  const vals=Object.values(got);
+  check('一行の結成：紋章名が尽きたときの「の一行」は番号で区別する',Object.entries(want).every(([k,v])=>got[k]===v)&&new Set(vals).size===vals.length&&vals.every(n=>S.usedParty[n]&&n!=='白銀の牙'),'紋章名を使い切る',Object.entries(got).map(([k,v])=>`${k}:${v}`).join(' / '));
+}
 // 「鉄の山脈の坑道」の場面
 function checkMine(){
   const E=load(1),S=E.newState();
@@ -184,7 +269,31 @@ function checkMine(){
 // ---- 何百日も回しながら、毎刻成り立つはずの性質 ----
 function runSeed(seed){
   const E=load(seed),S=E.newState();
-  for(let i=0;i<6;i++)E.tick(S);// 画面側の開店と同じ
+  // 仕様の3点。名前は id に結び、消えたあとも覚えておく。別の id に同じ名前が付いたら不合格
+  const seenAdv=new Map([[S.taverns.rival.owner,'銀の杯亭の主人']]);
+  const seenParty=new Map();
+  for(const n of ['鉄の誓い','黄金の剣','七つ星','夜鷹','鉄の誓い傭兵団','黄金の剣団'])seenParty.set(n,'封鎖前の大部隊');
+  const kinNames=new Set();
+  const plain=n=>String(n||'').replace(/^「.*?」/,'');
+  const noteNames=at=>{
+    let advDup=null,partyDup=null;
+    const claimA=(name,id)=>{const n=plain(name);if(!n)return;const prev=seenAdv.get(n);if(prev!=null&&prev!==id)advDup=advDup||`${n}（${prev} と ${id}）`;else seenAdv.set(n,id);};
+    const claimP=(name,id)=>{const prev=seenParty.get(name);if(prev!=null&&prev!==id)partyDup=partyDup||`${name}（${prev} と ${id}）`;else seenParty.set(name,id);};
+    const advs=Object.values(S.adv);
+    for(const a of advs){const d=a.dream;if(d&&d.k==='kin'&&d.name)kinNames.add(d.name);}
+    for(const a of advs){
+      if(!advDup&&kinNames.has(a.name)&&!seenAdv.has(a.name)&&!(a.bg||'').includes('救い出された'))advDup=`${a.name}（肉親の名を別の者が使っている）`;
+      claimA(a.name,a.id);
+    }
+    for(const m of S.memorial||[])claimA(m.name,m.id);
+    for(const f of S.farewells||[])claimA(f.name,f.id);
+    for(const a of advs){const d=a.dream;if(!advDup&&d&&d.k==='kin'&&d.name&&seenAdv.has(d.name))advDup=`${d.name}（肉親の名を id ${seenAdv.get(d.name)} が使っている）`;}
+    for(const p of Object.values(S.parties))claimP(p.name,p.id);
+    check('新顔の来店：引退・ロスト・死亡・追悼のあとにも名前を再使用しない',!advDup,at,advDup);
+    check('一行の結成：解散した一行と白銀の牙と封鎖前の大部隊の名も再使用しない',!partyDup,at,partyDup);
+  };
+  noteNames(`種${seed}・開店`);
+  for(let i=0;i<6;i++){E.tick(S);noteNames(`種${seed}・開店直後${i+1}刻`);}// 画面側の開店と同じ
   const prevState={},killed={},lore={};let conquered=null,arcStage=0,mineConq=null;
   // 種の半分では、店主が借金を返し、話を回し、常連を見込む（話の仕組みを動かすため）
   const owner=seed%2===1;
@@ -195,14 +304,18 @@ function runSeed(seed){
       for(const e of E.errandsOf(S).board)if(!e.hero&&!e.pend){const c=ours.filter(a=>!E.designateBlock(S,e,a));if(c.length)E.assignErrand(S,e,c[(S.tick/10)%c.length]);}}
     const at=`種${seed}・${S.tick}刻（${Math.floor(S.tick/E.TICKS_PER_DAY)+1}日目）`;
     const advs=Object.values(S.adv),parties=Object.values(S.parties),T0=S.taverns.ours;
+    noteNames(at);
 
     // 「席と拡張」：寺院や行方不明の者も含め、常連の数は席の数を超えない
     check('席と拡張：常連の数は席の数を超えない',E.seatsUsed(S,'ours')<=E.seatCap(S,'ours'),at,()=>`${E.seatsUsed(S,'ours')}人 / ${E.seatCap(S,'ours')}席`);
     check('席と拡張：銀の杯亭の常連も席の数を超えない',E.seatsUsed(S,'rival')<=E.seatCap(S,'rival'),at,()=>`${E.seatsUsed(S,'rival')}人 / ${E.seatCap(S,'rival')}席`);
     // 「新顔の来店」：名前はほかの冒険者と重ならない
     {const seen=new Map();let dup=null;for(const a of advs){if(seen.has(a.name))dup=a.name;seen.set(a.name,1);}check('新顔の来店：冒険者の名前は重ならない',!dup,at,dup);}
-    // 「一行の結成」：一行の名前は重ならない
-    {const ns=parties.map(p=>p.name);check('一行の結成：一行の名前は重ならない',new Set(ns).size===ns.length,at,ns.join('、'));}
+    // 「一行の結成」：一行の名前は重ならない。大陸の言葉の紋章名（看板の白銀の牙、名前が尽きたときの「の一行」も許す）
+    {const ns=parties.map(p=>p.name);check('一行の結成：一行の名前は重ならない',new Set(ns).size===ns.length,at,ns.join('、'));
+      const crest=/^[\u30A1-\u30F6\u30FC]+・[\u30A1-\u30F6\u30FC]+$/;
+      const bad=ns.filter(n=>n!=='白銀の牙'&&!crest.test(n)&&!n.includes('の一行'));
+      check('一行の結成：名前は大陸の言葉の紋章名',!bad.length,at,bad.join('、'));}
     for(const p of parties){
       // 「一行の結成」：人数は基本6人、最大6人
       if(p.state!=='wiped')check('一行の結成：潜っている一行は6人まで',p.members.length<=6,at,()=>`${p.name} ${p.members.length}人`);
@@ -270,7 +383,7 @@ function runSeed(seed){
 
 if(!isMainThread){const line=runSeed(workerData.seed);parentPort.postMessage({line,res:[...results]});}
 else{
-  checkTables();checkScenes();checkErrands();checkMine();
+  checkTables();checkScenes();checkErrands();checkCrest();checkRowFallback();checkMine();
   // 種ごとの結果は、種の順に重ねる。反例は、いちばん若い種の最初のものを残す
   const out=new Array(SEEDS.length);let next=0;
   const runOne=()=>{if(next>=SEEDS.length)return Promise.resolve();const k=next++;
