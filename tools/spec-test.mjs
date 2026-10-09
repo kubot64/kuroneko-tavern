@@ -20,7 +20,7 @@ const html=readFileSync(new URL('../index.html',import.meta.url),'utf8');
 const ENGINE=html.match(/\/\*ENGINE START\*\/([\s\S]*?)\/\*ENGINE END\*\//)[1];
 const EXPORTS=['newState','tick','rivalTemple','seatCap','seatsUsed','nextSeats','newcomerLvl','buyPrice','investPrice','FACILITIES',
   'RARES','MAXF','DRAGON_F','TICKS_PER_DAY','awayPlan','smallOf','debtTick','DEBT0','encounter','rareSlain','rareMonOf','arrive',
-  'repay','errandsOf','assignErrand','errandBlock','designateBlock','MAXF','MINE_TOP','MINE_BOT','MINE_N','FN','mineOpen','conquest','alive','markAdv','markedOf','BOARD_MAX','MARK_MAX','ARCS','reachFloor','GATE_F','fac','nextFac','buildFac'];
+  'repay','errandsOf','assignErrand','errandBlock','designateBlock','MAXF','MINE_TOP','MINE_BOT','MINE_N','FN','mineOpen','conquest','alive','markAdv','markedOf','BOARD_MAX','MARK_MAX','ARCS','reachFloor','GATE_F','fac','nextFac','buildFac','supplyTeam','potionPrice'];
 
 // 乱数の種を固定したゲームの中身を1つ作る。中身の Math.random だけを差し替える
 function load(seed,fixed){
@@ -89,6 +89,11 @@ function checkScenes(){
     E.encounter(S,p);return !!(p.etype&&p.etype.rare);};
   check('名のある魔物：誰も戦っていなければ、出会える（下の確かめが空振りでない）',meet(false),'B23F・ほかの一行は戦っていない','出会えなかった');
   check('名のある魔物：ほかの一行が戦っているあいだは、別の一行の前に現れない',!meet(true),'B23F・ほかの一行が戦っている','別の一行の前にも現れた');
+  // 「貸し付け」：坑道に潜る銀の杯亭の一行は、回復薬を5本借り、代金が借金に足される。迷宮に潜る一行は借りない
+  for(const mine of [true,false]){const E=load(1),S=E.newState();const p=Object.values(S.parties).find(x=>x.tav==='rival');
+    const al=p.members.map(id=>S.adv[id]);const d0=al.reduce((s,a)=>s+(a.debt||0),0);p.mineTrip=mine;p.potions=0;const c=5*E.potionPrice(S,p);E.supplyTeam(S,p);
+    const d1=al.reduce((s,a)=>s+(a.debt||0),0);const ok=mine?p.potions===5&&d1-d0>=c&&d1-d0<c+al.length:p.potions===0&&d1===d0;
+    check('貸し付け：坑道に潜る銀の杯亭の一行だけが回復薬5本を借り、代金が借金に足される',ok,mine?'坑道へ':'迷宮へ',`回復薬${p.potions}本・借金+${d1-d0}G（代金${c}G）`);}
   // 「前人未踏の階」：まだ誰もB11Fに着いていないうちに罠でB12F以降へ飛ばされても、封じの門を越えた知らせが出る
   for(const f of [11,13]){const E=load(1),S=E.newState();const p=Object.values(S.parties).find(x=>x.tav==='ours');
     p.members.forEach(id=>{const a=S.adv[id];a.hp=a.mhp;a.status='party';});S.deepest.ours=S.deepest.rival=E.GATE_F;p.floor=f;p.trip=p.trip||{};
