@@ -1993,9 +1993,11 @@ function encounter(S,p){
     if(!rr.killed&&!busy&&chance(.004)){const t=rareMonOf(p.floor);S.rares[p.floor]=Object.assign(rr,{seen:rr.seen||{party:p.name,tav:p.tav,tk:S.tick}});
       p.enemies=[{hp:t.hp,sleep:0}];p.etype=t;p.ident=true;p.fought=true;
       plog(p,'＊ ただならぬ けはいが する ＊','sys');plog(p,`名のある魔物「${t.n}」`,'sys');encounterFlavor(S,p,t,true);(p.trip.rareSeen=p.trip.rareSeen||[]).push(t.n);return;}}
-  if(p.floor===MINE_BOT&&!S.mineConq){const t=MON.find(m=>m.mboss);p.enemies=[{hp:t.hp,sleep:0}];p.etype=t;p.ident=true;
+  // 主は1体きり。ほかの一行が主と戦っているあいだは、別の一行の前には現れない
+  const bossBusy=is=>Object.values(S.parties).some(q=>q!==p&&q.enemies&&q.etype&&is(q.etype));
+  if(p.floor===MINE_BOT&&!S.mineConq&&!bossBusy(e=>e.mboss)){const t=MON.find(m=>m.mboss);p.enemies=[{hp:t.hp,sleep:0}];p.etype=t;p.ident=true;
     plog(p,'＊ いわの ぎょくざに だれかが すわっている ＊','sys');plog(p,`${t.n}`,'sys');return;}
-  if(p.floor===MAXF&&!S.conquered){const t=MON.find(m=>m.boss&&!m.mboss);p.enemies=[{hp:t.hp,sleep:0}];p.etype=t;p.ident=true;
+  if(p.floor===MAXF&&!S.conquered&&!bossBusy(e=>e.boss&&!e.mboss)){const t=MON.find(m=>m.boss&&!m.mboss);p.enemies=[{hp:t.hp,sleep:0}];p.etype=t;p.ident=true;
     plog(p,'＊ ぎょくざの まえに なにかが いる ＊','sys');plog(p,`${t.n}`,'sys');return;}
   const fr=isFrontier(S,p.floor);const f=dz(Math.max(1,p.floor))+(fr?1.8:0);
   const here=MON.filter(m=>!m.boss&&!m.gate&&!!m.mine===inMine(p.floor));let pool=here.filter(m=>m.f<=f+.4&&m.f>=f-2);if(!pool.length)pool=here.filter(m=>m.f<=f+.4).slice(-3);if(!pool.length)pool=here.slice(0,3);
@@ -2029,6 +2031,8 @@ function combat(S,p){
   const living=()=>p.enemies.filter(e=>e.hp>0);
   const mapped=hasMap(p);
   const enemyTurn=()=>{
+  // 群れで出ても、炎の息を吐くのはひと巡りに1体まで（1体で何度も動く黒竜は別）
+  let breathed=false;
   for(const e of living()){
     if(e.sleep>0){e.sleep--;if(!t.boss&&!t.gate)continue;}
     for(let act=0;act<(t.boss?2:t.acts||1);act++){
@@ -2041,7 +2045,7 @@ function combat(S,p){
       plog(p,`${t.n} は じゅもんを となえた！`,'death');
       tg.forEach(a=>{a.hp-=ri(Math.floor(f/2),f);});tg.forEach(a=>{if(a.hp<=0){a.hp=0;die(S,p,a,t.n)}});continue;
     }
-    if(t.sp==='breath'&&chance(t.gate?.4:.3)){
+    if(t.sp==='breath'&&(t.gate||!breathed)&&chance(t.gate?.4:.3)){breathed=true;
       plog(p,`${t.n} は ${t.gate?'くろい ほのおの いきを はいた！':'ほのおを はいた！'}`,'death');
       tg.forEach(a=>{a.hp-=Math.round((t.gate?ri(18,32):ri(f,f*2))*(1-Math.min(.8,eqSum(a,'fire'))));});
       tg.forEach(a=>{if(a.hp<=0){a.hp=0;die(S,p,a,t.n)}});
@@ -2148,8 +2152,9 @@ function dieInDungeon(S,p,a,by){if(p.trip&&p.trip.deaths)p.trip.deaths.push({n:a
 function victory(S,p){
   const t=p.etype,f=Math.max(1,p.floor),n=p.enemies.length;
   const al=alive(S,p);
-  if(t.mboss){mineConquest(S,p);p.state='return';}
-  else if(t.boss){conquest(S,p);p.state='return';}
+  // 主は1体きり。同じ主とほかの一行が先に決着をつけていたら、踏破の記録は書き換えない
+  if(t.mboss){if(!S.mineConq)mineConquest(S,p);p.state='return';}
+  else if(t.boss){if(!S.conquered)conquest(S,p);p.state='return';}
   if(t.rare){rareSlain(S,p,t);}
   if(t.gate){dragonSlain(S,p);p.fsteps=99;}
   const mf=(hasMap(p)?1:.7)*(t.xpm||1)*(t.mine?MINE_XP:1);const bn=t.base||t.n;const xp=Math.round((6*Math.pow(t.f,1.6)+3)*n/al.length*mf);const g=Math.round(ri(5,12)*t.f*n*mf);
