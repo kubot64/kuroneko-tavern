@@ -20,7 +20,7 @@ const html=readFileSync(new URL('../index.html',import.meta.url),'utf8');
 const ENGINE=html.match(/\/\*ENGINE START\*\/([\s\S]*?)\/\*ENGINE END\*\//)[1];
 const EXPORTS=['newState','tick','rivalTemple','seatCap','seatsUsed','nextSeats','newcomerLvl','buyPrice','investPrice','FACILITIES',
   'RARES','MAXF','DRAGON_F','TICKS_PER_DAY','awayPlan','smallOf','debtTick','DEBT0','encounter','rareSlain','rareMonOf','arrive',
-  'repay','errandsOf','assignErrand','errandBlock','designateBlock','MAXF','MINE_TOP','MINE_BOT','MINE_N','FN','mineOpen','conquest','alive','markAdv','markedOf','BOARD_MAX','MARK_MAX','ARCS','reachFloor','GATE_F','fac','nextFac','buildFac','migrate','partyShown','crestJa','glossText','PT_A','PT_B'];
+  'repay','errandsOf','assignErrand','errandBlock','designateBlock','MAXF','MINE_TOP','MINE_BOT','MINE_N','FN','mineOpen','conquest','alive','markAdv','markedOf','BOARD_MAX','MARK_MAX','ARCS','reachFloor','GATE_F','fac','nextFac','buildFac','migrate','partyShown','crestJa','glossText','PT_A','PT_B','takeCrest','pickCrest'];
 
 // 乱数の種を固定したゲームの中身を1つ作る。中身の Math.random だけを差し替える
 function load(seed,fixed){
@@ -198,8 +198,8 @@ function checkErrands(){
 function checkCrest(){
   const E=load(1);
   check('一行の名前：紋章名には日本語の訳が付く',E.partyShown('ナハト・ラーベ')==='ナハト・ラーベ（夜の大鴉）'&&E.partyShown('ゴルト・グリフ')==='ゴルト・グリフ（金のグリフォン）'&&E.partyShown('シルバ・クロウ')==='シルバ・クロウ（銀の鴉）','訳',E.partyShown('ナハト・ラーベ')+' / '+E.partyShown('ゴルト・グリフ')+' / '+E.partyShown('シルバ・クロウ'));
-  const all=E.PT_A.flatMap(a=>E.PT_B.map(b=>E.crestJa(a+'・'+b)));
-  check('一行の名前：どの紋章名にも別の訳がある',all.length===E.PT_A.length*E.PT_B.length&&all.every(t=>t&&t.includes('の'))&&new Set(all).size===all.length,'訳の数',`${new Set(all).size}/${all.length}`);
+  const all=E.PT_A.flatMap(a=>E.PT_B.map(b=>E.crestJa(a.t+'・'+b.t)));
+  check('一行の名前：どの紋章名にも別の訳がある',all.length===E.PT_A.length*E.PT_B.length&&all.every(t=>t&&t.includes('の'))&&new Set(all).size===all.length&&new Set(E.PT_A.map(w=>w.ja)).size===E.PT_A.length&&new Set(E.PT_B.map(w=>w.ja)).size===E.PT_B.length,'訳の数',`${new Set(all).size}/${all.length}`);
   const plain=['白銀の牙','鉄鍋隊','泥ねずみ','葡萄酒隊','ローエンの一行','無名の一行・2'];
   check('一行の名前：看板と旧名と「の一行」には訳が付かない',plain.every(n=>E.partyShown(n)===n&&E.glossText(`知らせ：${n}が戻った`)===`知らせ：${n}が戻った`),'訳なし',plain.map(n=>E.partyShown(n)).join('、'));
   const line='ローエンが仲間を集め、ナハト・ラーベを結成した。仲間はエリアス・フリーダ。';
@@ -207,6 +207,30 @@ function checkCrest(){
   check('一行の名前：知らせの訳は文の中に添え、二度は付けない',g==='ローエンが仲間を集め、ナハト・ラーベ（夜の大鴉）を結成した。仲間はエリアス・フリーダ。'&&E.glossText(g)===g,'知らせ',g);
   const S=E.newState();
   check('一行の名前：訳は記録に残さない',Object.values(S.parties).every(p=>!('ja' in p)&&!('gloss' in p)&&p.name===p.name.replace(/（.+）$/,''))&&!JSON.stringify(S).includes('夜の大鴉'),'記録',Object.values(S.parties).map(p=>p.name).slice(0,4).join('、'));
+  const themed=(leader)=>{const U={usedParty:{}};const nm=E.takeCrest(U,leader);const [at,bt]=nm.split('・');return {nm,shown:E.partyShown(nm),a:E.PT_A.find(w=>w.t===at),b:E.PT_B.find(w=>w.t===bt)};};
+  const fit=(x,lang,cls)=>!!x.a&&!!x.b&&x.a.lang.includes(lang)&&(x.b.lang.includes(lang)||x.b.cls.includes(cls));
+  const samples=[
+    [{origin:'東方の島国アズマ',race:'人間',cls:'侍',name:'レン'},'アズマ','侍','ヤミ・ヤイバ'],
+    [{origin:'霧の森',race:'エルフ',cls:'魔術師',name:'シエラ'},'森','魔術師','ステルン・クロウ'],
+    [{origin:'鉄の山脈',race:'ドワーフ',cls:'戦士',name:'ドルフ'},'山','戦士','アイゼン・ハンマー'],
+    [{origin:'麦穂の丘',race:'ホビット',cls:'盗賊',name:'ピピン'},'丘','盗賊','コルン・フクス'],
+    [{origin:'聖オルド教国',race:'人間',cls:'僧侶',name:'ルカ'},'教','僧侶','ルクス・オイレ'],
+    [{origin:'北の氷海ノルデン',race:'人間',cls:'獣使い',name:'オラフ'},'ノルデン','獣使い','アイス・ウルフ'],
+    [{origin:'砂の大陸ザハル',race:'人間',cls:'竜騎士',name:'ラシド'},'ザハル','竜騎士','ラムル・ドラコ'],
+    [{origin:'グラウ帝国',race:'人間',cls:'戦士',name:'カール'},'帝国','戦士','シュタール・アドラー'],
+    [{origin:'ラウレンツ王国',race:'人間',cls:'吟遊詩人',name:'レオ'},'大陸','吟遊詩人','ナハト・リート'],
+  ];
+  const got=samples.map(([L,lang,cls,want])=>{const x=themed(L);return {ok:x.nm===want&&fit(x,lang,cls),t:`${L.origin}の${L.race}の${L.cls}→${x.shown}`};});
+  check('一行の名前：リーダーの出身と種族と職業に合う',got.every(g=>g.ok),'付け方',got.map(g=>g.t).join(' / '));
+  const blank={usedParty:{}};
+  const spread=[0.02,0.18,0.4,0.62,0.84,0.97].map(u=>E.pickCrest(blank,samples[0][0],u));
+  check('一行の名前：同じリーダーでも重みの中でばらける',new Set(spread).size>=3&&spread.every(n=>E.crestJa(n)),'ばらけ',spread.join('、'));
+  const one=Object.values(S.parties).find(p=>p.name!=='白銀の牙');
+  const keep={};Object.keys(S.usedParty).forEach(k=>{if(!/・/.test(k))keep[k]=1;});
+  S.parties={[one.id]:one};one.name='鉄鍋隊';S.usedParty=Object.assign(keep,{'鉄鍋隊':1});
+  S.adv[one.leader].origin='東方の島国アズマ';S.adv[one.leader].race='人間';S.adv[one.leader].cls='侍';
+  S.v=20;E.migrate(S);
+  check('一行の名前：付け替えもリーダーに合わせ、乱数の名は記録しない',one.name==='ヤミ・ヤイバ'&&S.v===21&&!('ja' in one),'付け替え',one.name);
 }
 // 「鉄の山脈の坑道」の場面
 function checkMine(){
