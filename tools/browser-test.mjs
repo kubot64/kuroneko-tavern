@@ -36,6 +36,35 @@ async function hideFor(page,ms,{show=true}={}){
   if(show)await setVisibility(page,'visible');
 }
 
+test('地図屋は、名を知った魔物に相性を添え、まだ知らない名には出さない',async()=>{
+  const {ctx,page,errors}=await open();
+  await page.locator('#sp0').click();
+  await page.evaluate(()=>{
+    const mark=f=>{S.rares=S.rares||{};S.rares[f]={seen:{party:'夜明け団',tav:'ours',tk:S.tick}};};
+    mark(1);mark(8);mark(10);mark(11);mark(12);mark(MINE_TOP+8);
+    S.mine={open:0};
+  });
+  await page.locator('button[data-v="maps"]').click();
+  const row=floor=>page.locator('#tbody table').nth(1).locator('tr',{has:page.locator('td.fl',{hasText:new RegExp('^'+floor+'$')})});
+  const text=async floor=>(await row(floor).innerText()).replace(/\s+/g,' ');
+  assert.match(await text('B1F'),/ドブ王/);
+  assert.match(await text('B1F'),/炎に弱い/);
+  assert.doesNotMatch(await text('B1F'),/氷|雷/);
+  assert.match(await text('B2F'),/？？？/);
+  assert.doesNotMatch(await text('B2F'),/炎|氷|雷/);
+  assert.match(await text('B8F'),/市場の大ガーゴイル/);
+  assert.match(await text('B8F'),/炎と氷に強く、雷に弱い/);
+  assert.match(await text('B10F'),/迷い牛の古株/);
+  assert.doesNotMatch(await text('B10F'),/炎|氷|雷/);
+  assert.match(await text('B11F'),/水路の主/);
+  assert.match(await text('B11F'),/炎に強く、雷に弱い/);
+  assert.match(await text('B12F'),/双頭のキメラ/);
+  assert.match(await text('B12F'),/炎に強く、氷に弱い/);
+  assert.match(await text('坑道B9F'),/石の鍛冶頭/);
+  assert.match(await text('坑道B9F'),/炎と氷に強く、雷に弱い/);
+  assert.deepEqual(errors,[]);await ctx.close();
+});
+
 test('1時間裏にいて戻ると、「留守のあいだに」が出て10日分（500刻）進む',async()=>{
   const {ctx,page,errors}=await open();
   const t0=await tick(page);

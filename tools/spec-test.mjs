@@ -20,7 +20,7 @@ const html=readFileSync(new URL('../index.html',import.meta.url),'utf8');
 const ENGINE=html.match(/\/\*ENGINE START\*\/([\s\S]*?)\/\*ENGINE END\*\//)[1];
 const EXPORTS=['newState','tick','rivalTemple','seatCap','seatsUsed','nextSeats','newcomerLvl','buyPrice','investPrice','FACILITIES',
   'RARES','MAXF','DRAGON_F','TICKS_PER_DAY','awayPlan','smallOf','debtTick','DEBT0','encounter','rareSlain','rareMonOf','arrive',
-  'repay','errandsOf','assignErrand','errandBlock','designateBlock','MAXF','MINE_TOP','MINE_BOT','MINE_N','FN','mineOpen','conquest','alive','markAdv','markedOf','BOARD_MAX','MARK_MAX','ARCS','reachFloor','GATE_F','fac','nextFac','buildFac','migrate','partyShown','crestJa','glossText','PT_A','PT_B','takeCrest','pickCrest','newPartyName','combat','MON'];
+  'repay','errandsOf','assignErrand','errandBlock','designateBlock','MAXF','MINE_TOP','MINE_BOT','MINE_N','FN','mineOpen','conquest','alive','markAdv','markedOf','BOARD_MAX','MARK_MAX','ARCS','reachFloor','GATE_F','fac','nextFac','buildFac','migrate','partyShown','crestJa','glossText','PT_A','PT_B','takeCrest','pickCrest','newPartyName','combat','MON','elemMul','elemNote','MINE_RARES'];
 
 // 乱数の種を固定したゲームの中身を1つ作る。中身の Math.random だけを差し替える
 function load(seed,fixed){
@@ -261,6 +261,157 @@ function checkMine(){
   check('坑道：迷宮の踏破から5〜10日で開く',opened!=null&&opened>=5*E.TICKS_PER_DAY&&opened<=10*E.TICKS_PER_DAY+1,'踏破のあと',`${opened}刻`);
 }
 
+// 「属性の相性」：名から引く倍率、見せ方、息吹と爆薬、王の黒い炎
+function checkAffinity(){
+  const E=load(1);
+  const want=Object.fromEntries(`
+大ネズミ 1.3,1,1
+スライム 1.2,1.5,0.6
+コボルド 1,1,1
+オーク 1,1,1
+ゾンビ 1.5,0.7,1
+骸骨兵 1.5,0.7,1
+巨大蜘蛛 1.3,1,1
+吸血コウモリ 1.3,1,1
+ガーゴイル 0.5,0.5,1.6
+オーガ 1,1,1
+レイス 1.5,0.7,1
+ミノタウロス 1,1,1
+溺れた衛兵 1.5,0.7,1
+キメラ 0.4,1.5,1
+水路の大蛇 0.8,1,1.5
+堕ちた騎士 1,1,1.3
+石の巨像 0.5,0.5,1.6
+亡霊騎士 1.5,0.7,1
+宮廷魔術師の亡霊 1.5,0.7,1
+墓所の番犬 0.4,1.5,1
+屍喰らい 1.5,0.7,1
+吸魂の司祭 1.5,0.7,1
+塔の番兵ゴーレム 0.5,0.5,1.6
+狂った見習い魔術師 1,1,1
+近衛騎士長 1,1,1.3
+澱の落とし子 1.2,1.5,0.6
+黒竜 0.4,1.5,1
+儀式の守護者 1,1,1.3
+沈んだ王 1,1,1
+岩喰い虫 1.3,1,1
+坑夫の亡霊 1.5,0.7,1
+崩落蜘蛛 1.3,1,1
+鉄喰いトロール 1,1,1
+坑道ゴーレム 0.5,0.5,1.6
+盲目の洞窟竜 0.4,1.5,1
+澱の坑夫 1.2,1.5,0.6
+坑道都市の衛兵 1,1,1.3
+炉の番人ゴーレム 0.5,0.5,1.6
+鉱脈の大蛇 0.8,1,1.5
+晶石の亡霊 1.5,0.7,1
+地底の巨人 1,1,1
+溶岩の獣 0.8,1.2,1
+澱の古蟲 1.2,1.5,0.6
+堕ちた坑夫長 1,1,1
+澱を呑んだ竜 0.4,1.5,1
+鉄血の近衛 0.5,0.5,1.6
+澱の巫女 1.2,1.5,0.6
+坑道王の親衛 1,1,1.3
+澱呑みの坑道王 1,1,1
+ドブ王 1.3,1,1
+片耳のコボルド王 1,1,1
+首狩りコボルド 1,1,1
+泣き女の亡霊 1.5,0.7,1
+牢番の亡霊 1.5,0.7,1
+大蜘蛛の女王 1.3,1,1
+鎖つきのオーガ 1,1,1
+市場の大ガーゴイル 0.5,0.5,1.6
+首なし騎士 1.5,0.7,1
+迷い牛の古株 1,1,1
+水路の主 0.8,1,1.5
+双頭のキメラ 0.4,1.5,1
+暴走した鉄の巨人 0.5,0.5,1.6
+溺れた水門番 1.5,0.7,1
+目覚めた巨像 0.5,0.5,1.6
+鏡の亡霊騎士 1.5,0.7,1
+墓守の老婆 1.5,0.7,1
+生贄たちの群れ 1.5,0.7,1
+番犬の母 0.4,1.5,1
+屍の王 1.5,0.7,1
+塔の主の使い魔 1,1,1
+吸魂の大司祭 1.5,0.7,1
+宮廷魔術師長の影 1.5,0.7,1
+近衛の旗手 1,1,1.3
+澱の母胎 1.2,1.5,0.6
+黒衣の騎士団長 1,1,1.3
+黒竜の落とし仔 0.4,1.5,1
+竜番の骸 1.5,0.7,1
+仮面の司祭長 1,1,1.3
+玉座の影 1.5,0.7,1
+金歯のトロール 1,1,1
+ランプ持ちの坑夫頭 1.5,0.7,1
+天井の母蜘蛛 1.3,1,1
+石の鍛冶頭 0.5,0.5,1.6
+酒蔵の主 1.5,0.7,1
+鉱脈喰らい 0.8,1,1.5
+黒曜の騎士 1,1,1.3
+溶鉱炉の竜 0.4,1.5,1
+澱の乳母 1.2,1.5,0.6
+坑道王の盾持ち 1,1,1.3
+`.trim().split('\n').map(s=>{const i=s.lastIndexOf(' ');return [s.slice(0,i),s.slice(i+1)];}));
+  const all=[...E.MON.map(m=>m.n),...E.RARES.map(r=>r.n),...E.MINE_RARES.map(r=>r.n)];
+  check('属性の相性：表は迷宮と坑道の魔物をすべて含む',all.length===Object.keys(want).length&&all.every(n=>want[n]),'名簿',all.filter(n=>!want[n]).join('、')||`${all.length}体`);
+  for(const n of all){const got=['fire','ice','bolt'].map(k=>E.elemMul({n},k)).join(',');
+    check('属性の相性：倍率が表のとおり',got===want[n],n,`${got}（表は${want[n]}）`);}
+  check('属性の相性：変異種は元の名で決まる',E.elemMul({n:'巨大な黒竜',base:'黒竜'},'fire')===.4&&E.elemMul({n:'澱にまみれたスライム',base:'スライム'},'ice')===1.5,'変異種','元の名を見ていない');
+  const phrase={黒竜:'炎に強く、氷に弱い',溶岩の獣:'炎に強く、氷に弱い',ガーゴイル:'炎と氷に強く、雷に弱い',スライム:'炎と氷に弱く、雷に強い',ゾンビ:'炎に弱く、氷に強い',水路の大蛇:'炎に強く、雷に弱い',堕ちた騎士:'雷に弱い',岩喰い虫:'炎に弱い',オーク:'',鉄血の近衛:'炎と氷に強く、雷に弱い',ドブ王:'炎に弱い',溺れた衛兵:'炎に弱く、氷に強い',竜番の骸:'炎に弱く、氷に強い',澱を呑んだ竜:'炎に強く、氷に弱い',坑道王の親衛:'雷に弱い',沈んだ王:''};
+  for(const [n,w] of Object.entries(phrase))check('属性の相性：表示の言葉が倍率と一致する',E.elemNote({n})===w,n,`${E.elemNote({n})}（決まりは${w}）`);
+  for(const n of all){const note=E.elemNote({n});const bits=note?note.split('、'):[];const seen=[];let ok=true;
+    bits.forEach((b,i)=>{const m=b.match(/^(.*)に(弱|強)(い|く)$/);if(!m){ok=false;return;}const names=m[1].split('と');const end=i===bits.length-1?'い':'く';
+      if(m[3]!==end)ok=false;for(const jp of names){const k={炎:'fire',氷:'ice',雷:'bolt'}[jp];const mul=k?E.elemMul({n},k):NaN;seen.push(k);
+        if(m[2]==='弱'&&!(mul>1))ok=false;if(m[2]==='強'&&!(mul<1))ok=false;}});
+    for(const k of ['fire','ice','bolt']){const mul=E.elemMul({n},k);if(mul!==1&&!seen.includes(k))ok=false;if(mul===1&&seen.includes(k))ok=false;}
+    check('属性の相性：どの魔物も、表示した強弱が倍率と一致する',ok,n,note||'（相性なし）');}
+  // 息吹と爆薬は炎。竜には弱く、等倍の相手には一言が付かない。乱数の進み方は倍率の前後で同じ
+  const strike=(seed,cls,mon)=>{const E2=load(seed),S=E2.newState();const p=Object.values(S.parties).find(x=>x.tav==='ours');const a=S.adv[p.leader];
+    a.cls=cls;a.lvl=10;a.hp=a.mhp=500;a.mp=8;a.pers='普通';a.poison=0;a.eq={};
+    p.members=[a.id];p.leader=a.id;p.floor=1;p.state='explore';p.fought=true;p.ident=true;p.ambush=false;p.potions=0;p.guard=0;p.buff=0;p.log=[];
+    p.etype=Object.assign({},E2.MON.find(m=>m.n===mon));p.enemies=[{hp:99999,sleep:0}];
+    E2.combat(S,p);return {dmg:99999-p.enemies[0].hp,log:p.log.map(x=>x.t).join('\n')};};
+  let breath=null,bomb=null;
+  for(let seed=1;seed<=80&&(!breath||!bomb);seed++){const b=strike(seed,'竜騎士','オーク');if(!breath&&b.log.includes('りゅうの いぶき'))breath=seed;
+    const c=strike(seed,'錬金術師','オーク');if(!bomb&&c.log.includes('ばくやくを なげつけた'))bomb=seed;}
+  check('属性の相性：息吹と爆薬が試し打ちできる',!!breath&&!!bomb,'80種',`息吹${breath} 爆薬${bomb}`);
+  if(breath){const oak=strike(breath,'竜騎士','オーク'),dr=strike(breath,'竜騎士','黒竜'),lava=strike(breath,'竜騎士','溶岩の獣');
+    check('属性の相性：竜の息吹は竜に弱く効く',dr.dmg===Math.round(oak.dmg*.4)&&dr.dmg<oak.dmg&&dr.log.includes('あまり きかない')&&!oak.log.includes('きいた')&&!oak.log.includes('きかない'),`種${breath}`,`オーク${oak.dmg} 黒竜${dr.dmg}`);
+    check('属性の相性：竜の息吹は溶岩の獣に弱く効く',lava.dmg===Math.round(oak.dmg*.8)&&lava.dmg<oak.dmg&&lava.log.includes('あまり きかない'),`種${breath}`,`オーク${oak.dmg} 溶岩${lava.dmg}`);
+    const hid=strike(breath,'竜騎士','黒竜');const E3=load(breath),S=E3.newState();const p=Object.values(S.parties).find(x=>x.tav==='ours');const a=S.adv[p.leader];
+    a.cls='竜騎士';a.lvl=10;a.hp=a.mhp=500;a.mp=0;a.pers='普通';a.poison=0;a.eq={};
+    p.members=[a.id];p.leader=a.id;p.floor=1;p.state='explore';p.fought=true;p.ident=false;p.ambush=false;p.potions=0;p.guard=0;p.buff=0;p.log=[];
+    p.etype=Object.assign({},E3.MON.find(m=>m.n==='黒竜'));p.enemies=[{hp:99999,sleep:0}];E3.combat(S,p);
+    check('属性の相性：正体がわからなくても息吹の傷には倍率がかかる',99999-p.enemies[0].hp===hid.dmg&&p.log.some(x=>x.t.includes('あまり きかない')),`種${breath}`,`見破る${hid.dmg} まだ${99999-p.enemies[0].hp}`);}
+  if(bomb){const oak=strike(bomb,'錬金術師','オーク'),dr=strike(bomb,'錬金術師','黒竜');
+    check('属性の相性：爆薬は炎で、竜に弱く効く',dr.dmg===Math.round(oak.dmg*.4)&&dr.dmg<oak.dmg&&dr.log.includes('あまり きかない')&&oak.log.includes('ばくふうに のまれた')&&!oak.log.includes('きいた')&&!oak.log.includes('きかない'),`種${bomb}`,`オーク${oak.dmg} 黒竜${dr.dmg}`);}
+  // 呪文の選びは、正体がわかっているときだけ相性を見る。傷の計算とは別
+  const cast=(ident)=>{const E2=load(1),S=E2.newState();const p=Object.values(S.parties).find(x=>x.tav==='ours');const a=S.adv[p.leader];
+    a.cls='魔術師';a.lvl=10;a.hp=a.mhp=200;a.mp=8;a.pers='普通';a.poison=0;a.eq={};a.tal=[];
+    p.members=[a.id];p.leader=a.id;p.floor=1;p.state='explore';p.fought=true;p.ident=ident;p.ambush=false;p.potions=0;p.guard=0;p.buff=0;p.log=[];
+    p.etype=Object.assign({},E2.MON.find(m=>m.n==='黒竜'));p.enemies=[{hp:500,sleep:0},{hp:500,sleep:0}];
+    E2.combat(S,p);return p.log.map(x=>x.t).join('\n');};
+  const known=cast(true),unknown=cast(false);
+  check('属性の相性：見破ってから相性で呪文を選ぶ',known.includes('コオリ')&&!known.includes('イカズチ')&&unknown.includes('イカズチ')&&!unknown.includes('コオリ'),'黒竜が2体',`見破る「${known.split('\n')[0]}」 まだ「${unknown.split('\n')[0]}」`);
+  // 沈んだ王と坑道王の黒い炎は、炎を防ぐ装備では軽くならない。ふつうの炎の息は軽くなる
+  const hurt=(seed,mon,fire)=>{const E2=load(seed),S=E2.newState();const p=Object.values(S.parties).find(x=>x.tav==='ours');const a=S.adv[p.leader];
+    a.cls='戦士';a.lvl=8;a.hp=a.mhp=50000;a.mp=0;a.pers='普通';a.poison=0;a.eq=fire?{body:{fire,slot:'body'}}:{};
+    p.members=[a.id];p.leader=a.id;p.floor=1;p.state='explore';p.fought=true;p.ident=true;p.ambush=false;p.potions=0;p.guard=0;p.buff=0;p.log=[];
+    p.etype=Object.assign({},E2.MON.find(m=>m.n===mon));p.enemies=[{hp:99999,sleep:0}];
+    E2.combat(S,p);return {dmg:50000-a.hp,log:p.log.map(x=>x.t).join('\n')};};
+  let black=false,breathHit=false;
+  for(let seed=1;seed<=40;seed++){for(const mon of ['沈んだ王','澱呑みの坑道王']){const a=hurt(seed,mon,0),b=hurt(seed,mon,.8);
+      if(a.log.includes('くろい ほのお'))black=true;
+      check('属性の相性：黒い炎は炎の耐性では軽くならない',a.dmg===b.dmg,`${mon}・種${seed}`,`なし${a.dmg} 耐性${b.dmg}`);}
+    const a=hurt(seed,'キメラ',0),b=hurt(seed,'キメラ',.5);
+    if(a.log.includes('ほのおを はいた')){breathHit=true;check('属性の相性：ふつうの炎の息は炎の耐性で軽くなる',b.dmg<a.dmg,`キメラ・種${seed}`,`なし${a.dmg} 耐性${b.dmg}`);}
+    else check('属性の相性：炎の息を吐かなければ耐性では変わらない',a.dmg===b.dmg,`キメラ・種${seed}`,`なし${a.dmg} 耐性${b.dmg}`);}
+  check('属性の相性：黒い炎と炎の息の両方を試し打ちした',black&&breathHit,'40種',`黒い炎${black} 炎の息${breathHit}`);
+}
+
 // ---- 何百日も回しながら、毎刻成り立つはずの性質 ----
 function runSeed(seed){
   const E=load(seed),S=E.newState();
@@ -378,7 +529,7 @@ function runSeed(seed){
 
 if(!isMainThread){const line=runSeed(workerData.seed);parentPort.postMessage({line,res:[...results]});}
 else{
-  checkTables();checkScenes();checkErrands();checkCrest();checkRowFallback();checkMine();
+  checkTables();checkScenes();checkErrands();checkCrest();checkRowFallback();checkMine();checkAffinity();
   // 種ごとの結果は、種の順に重ねる。反例は、いちばん若い種の最初のものを残す
   const out=new Array(SEEDS.length);let next=0;
   const runOne=()=>{if(next>=SEEDS.length)return Promise.resolve();const k=next++;
