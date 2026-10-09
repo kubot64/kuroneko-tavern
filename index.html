@@ -613,7 +613,7 @@ const PUSH={
 function newState(){
   const S={tick:0,nid:1,adv:{},parties:{},news:[],tales:[],memorial:[],
     taverns:{ours:{name:'黒猫亭',gold:400,rep:0,crystals:1,earned:0,debt:DEBT0,seats:12,nextPay:30*TICKS_PER_DAY,late:0},rival:{name:'銀の杯亭',gold:99999,rep:60,owner:RIVAL_OWNER}},
-    bounties:{},deepest:{ours:1,rival:GATE_F},usedNames:{[RIVAL_OWNER]:1},usedParty:{'鉄の誓い':1,'黄金の剣':1,'七つ星':1,'夜鷹':1,'鉄の誓い傭兵団':1,'黄金の剣団':1},usedItems:{},uniqFound:{},farewells:[],edicts:[],v:21,loreFound:{},shop:{tiers:{1:true},mats:{},serial:0,log:[]},watch:[null,null],sel:0,stats:{dreams:{ours:0,rival:0}},small:SMALL_TAV.slice(0,5)};
+    bounties:{},deepest:{ours:1,rival:GATE_F},usedNames:{[RIVAL_OWNER]:1},usedParty:{'鉄の誓い':1,'黄金の剣':1,'七つ星':1,'夜鷹':1,'鉄の誓い傭兵団':1,'黄金の剣団':1},usedItems:{},uniqFound:{},farewells:[],edicts:[],v:22,loreFound:{},shop:{tiers:{1:true},mats:{},serial:0,log:[]},watch:[null,null],sel:0,stats:{dreams:{ours:0,rival:0}},small:SMALL_TAV.slice(0,5)};
   for(let i=0;i<7;i++) makeAdv(S,'ours',{lvl:pick([1,1,1,2,2,3,3,4,5,6])});
   const vets=[];for(let i=0;i<6;i++) vets.push(makeAdv(S,'rival',{lvl:ri(12,17)}));
   for(let i=0;i<22;i++) makeAdv(S,'rival');
@@ -1834,7 +1834,11 @@ function mapTick(S){const F=floorsInit(S);
 function policy(S){S.policy=S.policy||{potion:0,mapPay:false,revive:false,rookie:false};return S.policy;}
 function favor(a,n){a.favor=(a.favor||0)+n;}
 function potionPrice(S,p){const al=p.members.map(id=>A(S,id)).filter(Boolean);const d=al.length?Math.round(al.reduce((s,a)=>s+depthOf(a),0)/al.length):1;return Math.max(20,Math.round(incomeAt(d)*.12/10)*10);}
-function supplyTeam(S,p){if(p.tav!=='ours')return;const n=[0,2,5,10][policy(S).potion||0];if(!n)return;const c=n*potionPrice(S,p);const T0=S.taverns.ours;
+// 坑道では、銀の杯亭が客の一行に回復薬と地図を貸す。代金は客の借金に上乗せし、稼ぎから取り立てる
+const RIVAL_MINE_POTIONS=5;
+function lendRival(S,p,c){const al=p.members.map(id=>A(S,id)).filter(Boolean);al.forEach(a=>{a.debt=(a.debt||0)+Math.ceil(c/al.length);});}
+function supplyTeam(S,p){if(p.tav==='rival'&&p.mineTrip){const n=RIVAL_MINE_POTIONS;lendRival(S,p,n*potionPrice(S,p));p.potions=n;plog(p,`ぎんのさかずきていから かいふくやく ${n}ほんを かりた（しゃっきんに うわのせ）`,'loot');return;}
+  if(p.tav!=='ours')return;const n=[0,2,5,10][policy(S).potion||0];if(!n)return;const c=n*potionPrice(S,p);const T0=S.taverns.ours;
   if(T0.gold<c){plog(p,'さしいれの かいふくやくは とどかなかった（みせの かねが たりない）','move');return;}
   T0.gold-=c;T0.support=(T0.support||0)+c;p.potions=n;plog(p,`くろねこていからの さしいれ：かいふくやく ${n}ほん`,'loot');}
 function giftOffer(S,a){let best=null,sc=0;for(const o of shopOffers(S,a.cls)){const prev=Object.assign({for:o.b.for,slot:o.b.slot},o.b.two?{two:true}:{},o.b.st(o.t));const g=gainOf(a,prev);if(g<1.5)continue;const v=g/Math.sqrt(o.price);if(v>sc){sc=v;best=o;}}return best;}
@@ -1872,6 +1876,7 @@ function useMap(S,p){const F=floorsInit(S);const f=p.floor;if(!F[f]||!F[f].map)r
   const price=mapPrice(f);const al=alive(S,p);
   if(p.tav==='ours'&&policy(S).mapPay&&S.taverns.ours.gold>=price){S.taverns.ours.gold-=price;S.taverns.ours.support=(S.taverns.ours.support||0)+price;p.maps[f]=1;F[f].sold=(F[f].sold||0)+1;al.forEach(a=>favor(a,.2));plog(p,`くろねこていの もちで ${FN(f)}の ちずを ひろげた`,'loot');return;}
   const pool=al.reduce((s,a)=>s+Math.max(0,a.gold),0);
+  if(pool<price*1.5&&p.tav==='rival'&&inMine(f)){lendRival(S,p,price);p.maps[f]=1;F[f].sold=(F[f].sold||0)+1;plog(p,`ぎんのさかずきていから ${FN(f)}の ちずを かりた（しゃっきんに うわのせ）`,'loot');return;}
   if(pool<price*1.5){plog(p,`${FN(f)}の ちずは たかすぎて かえなかった`,'move');return;}
   let need=price;al.forEach(a=>{const x=Math.min(Math.max(0,a.gold),Math.ceil(price/al.length));a.gold-=x;need-=x;});al.forEach(a=>{if(need>0){const x=Math.min(Math.max(0,a.gold),need);a.gold-=x;need-=x;}});
   p.maps[f]=1;F[f].sold=(F[f].sold||0)+1;plog(p,`${CARTO}で かった ${FN(f)}の ちずを ひろげた`,'loot');}
@@ -2083,7 +2088,7 @@ function combat(S,p){
       plog(p,`${a.name} は ゼンカイ を となえた\n　いっこうの きずが ${h} ずつ かいふくした`);continue;}
     if(CAN.mamori(a)&&!p.guard&&a.mp>=2&&(t.rare||t.gate||t.boss||(t.xpm||1)>=1.4||(foes.length>=3&&f>=12))){
       a.mp--;p.guard=2+Math.floor(PL(a)/4);plog(p,`${a.name} は マモリ を となえた\n　いっこうの まもりが ${p.guard} あがった`);continue;}
-    if(p.potions>0&&low.hp/low.mhp<.3&&!(c.heal&&a.mp>0)){p.potions--;const h=Math.round(low.mhp*.4);low.hp=Math.min(low.mhp,low.hp+h);favor(low,.3);
+    if(p.potions>0&&low.hp/low.mhp<.3&&!(c.heal&&a.mp>0)){p.potions--;const h=Math.round(low.mhp*.4);low.hp=Math.min(low.mhp,low.hp+h);if(p.tav==='ours')favor(low,.3);
       plog(p,`${a.name} は ${low===a?'':low.name+'に '}かいふくやくを つかった\n　${h} かいふくした（のこり ${p.potions}ほん）`);p.trip.potion=(p.trip.potion||0)+1;continue;}
     if(c.heal&&a.mp>0&&low.hp/low.mhp<(c.healTh||.45)){
       a.mp--;const h=Math.round((ri(4,8)+PL(a)*2)*(1+eqSum(a,'heal')+(has(a,'信心深い')?.2:0)));low.hp=Math.min(low.mhp,low.hp+h);p.trip.heals=(p.trip.heals||0)+1;p.trip.healer=a.name;
@@ -2244,7 +2249,7 @@ function arrive(S,p){
   let lvls=[];
   al.forEach(a=>{
     const big=['酒好き','大食い','博打好き'].includes(a.quirk);const spend=Math.round(share*((big?ri(35,55):ri(15,30))+Math.min(20,(a.favor||0)*2)+(has(a,'浪費家')?15:0)+(al.some(x=>has(x,'人望'))?8:0))/100);
-    a.gold+=share-spend;a.spent=spend;if(p.tav==='rival'&&a.debt>0){const tk=Math.min(a.debt,Math.floor(Math.max(0,share)*.4));a.debt-=tk;a.gold-=tk;if(a.debt<=0){a.debt=0;chron(S,a,'銀の杯亭への借金を返し終える');}}{const u=upkeep(a);const paid=Math.min(Math.max(0,a.gold),u.repair+u.lodge);a.gold-=paid;a.lodge=Math.min(paid,u.lodge);}a.status='idle';a.poison=0;
+    a.gold+=share-spend;a.spent=spend;if(p.tav==='rival'&&a.debt>0){const tk=Math.min(a.debt,Math.floor(Math.max(0,share)*.4));a.debt-=tk;a.gold-=tk;if(a.debt<=0){a.debt=0;if(a.loanItem){chron(S,a,'銀の杯亭への借金を返し終える');delete a.loanItem;}}}{const u=upkeep(a);const paid=Math.min(Math.max(0,a.gold),u.repair+u.lodge);a.gold-=paid;a.lodge=Math.min(paid,u.lodge);}a.status='idle';a.poison=0;
     const l0=a.lvl;
     while(a.xp>=xpNeed(a.lvl)){lvlUp(a);lvls.push(a);plog(p,`${a.name} は レベル ${a.lvl} に あがった`,'lvl');}
     if(a.lvl>l0)chron(S,a,`レベル${a.lvl}に上がる`);
@@ -2348,7 +2353,7 @@ function tale(S,p,al,second){
   if(p.loot>=600)add('18',2,pick([`今回は${p.loot*m}Gの稼ぎだ。しばらくは遊んで暮らせる`,`財布が重くて歩きにくい。${p.loot*m}Gだぞ`,`${p.loot*m}Gだ。今夜は誰が何を頼んでもいい`]));
   if(p.loot<80&&!tr.items.length)add('19',1.5,'骨折り損だ。宝箱は空っぽ、財布も空っぽ');
   // exploration
-  if(tr.potion)add('20',2,`黒猫亭の差し入れの回復薬がなかったら、危なかった`);
+  if(tr.potion)add('20',2,p.tav==='ours'?`黒猫亭の差し入れの回復薬がなかったら、危なかった`:`銀の杯亭で借りた回復薬がなかったら、危なかった。借金は増えたがな`);
   if(tr.escaped)add('21',5,`${tr.escaped===sp.name?'俺の':tr.escaped+'の'}ダッシュツがなかったら、全員${FN(deep)}の土になってた`);
   if(tr.yomi)add('22',5,`${tr.yomi.c}のヨミガエリで、${tr.yomi.d}が息を吹き返した。……奇跡だよ`);
   if((tr.vars||[]).length){const v=pick(tr.vars);add('23',2.5,pick([`${v}に出くわした。ふつうのとは比べものにならない`,`${v}ってのがいてな。名前だけで嫌な予感がしたよ`,`${v}の相手は、もうごめんだ`]));}
@@ -2809,6 +2814,10 @@ function migrate(S){
       walk(S);
     }
     S.v=21;
+  }
+  if(!(S.v>=22)){// 装備の借金を返し終えても貸し付けの印が残っていた。借金のない客は印を消し、坑道で借りた分を返したときに「返し終える」がもう一度出ないようにする
+    Object.values(S.adv).forEach(a=>{if(!(a.debt>0))delete a.loanItem;});
+    S.v=22;
   }
   Object.values(S.adv).forEach(a=>{if(!a.tone)personalize(a);if(!a.traits)assignTraits(S,a,true);});
   smallOf(S);
