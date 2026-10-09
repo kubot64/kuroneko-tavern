@@ -20,7 +20,7 @@ const html=readFileSync(new URL('../index.html',import.meta.url),'utf8');
 const ENGINE=html.match(/\/\*ENGINE START\*\/([\s\S]*?)\/\*ENGINE END\*\//)[1];
 const EXPORTS=['newState','tick','rivalTemple','seatCap','seatsUsed','nextSeats','newcomerLvl','buyPrice','investPrice','FACILITIES',
   'RARES','MAXF','DRAGON_F','TICKS_PER_DAY','awayPlan','smallOf','debtTick','DEBT0','encounter','rareSlain','rareMonOf','arrive',
-  'repay','errandsOf','assignErrand','errandBlock','designateBlock','MAXF','MINE_TOP','MINE_BOT','MINE_N','FN','mineOpen','conquest','alive','markAdv','markedOf','BOARD_MAX','MARK_MAX','ARCS','reachFloor','GATE_F','fac','nextFac','buildFac','migrate','partyShown','crestJa','glossText','PT_A','PT_B','takeCrest','pickCrest','newPartyName','combat','MON','supplyTeam','potionPrice'];
+  'repay','errandsOf','assignErrand','errandBlock','designateBlock','MAXF','MINE_TOP','MINE_BOT','MINE_N','FN','mineOpen','conquest','alive','markAdv','markedOf','BOARD_MAX','MARK_MAX','ARCS','reachFloor','GATE_F','fac','nextFac','buildFac','migrate','partyShown','crestJa','glossText','PT_A','PT_B','takeCrest','pickCrest','newPartyName','combat','MON','supplyTeam','potionPrice','lendRival'];
 
 // 乱数の種を固定したゲームの中身を1つ作る。中身の Math.random だけを差し替える
 function load(seed,fixed){
@@ -94,6 +94,12 @@ function checkScenes(){
     const al=p.members.map(id=>S.adv[id]);const d0=al.reduce((s,a)=>s+(a.debt||0),0);p.mineTrip=mine;p.potions=0;const c=5*E.potionPrice(S,p);E.supplyTeam(S,p);
     const d1=al.reduce((s,a)=>s+(a.debt||0),0);const ok=mine?p.potions===5&&d1-d0>=c&&d1-d0<c+al.length:p.potions===0&&d1===d0;
     check('貸し付け：坑道に潜る銀の杯亭の一行だけが回復薬5本を借り、代金が借金に足される',ok,mine?'坑道へ':'迷宮へ',`回復薬${p.potions}本・借金+${d1-d0}G（代金${c}G）`);}
+  // 「貸し付け」：手帳の「借金を返し終える」は、最初に装備を借りた分を返したときの1回きり。坑道で借りた分を返しても書かない
+  {const E=load(1),S=E.newState();const p=Object.values(S.parties).find(x=>x.tav==='rival');const al=p.members.map(id=>S.adv[id]);const a=al.find(x=>x.loanItem)||al[0];
+    a.loanItem=a.loanItem||'借りた剣';const line='銀の杯亭への借金を返し終える';const cnt=()=>(a.chron||[]).filter(x=>x.t===line).length;const got=[];
+    for(let i=0;i<3;i++){al.forEach(x=>{x.hp=x.mhp;x.status='party';});if(i===0)a.debt=1;else E.lendRival(S,p,al.length);
+      p.loot=100000;p.carried=[];p.rescue=[];E.arrive(S,p);got.push(`${a.debt}G/${cnt()}回`);}
+    check('貸し付け：手帳の「借金を返し終える」は、装備の借金を返したときの1回きり',cnt()===1&&!a.loanItem,'返し終える→坑道で借りて返す×2',got.join(' → '));}
   // 「戦闘」：群れで出ても、炎の息を吐くのはひと巡りに1体まで。黒竜は1ラウンドに2回とも吐ける
   // 乱数をいつも0にして、吐けるときは必ず吐くようにする。B6Fより下の記録は文字が乱れるので、B5Fで戦わせる
   for(const [name,want] of [['キメラ',1],['黒竜',2]]){const E=load(1,1e-9),S=E.newState();const p=Object.values(S.parties).find(x=>x.tav==='ours');

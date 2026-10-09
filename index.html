@@ -2242,7 +2242,7 @@ function arrive(S,p){
   let lvls=[];
   al.forEach(a=>{
     const big=['酒好き','大食い','博打好き'].includes(a.quirk);const spend=Math.round(share*((big?ri(35,55):ri(15,30))+Math.min(20,(a.favor||0)*2)+(has(a,'浪費家')?15:0)+(al.some(x=>has(x,'人望'))?8:0))/100);
-    a.gold+=share-spend;a.spent=spend;if(p.tav==='rival'&&a.debt>0){const tk=Math.min(a.debt,Math.floor(Math.max(0,share)*.4));a.debt-=tk;a.gold-=tk;if(a.debt<=0){a.debt=0;chron(S,a,'銀の杯亭への借金を返し終える');}}{const u=upkeep(a);const paid=Math.min(Math.max(0,a.gold),u.repair+u.lodge);a.gold-=paid;a.lodge=Math.min(paid,u.lodge);}a.status='idle';a.poison=0;
+    a.gold+=share-spend;a.spent=spend;if(p.tav==='rival'&&a.debt>0){const tk=Math.min(a.debt,Math.floor(Math.max(0,share)*.4));a.debt-=tk;a.gold-=tk;if(a.debt<=0){a.debt=0;if(a.loanItem){chron(S,a,'銀の杯亭への借金を返し終える');delete a.loanItem;}}}{const u=upkeep(a);const paid=Math.min(Math.max(0,a.gold),u.repair+u.lodge);a.gold-=paid;a.lodge=Math.min(paid,u.lodge);}a.status='idle';a.poison=0;
     const l0=a.lvl;
     while(a.xp>=xpNeed(a.lvl)){lvlUp(a);lvls.push(a);plog(p,`${a.name} は レベル ${a.lvl} に あがった`,'lvl');}
     if(a.lvl>l0)chron(S,a,`レベル${a.lvl}に上がる`);
