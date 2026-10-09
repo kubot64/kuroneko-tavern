@@ -306,7 +306,7 @@ function checkAffinity(){
 鉱脈の大蛇 0.8,1,1.5
 晶石の亡霊 1.5,0.7,1
 地底の巨人 1,1,1
-溶岩の獣 0.7,1.3,1
+溶岩の獣 0.8,1.2,1
 澱の古蟲 1.2,1.5,0.6
 堕ちた坑夫長 1,1,1
 澱を呑んだ竜 0.4,1.5,1
@@ -380,7 +380,7 @@ function checkAffinity(){
   check('属性の相性：息吹と爆薬が試し打ちできる',!!breath&&!!bomb,'80種',`息吹${breath} 爆薬${bomb}`);
   if(breath){const oak=strike(breath,'竜騎士','オーク'),dr=strike(breath,'竜騎士','黒竜'),lava=strike(breath,'竜騎士','溶岩の獣');
     check('属性の相性：竜の息吹は竜に弱く効く',dr.dmg===Math.round(oak.dmg*.4)&&dr.dmg<oak.dmg&&dr.log.includes('あまり きかない')&&!oak.log.includes('きいた')&&!oak.log.includes('きかない'),`種${breath}`,`オーク${oak.dmg} 黒竜${dr.dmg}`);
-    check('属性の相性：竜の息吹は溶岩の獣に弱く効く',lava.dmg===Math.round(oak.dmg*.7)&&lava.dmg<oak.dmg&&lava.log.includes('あまり きかない'),`種${breath}`,`オーク${oak.dmg} 溶岩${lava.dmg}`);
+    check('属性の相性：竜の息吹は溶岩の獣に弱く効く',lava.dmg===Math.round(oak.dmg*.8)&&lava.dmg<oak.dmg&&lava.log.includes('あまり きかない'),`種${breath}`,`オーク${oak.dmg} 溶岩${lava.dmg}`);
     const hid=strike(breath,'竜騎士','黒竜');const E3=load(breath),S=E3.newState();const p=Object.values(S.parties).find(x=>x.tav==='ours');const a=S.adv[p.leader];
     a.cls='竜騎士';a.lvl=10;a.hp=a.mhp=500;a.mp=0;a.pers='普通';a.poison=0;a.eq={};
     p.members=[a.id];p.leader=a.id;p.floor=1;p.state='explore';p.fought=true;p.ident=false;p.ambush=false;p.potions=0;p.guard=0;p.buff=0;p.log=[];
