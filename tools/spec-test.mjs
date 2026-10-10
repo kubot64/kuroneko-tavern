@@ -20,7 +20,7 @@ const html=readFileSync(new URL('../index.html',import.meta.url),'utf8');
 const ENGINE=html.match(/\/\*ENGINE START\*\/([\s\S]*?)\/\*ENGINE END\*\//)[1];
 const EXPORTS=['newState','tick','rivalTemple','seatCap','seatsUsed','nextSeats','newcomerLvl','buyPrice','investPrice','FACILITIES',
   'RARES','MAXF','DRAGON_F','TICKS_PER_DAY','awayPlan','smallOf','debtTick','DEBT0','encounter','rareSlain','rareMonOf','arrive',
-  'repay','errandsOf','assignErrand','errandBlock','designateBlock','MAXF','MINE_TOP','MINE_BOT','MINE_N','FN','mineOpen','conquest','alive','markAdv','markedOf','BOARD_MAX','MARK_MAX','ARCS','reachFloor','GATE_F','fac','nextFac','buildFac','migrate','partyShown','crestJa','glossText','PT_A','PT_B','takeCrest','pickCrest','newPartyName','combat','MON','elemMul','elemNote','MINE_RARES','supplyTeam','potionPrice','lendRival'];
+  'repay','errandsOf','assignErrand','errandBlock','designateBlock','MAXF','MINE_TOP','MINE_BOT','MINE_N','FN','mineOpen','conquest','alive','markAdv','markedOf','BOARD_MAX','MARK_MAX','ARCS','reachFloor','GATE_F','fac','nextFac','buildFac','migrate','partyShown','crestJa','glossText','PT_A','PT_B','takeCrest','pickCrest','newPartyName','combat','MON','elemMul','elemNote','sleepMul','sleepReach','MINE_RARES','supplyTeam','potionPrice','lendRival'];
 
 // 乱数の種を固定したゲームの中身を1つ作る。中身の Math.random だけを差し替える
 function load(seed,fixed){
@@ -417,6 +417,19 @@ function checkAffinity(){
     E2.combat(S,p);return p.log.map(x=>x.t).join('\n');};
   const known=cast(true),unknown=cast(false);
   check('属性の相性：見破ってから相性で呪文を選ぶ',known.includes('コオリ')&&!known.includes('イカズチ')&&unknown.includes('イカズチ')&&!unknown.includes('コオリ'),'黒竜が2体',`見破る「${known.split('\n')[0]}」 まだ「${unknown.split('\n')[0]}」`);
+  // 「眠り」：眠りやすさは名で決まる。作り物と不死は眠らず、竜と澱は眠りにくく、獣と虫は眠りやすい
+  const sleepWant={ガーゴイル:0,坑道ゴーレム:0,ゾンビ:0,骸骨兵:0,坑夫の亡霊:0,竜番の骸:0,スライム:.5,キメラ:.5,盲目の洞窟竜:.5,澱の坑夫:.5,大ネズミ:1.3,巨大蜘蛛:1.3,溶岩の獣:1.3,オーク:1,鉄喰いトロール:1,堕ちた騎士:1};
+  for(const [n,w] of Object.entries(sleepWant))check('眠り：眠りやすさが表のとおり',E.sleepMul({n})===w,n,`${E.sleepMul({n})}（表は${w}）`);
+  // ネムリの届く深さは、レベルの半分＋6（魔導士は＋4）。乱数をいつも0にして、唱えられるときは必ず唱えるようにする
+  const nemuri=(cls,lvl,floor,mon,ident)=>{const E2=load(1,1e-9),S=E2.newState();const p=Object.values(S.parties).find(x=>x.tav==='ours');const a=S.adv[p.leader];
+    a.cls=cls;a.lvl=lvl;a.hp=a.mhp=99999;a.mp=8;a.pers='普通';a.poison=0;a.eq={};a.tal=[];
+    p.members=[a.id];p.leader=a.id;p.floor=floor;p.state='explore';p.fought=true;p.ident=ident;p.ambush=false;p.potions=0;p.guard=0;p.buff=0;p.log=[];
+    p.etype=Object.assign({},E2.MON.find(m=>m.n===mon));p.enemies=Array.from({length:3},()=>({hp:1e9,sleep:0}));
+    E2.combat(S,p);return {slept:p.enemies.filter(e=>e.sleep>0).length,mp:a.mp,log:p.log.map(x=>x.t).join('\n')};};
+  check('眠り：レベル1の魔術師のネムリはB6Fまで',E.sleepReach({cls:'魔術師',lvl:1})===6.5&&nemuri('魔術師',1,6,'オーク',true).slept===3&&nemuri('魔術師',1,7,'オーク',true).slept===0,'魔術師Lv1',`B6F${nemuri('魔術師',1,6,'オーク',true).slept}体 B7F${nemuri('魔術師',1,7,'オーク',true).slept}体`);
+  check('眠り：レベル24の魔導士のネムリはB22Fまで',E.sleepReach({cls:'魔導士',lvl:24})===22&&nemuri('魔導士',24,22,'オーク',true).slept===3&&nemuri('魔導士',24,23,'オーク',true).slept===0,'魔導士Lv24',`B22F${nemuri('魔導士',24,22,'オーク',true).slept}体 B23F${nemuri('魔導士',24,23,'オーク',true).slept}体`);
+  {const known=nemuri('魔術師',1,3,'ゾンビ',true),unknown=nemuri('魔術師',1,3,'ゾンビ',false);
+    check('眠り：正体のわかった眠らない魔物にはネムリを唱えず、わからなければ唱えて効かない',!known.log.includes('ネムリ')&&unknown.log.includes('ネムリ')&&unknown.log.includes('ねむらなかった')&&unknown.slept===0,'ゾンビ3体',`わかる「${known.log.split('\n')[0]}」 わからない「${unknown.log.split('\n').slice(0,2).join(' ')}」`);}
   // 沈んだ王と坑道王の黒い炎は、炎を防ぐ装備では軽くならない。ふつうの炎の息は軽くなる
   const hurt=(seed,mon,fire)=>{const E2=load(seed),S=E2.newState();const p=Object.values(S.parties).find(x=>x.tav==='ours');const a=S.adv[p.leader];
     a.cls='戦士';a.lvl=8;a.hp=a.mhp=50000;a.mp=0;a.pers='普通';a.poison=0;a.eq=fire?{body:{fire,slot:'body'}}:{};
