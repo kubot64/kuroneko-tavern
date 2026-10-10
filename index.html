@@ -1956,6 +1956,12 @@ function rareSlain(S,p,t){
 const ELEM_TABLE=[[/骸|溺れた|墓守|生贄/,{fire:1.5,ice:.7}],[/大蛇|水路の主|鉱脈喰らい/,{bolt:1.5,fire:.8}],[/溶岩/,{fire:.8,ice:1.2}],[/ガーゴイル|巨像|ゴーレム|鉄の巨人|鍛冶頭|鉄血/,{fire:.5,ice:.5,bolt:1.6}],[/黒竜|キメラ|番犬|竜/,{fire:.4,ice:1.5}],[/スライム|澱の/,{bolt:.6,ice:1.5,fire:1.2}],
   [/ゾンビ|骸骨|レイス|亡霊|屍|吸魂|首なし|泣き女|影|坑夫頭|酒蔵の主/,{fire:1.5,ice:.7}],[/蜘蛛|コウモリ|ネズミ|虫|ドブ王/,{fire:1.3}],[/騎士|旗手|守護者|司祭|衛兵|親衛|盾持ち/,{bolt:1.3}]];
 function elemMul(t,el){const n=t.base||t.n;for(const [re,m] of ELEM_TABLE){if(re.test(n))return m[el]||1;}return 1;}
+// 眠りやすさ。上から順に、最初に名へ当たった行を使う。作り物と不死は眠らない。竜と澱の魔物は眠りにくく、獣と虫は眠りやすい
+const SLEEP_TABLE=[[/ガーゴイル|巨像|ゴーレム|鉄の巨人|鍛冶頭/,0],[/骸|溺れた|墓守|生贄|ゾンビ|レイス|亡霊|屍|吸魂|首なし|泣き女|影|坑夫頭|酒蔵の主/,0],
+  [/黒竜|キメラ|番犬|竜|スライム|澱/,.5],[/ネズミ|コウモリ|蜘蛛|虫|蛇|獣|犬|狼/,1.3]];
+function sleepMul(t){const n=t.base||t.n;for(const [re,m] of SLEEP_TABLE){if(re.test(n))return m;}return 1;}
+// ネムリが届く深さ（強さで見た深さ）。術者のレベルの半分＋6。魔導士はさらに4深く
+function sleepReach(a){return 6+a.lvl/2+(a.cls==='魔導士'?4:0)}
 function elemTag(m){return m>1?'（よく きいた）':m<1?'（あまり きかない）':'';}
 function elemNote(t){const nm={fire:'炎',ice:'氷',bolt:'雷'};const parts=[];let cur=null;
   for(const k of ['fire','ice','bolt']){const m=elemMul(t,k);const sign=m>1?'弱':m<1?'強':null;if(!sign){cur=null;continue;}
@@ -1977,7 +1983,7 @@ const SPELL_LIST=[
   ['ホノオ','敵の群れを炎で焼く。亡霊や虫によく効き、竜にはほとんど効かず、溶岩にも効きにくい','魔術師・魔導士・司教・侍・剣聖'],['ゴウカ','ホノオの強力版','魔術師Lv13〜・司教Lv23〜・魔導士'],
   ['コオリ','敵の群れを凍らせる。威力は控えめだが、しばらく動きを止めることがある。竜や溶岩、澱の魔物によく効く','魔術師Lv5〜・司教Lv9〜・魔導士'],
   ['イカズチ','敵一体に雷を落とす大技。石や鉄の魔物、鎧を着た者によく効く','魔術師Lv9〜・司教Lv13〜・魔導士'],
-  ['ネムリ','B6Fまでの敵の群れを眠らせる','魔術師・魔導士'],['ミトオシ','地図のない階でも、その探索のあいだ道筋を見通す','魔術師Lv15〜・司教Lv19〜・魔導士'],
+  ['ネムリ','敵の群れを眠らせる。届く深さは術者のレベルで伸びる。作り物と不死は眠らない','魔術師・魔導士'],['ミトオシ','地図のない階でも、その探索のあいだ道筋を見通す','魔術師Lv15〜・司教Lv19〜・魔導士'],
 ];
 function escape(S,p,a){a.mp-=3;plog(p,`${a.name} は ダッシュツ を となえた！\n　いっこうは ひかりに つつまれ ちじょうへ`,'loot');p.trip.escaped=a.name;p.enemies=null;p.buff=0;p.guard=0;
   chron(S,a,`${FN(p.floor)}でダッシュツを唱え、一行を地上へ逃がす`);p.floor=0;arrive(S,p);}
@@ -2101,8 +2107,8 @@ function combat(S,p){
       a.mp--;p.buff=2+Math.floor(PL(a)/3);plog(p,`${a.name} は いさましい うたを うたった\n　いっこうの こうげきが ${p.buff} あがった`);continue;
     }
     if(c.song&&a.mp>0&&foes.length>=2&&chance(.4)){
-      a.mp--;let n=0;foes.forEach(e=>{if(chance(.5)){e.sleep=2;n++}});
-      plog(p,`${a.name} は こもりうたを うたった\n　${n} たいが ねむってしまった`);p.trip.slept=(p.trip.slept||0)+n;p.trip.sleeper=a.name;continue;
+      a.mp--;const sm=sleepMul(t);let n=0;foes.forEach(e=>{if(chance(.5*sm)){e.sleep=2;n++}});
+      plog(p,`${a.name} は こもりうたを うたった\n　${n?n+' たいが ねむってしまった':foeName(p)+' は ねむらなかった'}`);p.trip.slept=(p.trip.slept||0)+n;p.trip.sleeper=a.name;continue;
     }
     if(c.bomb&&a.mp>0&&(foes.length>=2||chance(.3))){
       a.mp--;const m=elemMul(t,'fire');let dead=0;foes.forEach(e=>{e.hp-=Math.round((ri(3,8)+PL(a))*m);if(e.hp<=0){dead++;kill(p,a)}});
@@ -2113,9 +2119,9 @@ function combat(S,p){
       plog(p,`${a.name} は りゅうの いぶきを はいた！\n　${foeName(p)} は ほのおに つつまれた${elemTag(m)}${dead?'\n　'+dead+' たいが しんだ':''}`,'loot');continue;
     }
     const caster=c.mage&&PL(a)>=(c.mageLv||1)&&a.mp>0;
-    if(caster&&c.sleep&&foes.length>=3&&f<=4&&chance(.45)){
-      a.mp--;let n=0;foes.forEach(e=>{if(chance(.6)){e.sleep=2;n++}});
-      plog(p,`${a.name} は ネムリ を となえた\n　${n} たいが ねむってしまった`);p.trip.slept=(p.trip.slept||0)+n;p.trip.sleeper=a.name;continue;
+    if(caster&&c.sleep&&foes.length>=3&&fx(p.floor)<=sleepReach(a)&&!(p.ident&&!sleepMul(t))&&chance(.45)){
+      a.mp--;const sm=sleepMul(t);let n=0;foes.forEach(e=>{if(chance(.6*sm)){e.sleep=2;n++}});
+      plog(p,`${a.name} は ネムリ を となえた\n　${n?n+' たいが ねむってしまった':foeName(p)+' は ねむらなかった'}`);p.trip.slept=(p.trip.slept||0)+n;p.trip.sleeper=a.name;continue;
     }
     if(caster&&(foes.length>=2||chance(.5))){
       const big=c.big&&PL(a)>=c.big,bonus=rc(a).spell+(c.spell||0)+eqSum(a,'spell')+(has(a,'博識')?2:0);
