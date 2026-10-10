@@ -527,6 +527,7 @@ const SLOTS=['wpn','shield','head','body','acc'];
 const SLOT_N={wpn:'武器',shield:'盾',head:'頭',body:'胴',acc:'装飾'};
 const EPITHETS=['灰鴉','三日月','夜霧','狼牙','残り火','初雪','名無し','風見','黄昏','忘れ水','白百合','雷鳴','古狐','鈴鳴り','墓守','朝凪','血涙','星屑','錆鷹','月蝕','木漏れ日','双蛇','黒薔薇','冬至','石竜','嘆き','祈り火','茨冠','銀鈴','深淵','虎落笛','宵闇','旅鳥','鬼灯','霜柱','流れ星','獅子','鴉羽','紅蓮','寒椿','蛍火','渡り鳥','暁','野分','鶺鴒','陽炎','時雨','不知火','雪花','龍胆','赤錆','空蝉','残月','葦笛','鉄線','白夜','黒檀','琥珀','小夜鳴き','鉄鍋','迷い子','灯台守','百舌','薄氷','狐火','花冷え','雲雀','夕凪','霧笛','十六夜'];
 const EP_SUF=['の牙','の誓い','の残響','の涙','の守り','の囁き','の灯','の爪痕','の祈り','の影','の歌','の眠り','の目覚め','の翼','の棘','の夢'];
+const EP_ALL=EPITHETS.flatMap(e=>EP_SUF.map(x=>e+x)),EP_KEYS=EP_ALL.map(e=>'ep:'+e);
 const UNIQUES=[
   {n:'銘刀「夜啼」',slot:'wpn',atk:18,hit:.1,crit:.06,minF:7,f:6,for:['侍'],rare:true,lore:'夜ごとに泣くという妖刀。首を落とすたびに声が止む'},
   {n:'影縫いの短剣',slot:'wpn',atk:13,hit:.1,crit:.08,trap:.2,minF:7,f:6,for:['盗賊'],rare:true,lore:'影を床に縫い止める短剣。持ち主は罠にも縫い止められない'},
@@ -583,7 +584,7 @@ function makeItem(S,f,cls){
   if(it.atk>0&&it.slot==='wpn'&&chance(.6))it.atk+=Math.ceil(tier/2);
   if(it.ac>0&&chance(.6))it.ac+=Math.ceil(tier/2);
   let free=EPITHETS.filter(e=>!S.usedItems['ep:'+e]);
-  if(!free.length) free=EPITHETS.flatMap(e=>EP_SUF.map(x=>e+x)).filter(e=>!S.usedItems['ep:'+e]);
+  if(!free.length) free=EP_ALL.filter((e,i)=>!S.usedItems[EP_KEYS[i]]);
   let n;
   if(free.length){const e=pick(free);n=`${mat}の${b.t}「${e}」`;S.usedItems['ep:'+e]=1;}
   else {let i=2;do{n=`${mat}の${b.t}・${i++}号`}while(S.usedItems[n]);}
@@ -1178,8 +1179,9 @@ function deliverMats(S,p,al){
   if(pay&&al.length){al.forEach(a=>a.gold+=Math.floor(pay/al.length));plog(p,`そざいを ぶぐやに おろした。${pay} G`,'loot');}
 }
 function newTrip(){return {mats:{},kills:{},items:[],found:[],deep:1,chests:0,crits:[],traps:[],close:[],deaths:[],met:[],poison:[],fled:0,slept:0,heals:0,big:null,rec:false,lv:[],empty:0}}
+const GARBLE=['…','ザ','ｻﾞ','・'];
 function plog(p,t,k){
-  if(p.floor>=6&&k!=='sys'){ const q=Math.min(.2,(p.floor-5)*0.03); t=[...t].map(ch=>ch!==' '&&R()<q?pick(['…','ザ','ｻﾞ','・']):ch).join(''); }
+  if(p.floor>=6&&k!=='sys'){ const q=Math.min(.2,(p.floor-5)*0.03); let o='';for(const ch of t)o+=ch!==' '&&R()<q?pick(GARBLE):ch;t=o; }
   p.lc=(p.lc||0)+1;p.log.push({t,k:k||'',n:p.lc}); if(p.log.length>160)p.log.shift();
 }
 function alive(S,p){return p.members.map(id=>A(S,id)).filter(a=>a.hp>0)}

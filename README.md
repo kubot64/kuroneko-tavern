@@ -45,7 +45,7 @@ node tools/spec-test.mjs --jobs 2        # 同時に回す数を絞る（ふだ�
 
 ```
 node tools/measure.mjs                          # 種8個、1200日まで。支援なしと支援ありの両方
-node tools/measure.mjs --seeds 16 --days 1400   # 釣り合いを決めるときはこちら（4コアで4分ほど）
+node tools/measure.mjs --seeds 16 --days 1400   # 釣り合いを決めるときはこちら（4コアで2分半ほど）
 node tools/measure.mjs --mode support           # 片方だけ（none か support）
 node tools/measure.mjs --detail                 # 50日ごとの坑道の最深と上位のレベルも出す
 ```
