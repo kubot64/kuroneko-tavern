@@ -1316,7 +1316,12 @@ function recordBonds(S,p,al,dead,share){
   if(close.length>=2)bondEv(S,close[0],close[1],{k:'close',f});
   if(close.length&&hl&&hl!==close[0])bondEv(S,hl,close[0],{k:'heal',a:hl.id,b:close[0].id,f});
   const rk=Object.entries(S.rares||{}).find(([rf,v])=>v.killed&&v.killed.party===p.name&&S.tick-v.killed.tk<TICKS_PER_DAY*6);
-  if(rk&&al.length>=2){const R0=rareDef(+rk[0]);bondEv(S,al[0],al[1],{k:'rare',m:R0?R0.n:'名のある魔物',f:+rk[0]});}
+  if(rk&&al.length>=2){const R0=rareDef(+rk[0]);const m=R0?R0.n:'名のある魔物';const rf=+rk[0];
+    const seen=(a,b)=>((bondOf(S,a,b)||{}).ev||[]).some(e=>e.k==='rare'&&e.m===m&&e.f===rf);
+    const sl=rk[1].killed.by&&al.find(a=>a.name===rk[1].killed.by);
+    // 討伐の場で残していれば足さない。by のない古い記録だけ、これまでどおり二人のあいだに残す
+    if(sl)al.forEach(a=>{if(a!==sl&&!seen(sl,a))bondEv(S,sl,a,{k:'rare',m,f:rf,by:sl.id,t:`${m}討伐に加わった`});});
+    else if(!('by' in rk[1].killed)&&!seen(al[0],al[1]))bondEv(S,al[0],al[1],{k:'rare',m,f:rf});}
   if(p.trip.rec&&al.length>=2)bondEv(S,al[0],al[1],{k:'rec',f});
   const big=p.trip.big?p.trip.big.n:null;const kills=Object.values(p.trip.kills||{}).reduce((x,y)=>x+y,0);
   all.forEach(a=>{a.last={deep:f,zone:zoneOf(f),mon:big,kills,traps:(p.trip.traps||[]).slice(0,2),loot:share,tk:S.tick,party:p.name,deaths:(p.trip.deaths||[]).map(x=>x.n).filter(n=>n!==a.name),fled:p.trip.fledFrom||null,died:own.includes(a)};});
@@ -1348,7 +1353,7 @@ function bondTopics(S,A,B,topics,say2){
     if(e.k==='yomi'&&theirs)topics.push([w*1.2,()=>{say2(A,fillT(`${FN(e.f)}でヨミガエリをかけてくれたこと、[まだ礼を言ってなかった|今でも夢に見る]`,{}));say2(B,fillT('[灰にならなくてよかった|正直、賭けだった|二度目はないと思え]',{}));}]);
     if(e.k==='heal'&&mine)topics.push([w,()=>{say2(A,fillT(`${FN(e.f)}じゃ、あと少しイヤシが遅れてたら、お前[死んでたぞ|灰になってたぞ]`,{}));say2(B,fillT('[分かってる。感謝してる|恩着せがましいな|次は自分で避ける]',{}));}]);
     if(e.k==='close')topics.push([w,()=>{say2(A,fillT(`${FN(e.f)}のあれは、[二人とも死ぬかと思ったな|どっちが先に倒れるかと思った]`,{}));say2(B,fillT('[二度とごめんだ|今となっては笑い話さ|まだ手が震える]',{}));}]);
-    if(e.k==='rare')topics.push([w,()=>{say2(A,fillT(`あの「${e.m}」を仕留めた[夜|日]のこと、[まだ夢に見る|一生自慢できる]`,{}));say2(B,fillT('[あれは最高だった|お前の一撃が決め手だった|もう一度やれと言われても無理だ]',{}));}]);
+    if(e.k==='rare')topics.push([w,()=>{const join=e.t&&String(e.t).includes('討伐に加わった');say2(A,fillT(join?`「${e.m}」討伐に加わった[夜|日]のこと、[まだ夢に見る|一生自慢できる]`:`あの「${e.m}」を仕留めた[夜|日]のこと、[まだ夢に見る|一生自慢できる]`,{}));say2(B,fillT(join?'[あれは最高だった|とどめはあいつの一撃だった|もう一度やれと言われても無理だ]':'[あれは最高だった|お前の一撃が決め手だった|もう一度やれと言われても無理だ]',{}));}]);
     if(e.k==='quarrel'&&mine)topics.push([w*1.3,()=>{say2(A,fillT(`${FN(e.f)}でのあんたの判断は、[間違ってた|今でも納得できない|仲間を危うくした]`,{}));say2(B,fillT('[……生きて帰っただろう|文句があるなら抜ければいい|悪かったよ。次は聞く]',{}));}]);
     if(e.k==='quarrel'&&theirs)topics.push([w*.8,()=>{say2(A,fillT('[この前は言い過ぎた|まだ怒ってるのか]',{}));say2(B,fillT('[……もういい|次は俺の話も聞いてくれ|怒ってない。呆れてるだけだ]',{}));}]);
     if(e.k==='rec')topics.push([w,()=>{say2(A,fillT(`${FN(e.f)}に一番乗りした[あの日|あの瞬間]は、[最高だった|忘れられない]`,{}));say2(B,fillT('[地図屋が記録を買いに来たな|次の一番乗りも俺たちだ]',{}));}]);});
@@ -1946,8 +1951,10 @@ const RW_N={gold:'大金',xp:'経験',mat:'大量の素材',item:'伝説の品'}
 function rareMonOf(rf){const R0=rareDef(rf);const f=dz(rf);const top=MON.filter(m=>!m.boss&&!m.gate&&!!m.mine===inMine(rf)&&m.f<=Math.max(1,f)).pop();
   return {n:R0.n,u:R0.u,f,rf,hp:Math.round(top.hp*5+30+f*10),atk:Math.round(top.atk*1.5)+3,sp:R0.sp,rare:true,acts:f>=8?2:1};}
 function rareSlain(S,p,t){
-  S.rares=S.rares||{};if(S.rares[t.rf]&&S.rares[t.rf].killed){plog(p,`${t.n}は ちりと なって きえた`,'sys');return;}const R0=rareDef(t.rf);const al=alive(S,p);const tn=S.taverns[p.tav].name;
-  S.rares[t.rf]=Object.assign(S.rares[t.rf]||{},{killed:{party:p.name,tav:p.tav,names:al.map(a=>a.name),tk:S.tick}});
+  S.rares=S.rares||{};if(S.rares[t.rf]&&S.rares[t.rf].killed){p.rareBy=null;plog(p,`${t.n}は ちりと なって きえた`,'sys');return;}const R0=rareDef(t.rf);const al=alive(S,p);const tn=S.taverns[p.tav].name;
+  // とどめは最後の一撃。呪文・息吹・爆薬・相棒の獣なら、その使い手（獣なら獣使い）
+  const slayer=al.find(a=>a.id===p.rareBy)||null;p.rareBy=null;
+  S.rares[t.rf]=Object.assign(S.rares[t.rf]||{},{killed:{party:p.name,tav:p.tav,names:al.map(a=>a.name),by:slayer?slayer.name:null,tk:S.tick}});
   let what='';
   if(R0.rw==='gold'){const g=r100(incomeAt(t.f)*ri(10,14));p.loot+=g;what=`${g}Gの財宝`;}
   if(R0.rw==='xp'){const x=Math.round((6*Math.pow(t.f,1.6)+3)*30/Math.max(1,al.length));al.forEach(a=>a.xp+=x);what=`ひとりあたり${x}の経験`;}
@@ -1955,7 +1962,9 @@ function rareSlain(S,p,t){
   if(R0.rw==='item'){const it=Object.assign({f:6,rare:true,named:true},R0.item,{for:[...R0.item.for]});S.uniqFound=S.uniqFound||{};S.uniqFound[it.n]=1;
     const tgt=giveBest(S,al,it,p);what=it.n+(tgt?`（${tgt.name}が手にした）`:'（使える者がおらず、売られた）');if(!tgt)p.loot+=3000;else chron(S,tgt,`名のある魔物「${t.n}」から${it.n}を得る`);}
   plog(p,`${t.n}を たおした！ ${what}を てにいれた`,'loot');
-  al.forEach(a=>{chron(S,a,`${FN(t.rf)}で名のある魔物「${t.n}」を討つ`);a.rareKills=(a.rareKills||0)+1;title(S,a);if(['臆病','慎重'].includes(a.pers)&&chance(.4))changeOf(S,a,`「${t.n}」を討って、自信がついた`,x=>x.pers=x.pers==='臆病'?'慎重':'普通');});
+  al.forEach(a=>{const fin=!!(slayer&&a===slayer);chron(S,a,fin?`${FN(t.rf)}で名のある魔物「${t.n}」を討つ`:`${FN(t.rf)}で${t.n}討伐に加わった`);if(fin){a.rareKills=(a.rareKills||0)+1;title(S,a);}if(['臆病','慎重'].includes(a.pers)&&chance(.4))changeOf(S,a,`「${t.n}」を討って、自信がついた`,x=>x.pers=x.pers==='臆病'?'慎重':'普通');});
+  // ほかの仲間の絆に、討伐に加わったことを残す
+  if(slayer)al.forEach(a=>{if(a!==slayer)bondEv(S,slayer,a,{k:'rare',m:t.n,f:t.rf,by:slayer.id,t:`${t.n}討伐に加わった`});});
   news(S,`${tn}の${p.name}が、${FN(t.rf)}の名のある魔物「${t.n}」を討ち取った。手に入れたのは${what}。`,'record');
 }
 // 上から順に、最初に名へ当たった行を使う。骸は竜より先（竜番の骸）、溺れたは衛兵より先、竜は「澱の」より先（澱を呑んだ竜）。鉄血は鎧を着た者の行（親衛・盾持ちと同じ）
@@ -2043,6 +2052,7 @@ function encounterFlavor(S,p,t,big){const al=alive(S,p);if(!al.length)return;
   if(chance(big?.6:.08)){const a=pick(al);if(a.catch)plog(p,`${a.name}「${pick(CRIES).replace('{catch}',a.catch)}」`,'say');}}
 function foeName(p){return p.ident?p.etype.n:p.etype.u}
 function combat(S,p){
+  p.rareBy=null;
   const t=p.etype,f=dz(Math.max(1,p.floor))+(isFrontier(S,p.floor)?1.3:0);
   const lp=leader(S,p);const r=hpRatio(S,p);
   if(!t.boss&&!hasMap(p)&&p.state==='explore'&&!p.fought&&chance(lp.pers==='無謀'?.15:.45)){
@@ -2171,7 +2181,7 @@ function combat(S,p){
   enemyTurn();
   if(!alive(S,p).length) wipe(S,p,t.n);
 }
-function kill(p,a){a.kills++;p._kills=(p._kills||0)+1}
+function kill(p,a){a.kills++;p._kills=(p._kills||0)+1;if(p.etype&&p.etype.rare)p.rareBy=a.id}
 function dieInDungeon(S,p,a,by){if(p.trip&&p.trip.deaths)p.trip.deaths.push({n:a.name,by});a.status='party';a.poison=0;a.lastBy=by;a.lastFloor=p.floor;chron(S,a,`${FN(p.floor)}で${by}に倒れる`);}
 function victory(S,p){
   const t=p.etype,f=Math.max(1,p.floor),n=p.enemies.length;
@@ -2449,7 +2459,8 @@ function temple(S,a,paidByTavern){
 const TITLE_ADJ={'怪力':'剛力の','俊足':'疾風の','鷹の目':'鷹の目の','強運':'幸運の','頑健':'鉄身の','不屈':'不屈の','博識':'賢者の','信心深い':'敬虔な','器用':'千手の','夜目':'闇見の','料理上手':'鍋釜の','人望':'皆の'};
 function titleCands(S,a,kind){const sl=Object.entries(a.slain||{}).filter(([k])=>!/ネズミ|スライム/.test(k)).sort((x,y)=>y[1]-x[1]);const ms=sl.length?sl[0][0]:'魔物';const ms2=sl[1]?sl[1][0]:ms;
   const os=ORIGINS[a.origin]?ORIGINS[a.origin].short:'';const w=a.eq&&a.eq.wpn?(a.eq.wpn.base||''):'';const g=a.sex==='女';
-  const rk=Object.entries(S.rares||{}).filter(([f,v])=>v.killed&&v.killed.names&&v.killed.names.includes(a.name)).map(([f])=>(rareDef(+f)||{}).n).filter(Boolean);
+  // by がある討伐は、とどめを刺した者だけが「○○殺し」の候補になる。by のない古い記録は、これまでどおりその場にいた者を候補にする
+  const rk=Object.entries(S.rares||{}).filter(([f,v])=>{const k=v.killed;if(!k)return false;if(k.by)return k.by===a.name;if('by' in k)return false;return !!(k.names&&k.names.includes(a.name));}).map(([f])=>(rareDef(+f)||{}).n).filter(Boolean);
   const it=eqList(a).find(x=>x.rare);const P=(st,t)=>[st,t];
   const PER={'無謀':[P('命知らず','命知らず'),P('向こう見ず','向こう見ず')],'慎重':[P('石橋','石橋叩き'),P('しんがり','しんがり')],'強欲':[P('金の亡者','金の亡者'),P('宝箱荒らし','宝箱荒らし')],'臆病':[P('逃げ足','逃げ足'),P('震える刃','震える刃')],'普通':[P('職人','迷宮職人')]}[a.pers]||[];
   const CL={'侍':[P('人斬り','人斬り'),P('居合','居合の'+(g?'姫':'鬼'))],'僧侶':[P('癒し手','癒し手'),P('祈り','祈りの盾')],'魔術師':[P('火の手','火の手'),P('雷鳴','雷鳴')],'盗賊':[P('影','影法師'),P('早業','早業')],'戦士':[P('壁','動く壁'),P('鉄塊','鉄塊')],'忍者':[P('朧','朧'),P('音無し','音無し')],'司教':[P('鑑定眼','鑑定眼'),P('説教','説教屋')],'聖騎士':[P('光の盾','光の盾')],'剣聖':[P('一閃','一閃')],'狂戦士':[P('狂犬','狂犬')],'吟遊詩人':[P('歌う剣','歌う剣')],'錬金術師':[P('爆炎','爆炎')],'獣使い':[P('獣連れ','獣連れ')],'竜騎士':[P('竜の友','竜の友')],'魔導士':[P('星読み','星読み')]}[a.cls]||[];
