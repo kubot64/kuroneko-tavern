@@ -2112,7 +2112,7 @@ function combat(S,p){
     if(c.song&&a.mp>0&&!p.buff&&chance(.6)){
       a.mp--;p.buff=2+Math.floor(PL(a)/3);plog(p,`${a.name} は いさましい うたを うたった\n　いっこうの こうげきが ${p.buff} あがった`);continue;
     }
-    if(c.song&&a.mp>0&&foes.length>=2&&chance(.4)){
+    if(c.song&&a.mp>0&&foes.length>=2&&!(p.ident&&!sleepMul(t))&&chance(.4)){
       a.mp--;const sm=sleepMul(t);let n=0;foes.forEach(e=>{if(chance(.5*sm)){e.sleep=2;n++}});
       plog(p,`${a.name} は こもりうたを うたった\n　${n?n+' たいが ねむってしまった':foeName(p)+' は ねむらなかった'}`);p.trip.slept=(p.trip.slept||0)+n;p.trip.sleeper=a.name;continue;
     }

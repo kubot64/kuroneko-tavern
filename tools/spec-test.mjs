@@ -430,6 +430,16 @@ function checkAffinity(){
   check('眠り：レベル24の魔導士のネムリはB22Fまで',E.sleepReach({cls:'魔導士',lvl:24})===22&&nemuri('魔導士',24,22,'オーク',true).slept===3&&nemuri('魔導士',24,23,'オーク',true).slept===0,'魔導士Lv24',`B22F${nemuri('魔導士',24,22,'オーク',true).slept}体 B23F${nemuri('魔導士',24,23,'オーク',true).slept}体`);
   {const known=nemuri('魔術師',1,3,'ゾンビ',true),unknown=nemuri('魔術師',1,3,'ゾンビ',false);
     check('眠り：正体のわかった眠らない魔物にはネムリを唱えず、わからなければ唱えて効かない',!known.log.includes('ネムリ')&&unknown.log.includes('ネムリ')&&unknown.log.includes('ねむらなかった')&&unknown.slept===0,'ゾンビ3体',`わかる「${known.log.split('\n')[0]}」 わからない「${unknown.log.split('\n').slice(0,2).join(' ')}」`);}
+  // 子守歌も同じ。乱数をいつも0にして、歌えるときは必ず歌う。勇ましい歌はすでにかかっているものとして、子守歌の手番を見る。B6F以上はログの文字が乱れるので、文言はB5Fで見る
+  const lullaby=(mon,ident,floor)=>{const E2=load(1,1e-9),S=E2.newState();const p=Object.values(S.parties).find(x=>x.tav==='ours');const a=S.adv[p.leader];
+    a.cls='吟遊詩人';a.lvl=10;a.hp=a.mhp=99999;a.mp=8;a.pers='普通';a.poison=0;a.eq={};a.tal=[];a.fear=null;
+    p.members=[a.id];p.leader=a.id;p.floor=floor;p.state='explore';p.fought=true;p.ident=ident;p.ambush=false;p.potions=0;p.guard=0;p.buff=1;p.log=[];
+    p.etype=Object.assign({},E2.MON.find(m=>m.n===mon));p.enemies=Array.from({length:2},()=>({hp:1e9,sleep:0}));
+    E2.combat(S,p);return {slept:p.enemies.filter(e=>e.sleep>0).length,mp:a.mp,hp:p.enemies[0].hp,log:p.log.map(x=>x.t).join('\n')};};
+  {const known=lullaby('ゾンビ',true,5),unknown=lullaby('ゾンビ',false,5),golem=lullaby('ガーゴイル',true,5);
+    check('眠り：正体のわかった眠らない魔物には子守歌を歌わず、わからなければ歌って効かない',!known.log.includes('こもりうた')&&known.mp===8&&known.slept===0&&known.hp<1e9&&!golem.log.includes('こもりうた')&&golem.mp===8&&unknown.log.includes('こもりうた')&&unknown.log.includes('ねむらなかった')&&unknown.slept===0&&unknown.mp===7&&unknown.hp===1e9,'ゾンビとガーゴイルが2体',`わかる「${known.log.split('\n')[0]}」MP${known.mp} わからない「${unknown.log.split('\n').slice(0,2).join(' / ')}」MP${unknown.mp}`);}
+  {const oak=lullaby('オーク',true,25),slime=lullaby('スライム',true,25),deep=lullaby('坑道ゴーレム',true,40),half=lullaby('澱の坑夫',true,40);
+    check('眠り：眠れる群れと眠りにくい群れには深い階でも子守歌を歌い、眠らない群れには歌わない',oak.slept===2&&oak.mp===7&&oak.hp===1e9&&slime.slept===2&&slime.mp===7&&half.slept===2&&half.mp===7&&deep.slept===0&&deep.mp===8&&deep.hp<1e9,'B25Fのオークとスライム、坑道の澱の坑夫とゴーレム',`オーク${oak.slept}体 スライム${slime.slept}体 澱${half.slept}体 ゴーレムMP${deep.mp}`);}
   // 沈んだ王と坑道王の黒い炎は、炎を防ぐ装備では軽くならない。ふつうの炎の息は軽くなる
   const hurt=(seed,mon,fire)=>{const E2=load(seed),S=E2.newState();const p=Object.values(S.parties).find(x=>x.tav==='ours');const a=S.adv[p.leader];
     a.cls='戦士';a.lvl=8;a.hp=a.mhp=50000;a.mp=0;a.pers='普通';a.poison=0;a.eq=fire?{body:{fire,slot:'body'}}:{};
