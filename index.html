@@ -222,6 +222,14 @@ button:focus-visible,[tabindex]:focus-visible{outline:2px solid var(--amber);out
 .seats i{width:14px;height:14px;border-radius:3px;background:var(--panel2);border:1px solid var(--line)}
 .seats i.on{background:var(--amber-dim);border-color:var(--amber-dim)}
 .toast{position:fixed;left:50%;bottom:calc(16px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--amber);color:#1b1309;padding:6px 14px;border-radius:4px;font-size:13px;z-index:11}
+.quote.revive{font-weight:700;margin:6px 0}
+.does.revive{font-weight:700}
+.quote.revive.ok,.does.revive.ok{color:var(--heal)}
+.quote.revive.ash,.does.revive.ash{color:var(--blood)}
+.quote.revive.lost,.does.revive.lost{color:var(--ash)}
+.quote.revive.ok{border-left:3px solid var(--heal)}
+.quote.revive.ash{border-left:3px solid var(--blood)}
+.quote.revive.lost{border-left:3px solid var(--ash)}
 /* 幅640px以下。タブは画面下に固定し、帳場は見出しの下にボタン、地図屋の階は1枚の札。押しやすい大きさは44px */
 @media (max-width:640px){
   body{padding-bottom:var(--tabbar-pad, 140px)}
@@ -2466,6 +2474,26 @@ function tale(S,p,al,second){
   S.tales.push({tk:S.tick,who:full(sp),whoId:sp.id,tav:p.tav,party:p.name,t:withCatch(sp,voice(sp,t)),k,pers:sp.pers});
   if(S.tales.length>80)S.tales.shift();
 }
+function reviveChance(S,a){
+  const faith=has(a,'信心深い')?1:0,b=blessed(S,a)?1:0;
+  if(a.status==='dead')return clamp(.84+PL(a)*.01+faith*.05+b*.08,0,b?.99:.97);
+  if(a.status==='ash')return clamp(.7+PL(a)*.015+faith*.06+b*.08,0,b?.97:.94);
+  return 0;
+}
+function reviveHint(S,a){
+  const pct=Math.round(reviveChance(S,a)*100);
+  const st=a.status==='ash'?'灰':'死';
+  const bits=[];
+  if(blessed(S,a))bits.push('寄進で上がっている');
+  if(has(a,'信心深い'))bits.push('信心深く、成功しやすい');
+  return `${st}・成功率の目安 ${pct}%${bits.length?'（'+bits.join('。')+'）':''}`;
+}
+function reviveResultText(name,r){
+  if(r==='ok')return `${name}がよみがえった`;
+  if(r==='ash')return `${name}は蘇生に失敗し、灰になった`;
+  if(r==='lost')return `${name}は蘇生に失敗し、ロストした`;
+  return '';
+}
 function temple(S,a,paidByTavern){
   a.tw=0;
   const cost=templeCost(S,a);
@@ -2474,11 +2502,11 @@ function temple(S,a,paidByTavern){
     if(a.tav==='ours') a.gold-=cost;
   }
   if(a.status==='dead'){
-    if(chance(clamp(.84+PL(a)*.01+(has(a,'信心深い')?.05:0)+(blessed(S,a)?.08:0),0,blessed(S,a)?.99:.97))){a.status='idle';a.hp=a.mhp;a.mp=mmpOf(a);a.revived++;chron(S,a,'寺院で息を吹き返す');title(S,a);if(a.tav==='ours')news(S,`寺院にて${a.name}が息を吹き返した。`,'loot');return 'ok';}
+    if(chance(reviveChance(S,a))){a.status='idle';a.hp=a.mhp;a.mp=mmpOf(a);a.revived++;chron(S,a,'寺院で息を吹き返す');title(S,a);if(a.tav==='ours')news(S,`寺院にて${a.name}が息を吹き返した。`,'loot');return 'ok';}
     a.status='ash';chron(S,a,'蘇生に失敗し、灰になる');news(S,`${S.taverns[a.tav].name}の${a.name}、蘇生に失敗し灰となる。`,'death');return 'ash';
   }
   if(a.status==='ash'){
-    if(chance(clamp(.7+PL(a)*.015+(has(a,'信心深い')?.06:0)+(blessed(S,a)?.08:0),0,blessed(S,a)?.97:.94))){a.status='idle';a.hp=a.mhp;a.mp=mmpOf(a);a.revived++;chron(S,a,'灰の中からよみがえる');title(S,a);if(chance(.25))changeOf(S,a,'灰から戻ってから、人が変わったように静かになった',x=>{x.tone='無口';x.catch='……生きてるって、いいな';});news(S,`灰の中から${a.name}がよみがえった。`,'loot');return 'ok';}
+    if(chance(reviveChance(S,a))){a.status='idle';a.hp=a.mhp;a.mp=mmpOf(a);a.revived++;chron(S,a,'灰の中からよみがえる');title(S,a);if(chance(.25))changeOf(S,a,'灰から戻ってから、人が変わったように静かになった',x=>{x.tone='無口';x.catch='……生きてるって、いいな';});news(S,`灰の中から${a.name}がよみがえった。`,'loot');return 'ok';}
     a.status='lost';a.party=null;chron(S,a,'ロスト。その名は記念碑に刻まれる');S.memorial.push({id:a.id,name:full(a),cls:a.cls,lvl:a.lvl,race:a.race,tav:a.tav,tk:S.tick,by:a.lastBy||'不明',floor:a.lastFloor||'?',kills:a.kills,marked:a.tav==='ours'&&!!a.marked||undefined});onLostFriend(S,a);
     news(S,`${S.taverns[a.tav].name}の${full(a)}、ロスト。その名は記念碑に刻まれる。`,'lost');return 'lost';
   }
@@ -2897,7 +2925,7 @@ function migrateV2(S){
 /* ---------- UI ---------- */
 const KEY='kuroneko-tavern-v1';
 const shown={};
-let S,speed=1,tab='news',timer=null,toastT=null,ff=null,hiddenAt=null,pickErr=null;
+let S,speed=1,tab='news',timer=null,toastT=null,ff=null,hiddenAt=null,pickErr=null,reviveNote=null;
 const $=id=>document.getElementById(id);
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 
@@ -3152,7 +3180,8 @@ function sideDesk(){
 <div class="sect"><h3>常連への手当て</h3>
   ${(()=>{const dead=Object.values(S.adv).filter(a=>a.tav==='ours'&&(a.status==='dead'||a.status==='ash'));const idle=Object.values(S.adv).filter(a=>a.tav==='ours'&&a.status==='idle');
     const gifts=idle.map(a=>({a,o:giftOffer(S,a)})).filter(x=>x.o).sort((x,y)=>x.o.price-y.o.price);
-    return (dead.length?dead.map(a=>{const c=templeCost(S,a);return `<div class="row"><span class="chip ${a.status}">${a.status==='ash'?'寺院・灰':'寺院・死'}</span><span class="who">${nmLink(a)}${teamTag(a)} <span class="meta">Lv${a.lvl} ${a.race}の${a.cls}</span></span><button class="btn sm" data-act="revive" data-a="${a.id}" ${T().gold<c?'disabled':''}>蘇生を頼む ${c}G</button></div>`}).join(''):'<p class="note">寺院で眠っている常連はいない。</p>')+
+    const gone=reviveNote&&!dead.some(a=>a.id===reviveNote.id)?`<p class="quote revive revive-result ${reviveNote.kind}">${esc(reviveNote.t)}</p>`:'';
+    return gone+(dead.length?dead.map(a=>{const c=templeCost(S,a);const hit=reviveNote&&reviveNote.id===a.id;return `<div class="row"><span class="who"><span class="chip ${a.status}">${a.status==='ash'?'寺院・灰':'寺院・死'}</span>${nmLink(a)}${teamTag(a)} <span class="meta">Lv${a.lvl} ${a.race}の${a.cls}</span><span class="does">${esc(reviveHint(S,a))}</span>${hit?`<span class="does revive revive-result ${reviveNote.kind}">${esc(reviveNote.t)}</span>`:''}</span><button class="btn sm" data-act="revive" data-a="${a.id}" ${T().gold<c?'disabled':''}>蘇生を頼む ${c}G</button></div>`}).join(''):'<p class="note">寺院で眠っている常連はいない。</p>')+
     (gifts.length?`<p class="note" style="margin-top:8px">酒場にいる常連に、店の金で武具屋の品を贈れる。贈られた者は恩を感じ、帰還のたびに店でよく飲むようになる。</p>`+gifts.map(({a,o})=>`<div class="row"><span class="who">${nmLink(a)}${teamTag(a)} <span class="meta">Lv${a.lvl} ${a.race}の${a.cls}</span></span><button class="btn sm" data-act="gift" data-a="${a.id}" ${T().gold<o.price?'disabled':''}>${SHOP_MAT[o.b.m][o.t-1]}の${o.b.t}を贈る ${o.price}G</button></div>`).join(''):'');})()}
   </div>
 <div class="sect"><h3>寺院への寄進</h3><p class="note">灰の寺院に寄進すると、30日のあいだ黒猫亭の常連の蘇生に司祭たちが念を入れ、死からも灰からも生き返りやすくなる。重ねて寄進すれば、そのぶん日が延びる。額は常連の潜る深さで決まる。</p>
@@ -3307,7 +3336,7 @@ document.addEventListener('click',e=>{
   if(act==='closeending'){$('ending').hidden=true;if(S.conquered)S.conquered.ending=false;save();return;}
   if(act==='adv'){advOpen=+b.dataset.a;$('advm').hidden=false;$('advbox').scrollTop=0;renderAdv();return;}
   if(act==='closeadv'){if(b.id==='advm'&&e.target!==b)return;advOpen=null;$('advm').hidden=true;return;}
-  if(act==='tab'){tab=b.dataset.v;$('tbody').scrollTop=0;renderSide();if(window.matchMedia('(max-width:640px)').matches){const side=document.querySelector('.side');if(side)side.scrollIntoView({block:'start'});}return;}
+  if(act==='tab'){if(b.dataset.v!=='desk')reviveNote=null;tab=b.dataset.v;$('tbody').scrollTop=0;renderSide();if(window.matchMedia('(max-width:640px)').matches){const side=document.querySelector('.side');if(side)side.scrollIntoView({block:'start'});}return;}
   if(act==='shoptier'){shopTier=+b.dataset.v;renderSide();return;}
   if(act==='selc'){S.sel=+b.dataset.i;render();return;}
   if(act==='watch'){
@@ -3317,7 +3346,7 @@ document.addEventListener('click',e=>{
     S.watch[S.sel]=p.id;render();return;
   }
   if(act==='recall'){const p=S.parties[b.dataset.p];if(p&&p.state==='explore'&&T().gold>=50){T().gold-=50;plog(p,'でんしょばとが まいおりた。「すぐ もどれ」','sys');p.state='return';say(S,p,['……店主の めいれいだ。もどるぞ']);render();save();}return;}
-  if(act==='reset'){if(confirm('いまの記録を消して、最初から始めますか？\n消した記録は戻りません。')){S=newState();for(let i=0;i<6;i++)tick(S);save();autoWatch();render();toast('黒猫亭が店を開いた');}return;}
+  if(act==='reset'){if(confirm('いまの記録を消して、最初から始めますか？\n消した記録は戻りません。')){reviveNote=null;S=newState();for(let i=0;i<6;i++)tick(S);save();autoWatch();render();toast('黒猫亭が店を開いた');}return;}
   if(act==='repay'){const x=repay(S,+b.dataset.v);if(x)toast(`両替商に${x}Gを返した`);render();save();return;}
   if(act==='seats'){const ns=nextSeats(S);if(ns&&T().gold>=ns[2]){T().gold-=ns[2];T().seats=ns[1];news(S,`黒猫亭が店を広げた。常連の席は${ns[1]}席になった。`,'record');toast(`席が${ns[1]}席になった`);}render();save();return;}
   if(act==='pol'){const k=b.dataset.k,v=+b.dataset.v;policy(S)[k]=k==='potion'?v:!!v;renderSide();save();return;}
@@ -3328,7 +3357,7 @@ document.addEventListener('click',e=>{
   if(act==='poach'){const a=S.adv[b.dataset.a];if(a&&poach(S,a))toast(`${a.name}を黒猫亭に迎え入れた`);render();save();return;}
   if(act==='custom'){const a=S.adv[b.dataset.a];const it=a&&orderCustom(S,a,customOffer(S,a));if(it)toast(`${a.name}に${it.n}が届いた`);render();save();return;}
   if(act==='invest'||act==='buysmall'){const t=smallOf(S).find(x=>x.n===b.dataset.n);if(t&&(act==='invest'?invest(S,t):buySmall(S,t)))toast(act==='invest'?`${t.n}に出資した`:`${t.n}を買い取った`);render();save();return;}
-  if(act==='revive'){const a=S.adv[b.dataset.a];const c=templeCost(S,a);if(T().gold>=c){T().gold-=c;const r=temple(S,a,true);toast(r==='ok'?`${a.name}が蘇った`:r==='ash'?`${a.name}は灰になった…`:`${a.name}はロストした`);render();save();}return;}
+  if(act==='revive'){const a=S.adv[b.dataset.a];const c=a&&templeCost(S,a);if(a&&(a.status==='dead'||a.status==='ash')&&T().gold>=c){T().gold-=c;const r=temple(S,a,true);const t=reviveResultText(a.name,r);reviveNote=t?{id:a.id,t,kind:r}:null;if(t)toast(t);render();save();}return;}
   if(act==='pickerr'){pickErr=b.dataset.e?+b.dataset.e:null;renderSide();return;}
   if(act==='assign'){const e=errandsOf(S).board.find(x=>x.id===+b.dataset.e),a=S.adv[b.dataset.a];const r=e&&a&&assignErrand(S,e,a);
     if(r==='ok'){pickErr=null;toast(`「${e.n}」を${a.name}に回した`);}else if(r==='pending'){pickErr=null;toast(`「${e.n}」は、次に酒場で会えたら${a.name}に伝える`);}else if(r==='refused')toast(`${a.name}は「${e.n}」を断った`);render();save();return;}
