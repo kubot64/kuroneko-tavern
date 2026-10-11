@@ -28,7 +28,7 @@ Wizardry 風の迷宮に複数の冒険者パーティが潜る様子を、酒�
 `docs/spec.md` に書かれた決まりが成り立っているかを確かめる。node だけで動き、ブラウザは要らない。
 
 ```
-node tools/spec-test.mjs                 # 乱数の種を48個、それぞれ30000刻（600日）回す。4コアで5分ほど
+node tools/spec-test.mjs                 # 乱数の種を48個、それぞれ30000刻（600日）回す。4コアで4分ほど
 node tools/spec-test.mjs --seeds 12      # 急ぐときは種を減らす（4コアで1分ほど）。めったに起きない不具合は見逃しやすくなる
 node tools/spec-test.mjs --seed 8919     # 不合格のとき、反例に出た種だけを回して再現する
 node tools/spec-test.mjs --jobs 2        # 同時に回す数を絞る（ふだんは CPU のコア数）
@@ -45,7 +45,7 @@ node tools/spec-test.mjs --jobs 2        # 同時に回す数を絞る（ふだ�
 
 ```
 node tools/measure.mjs                          # 種8個、1200日まで。支援なしと支援ありの両方
-node tools/measure.mjs --seeds 16 --days 1400   # 釣り合いを決めるときはこちら（4コアで4分ほど）
+node tools/measure.mjs --seeds 16 --days 1400   # 釣り合いを決めるときはこちら（4コアで2分半ほど）
 node tools/measure.mjs --mode support           # 片方だけ（none か support）
 node tools/measure.mjs --detail                 # 50日ごとの坑道の最深と上位のレベルも出す
 ```
