@@ -175,6 +175,131 @@ test('黒猫亭の出発は日報に出て、同じ日の迷宮と坑道は一�
   assert.deepEqual(errors,[]);await ctx.close();
 });
 
+test('狭い画面ではタブが下にあり、帳場と地図屋が読めて、よく押す場所が44px以上ある',async()=>{
+  const {ctx,page,errors}=await open();
+  await page.locator('#sp0').click();
+  await page.setViewportSize({width:390,height:844});
+  await page.evaluate(()=>document.fonts.ready);
+  await page.evaluate(()=>window.scrollTo(0,0));
+  const phone=await page.evaluate(()=>{
+    const bad=[];
+    const vw=innerWidth,vh=innerHeight;
+    if(getComputedStyle(document.querySelector('.tabs')).position!=='fixed')bad.push('タブが画面下に固定されていない');
+    const tabs=[...document.querySelectorAll('#tabs button')];
+    if(tabs.length<9)bad.push('タブが足りない');
+    for(const b of tabs){
+      const r=b.getBoundingClientRect();
+      if(r.top<-1||r.left<-1||r.bottom>vh+1||r.right>vw+1)bad.push(b.textContent+' が画面の外');
+      if(r.width<44||r.height<44)bad.push(b.textContent+` の押し幅 ${Math.round(r.width)}×${Math.round(r.height)}`);
+    }
+    for(const el of document.querySelectorAll('.tabrow')){
+      if(el.scrollWidth>el.clientWidth+1)bad.push('タブが横にスクロールする');
+    }
+    if(document.documentElement.scrollWidth>vw+1)bad.push('ページが横にはみ出す');
+    for(const b of document.querySelectorAll('.ctrl .btn')){
+      const r=b.getBoundingClientRect();
+      if(r.width<44||r.height<44)bad.push(b.textContent+` の押し幅 ${Math.round(r.width)}×${Math.round(r.height)}`);
+    }
+    const members=[...document.querySelectorAll('.c-members .m')];
+    if(!members.length)bad.push('水晶にメンバーがいない');
+    for(const m of members){
+      const row=m.getBoundingClientRect();
+      const link=m.querySelector('.nm-link');
+      const lr=link.getBoundingClientRect();
+      if(row.height<44)bad.push(link.textContent+' の行の高さ '+Math.round(row.height));
+      if(lr.width<44||lr.height<44)bad.push(link.textContent+` の押し幅 ${Math.round(lr.width)}×${Math.round(lr.height)}`);
+    }
+    return bad;
+  });
+  assert.deepEqual(phone,[]);
+  await page.locator('button[data-v="desk"]').click();
+  const desk=await page.evaluate(()=>{
+    const lineCount=el=>{const range=document.createRange();range.selectNodeContents(el);return new Set([...range.getClientRects()].map(r=>Math.round(r.top))).size;};
+    const bad=[];
+    const row=[...document.querySelectorAll('#tbody .desk .row')];
+    const find=t=>row.find(el=>el.innerText.includes(t));
+    const debt=find('借金の残り'),pot=find('回復薬の差し入れ');
+    if(!debt||!pot)bad.push('帳場の行がない');
+    else{
+      const label=debt.querySelector('b'),does=debt.querySelector('.does'),btn=debt.querySelector('button');
+      const potLabel=pot.querySelector('b'),potBtn=pot.querySelector('button');
+      if(lineCount(label)!==1)bad.push('借金の残りが折れている');
+      if(lineCount(does)!==1)bad.push('これまでに返した額が折れている');
+      if(lineCount(potLabel)!==1)bad.push('回復薬の差し入れが折れている');
+      const lb=label.getBoundingClientRect(),db=does.getBoundingClientRect(),bb=btn.getBoundingClientRect();
+      const pb=potLabel.getBoundingClientRect(),pbb=potBtn.getBoundingClientRect();
+      if(bb.top<lb.bottom-1||bb.top<db.bottom-1)bad.push('返済のボタンが見出しの横にある');
+      if(pbb.top<pb.bottom-1)bad.push('差し入れのボタンが見出しの横にある');
+      const who=debt.querySelector('.who').getBoundingClientRect();
+      if(who.width<debt.getBoundingClientRect().width*0.9)bad.push('見出しの幅が狭い');
+    }
+    const seen=debt.querySelector('b').getBoundingClientRect();
+    const bar=document.querySelector('.tabs').getBoundingClientRect().top;
+    if(seen.top<0||seen.bottom>bar+1)bad.push('帳場が画面に入っていない');
+    return bad;
+  });
+  assert.deepEqual(desk,[]);
+  await page.locator('button[data-v="maps"]').click();
+  const maps=await page.evaluate(()=>{
+    const lineCount=el=>{const range=document.createRange();range.selectNodeContents(el);return new Set([...range.getClientRects()].map(r=>Math.round(r.top))).size;};
+    const bad=[];
+    const tr=document.querySelector('.mapfloors tr.flr');
+    if(!tr)bad.push('階の札がない');
+    else{
+      const tds=[...tr.children].map(td=>td.getBoundingClientRect());
+      const card=tr.getBoundingClientRect().width;
+      if(tds[1].top<tds[0].bottom-2)bad.push('階の札が横並びのまま');
+      if(tds[1].width<card*0.7)bad.push('初到達の幅が狭い');
+      const label=getComputedStyle(tr.children[1],'::before').content;
+      if(!label.includes('初到達'))bad.push('初到達の見出しがない');
+      if(lineCount(tr.children[1])>2)bad.push('初到達が細く折れている');
+    }
+    return bad;
+  });
+  assert.deepEqual(maps,[]);
+  assert.deepEqual(errors,[]);await ctx.close();
+});
+
+test('広い画面ではタブが右の列に収まり、帳場と地図の表は横並びのまま',async()=>{
+  const {ctx,page,errors}=await open();
+  await page.locator('#sp0').click();
+  await page.setViewportSize({width:1280,height:800});
+  await page.evaluate(()=>document.fonts.ready);
+  const wide=await page.evaluate(()=>{
+    const bad=[];
+    if(getComputedStyle(document.querySelector('.tabs')).position==='fixed')bad.push('タブが画面下に固定されている');
+    const side=document.querySelector('.side').getBoundingClientRect();
+    const left=document.querySelector('.left').getBoundingClientRect();
+    if(side.x<left.x+200)bad.push('右の列が左に落ちている');
+    const ref=document.querySelector('button[data-v="ref"]');
+    const row=ref.closest('.tabrow');
+    const br=ref.getBoundingClientRect(),rr=row.getBoundingClientRect();
+    if(br.left<rr.left-1||br.right>rr.right+1||br.bottom>rr.bottom+1)bad.push('資料がタブの外');
+    if(br.right>innerWidth+1||br.left<0)bad.push('資料が画面の外');
+    for(const el of document.querySelectorAll('.tabrow')){
+      if(el.scrollWidth>el.clientWidth+1)bad.push('タブが横にスクロールする');
+    }
+    return bad;
+  });
+  assert.deepEqual(wide,[]);
+  await page.locator('button[data-v="desk"]').click();
+  const desk=await page.evaluate(()=>{
+    const row=[...document.querySelectorAll('#tbody .row')].find(el=>el.innerText.includes('借金の残り'));
+    const label=row.querySelector('b').getBoundingClientRect();
+    const btn=row.querySelector('button').getBoundingClientRect();
+    return btn.top<label.bottom;
+  });
+  assert.equal(desk,true,'広い画面では返済ボタンが見出しの横にある');
+  await page.locator('button[data-v="maps"]').click();
+  const table=await page.evaluate(()=>{
+    const tr=document.querySelector('.mapfloors tr.flr');
+    const a=tr.children[0].getBoundingClientRect(),b=tr.children[1].getBoundingClientRect();
+    return Math.abs(a.top-b.top)<8&&b.left>a.left;
+  });
+  assert.equal(table,true,'広い画面では階の一覧が表のまま');
+  assert.deepEqual(errors,[]);await ctx.close();
+});
+
 test('裏に回ったときに保存するので、そのまま閉じられても次に開いたとき留守の時間が進む',async()=>{
   const {ctx,page,errors}=await open();
   await page.clock.runFor(1000);// 最後の保存（開店時）より時計を進めておく
