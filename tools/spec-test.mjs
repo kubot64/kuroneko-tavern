@@ -20,7 +20,7 @@ const html=readFileSync(new URL('../index.html',import.meta.url),'utf8');
 const ENGINE=html.match(/\/\*ENGINE START\*\/([\s\S]*?)\/\*ENGINE END\*\//)[1];
 const EXPORTS=['newState','tick','rivalTemple','seatCap','seatsUsed','nextSeats','newcomerLvl','buyPrice','investPrice','FACILITIES',
   'RARES','MAXF','DRAGON_F','TICKS_PER_DAY','awayPlan','smallOf','debtTick','DEBT0','encounter','rareSlain','rareMonOf','arrive',
-  'repay','errandsOf','assignErrand','errandBlock','designateBlock','MAXF','MINE_TOP','MINE_BOT','MINE_N','FN','mineOpen','conquest','mineConquest','title','alive','markAdv','markedOf','BOARD_MAX','MARK_MAX','ARCS','reachFloor','GATE_F','fac','nextFac','buildFac','migrate','partyShown','crestJa','glossText','PT_A','PT_B','takeCrest','pickCrest','newPartyName','combat','MON','elemMul','elemNote','sleepMul','sleepReach','MINE_RARES','supplyTeam','potionPrice','lendRival'];
+  'repay','errandsOf','assignErrand','errandBlock','designateBlock','MAXF','MINE_TOP','MINE_BOT','MINE_N','FN','mineOpen','conquest','mineConquest','title','alive','markAdv','markedOf','BOARD_MAX','MARK_MAX','ARCS','reachFloor','GATE_F','fac','nextFac','buildFac','migrate','partyShown','crestJa','glossText','PT_A','PT_B','takeCrest','pickCrest','newPartyName','combat','MON','elemMul','elemNote','sleepMul','sleepReach','MINE_RARES','supplyTeam','potionPrice','lendRival','reviveChance','reviveHint','reviveResultText','temple'];
 
 // 乱数の種を固定したゲームの中身を1つ作る。中身の Math.random だけを差し替える
 function load(seed,fixed){
@@ -620,9 +620,33 @@ function runSeed(seed){
   return `種${seed}：${TICKS}刻を回した（最深 黒猫亭B${S.deepest.ours}F・銀の杯亭B${S.deepest.rival}F）`;
 }
 
+function checkRevive(){
+  const near=(g,w)=>Math.abs(g-w)<1e-9;
+  const E=load(1),S=E.newState();
+  const a=Object.values(S.adv).find(x=>x.tav==='ours');
+  const p=(status,lvl,faith,bless)=>{a.status=status;a.lvl=lvl;a.traits=faith?['信心深い']:[];S.blessUntil=bless?S.tick+1:0;return E.reviveChance(S,a);};
+  const dead=(lvl,faith,bless)=>Math.min(bless?.99:.97,.84+Math.ceil(lvl/2)*.01+(faith?.05:0)+(bless?.08:0));
+  const ash=(lvl,faith,bless)=>Math.min(bless?.97:.94,.7+Math.ceil(lvl/2)*.015+(faith?.06:0)+(bless?.08:0));
+  check('蘇生：死は84%から、強いほど上がり、97%まで',near(p('dead',1,0,0),dead(1,0,0))&&near(p('dead',3,0,0),dead(3,0,0))&&p('dead',40,0,0)===.97,'Lv1・3・40',p('dead',40,0,0));
+  check('蘇生：灰は70%から、強いほど上がり、94%まで',near(p('ash',1,0,0),ash(1,0,0))&&p('ash',40,0,0)===.94,'Lv1・40',p('ash',1,0,0));
+  check('蘇生：信心深い者は成功しやすい',near(p('dead',1,1,0),dead(1,1,0))&&p('dead',1,1,0)>p('dead',1,0,0)&&near(p('ash',1,1,0),ash(1,1,0))&&p('ash',1,1,0)>p('ash',1,0,0),'Lv1','');
+  check('蘇生：寄進中は8ポイント上がり、上限も上がる',near(p('dead',1,0,1),dead(1,0,1))&&p('dead',40,0,1)===.99&&near(p('ash',1,0,1),ash(1,0,1))&&p('ash',40,0,1)===.97,'Lv1と上限',`${p('dead',40,0,1)} ${p('ash',40,0,1)}`);
+  a.status='dead';a.lvl=1;a.traits=[];S.blessUntil=0;
+  check('蘇生の目安：押す前に状態と百分率が出る',E.reviveHint(S,a)===`死・成功率の目安 ${Math.round(E.reviveChance(S,a)*100)}%`,'死・寄進なし',E.reviveHint(S,a));
+  a.status='ash';a.traits=['信心深い'];S.blessUntil=S.tick+1;
+  const hint=E.reviveHint(S,a);
+  check('蘇生の目安：寄進と信心深さは一言添える',hint.startsWith(`灰・成功率の目安 ${Math.round(E.reviveChance(S,a)*100)}%`)&&hint.includes('寄進で上がっている')&&hint.includes('信心深く、成功しやすい'),'灰・両方',hint);
+  check('蘇生の結果：その場の文面',E.reviveResultText('ファビアン','ok')==='ファビアンがよみがえった'&&E.reviveResultText('ファビアン','ash')==='ファビアンは蘇生に失敗し、灰になった'&&E.reviveResultText('ファビアン','lost')==='ファビアンは蘇生に失敗し、ロストした','三通り','');
+  {const E2=load(2,0),S2=E2.newState();const b=Object.values(S2.adv).find(x=>x.tav==='ours');b.status='dead';b.hp=0;
+    check('蘇生：成功すると生き返る',E2.temple(S2,b,true)==='ok'&&b.status==='idle'&&b.hp===b.mhp,'必ず成功',b.status);}
+  {const E2=load(3,.999),S2=E2.newState();const b=Object.values(S2.adv).find(x=>x.tav==='ours');b.status='dead';b.hp=0;
+    check('蘇生：死から失敗すると灰になる',E2.temple(S2,b,true)==='ash'&&b.status==='ash','必ず失敗',b.status);
+    check('蘇生：灰から失敗するとロストする',E2.temple(S2,b,true)==='lost'&&b.status==='lost','灰から失敗',b.status);}
+}
+
 if(!isMainThread){const line=runSeed(workerData.seed);parentPort.postMessage({line,res:[...results]});}
 else{
-  checkTables();checkScenes();checkErrands();checkCrest();checkRowFallback();checkMine();checkAffinity();
+  checkTables();checkScenes();checkErrands();checkCrest();checkRowFallback();checkMine();checkAffinity();checkRevive();
   // 種ごとの結果は、種の順に重ねる。反例は、いちばん若い種の最初のものを残す
   const out=new Array(SEEDS.length);let next=0;
   const runOne=()=>{if(next>=SEEDS.length)return Promise.resolve();const k=next++;

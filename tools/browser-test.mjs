@@ -314,3 +314,104 @@ test('裏に回ったときに保存するので、そのまま閉じられて�
   assert.match(await again.page.locator('#dg-sub').textContent(),/店をあけていたのは約1時間。/);
   assert.deepEqual([...errors,...again.errors],[]);await ctx.close();
 });
+
+test('帳場の蘇生は、押す前に状態と成功率が出て、押した直後に成否が残る',async()=>{
+  const {ctx,page,errors}=await open();
+  await page.locator('#sp0').click();
+  const prep=await page.evaluate(()=>{
+    const a=Object.values(S.adv).find(x=>x.tav==='ours'&&x.status!=='lost'&&x.status!=='retired');
+    a.status='dead';a.hp=0;a.lvl=1;a.party=null;a.traits=(a.traits||[]).filter(t=>t!=='信心深い');
+    S.blessUntil=0;S.taverns.ours.gold=100000;
+    return {id:a.id,name:a.name,hint:reviveHint(S,a)};
+  });
+  await page.locator('button[data-v="desk"]').click();
+  const row=()=>page.locator('#tbody .row',{has:page.locator(`button[data-act="revive"][data-a="${prep.id}"]`)});
+  const before=await row().innerText();
+  assert.match(before,/寺院・死/);
+  assert.match(before,/死・成功率の目安 \d+%/);
+  assert.equal(before.includes(prep.hint),true,before);
+  assert.doesNotMatch(before,/寄進で上がっている|信心深く/);
+  const raised=await page.evaluate(id=>{
+    S.blessUntil=S.tick+TICKS_PER_DAY;
+    const a=S.adv[id];a.traits=(a.traits||[]).concat(['信心深い']);
+    render();
+    return reviveHint(S,a);
+  },prep.id);
+  const mid=await row().innerText();
+  assert.match(raised,/寄進で上がっている/);
+  assert.match(raised,/信心深く、成功しやすい/);
+  assert.equal(mid.includes(raised),true,mid);
+  await page.evaluate(id=>{
+    const a=S.adv[id];a.traits=(a.traits||[]).filter(t=>t!=='信心深い');S.blessUntil=0;render();
+  },prep.id);
+  const gold0=await page.evaluate(()=>S.taverns.ours.gold);
+  const cost=await page.evaluate(id=>templeCost(S,S.adv[id]),prep.id);
+  await page.evaluate(()=>{Math.random=()=>0.999;});
+  await row().locator('button[data-act="revive"]').click();
+  const failed=await page.locator('.revive-result').innerText();
+  assert.equal(failed,`${prep.name}は蘇生に失敗し、灰になった`);
+  assert.equal(await page.locator('.toast').innerText(),failed);
+  const ash=await row().innerText();
+  assert.match(ash,/寺院・灰/);
+  assert.match(ash,/灰・成功率の目安 \d+%/);
+  assert.equal(await page.evaluate(()=>S.taverns.ours.gold),gold0-cost);
+  const saved=await page.evaluate(()=>JSON.parse(localStorage.getItem('kuroneko-tavern-v1')));
+  assert.equal(saved.S.reviveNote,undefined);
+  assert.equal(saved.S.v,22);
+  assert.equal(saved.S.adv[prep.id].status,'ash');
+  const again=await open({ctx,time:Date.UTC(2026,0,1)});
+  await again.page.locator('#sp0').click();
+  await again.page.locator('button[data-v="desk"]').click();
+  assert.equal(await again.page.locator('.revive-result').count(),0,'閉じたあとに成否の一文が残っている');
+  const kept=await again.page.locator('#tbody .row',{has:again.page.locator(`button[data-act="revive"][data-a="${prep.id}"]`)}).innerText();
+  assert.match(kept,/灰・成功率の目安/);
+  await again.page.evaluate(()=>{Math.random=()=>0;});
+  await again.page.locator(`button[data-act="revive"][data-a="${prep.id}"]`).click();
+  assert.equal(await again.page.locator('.revive-result').innerText(),`${prep.name}がよみがえった`);
+  assert.equal(await again.page.locator('.toast').innerText(),`${prep.name}がよみがえった`);
+  assert.equal(await again.page.locator(`button[data-act="revive"][data-a="${prep.id}"]`).count(),0);
+  const other=await again.page.evaluate(()=>{
+    const a=Object.values(S.adv).find(x=>x.tav==='ours'&&x.status!=='lost'&&x.status!=='retired'&&x.status!=='dead'&&x.status!=='ash');
+    a.status='ash';a.hp=0;a.party=null;S.taverns.ours.gold=100000;render();
+    return {id:a.id,name:a.name};
+  });
+  await again.page.evaluate(()=>{Math.random=()=>0.999;});
+  await again.page.locator(`button[data-act="revive"][data-a="${other.id}"]`).click();
+  assert.equal(await again.page.locator('.revive-result').innerText(),`${other.name}は蘇生に失敗し、ロストした`);
+  assert.equal(await again.page.evaluate(id=>S.adv[id].status,other.id),'lost');
+  await again.page.locator('button[data-v="news"]').click();
+  await again.page.locator('button[data-v="desk"]').click();
+  assert.equal(await again.page.locator('.revive-result').count(),0,'別の札へ移ると成否が残っている');
+  await again.page.evaluate(id=>{
+    const a=S.adv[id];a.status='dead';a.hp=0;a.party=null;a.lvl=1;a.traits=(a.traits||[]).filter(t=>t!=='信心深い');
+    S.blessUntil=S.tick+TICKS_PER_DAY;S.taverns.ours.gold=100000;render();
+  },other.id);
+  await again.page.setViewportSize({width:375,height:740});
+  await again.page.locator('h3',{hasText:'常連への手当て'}).scrollIntoViewIfNeeded();
+  const phone=await again.page.evaluate(id=>{
+    const row=document.querySelector(`button[data-act="revive"][data-a="${id}"]`)?.closest('.row');
+    if(!row)return ['行がない'];
+    const bad=[];
+    const r=row.getBoundingClientRect();
+    if(r.left<-1||r.right>innerWidth+1)bad.push('行が横にはみ出す');
+    if(document.documentElement.scrollWidth>innerWidth+1)bad.push('ページが横にはみ出す');
+    const hint=row.querySelector('.does'),btn=row.querySelector('button[data-act="revive"]');
+    if(!hint.innerText.includes('死・成功率の目安')||!hint.innerText.includes('寄進で上がっている'))bad.push(hint.innerText);
+    if(btn.getBoundingClientRect().top<hint.getBoundingClientRect().bottom-1)bad.push('ボタンが見出しの横にある');
+    return bad;
+  },other.id);
+  assert.deepEqual(phone,[]);
+  await again.page.setViewportSize({width:1280,height:800});
+  await again.page.locator('h3',{hasText:'常連への手当て'}).scrollIntoViewIfNeeded();
+  const wide=await again.page.evaluate(id=>{
+    const row=document.querySelector(`button[data-act="revive"][data-a="${id}"]`)?.closest('.row');
+    if(!row)return ['行がない'];
+    const who=row.querySelector('.who').getBoundingClientRect(),btn=row.querySelector('button[data-act="revive"]').getBoundingClientRect();
+    const bad=[];
+    if(!(btn.top<who.bottom&&btn.left>who.left))bad.push('広い画面でボタンが見出しの横にない');
+    if(!row.innerText.includes('成功率の目安'))bad.push('目安がない');
+    return bad;
+  },other.id);
+  assert.deepEqual(wide,[]);
+  assert.deepEqual([...errors,...again.errors],[]);await ctx.close();
+});
