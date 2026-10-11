@@ -20,7 +20,7 @@ const html=readFileSync(new URL('../index.html',import.meta.url),'utf8');
 const ENGINE=html.match(/\/\*ENGINE START\*\/([\s\S]*?)\/\*ENGINE END\*\//)[1];
 const EXPORTS=['newState','tick','rivalTemple','seatCap','seatsUsed','nextSeats','newcomerLvl','buyPrice','investPrice','FACILITIES',
   'RARES','MAXF','DRAGON_F','TICKS_PER_DAY','awayPlan','smallOf','debtTick','DEBT0','encounter','rareSlain','rareMonOf','arrive',
-  'repay','errandsOf','assignErrand','errandBlock','designateBlock','MAXF','MINE_TOP','MINE_BOT','MINE_N','FN','mineOpen','conquest','alive','markAdv','markedOf','BOARD_MAX','MARK_MAX','ARCS','reachFloor','GATE_F','fac','nextFac','buildFac','migrate','partyShown','crestJa','glossText','PT_A','PT_B','takeCrest','pickCrest','newPartyName','combat','MON','elemMul','elemNote','sleepMul','sleepReach','MINE_RARES','supplyTeam','potionPrice','lendRival'];
+  'repay','errandsOf','assignErrand','errandBlock','designateBlock','MAXF','MINE_TOP','MINE_BOT','MINE_N','FN','mineOpen','conquest','mineConquest','title','alive','markAdv','markedOf','BOARD_MAX','MARK_MAX','ARCS','reachFloor','GATE_F','fac','nextFac','buildFac','migrate','partyShown','crestJa','glossText','PT_A','PT_B','takeCrest','pickCrest','newPartyName','combat','MON','elemMul','elemNote','sleepMul','sleepReach','MINE_RARES','supplyTeam','potionPrice','lendRival'];
 
 // 乱数の種を固定したゲームの中身を1つ作る。中身の Math.random だけを差し替える
 function load(seed,fixed){
@@ -127,6 +127,50 @@ function checkScenes(){
     E.rareSlain(S,p,t);E.rareSlain(S,q,t);
     const n=Object.values(S.adv).filter(a=>Object.values(a.eq||{}).some(x=>x&&x.n===it)).length;
     check('名のある魔物：続けて2回討たれても、褒美と記録は最初の1回きり',n<=1&&S.rares[23].killed.party===p.name,'B23F・2つの一行が続けて討つ',`${it}を持つ者${n}人・記録は${S.rares[23].killed.party}`);}
+  // 「二つ名」：名のある魔物の「○○殺し」は、とどめを刺した者だけ。呪文・息吹・爆薬・相棒の獣は使い手の手柄
+  const slay=(floor,cls,rnd,prep)=>{const E=load(1,rnd),S=E.newState();const p=Object.values(S.parties).find(x=>x.tav==='ours');
+    p.members.forEach(id=>{const a=S.adv[id];a.status='party';a.mhp=a.hp=99999;a.mp=30;a.pers='無謀';a.fear=null;a.poison=0;a.eq={};a.tal=[];a.traits=[];
+      a.title=null;a.titleKind=null;a.titleTier=0;a.titleStem=null;a.rareKills=0;a.kills=0;a.disarms=0;a.deepest=1;a.revived=0;a.slain={};a.conq=false;a.mconq=false;a.mineDeep=0;a.errandsDone=0;a.cls=cls;a.lvl=6;a.beast=null;});
+    if(prep)prep(S,p);
+    const expect=prep?p.members.length-1:0;
+    p.members.forEach((id,i)=>{const a=S.adv[id];if(i===expect)return;a.title='鉄拳';a.titleKind='k80';a.titleTier=1;a.titleStem='鉄拳';});
+    p.floor=floor;p.state='explore';p.fought=true;p.ident=true;p.ambush=false;p.potions=0;p.guard=0;p.buff=0;p.log=[];
+    p.etype=E.rareMonOf(floor);p.enemies=[{hp:1,sleep:0}];
+    E.combat(S,p);return {E,S,p,n:p.etype.n,al:p.members.map(id=>S.adv[id]),expect};};
+  const bondOf=(S,a,b)=>{const k=a.id<b.id?`${a.id}-${b.id}`:`${b.id}-${a.id}`;return (S.bonds||{})[k];};
+  const slayerNews=(S,E,at)=>{const names=[...E.RARES,...E.MINE_RARES].map(r=>r.n);
+    const fresh=(S.news||[]).filter(n=>n.tk===S.tick&&String(n.t).includes('と呼ばれはじめた')&&String(n.t).includes('殺し'));
+    let bad=null;for(const nm of names){const c=fresh.filter(n=>n.t.includes(nm+'殺し')).length;if(c>1)bad=`${nm}が${c}件`;}
+    check('名のある魔物：同じ刻に同じ「殺し」の知らせは一件だけ',!bad,at,bad||fresh.map(n=>n.t).join(' / ')||'なし');};
+  for(const [how,floor,cls,rnd,prep] of [['呪文',1,'魔術師',1e-9,null],['爆薬',2,'錬金術師',1e-9,null],['息吹',5,'竜騎士',1e-9,null],['相棒の獣',4,'戦士',0.99,(S,p)=>{const id=p.members.at(-1);const a=S.adv[id];a.cls='獣使い';a.beast={kind:'狼',name:'クロ'};}]]){
+    const {E,S,p,n,al,expect}=slay(floor,cls,rnd,prep);const slayer=al[expect];const others=al.filter(a=>a!==slayer);const k=S.rares[floor]&&S.rares[floor].killed;
+    const titled=al.filter(a=>a.title&&a.title.includes(n)&&a.title.includes('殺し'));
+    const news=(S.news||[]).filter(x=>x.tk===S.tick&&x.t.includes(n+'殺し')&&x.t.includes('と呼ばれはじめた'));
+    const bonds=others.every(a=>{const ev=((bondOf(S,slayer,a)||{}).ev||[]);return ev.some(e=>e.k==='rare'&&String(e.t).includes(n+'討伐に加わった'));});
+    const kept=others.every(a=>a.title==='鉄拳'&&!(a.rareKills>0)&& (a.chron||[]).some(c=>c.t.includes(n+'討伐に加わった')));
+    const fin=(slayer.chron||[]).some(c=>c.t.includes(`「${n}」を討つ`))&&slayer.rareKills===1&&slayer.title&&slayer.title.includes(n)&&slayer.title.includes('殺し');
+    check('二つ名：名のある魔物の「殺し」はとどめを刺した者だけに付く',!!k&&k.by===slayer.name&&titled.length===1&&titled[0]===slayer&&fin&&kept&&bonds&&news.length===1,`${how}・${E.FN(floor)}の${n}`,
+      `とどめ${k&&k.by} 二つ名${al.map(a=>a.title||'なし').join('・')} 知らせ${news.length}件`);
+    slayerNews(S,E,`${how}・${n}`);}
+  // 黒竜・沈んだ王・坑道王の二つ名は、その場にいた全員
+  {const E=load(1),S=E.newState();const p=Object.values(S.parties).find(x=>x.tav==='ours');
+    const clear=a=>{a.status='party';a.mhp=a.hp=99999;a.title=null;a.titleKind=null;a.titleTier=0;a.titleStem=null;a.kills=0;a.rareKills=0;a.disarms=0;a.deepest=1;a.revived=0;a.slain={};a.eq={};a.conq=false;a.mconq=false;a.mineDeep=0;a.errandsDone=0;};
+    p.members.forEach(id=>clear(S.adv[id]));E.conquest(S,p);const al=p.members.map(id=>S.adv[id]);
+    check('二つ名：沈んだ王を討った一行は全員が踏破者の二つ名を得る',al.length>=3&&al.every(a=>a.titleKind==='conq'&&a.title),'沈んだ王',al.map(a=>`${a.name}「${a.title||'なし'}」`).join('、'));
+    const S2=E.newState();const p2=Object.values(S2.parties).find(x=>x.tav==='ours');p2.members.forEach(id=>clear(S2.adv[id]));E.mineConquest(S2,p2);const al2=p2.members.map(id=>S2.adv[id]);
+    check('二つ名：坑道王を討った一行は全員が坑道踏破者の二つ名を得る',al2.length>=3&&al2.every(a=>a.titleKind==='mconq'&&a.title),'坑道王',al2.map(a=>`${a.name}「${a.title||'なし'}」`).join('、'));
+    const S3=E.newState();const p3=Object.values(S3.parties).find(x=>x.tav==='ours');p3.members.forEach(id=>{const a=S3.adv[id];clear(a);a.slain={'黒竜':1};E.title(S3,a);});const al3=p3.members.map(id=>S3.adv[id]);
+    check('二つ名：黒竜を討った一行は全員が竜の二つ名を得る',al3.length>=3&&al3.every(a=>a.titleKind==='dragon'&&a.title),'黒竜',al3.map(a=>`${a.name}「${a.title||'なし'}」`).join('、'));}
+  // すでに付いている二つ名は書き換えない。とどめの者がいない古い討伐記録は、その場にいた者を候補にする
+  {const E=load(1),S=E.newState();const p=Object.values(S.parties).find(x=>x.tav==='ours');const [a,b]=p.members.map(id=>S.adv[id]);
+    const wipe=x=>{x.kills=0;x.rareKills=1;x.disarms=0;x.deepest=1;x.revived=0;x.slain={};x.eq={};x.conq=false;x.mconq=false;x.mineDeep=0;x.errandsDone=0;x.title=null;x.titleKind=null;x.titleTier=0;x.titleStem=null;};
+    wipe(a);wipe(b);a.title='ドブ王殺し';a.titleKind='rare';a.titleTier=2;a.titleStem='rare:ドブ王';
+    S.rares=S.rares||{};S.rares[1]={killed:{party:p.name,tav:p.tav,names:[a.name,b.name],tk:1}};S.v=22;E.migrate(S);E.title(S,a);E.title(S,b);
+    check('二つ名：古い討伐記録では、その場にいた者も「殺し」の候補になる',a.title==='ドブ王殺し'&&b.title&&b.title.includes('ドブ王')&&b.title.includes('殺し'),'by のない記録',`${a.name}「${a.title}」 ${b.name}「${b.title||'なし'}」`);
+    const S4=E.newState();const q=Object.values(S4.parties).find(x=>x.tav==='ours');const [c,d]=q.members.map(id=>S4.adv[id]);wipe(c);wipe(d);
+    c.title='ドブ王殺し';c.titleKind='rare';c.titleTier=2;c.titleStem='rare:ドブ王';
+    S4.rares=S4.rares||{};S4.rares[1]={killed:{party:q.name,tav:q.tav,names:[c.name,d.name],by:c.name,tk:1}};S4.v=22;E.migrate(S4);E.title(S4,c);E.title(S4,d);
+    check('二つ名：すでに付いている二つ名は読み込んでも変わらない',c.title==='ドブ王殺し'&&!d.title,'とどめは別の者',`${c.name}「${c.title}」 ${d.name}「${d.title||'なし'}」`);}
   // 「身内探し」「席と拡張」：席が埋まっているときは、救い出された身内は客にならない。見つけた本人と故郷へ帰る
   {const E=load(1),S=E.newState();const p=Object.values(S.parties).find(x=>x.tav==='ours');
     const finder=S.adv[p.leader];const kin='席のない身内';
@@ -532,6 +576,11 @@ function runSeed(seed){
       check('沈んだ王：踏破は一度きり',conquered===JSON.stringify({tk:S.conquered.tk,tav:S.conquered.tav,party:S.conquered.party}),at,S.conquered.party);}
     // 「名のある魔物」：一度討たれた魔物の記録は書き換わらない（再び討たれない）
     for(const [f,r] of Object.entries(S.rares||{}))if(r.killed){const k=JSON.stringify(r.killed);if(!killed[f])killed[f]=k;check('名のある魔物：一度討たれたら再び討たれない',killed[f]===k,at,`B${f}F`);}
+    // 「二つ名」：同じ刻に、同じ名のある魔物の「殺し」の知らせは一件まで（王殺し・竜殺し・坑道王殺しは全員に出てよい）
+    {const names=[...E.RARES,...E.MINE_RARES].map(r=>r.n);
+      const fresh=(S.news||[]).filter(n=>n.tk===S.tick&&String(n.t).includes('と呼ばれはじめた')&&String(n.t).includes('殺し'));
+      let bad=null;for(const nm of names){const c=fresh.filter(n=>n.t.includes(nm+'殺し')).length;if(c>1)bad=`${nm}が${c}件：${fresh.filter(n=>n.t.includes(nm+'殺し')).map(n=>n.t).join(' / ')}`;}
+      check('名のある魔物：同じ刻に同じ「殺し」の知らせは一件だけ',!bad,at,bad||'なし');}
     // 「記録の断片」：それぞれ見つかるのは一度きり
     for(const [i,r] of Object.entries(S.loreFound||{})){const k=JSON.stringify(r);if(!lore[i])lore[i]=k;check('記録の断片：見つかるのは一度きり',lore[i]===k,at,`断片${i}`);}
     // 「名のある魔物」「アイテムと装備」：伝説の品は世界にひとつずつ（いま生きている冒険者の装備の中で重ならない）
