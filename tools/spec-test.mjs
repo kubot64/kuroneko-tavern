@@ -20,7 +20,7 @@ const html=readFileSync(new URL('../index.html',import.meta.url),'utf8');
 const ENGINE=html.match(/\/\*ENGINE START\*\/([\s\S]*?)\/\*ENGINE END\*\//)[1];
 const EXPORTS=['newState','tick','rivalTemple','seatCap','seatsUsed','nextSeats','newcomerLvl','buyPrice','investPrice','FACILITIES',
   'RARES','MAXF','DRAGON_F','TICKS_PER_DAY','awayPlan','smallOf','debtTick','DEBT0','encounter','rareSlain','rareMonOf','arrive',
-  'repay','errandsOf','assignErrand','errandBlock','designateBlock','MAXF','MINE_TOP','MINE_BOT','MINE_N','FN','mineOpen','conquest','mineConquest','title','alive','markAdv','markedOf','BOARD_MAX','MARK_MAX','ARCS','reachFloor','GATE_F','fac','nextFac','buildFac','migrate','partyShown','crestJa','glossText','PT_A','PT_B','takeCrest','pickCrest','newPartyName','combat','MON','elemMul','elemNote','sleepMul','sleepReach','MINE_RARES','supplyTeam','potionPrice','lendRival','reviveChance','reviveHint','reviveResultText','temple'];
+  'repay','errandsOf','assignErrand','errandBlock','designateBlock','MAXF','MINE_TOP','MINE_BOT','MINE_N','FN','mineOpen','conquest','mineConquest','title','alive','markAdv','markedOf','BOARD_MAX','MARK_MAX','ARCS','reachFloor','GATE_F','fac','nextFac','buildFac','migrate','partyShown','crestJa','glossText','PT_A','PT_B','takeCrest','pickCrest','newPartyName','combat','MON','elemMul','elemNote','sleepMul','sleepReach','MINE_RARES','supplyTeam','potionPrice','lendRival','reviveChance','reviveHint','reviveResultText','temple','checkMemo','memoState','nextDue','rankRows','MEMO'];
 
 // 乱数の種を固定したゲームの中身を1つ作る。中身の Math.random だけを差し替える
 function load(seed,fixed){
@@ -107,7 +107,7 @@ function checkScenes(){
     owing.debt=50;owing.loanItem='借りた盾';owing.chron=(owing.chron||[]).filter(x=>x.t!==line);
     S.v=21;E.migrate(S);
     const cnt=a=>(a.chron||[]).filter(x=>x.t===line).length;
-    check('貸し付け：古い記録を開くと、借金のない客の貸し付けの印が消える',!paid.loanItem&&owing.loanItem==='借りた盾'&&cnt(paid)===1&&cnt(owing)===0&&S.v===22,'版21を開く',`返し済み${paid.loanItem||'なし'}・${cnt(paid)}回 残債${owing.loanItem||'なし'}・${cnt(owing)}回 版${S.v}`);
+    check('貸し付け：古い記録を開くと、借金のない客の貸し付けの印が消える',!paid.loanItem&&owing.loanItem==='借りた盾'&&cnt(paid)===1&&cnt(owing)===0&&S.v===23,'版21を開く',`返し済み${paid.loanItem||'なし'}・${cnt(paid)}回 残債${owing.loanItem||'なし'}・${cnt(owing)}回 版${S.v}`);
     al.forEach(x=>{x.hp=x.mhp;x.status='party';});E.lendRival(S,p,al.length);p.loot=100000;p.carried=[];p.rescue=[];E.arrive(S,p);
     check('貸し付け：印を消した客は、坑道で借りた分を返しても手帳に出ない',cnt(paid)===1&&paid.debt===0&&!paid.loanItem&&cnt(owing)===1&&owing.debt===0&&!owing.loanItem,'坑道の借りを返す',`返し済み${cnt(paid)}回・借金${paid.debt} 残債${cnt(owing)}回・借金${owing.debt}`);}
   // 「戦闘」：群れで出ても、炎の息を吐くのはひと巡りに1体まで。黒竜は1ラウンドに2回とも吐ける
@@ -261,7 +261,7 @@ function checkErrands(){
     const kept=news.includes('葡萄酒を飲んだ')&&news.includes('鉄の誓い傭兵団（四十人）')&&news.includes('七つ星団（赤い樽亭・三十人）')&&news.includes('夜鷹団')&&news.includes('黄金の剣団')&&news.includes('黒猫亭')&&news.includes('銀の杯亭')&&news.includes('白銀の牙は看板')&&news.includes('錆びた兜')&&news.includes('灯りの火');
     check('一行の名前：古い記録のいまいる一行は紋章名に付け替わる',!!ace&&ace.name==='白銀の牙'&&renamed&&rest.every(p=>news.includes(p.name))&&oldGone&&kept, '付け替え', news);
     check('一行の名前：付け替えは手帳と迷宮の記録にも行き渡る',leader.chron.at(-1).t.includes(rest[0].name)&&!leader.chron.at(-1).t.includes(names0[rest[0].id])&&rest[0].log.at(-1).t.includes(rest[0].name)&&S.floors[3].arrive.party===rest[0].name&&S.floors[1].through.party===hist&&S.rares[1].killed.party===rest[0].name&&leader.last.party===rest[0].name, '手帳と記録', `${leader.chron.at(-1).t} / ${hist}`);
-    check('一行の名前：付け替えで店の金や冒険者の名は変わらない',S.taverns.ours.gold===gold&&S.taverns.ours.name==='黒猫亭'&&leader.name===member&&S.v===22, '付け替え後', `金${S.taverns.ours.gold} ${leader.name}`);
+    check('一行の名前：付け替えで店の金や冒険者の名は変わらない',S.taverns.ours.gold===gold&&S.taverns.ours.name==='黒猫亭'&&leader.name===member&&S.v===23, '付け替え後', `金${S.taverns.ours.gold} ${leader.name}`);
     const again=rest.map(p=>p.name).join(',');E.migrate(S);
     check('一行の名前：付け替えは一度だけ',rest.map(p=>p.name).join(',')===again&&ace.name==='白銀の牙', '二度目の読み込み', rest.map(p=>p.name).join(','));}
 }
@@ -302,7 +302,7 @@ function checkCrest(){
   S.parties={[one.id]:one};one.name='鉄鍋隊';S.usedParty=Object.assign(keep,{'鉄鍋隊':1});
   S.adv[one.leader].origin='東方の島国アズマ';S.adv[one.leader].race='人間';S.adv[one.leader].cls='侍';
   S.v=20;E.migrate(S);
-  check('一行の名前：付け替えもリーダーに合わせ、乱数の名は記録しない',one.name==='ヤミ・ヤイバ'&&S.v===22&&!('ja' in one),'付け替え',one.name);
+  check('一行の名前：付け替えもリーダーに合わせ、乱数の名は記録しない',one.name==='ヤミ・ヤイバ'&&S.v===23&&!('ja' in one),'付け替え',one.name);
 }
 // 仕様「紋章名が尽きたときは、リーダーの名前に『の一行』を添える。重なれば『・2』から番号を添える」
 function checkRowFallback(){
@@ -644,9 +644,56 @@ function checkRevive(){
     check('蘇生：灰から失敗するとロストする',E2.temple(S2,b,true)==='lost'&&b.status==='lost','灰から失敗',b.status);}
 }
 
+function checkMemoNotes(){
+  const texts=E=>E.MEMO.map(m=>m.t).join('|');
+  {const E=load(1),S=E.newState(),T0=S.taverns.ours;E.checkMemo(S);const a=E.memoState(S);
+    check('覚え書き：新しく始めると未達が3行',a.show.length===3&&a.show.every(m=>!m.done)&&a.show.map(m=>m.t).join('|')===texts(E).split('|').slice(0,3).join('|')&&a.log.length===0&&!a.allDone,'開店',a.show.map(m=>m.t).join(' / '));
+    check('覚え書き：開始時は番付に勝ちがない',!E.rankRows(S).some(r=>r.lead>0)&&!E.MEMO.find(m=>m.id==='rank').met(S),'開店',E.rankRows(S).filter(r=>r.lead>0).map(r=>r.name).join(','));
+    const rep0=T0.rep,adv=Object.values(S.adv).find(x=>x.tav==='ours');adv.trips=1;E.checkMemo(S);const b=E.memoState(S);
+    check('覚え書き：無事に戻ると線が引かれ、次の行が出て、評判は1だけ増える',b.show[0].done&&b.show[0].id==='home'&&b.show[0].tk===S.tick&&b.show.filter(m=>!m.done).length===3&&b.show[3].id==='rare'&&T0.rep===rep0+1,'帰還',`rep ${rep0}→${T0.rep} ${b.show.map(m=>m.id+(m.done?'済':'')).join(',')}`);
+    E.checkMemo(S);
+    check('覚え書き：同じ行の評判は一度だけ',T0.rep===rep0+1,'二度目',T0.rep);
+    S.small=[{n:'赤い樽亭',owned:true,owner:'a',trait:'b',score:0,since:0,log:[]}];E.checkMemo(S);
+    check('覚え書き：支店の席は十八席に数えない',!S.memo.done.seats&&T0.seats===12,'支店',T0.seats);
+    T0.seats=18;E.checkMemo(S);const c=E.memoState(S);
+    check('覚え書き：席を18にすると線が引かれ、次の行が出る',c.show.find(m=>m.id==='seats').done&&c.show.some(m=>m.id==='stone'&&!m.done)&&c.log.filter(m=>m.tk===S.tick).length>=2,'拡張',c.show.map(m=>m.id+(m.done?'済':'')).join(','));}
+  {const E=load(2),S=E.newState(),U=S.taverns.ours;U.gold=999999;U.debt=80000;U.nextPay=S.tick;U.rep=0;const due=E.nextDue(S);
+    check('返済：必要額は利息2%を足した4000G',due&&due.due===4000+Math.round(80000*.02)&&due.days>=1,'開店の借金',JSON.stringify(due));
+    E.debtTick(S);E.checkMemo(S);
+    check('覚え書き：不足なく払えた返済日で、取り立て人の行がかなう',U.cleanPay===S.tick&&E.memoState(S).log.some(m=>m.id==='bill'&&m.tk===S.tick)&&U.rep===1,'返済日',`clean ${U.cleanPay} rep ${U.rep}`);}
+  {const E=load(3),S=E.newState();S.taverns.ours.debt=3000;const d=E.nextDue(S);
+    check('返済：残りが少なければ利息を足した全額',d&&d.due===3000+Math.round(3000*.02),'借金3000',d&&d.due);
+    S.taverns.ours.debt=0;
+    check('返済：返し終えると必要額はない',E.nextDue(S)===null,'完済','');}
+  {const E=load(4),S=E.newState();S.deepest.rival=1;S.deepest.ours=1;E.checkMemo(S);
+    check('覚え書き：番付が同点だけのあいだは勝ったことにならない',!S.memo.done.rank&&E.rankRows(S).some(r=>r.lead===0)&&!E.rankRows(S).some(r=>r.lead>0),'同点',E.rankRows(S).map(r=>r.name+r.lead).join(','));
+    S.deepest.ours=2;const rep=S.taverns.ours.rep;E.checkMemo(S);
+    check('覚え書き：番付で一つ勝つと評判が2増える',!!(S.memo.done.rank&&S.memo.done.rank.tk===S.tick)&&S.taverns.ours.rep===rep+2,'最深',S.taverns.ours.rep);}
+  {const E=load(5),S=E.newState();S.dragon={kills:1};E.checkMemo(S);
+    check('覚え書き：黒竜を討っても名のある魔物にはならない',!(S.memo&&S.memo.done&&S.memo.done.rare),'黒竜','');}
+  {const E=load(6),S=E.newState(),U=S.taverns.ours;U.gold=0;U.debt=80000;U.rep=5;U.nextPay=S.tick;E.debtTick(S);E.checkMemo(S);
+    check('覚え書き：返済に足りないと取り立て人の行は残る',!(S.memo.done&&S.memo.done.bill)&&U.cleanPay==null,'延滞',U.rep);
+    U.gold=999999;U.nextPay=S.tick;E.debtTick(S);E.checkMemo(S);
+    check('覚え書き：あとから不足なく払えばかなう',!!(S.memo.done.bill&&U.cleanPay===S.tick),'翌月',U.cleanPay);}
+  {const E=load(7),S=E.newState(),U=S.taverns.ours;U.gold=100000;U.debt=1000;const rep=U.rep;E.repay(S,1000);
+    check('覚え書き：返し終えると返済・半分・完済が同時にかなう',!!(S.memo.done.bill&&S.memo.done.half&&S.memo.done.free)&&U.rep===rep+10+1+3+3,'完済',`rep ${rep}→${U.rep}`);
+    U.debt=50000;E.checkMemo(S);
+    check('覚え書き：かなえた行は条件が戻っても消えない',!!S.memo.done.half,'利息で戻る','');}
+  {const E=load(8),S=E.newState(),adv=Object.values(S.adv).find(x=>x.tav==='ours');adv.trips=1;adv.pastDreams=[{k:'fame',t:'夢',tk:10}];S.stats.dreams.ours=1;S.taverns.ours.seats=18;S.taverns.ours.debt=0;S.taverns.ours.debtFree=20;S.taverns.ours.cleanPay=15;S.deepest.ours=6;S.rares={1:{killed:{tav:'ours',tk:12,party:'p',names:['a']}}};S.taverns.ours.rep=500;const rep=S.taverns.ours.rep;E.checkMemo(S);const st=E.memoState(S);const sum=E.MEMO.reduce((s,m)=>s+m.rep,0);
+    check('覚え書き：すべてかなえると帳場からは消え、評判は合計だけ一度増える',st.show.length===0&&st.allDone&&st.log.length===9&&S.taverns.ours.rep===rep+sum&&sum===17,'全達成',`show ${st.show.length} log ${st.log.length} rep +${S.taverns.ours.rep-rep}`);
+    E.checkMemo(S);
+    check('覚え書き：すべてかなえたあとは評判が増えない',S.taverns.ours.rep===rep+sum,'二度目',S.taverns.ours.rep);}
+  {const E=load(9),S=E.newState(),a=Object.values(S.adv).find(x=>x.tav==='ours');a.trips=2;a.chron.push({tk:40,t:'はじめてB6Fに足を踏み入れる'});a.pastDreams=[{k:'fame',t:'夢',tk:50}];S.stats.dreams.ours=1;S.deepest.ours=8;S.rares={3:{killed:{tav:'ours',tk:33,party:'p',names:['b']}},4:{killed:{tav:'rival',tk:10,party:'q',names:['c']}}};S.taverns.ours.seats=18;S.taverns.ours.debt=10000;S.taverns.ours.rep=7;S.news.push({tk:21,t:'セーレの両替商に、今月の返済5600G（うち利息1600G）を払った。借金の残りは76000G。',k:'info'});S.v=22;delete S.memo;E.migrate(S);const m=S.memo.done;
+    check('覚え書き：古い記録はかなえた行に線を引き、評判は増えない',S.v===23&&S.taverns.ours.rep===7&&S.taverns.ours.cleanPay===21&&m.home&&m.home.tk==null&&m.bill&&m.bill.tk===21&&m.seats&&m.seats.tk==null&&m.rare&&m.rare.tk===33&&m.stone&&m.stone.tk===40&&m.dream&&m.dream.tk===50&&m.half&&m.half.tk==null&&m.rank&&m.rank.tk==null&&!m.free,'版22',JSON.stringify(m));}
+  {const E=load(10),S=E.newState();const n=E.nextDue(S);
+    check('返済：始めは30日後・5600G',n&&n.days===30&&n.due===5600,'開店',JSON.stringify(n));
+    for(let i=0;i<6;i++)E.tick(S);const n2=E.nextDue(S);
+    check('返済：開店の数刻後も30日・5600G',n2&&n2.days===30&&n2.due===5600,'6刻',JSON.stringify(n2));}
+}
+
 if(!isMainThread){const line=runSeed(workerData.seed);parentPort.postMessage({line,res:[...results]});}
 else{
-  checkTables();checkScenes();checkErrands();checkCrest();checkRowFallback();checkMine();checkAffinity();checkRevive();
+  checkTables();checkScenes();checkErrands();checkCrest();checkRowFallback();checkMine();checkAffinity();checkRevive();checkMemoNotes();
   // 種ごとの結果は、種の順に重ねる。反例は、いちばん若い種の最初のものを残す
   const out=new Array(SEEDS.length);let next=0;
   const runOne=()=>{if(next>=SEEDS.length)return Promise.resolve();const k=next++;

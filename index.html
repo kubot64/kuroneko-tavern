@@ -17,6 +17,7 @@
   --f-display:"Zen Old Mincho","Hiragino Mincho ProN","Yu Mincho",serif;
   --f-body:"Zen Kaku Gothic New","Hiragino Sans","Yu Gothic",sans-serif;
   --f-log:"DotGothic16","MS Gothic","Osaka-Mono",monospace;
+  --paybar-h:0px;
   color-scheme:dark;
 }
 *{box-sizing:border-box}
@@ -108,7 +109,18 @@ button:focus-visible,[tabindex]:focus-visible{outline:2px solid var(--amber);out
 
 /* side ledger */
 .side{background:var(--panel);border:1px solid var(--line);border-radius:8px;display:flex;flex-direction:column;min-width:0;position:sticky;top:calc(env(safe-area-inset-top,0px) + 8px);max-height:calc(100vh - 24px)}
-@media (max-width:900px){.side{position:static;max-height:none}}
+.payline{flex:none;margin:0;padding:6px 12px;text-align:center;font-size:13px;color:var(--muted);border-bottom:1px solid var(--line);font-variant-numeric:tabular-nums;background:var(--panel)}
+.payline b{color:var(--amber);font-size:15px;margin-inline:2px}
+.memo{font-family:var(--f-display);border:1px dashed var(--line);border-radius:6px;padding:8px 12px 4px;margin:0 0 14px;background:var(--panel2)}
+.memo h3{font-family:var(--f-display);color:var(--amber);letter-spacing:.12em;font-size:14px;font-weight:700;margin:0 0 4px}
+.memo ul{margin:0;padding:0 0 4px 1.2em}
+.memo li{margin:3px 0;line-height:1.55}
+.memo li.done{color:var(--muted)}
+.memo .when{font-family:var(--f-body);font-size:12px;margin-left:.6em;color:var(--muted)}
+@media (max-width:900px){
+  .side{position:static;max-height:none}
+  .payline:not([hidden]){position:sticky;top:0;z-index:6}
+}
 .tabs{display:flex;flex-direction:column;flex:none;border-bottom:1px solid var(--line)}
 .tabrow{display:flex;align-items:center;flex-wrap:wrap;min-width:0}
 .tabrow+.tabrow{border-top:1px dashed var(--line)}
@@ -232,9 +244,10 @@ button:focus-visible,[tabindex]:focus-visible{outline:2px solid var(--amber);out
 .quote.revive.lost{border-left:3px solid var(--ash)}
 /* 幅640px以下。タブは画面下に固定し、帳場は見出しの下にボタン、地図屋の階は1枚の札。押しやすい大きさは44px */
 @media (max-width:640px){
-  body{padding-bottom:var(--tabbar-pad, 140px)}
-  html{scroll-padding-bottom:calc(var(--tabbar-h, 140px) + 12px)}
-  .toast{bottom:calc(var(--tabbar-h, 140px) + 12px + env(safe-area-inset-bottom,0px))}
+  body{padding-bottom:calc(var(--tabbar-pad, 140px) + var(--paybar-h, 0px))}
+  html{scroll-padding-bottom:calc(var(--tabbar-h, 140px) + var(--paybar-h, 0px) + 12px)}
+  .toast{bottom:calc(var(--tabbar-h, 140px) + var(--paybar-h, 0px) + 12px + env(safe-area-inset-bottom,0px))}
+  .payline:not([hidden]){position:fixed;left:0;right:0;top:auto;bottom:var(--tabbar-h, 140px);z-index:9;border-bottom:0;border-top:1px solid var(--line);box-shadow:0 -4px 12px #0006}
   .tabs{position:fixed;left:0;right:0;bottom:0;z-index:8;background:var(--panel);border-top:1px solid var(--line);border-bottom:0;padding:2px 4px calc(6px + env(safe-area-inset-bottom,0px));box-shadow:0 -8px 20px #0008}
   .tbody{max-height:none;min-height:calc(100vh - var(--tabbar-h, 140px) - 12px)}
   .tabs button,.ctrl .btn{display:inline-flex;align-items:center;justify-content:center;min-width:44px;min-height:44px}
@@ -296,6 +309,7 @@ button:focus-visible,[tabindex]:focus-visible{outline:2px solid var(--amber);out
       </section>
     </div>
     <aside class="side">
+      <p class="payline" id="payw" hidden>次の返済まであと<b id="payday">0</b>日・必要額<b id="paydue">0</b>G</p>
       <nav class="tabs" id="tabs"></nav>
       <div class="tbody" id="tbody"></div>
     </aside>
@@ -650,7 +664,7 @@ const PUSH={
 function newState(){
   const S={tick:0,nid:1,adv:{},parties:{},news:[],tales:[],memorial:[],
     taverns:{ours:{name:'黒猫亭',gold:400,rep:0,crystals:1,earned:0,debt:DEBT0,seats:12,nextPay:30*TICKS_PER_DAY,late:0},rival:{name:'銀の杯亭',gold:99999,rep:60,owner:RIVAL_OWNER}},
-    bounties:{},deepest:{ours:1,rival:GATE_F},usedNames:{[RIVAL_OWNER]:1},usedParty:{'鉄の誓い':1,'黄金の剣':1,'七つ星':1,'夜鷹':1,'鉄の誓い傭兵団':1,'黄金の剣団':1},usedItems:{},uniqFound:{},farewells:[],edicts:[],v:22,loreFound:{},shop:{tiers:{1:true},mats:{},serial:0,log:[]},watch:[null,null],sel:0,stats:{dreams:{ours:0,rival:0}},small:SMALL_TAV.slice(0,5)};
+    bounties:{},deepest:{ours:1,rival:GATE_F},usedNames:{[RIVAL_OWNER]:1},usedParty:{'鉄の誓い':1,'黄金の剣':1,'七つ星':1,'夜鷹':1,'鉄の誓い傭兵団':1,'黄金の剣団':1},usedItems:{},uniqFound:{},farewells:[],edicts:[],v:23,loreFound:{},shop:{tiers:{1:true},mats:{},serial:0,log:[]},watch:[null,null],sel:0,stats:{dreams:{ours:0,rival:0}},small:SMALL_TAV.slice(0,5)};
   for(let i=0;i<7;i++) makeAdv(S,'ours',{lvl:pick([1,1,1,2,2,3,3,4,5,6])});
   const vets=[];for(let i=0;i<6;i++) vets.push(makeAdv(S,'rival',{lvl:ri(12,17)}));
   for(let i=0;i<22;i++) makeAdv(S,'rival');
@@ -1594,6 +1608,7 @@ function tick(S){
   }
   releaseRetrieved(S);
   errandTick(S);mineTick(S);
+  checkMemo(S);
 }
 
 function stepParty(S,p){
@@ -2557,13 +2572,67 @@ function title(S,a,quiet){
 
 /* ---- the tavern's debt, the rival and the small taverns ---- */
 function debtNews(S){const T0=S.taverns.ours;if(T0.debt<=0&&!T0.debtFree){T0.debt=0;T0.debtFree=S.tick;T0.rep+=10;news(S,'黒猫亭の借金を、すべて返し終えた。店はようやく、本当に店主のものになった。','record');}}
-function repay(S,amt){const T0=S.taverns.ours;const x=Math.min(amt,T0.debt,Math.max(0,T0.gold));if(x<=0)return 0;T0.gold-=x;T0.debt-=x;T0.repaid=(T0.repaid||0)+x;debtNews(S);return x;}
+function repay(S,amt){const T0=S.taverns.ours;const x=Math.min(amt,T0.debt,Math.max(0,T0.gold));if(x<=0)return 0;T0.gold-=x;T0.debt-=x;T0.repaid=(T0.repaid||0)+x;debtNews(S);checkMemo(S);return x;}
 function debtTick(S){const T0=S.taverns.ours;if(!(T0.debt>0))return;if(T0.nextPay==null)T0.nextPay=S.tick+30*TICKS_PER_DAY;if(S.tick<T0.nextPay)return;
   T0.nextPay=S.tick+30*TICKS_PER_DAY;const intr=Math.round(T0.debt*.02);T0.debt+=intr;const due=Math.min(T0.debt,DEBT_DUE+intr);
-  if(T0.gold>=due){T0.gold-=due;T0.debt-=due;T0.repaid=(T0.repaid||0)+due;T0.late=0;news(S,`セーレの両替商に、今月の返済${due}G（うち利息${intr}G）を払った。借金の残りは${T0.debt}G。`,'info');}
+  if(T0.gold>=due){T0.gold-=due;T0.debt-=due;T0.repaid=(T0.repaid||0)+due;T0.late=0;if(T0.cleanPay==null)T0.cleanPay=S.tick;news(S,`セーレの両替商に、今月の返済${due}G（うち利息${intr}G）を払った。借金の残りは${T0.debt}G。`,'info');}
   else{const p0=Math.max(0,T0.gold);T0.gold-=p0;T0.debt-=p0;const pen=Math.round((due-p0)*.25);T0.debt+=pen;T0.late=(T0.late||0)+1;T0.rep=Math.max(0,T0.rep-3);
     news(S,`今月の返済に${due-p0}G足りなかった。両替商の取り立て人が店先に居座り、客が眉をひそめている。延滞の罰金${pen}Gが上乗せされ、借金の残りは${T0.debt}G。`,'death');}
   debtNews(S);}
+// 次の返済日に払う額と、そこまでの日数。借金が残っていなければ出さない。当日は1日と数える
+function nextDue(S){const T0=S.taverns.ours;if(!(T0.debt>0))return null;const intr=Math.round(T0.debt*.02);const due=Math.min(T0.debt+intr,DEBT_DUE+intr);
+  const next=T0.nextPay!=null?T0.nextPay:S.tick+30*TICKS_PER_DAY;return {days:Math.max(1,Math.ceil((next-S.tick)/TICKS_PER_DAY)),due};}
+// 番付の一行。lead が正なら黒猫亭の勝ち。ロストは少ないほうが勝ち。同点は勝ちではない
+function rankRows(S){
+  const F=floorsInit(S);const cnt=fn=>{const c={ours:0,rival:0};fn(c);return c;};
+  const arr=cnt(c=>{for(let f=1;f<=MINE_BOT;f++){const v=F[f];if(v&&v.arrive&&!v.arrive.yr&&c[v.arrive.tav]!=null)c[v.arrive.tav]++;}});
+  const thr=cnt(c=>{for(let f=1;f<=MINE_BOT;f++){const v=F[f];if(v&&v.through&&!v.through.yr&&c[v.through.tav]!=null)c[v.through.tav]++;}});
+  const rar=cnt(c=>{Object.values(S.rares||{}).forEach(v=>{if(v.killed&&c[v.killed.tav]!=null)c[v.killed.tav]++;});});
+  const lost=cnt(c=>{(S.memorial||[]).forEach(m=>{if(c[m.tav]!=null)c[m.tav]++;});});
+  const dr=(S.stats&&S.stats.dreams)||{ours:0,rival:0};const md=S.mineDeep||{ours:0,rival:0};const To=S.taverns.ours,Tr=S.taverns.rival;
+  const rows=[['最深到達',`${FN(S.deepest.ours)}`,`${FN(S.deepest.rival)}`,S.deepest.ours-S.deepest.rival],...(mineOpen(S)?[['坑道の最深到達',md.ours?FN(MAXF+md.ours):'―',md.rival?FN(MAXF+md.rival):'―',md.ours-md.rival]]:[]),['初到達した階（解禁後）',arr.ours,arr.rival,arr.ours-arr.rival],['最初に突破した階',thr.ours,thr.rival,thr.ours-thr.rival],['名のある魔物の討伐',rar.ours,rar.rival,rar.ours-rar.rival],['かなえた夢',dr.ours||0,dr.rival||0,(dr.ours||0)-(dr.rival||0)],['常連の数',seatsUsed(S,'ours'),seatsUsed(S,'rival'),seatsUsed(S,'ours')-seatsUsed(S,'rival')],['評判',To.rep,Tr.rep,To.rep-Tr.rep],['ロストした者',lost.ours,lost.rival,lost.rival-lost.ours]];
+  return rows.map(r=>({name:r[0],ours:r[1],rival:r[2],lead:r[3]}));
+}
+// 店主の覚え書き。近い目標を3行だけ出し、かなえたら線を引いて次の行を出す。見返りの評判は小さい
+const MEMO=[
+  {id:'home',rep:1,t:'送り出した連中が、揃って戻ってくる',met:S=>Object.values(S.adv).some(a=>a.tav==='ours'&&(a.trips||0)>=1)},
+  {id:'bill',rep:1,t:'取り立て人の顔は、もう見たくない',met:S=>{const T0=S.taverns.ours;return T0.cleanPay!=null||!(T0.debt>0);}},
+  {id:'seats',rep:1,t:'壁際に卓を足して、席を十八にする',met:S=>(S.taverns.ours.seats||0)>=18},
+  {id:'rare',rep:2,t:'名のある魔物を、一頭仕留める',met:S=>Object.values(S.rares||{}).some(v=>v.killed&&v.killed.tav==='ours')},
+  {id:'stone',rep:2,t:'うちの客の誰かが、B6の石碑に触れる',met:S=>(S.deepest&&S.deepest.ours||0)>=6},
+  {id:'dream',rep:2,t:'誰かの夢が、ひとつかなう',met:S=>((S.stats&&S.stats.dreams&&S.stats.dreams.ours)||0)>=1||Object.values(S.adv).some(a=>a.tav==='ours'&&(a.pastDreams||[]).length)},
+  {id:'rank',rep:2,t:'番付のどこか一つ、銀の杯亭に勝つ',met:S=>rankRows(S).some(r=>r.lead>0)},
+  {id:'half',rep:3,t:'借金を、半分まで減らす',met:S=>S.taverns.ours.debt<=DEBT0/2},
+  {id:'free',rep:3,t:'借用書に、最後の印を押す',met:S=>!(S.taverns.ours.debt>0)},
+];
+// 古い記録で、分かるものだけ日付を戻す。分からない行は null（線だけ）
+function memoWhen(S,id){
+  const T0=S.taverns.ours;
+  if(id==='bill')return T0.cleanPay!=null?T0.cleanPay:(T0.debtFree!=null?T0.debtFree:null);
+  if(id==='free')return T0.debtFree!=null?T0.debtFree:null;
+  if(id==='rare'){let tk=null;Object.values(S.rares||{}).forEach(v=>{const k=v&&v.killed;if(k&&k.tav==='ours'&&k.tk!=null&&(tk==null||k.tk<tk))tk=k.tk;});return tk;}
+  if(id==='dream'){let tk=null;Object.values(S.adv||{}).forEach(a=>{if(!a||a.tav!=='ours')return;(a.pastDreams||[]).forEach(d=>{if(d&&d.tk!=null&&(tk==null||d.tk<tk))tk=d.tk;});});return tk;}
+  if(id==='stone'){let tk=null;Object.values(S.adv||{}).forEach(a=>{if(!a||a.tav!=='ours')return;(a.chron||[]).forEach(c=>{if(c&&c.t==='はじめてB6Fに足を踏み入れる'&&c.tk!=null&&(tk==null||c.tk<tk))tk=c.tk;});});return tk;}
+  return null;
+}
+function memoStamp(S,id,live){const tk=memoWhen(S,id);if(tk!=null)return tk;return live?S.tick:null;}
+// quiet のときは線だけ引き、評判は足さない（古い記録を開いたとき）
+function checkMemo(S,quiet){
+  S.memo=S.memo||{done:{}};if(!S.memo.done)S.memo.done={};
+  const T0=S.taverns.ours;
+  for(const m of MEMO){if(S.memo.done[m.id]||!m.met(S))continue;S.memo.done[m.id]={tk:memoStamp(S,m.id,!quiet)};if(!quiet)T0.rep=(T0.rep||0)+m.rep;}
+}
+// 帳場に出す行。未達の先頭3行と、いちばん新しくかなえた行（同じ日ならその日の分すべて）
+function memoState(S){
+  const done=(S.memo&&S.memo.done)||{};
+  const row=m=>{const d=done[m.id];return {id:m.id,t:m.t,rep:m.rep,done:!!d,tk:d?d.tk:null};};
+  const log=MEMO.filter(m=>done[m.id]).map(row);const open=MEMO.filter(m=>!done[m.id]);
+  if(!open.length)return {show:[],log,allDone:true};
+  let keep=[];
+  if(log.length){const known=log.map(m=>m.tk).filter(t=>t!=null);if(known.length){const mx=Math.max(...known);keep=log.filter(m=>m.tk===mx);}else keep=[log[log.length-1]];}
+  const ids=new Set(keep.map(m=>m.id));open.slice(0,3).forEach(m=>ids.add(m.id));
+  return {show:MEMO.filter(m=>ids.has(m.id)).map(row),log,allDone:false};
+}
 function moveTav(S,a,tav){const team=a.party&&S.parties[a.party];if(team&&team.state!=='town')return false;
   a.party=null;const from=S.taverns[a.tav].name;a.tav=tav;a.favor=0;a.marked=false;chron(S,a,`${from}を出て、${S.taverns[tav].name}の客になる`);return true;}
 function pickAce(S,quiet){const ps=Object.values(S.parties).filter(p=>p.tav==='rival'&&p.state!=='wiped');if(!ps.length){if(S.ace&&S.parties[S.ace])S.parties[S.ace].ace=false;S.ace=null;return;}
@@ -2897,6 +2966,11 @@ function migrate(S){
     Object.values(S.adv).forEach(a=>{if(!(a.debt>0))delete a.loanItem;});
     S.v=22;
   }
+  if(!(S.v>=23)){// 店主の覚え書き。もうかなえている行には線だけ引き、評判は足さない。返済の知らせが残っていれば、その日を最初の無事な返済とする
+    const T0=S.taverns.ours;
+    if(T0.cleanPay==null){const n=(S.news||[]).find(x=>x&&typeof x.t==='string'&&x.t.startsWith('セーレの両替商に、今月の返済'));if(n&&n.tk!=null)T0.cleanPay=n.tk;}
+    checkMemo(S,true);S.v=23;
+  }
   Object.values(S.adv).forEach(a=>{if(!a.tone)personalize(a);if(!a.traits)assignTraits(S,a,true);});
   smallOf(S);
   Object.values(S.adv).filter(a=>a.title&&!a.titleKind&&a.status!=='lost'&&a.status!=='retired').forEach(a=>{a.title='';title(S,a,true);});
@@ -3026,8 +3100,10 @@ function autoWatch(){
 }
 
 function render(){
+  checkMemo(S);
   const T=S.taverns.ours;
   $('day').textContent=day(S);{const c=calDate(S.tick);$('year').textContent=c.y;$('md').textContent=` ${c.m}月${c.d}日 `;$('hr').textContent=`${c.h}時`;}$('gold').textContent=T.gold;$('rep').textContent=T.rep;$('debt').textContent=T.debt||0;$('debtw').hidden=!(T.debt>0);
+  {const due=nextDue(S),pay=$('payw');if(pay){pay.hidden=!due;if(due){$('payday').textContent=due.days;$('paydue').textContent=due.due;}}}
   {const md=(S.mineDeep||{}).ours||0;$('deep').textContent=FN(Math.max(S.deepest.ours,1))+(S.conquered?'・踏破済み':'')+(md?'／'+FN(MAXF+md)+(S.mineConq?'・踏破済み':''):'');}
   renderCrystals();renderParties();renderSide();renderAdv();maybeEnding();
 }
@@ -3117,6 +3193,9 @@ function placeTabs(){
   document.documentElement.style.setProperty('--tabbar-h',h+'px');
   const side=document.querySelector('.side');
   const phone=window.matchMedia('(max-width:640px)').matches;
+  const pay=$('payw');
+  const payH=phone&&pay&&!pay.hidden?Math.ceil(pay.getBoundingClientRect().height):0;
+  document.documentElement.style.setProperty('--paybar-h',payH+'px');
   // 帳場などはページの末尾にある。下に余白を足すと、タブを押したとき中身の先頭を画面の上まで上げられる
   const pad=phone&&side?Math.max(h+12,Math.ceil(window.innerHeight-side.getBoundingClientRect().height)):0;
   document.documentElement.style.setProperty('--tabbar-pad',pad+'px');
@@ -3165,14 +3244,17 @@ function sideRoster(){
   return `<p class="note">名前を押すと、その冒険者の手帳が開く。蘇生や贈り物は「帳場」から。</p>`+
     g(a=>a.status==='dead'||a.status==='ash','寺院で眠る者')+g(a=>a.status==='party','探索中')+g(a=>a.status==='idle','酒場')+g(a=>a.status==='missing','行方不明');
 }
+function memoLine(m){const when=m.done&&m.tk!=null?`<span class="when">${Math.floor(m.tk/TICKS_PER_DAY)+1}日目</span>`:'';return `<li class="${m.done?'done':''}" data-id="${m.id}">${m.done?`<s>${esc(m.t)}</s>`:esc(m.t)}${when}</li>`;}
+function memoHtml(){const st=memoState(S);if(!st.show.length)return '';return `<div class="memo" id="memo"><h3>店主の覚え書き</h3><ul>${st.show.map(memoLine).join('')}</ul></div>`;}
+function memoRecordHtml(){const st=memoState(S);if(!st.log.length)return '';return `<div class="memo" id="memo-log"><h3>店主の覚え書き</h3><ul>${st.log.map(memoLine).join('')}</ul></div>`;}
 function sideDesk(){
   const miss=Object.values(S.parties).filter(p=>p.state==='wiped'&&p.announced&&!p.retrieved);
-  const To=T(),ns=nextSeats(S);
+  const To=T(),ns=nextSeats(S),due=nextDue(S);
   const debtSect=`<div class="sect"><h3>店の借金と席</h3>
-  ${To.debt>0?`<p class="note">開店のときにセーレの両替商から借りた金。30日ごとに${DEBT_DUE}Gと利息（残りの2%）を払う。足りなければ罰金が上乗せされ、取り立て人が店先に居座って評判が落ちる。次の返済まであと${Math.max(1,Math.ceil(((To.nextPay||0)-S.tick)/TICKS_PER_DAY))}日。</p>
+  ${To.debt>0?`<p class="note">開店のときにセーレの両替商から借りた金。30日ごとに${DEBT_DUE}Gと利息（残りの2%）を払う。足りなければ罰金が上乗せされ、取り立て人が店先に居座って評判が落ちる。次の返済まであと${due.days}日・必要額${due.due}G。</p>
   <div class="row"><span class="who"><b>借金の残り ${To.debt}G</b><span class="does">これまでに返した額 ${To.repaid||0}G</span></span>${[1000,10000].filter(x=>x<To.debt).map(x=>`<button class="btn sm" data-act="repay" data-v="${x}" ${To.gold<x?'disabled':''}>${x}G返す</button>`).join('')}<button class="btn sm" data-act="repay" data-v="${To.debt}" ${To.gold<To.debt?'disabled':''}>全額返す</button></div>`:`<p class="note">${To.debtFree!=null?`開店のときの借金は、${Math.floor(To.debtFree/TICKS_PER_DAY)+1}日目に返し終えた。`:'この店に借金はない。'}</p>`}
   <div class="row"><span class="who"><b>常連の席 ${seatCap(S,'ours')}席</b><span class="does">${ns?`店を広げると、${ns[1]}席まで常連を迎えられる。`:'これ以上は広げられない。'}銀の杯亭は${seatCap(S,'rival')}席。</span></span>${ns?`<button class="btn sm" data-act="seats" ${To.gold<ns[2]?'disabled':''}>店を広げる ${ns[2]}G</button>`:''}</div></div>`;
-  return `<div class="desk">${debtSect}<div class="sect"><h3>店の方針　冒険者への支援</h3>
+  return `<div class="desk">${memoHtml()}${debtSect}<div class="sect"><h3>店の方針　冒険者への支援</h3>
   <p class="note">店の金で常連を支える。生きて帰る者が増え、恩を感じた者は店でよく飲む。これまでの支援 ${T().support||0}G・売上 ${T().earned}G。</p>
   <div class="row"><span class="who"><b>回復薬の差し入れ</b><span class="does">出発する一行に持たせる。1本 ${potionPrice(S,{members:Object.values(S.adv).filter(a=>a.tav==='ours'&&a.status!=='lost'&&a.status!=='retired').map(a=>a.id)})}G前後（深さで変わる）</span></span>${[['なし',0],['2本',1],['5本',2],['10本',3]].map(([l,v])=>`<button class="btn sm${policy(S).potion===v?' on':''}" data-act="pol" data-k="potion" data-v="${v}">${l}</button>`).join('')}</div>
   ${[['mapPay','地図を店のもちで買う','常連の一行が地図を買うとき、店が払う'],['revive','蘇生代を肩代わりする','常連が寺院に運ばれたら、すぐ店が払って蘇生を頼む'],['rookie','新人に支度の品を贈る','レベル10未満の新顔が来たら、武具屋の品を2つまで贈る']].map(([k,l,d])=>`<div class="row"><span class="who"><b>${l}</b><span class="does">${d}</span></span><button class="btn sm${policy(S)[k]?' on':''}" data-act="pol" data-k="${k}" data-v="${policy(S)[k]?0:1}">${policy(S)[k]?'している':'していない'}</button></div>`).join('')}
@@ -3217,17 +3299,10 @@ function sideRef(){
   ${Object.entries(CLS).map(([k,c])=>`<div class="cl"><b>${k}</b><span>${c.adv?`上級職：${c.adv}から（${c.req}）。`:c.rare?'レア職業：ごくまれに店に現れる。':'基本職。'}${c.desc?esc(c.desc):''}</span></div>`).join('')}</div>`;
 }
 function banzuke(){
-  const F=floorsInit(S);const cnt=(fn)=>{const c={ours:0,rival:0};fn(c);return c;};
-  const arr=cnt(c=>{for(let f=1;f<=MINE_BOT;f++){const v=F[f];if(v&&v.arrive&&!v.arrive.yr&&c[v.arrive.tav]!=null)c[v.arrive.tav]++;}});
-  const thr=cnt(c=>{for(let f=1;f<=MINE_BOT;f++){const v=F[f];if(v&&v.through&&!v.through.yr&&c[v.through.tav]!=null)c[v.through.tav]++;}});
-  const rar=cnt(c=>{Object.values(S.rares||{}).forEach(v=>{if(v.killed&&c[v.killed.tav]!=null)c[v.killed.tav]++;});});
-  const lost=cnt(c=>{S.memorial.forEach(m=>{if(c[m.tav]!=null)c[m.tav]++;});});
-  const dr=(S.stats&&S.stats.dreams)||{ours:0,rival:0};
-  const md=S.mineDeep||{ours:0,rival:0};
-  const rows=[['最深到達',`${FN(S.deepest.ours)}`,`${FN(S.deepest.rival)}`,S.deepest.ours-S.deepest.rival],...(mineOpen(S)?[['坑道の最深到達',md.ours?FN(MAXF+md.ours):'―',md.rival?FN(MAXF+md.rival):'―',md.ours-md.rival]]:[]),['初到達した階（解禁後）',arr.ours,arr.rival,arr.ours-arr.rival],['最初に突破した階',thr.ours,thr.rival,thr.ours-thr.rival],['名のある魔物の討伐',rar.ours,rar.rival,rar.ours-rar.rival],['かなえた夢',dr.ours||0,dr.rival||0,(dr.ours||0)-(dr.rival||0)],['常連の数',seatsUsed(S,'ours'),seatsUsed(S,'rival'),seatsUsed(S,'ours')-seatsUsed(S,'rival')],['評判',T().rep,S.taverns.rival.rep,T().rep-S.taverns.rival.rep],['ロストした者',lost.ours,lost.rival,lost.rival-lost.ours]];
-  const aceP=S.parties[S.ace];const ace=aceP&&aceP.state!=='wiped'?aceP:null;const won=rows.filter(r=>r[3]>0).length;
+  const rows=rankRows(S);
+  const aceP=S.parties[S.ace];const ace=aceP&&aceP.state!=='wiped'?aceP:null;const won=rows.filter(r=>r.lead>0).length;
   return `<div class="sect"><h3>番付　黒猫亭 対 銀の杯亭</h3><p class="note">銀の杯亭の主人は${esc(S.taverns.rival.owner||RIVAL_OWNER)}。看板の一行は${ace?partyHtml(ace.name):'いまはいない'}。${won>=6?'もう、黒猫亭を新参と呼ぶ者はいない。':won>=4?'黒猫亭は、銀の杯亭と肩を並べはじめている。':'黒猫亭は、まだ追いかける側だ。'}</p>
-  <div class="tblwrap"><table class="maptbl"><thead><tr><th></th><th>黒猫亭</th><th>銀の杯亭</th></tr></thead><tbody>${rows.map(r=>`<tr><td>${r[0]}</td><td>${r[3]>0?'<b>'+r[1]+'</b>':r[1]}</td><td>${r[3]<0?'<b>'+r[2]+'</b>':r[2]}</td></tr>`).join('')}</tbody></table></div></div>`;
+  <div class="tblwrap"><table class="maptbl"><thead><tr><th></th><th>黒猫亭</th><th>銀の杯亭</th></tr></thead><tbody>${rows.map(r=>`<tr><td>${r.name}</td><td>${r.lead>0?'<b>'+r.ours+'</b>':r.ours}</td><td>${r.lead<0?'<b>'+r.rival+'</b>':r.rival}</td></tr>`).join('')}</tbody></table></div></div>${memoRecordHtml()}`;
 }
 function sideMaps(){
   const F=floorsInit(S);const who=r=>r?`${r.tav?esc(S.taverns[r.tav].name)+'の':''}${partyHtml(r.party)}<span class="meta">${r.yr?'・迷宮暦'+r.yr+'年':r.tk?'・'+(Math.floor(r.tk/TICKS_PER_DAY)+1)+'日目':''}</span>`:'<span class="meta">―</span>';
