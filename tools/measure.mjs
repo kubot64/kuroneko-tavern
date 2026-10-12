@@ -26,14 +26,24 @@ const ROOT=fileURLToPath(new URL('..',import.meta.url)),CACHE=ROOT+'.cache/measu
 const engineOf=html=>html.match(/\/\*ENGINE START\*\/([\s\S]*?)\/\*ENGINE END\*\//)[1];
 // --base で測る前のエンジンには、まだない関数もある。ないものは undefined にする
 const EXPORTS=['newState','tick','rivalTemple','TICKS_PER_DAY','MINE_N','repay','nextSeats','policy','giftOffer','giveGift','donate','donatePrice',
-  'FACILITIES','nextFac','buildFac','customOffer','orderCustom','setQuietLog'];
+  'FACILITIES','nextFac','buildFac','customOffer','orderCustom','setQuietLog','nextDue'];
+
+// 次の返済額に足す余裕。返済日の直前に新人へ支度の品を渡しても、返済額を割らないための分
+const PAY_MARGIN=2000;
+// 返済日の何日前から、蘇生・地図・薬の店負担を止めるか。
+// 3日（帳場に「返済」が付く頃）では、店負担で減った所持金が返済額まで戻らない。
+// 16種では22日前から止めると、初回の返済に足りる。24日前から止めると、店の売り上げが育たず、また足りない種が出る。
+const PAY_PAUSE_DAYS=22;
 
 // 支援ありの店主。毎日1度、帳場と武具屋でできる支援を、手元に蓄えを残しながら使う。
 // 引き抜き・裏通りの酒場・持ち込まれる話・見込みは使わない（常連を支える支援だけを測る）
+// 借金が残っているあいだは、次の返済額に余裕を足した分を残す。返済日が近づけば、蘇生・地図・薬の店負担を止める。
 function supportOwner(E,S,day){
   const T0=S.taverns.ours,pol=E.policy(S);
-  Object.assign(pol,{potion:3,mapPay:true,revive:true,rookie:true});
-  const keep=T0.debt>0?6000:3000;const spare=()=>T0.gold-keep;
+  const due=E.nextDue?E.nextDue(S):null;
+  const pause=!!(due&&due.days<=PAY_PAUSE_DAYS);
+  Object.assign(pol,{potion:pause?0:3,mapPay:!pause,revive:!pause,rookie:true});
+  const keep=T0.debt>0?(due?due.due+PAY_MARGIN:6000):3000;const spare=()=>T0.gold-keep;
   if(T0.debt>0){E.repay(S,Math.max(0,spare()));return;}
   const ns=E.nextSeats(S);if(ns&&spare()>=ns[2]){T0.gold-=ns[2];T0.seats=ns[1];}
   for(const [k] of E.FACILITIES){const t=E.nextFac(S,k);if(t&&spare()>=t[1])E.buildFac(S,k);}
@@ -51,13 +61,14 @@ function run(seed,mode,engine){
   if(E.setQuietLog)E.setQuietLog(true);
   const S=E.newState();const D=E.TICKS_PER_DAY;for(let i=0;i<6;i++)E.tick(S);
   const lv=names=>names.map(n=>(Object.values(S.adv).find(a=>a.name===n)||{}).lvl).join(',');
-  const r={seed,mode,fights:0,pre:{},fac:{}};const marks=[];
+  const r={seed,mode,fights:0,pre:{},fac:{},payN:0,payPen:0};const marks=[];
   const seen=new Set(),visit=emptyVisit();noteArrivals(S,seen,visit);
   for(let d=1;d<=DAYS;d++){
     if(mode==='support')supportOwner(E,S,d);
     for(let i=0;i<D;i++){E.tick(S);E.rivalTemple(S);
       // 坑道王との戦いを数え、戦いが始まったときの一行のレベルを残す（坑道王はレベルを吸うので、勝ったあとのレベルは下がっている）
       for(const p of Object.values(S.parties))if(p.enemies&&p.etype&&p.etype.mboss){if(!p.bossKey){p.bossKey=S.tick;r.fights++;r.pre[p.name]=p.members.map(id=>S.adv[id].lvl).join(',');}}else if(p.bossKey)p.bossKey=0;}
+    notePays(S,r,d);
     const md=S.mineDeep||{ours:0,rival:0};
     for(const [k,ts] of E.FACILITIES)ts.forEach((t,i)=>{if(((S.fac||{})[k]||0)>i&&r.fac[t[0]]==null)r.fac[t[0]]=d;});
     if(S.conquered&&!r.conq)r.conq={d:Math.floor(S.conquered.tk/D),tav:S.conquered.tav,lv:lv(S.conquered.names)};
@@ -113,7 +124,26 @@ const TN=t=>t==='ours'?'黒猫亭':'銀の杯亭';
 function line(r){
   const c=r.conq?`${r.conq.d}日目 ${TN(r.conq.tav)} Lv${r.conq.lv}`:'なし';
   const m=r.mconq?`${r.mconq.d}日目（開いてから${r.mconq.d-r.open}日） ${TN(r.mconq.tav)} 戦う前のLv${r.mconq.lv}`:'なし';
-  return `種${r.seed}：借金完済 ${r.debtFree!=null?r.debtFree+'日目':'なし'}／迷宮踏破 ${c}／坑道が開く ${r.open!=null?r.open+'日目':'なし'}／底に着く ${r.bottom!=null?'開いてから'+r.bottom+'日':'なし'}・坑道王と${r.fights}戦／坑道踏破 ${m}`;
+  const fp=!r.firstPay?'なし':r.firstPay.ok?'無事':`罰金（${r.firstPay.short}G不足）`;
+  return `種${r.seed}：借金完済 ${r.debtFree!=null?r.debtFree+'日目':'なし'}／初回返済 ${fp}／迷宮踏破 ${c}／坑道が開く ${r.open!=null?r.open+'日目':'なし'}／底に着く ${r.bottom!=null?'開いてから'+r.bottom+'日':'なし'}・坑道王と${r.fights}戦／坑道踏破 ${m}`;
+}
+// その日までの知らせから、返済が足りたか足りなかったかを数える。知らせは300件で消えるので、日ごとに見る
+function notePays(S,r,d){
+  for(const n of S.news||[]){
+    if(!n||n.payNoted)continue;
+    const t=n.t||'';
+    const late=t.startsWith('今月の返済に'),ok=t.startsWith('セーレの両替商に、今月の返済');
+    if(!late&&!ok)continue;
+    n.payNoted=1;r.payN++;
+    if(late){r.payPen++;
+      const short=+(t.match(/(\d+)G足りなかった/)||[0,0])[1],pen=+(t.match(/罰金(\d+)G/)||[0,0])[1];
+      if(!r.firstPay)r.firstPay={ok:false,short,pen,d};}
+    else if(!r.firstPay)r.firstPay={ok:true,d};
+  }
+}
+function firstPen(rs){
+  const bad=rs.filter(r=>r.firstPay&&!r.firstPay.ok);
+  return {bad:bad.length,n:rs.length,max:bad.reduce((m,r)=>Math.max(m,r.firstPay.short||0),0),later:rs.reduce((s,r)=>s+(r.payPen||0),0)-bad.length};
 }
 function summary(rs){
   const n=rs.length,cnt=(f)=>rs.filter(f).length,med=a=>{if(!a.length)return '-';a=[...a].sort((x,y)=>x-y);return a[Math.floor((a.length-1)/2)];};
@@ -123,6 +153,7 @@ function summary(rs){
     `坑道を踏破した店：黒猫亭 ${cnt(r=>r.mconq&&r.mconq.tav==='ours')}／銀の杯亭 ${cnt(r=>r.mconq&&r.mconq.tav==='rival')}／なし ${n-mn.length}。開いてから踏破までの中央値 ${med(mn.map(r=>r.mconq.d-r.open))}日`,
     ...(fs.length?[`設備を建てた日の中央値：${fs.map(n=>{const ds=rs.filter(r=>r.fac[n]!=null).map(r=>r.fac[n]);return `${n} ${med(ds)}日目（${ds.length}種）`;}).join('／')}`]:[]),
     `借金完済の中央値 ${med(rs.filter(r=>r.debtFree!=null).map(r=>r.debtFree))}日目（完済なし ${cnt(r=>r.debtFree==null)}種）。最後の評判の中央値 黒猫亭${med(rs.map(r=>r.rep.ours))}／銀の杯亭${med(rs.map(r=>r.rep.rival))}`,
+    `初回の返済で罰金 ${((p)=>`${p.bad}/${p.n}${p.bad?`（最大で${p.max}G足りない）`:''}。そのあとの返済で罰金 ${p.later}回`)(firstPen(rs))}`,
   ].join('\n');
 }
 
@@ -130,9 +161,9 @@ function summary(rs){
 function table(rows){
   const med=a=>{if(!a.length)return '-';a=[...a].sort((x,y)=>x-y);return a[Math.floor((a.length-1)/2)];};
   const won=(rs,f)=>{const o=rs.filter(r=>f(r)&&f(r).tav==='ours').length,v=rs.filter(r=>f(r)&&f(r).tav==='rival').length,no=rs.length-o-v;return `${o}／${v}${no?`（なし${no}）`:''}`;};
-  return ['| | 迷宮を踏破した店（黒猫亭／銀の杯亭） | 迷宮の踏破日の中央値 | 坑道を踏破した店（黒猫亭／銀の杯亭） | 坑道が開いてから踏破までの中央値 | 借金完済の中央値 |','|---|---|---|---|---|---|',
-    ...rows.map(([name,rs])=>{const nd=rs.filter(r=>r.debtFree==null).length;
-      return `| ${name} | ${won(rs,r=>r.conq)} | ${med(rs.filter(r=>r.conq).map(r=>r.conq.d))}日目 | ${won(rs,r=>r.mconq)} | ${med(rs.filter(r=>r.mconq).map(r=>r.mconq.d-r.open))}日 | ${med(rs.filter(r=>r.debtFree!=null).map(r=>r.debtFree))}日目${nd?`（完済なし${nd}種）`:''} |`;})].join('\n');
+  return ['| | 迷宮を踏破した店（黒猫亭／銀の杯亭） | 迷宮の踏破日の中央値 | 坑道を踏破した店（黒猫亭／銀の杯亭） | 坑道が開いてから踏破までの中央値 | 借金完済の中央値 | 初回返済の罰金 |','|---|---|---|---|---|---|---|',
+    ...rows.map(([name,rs])=>{const nd=rs.filter(r=>r.debtFree==null).length,p=firstPen(rs);
+      return `| ${name} | ${won(rs,r=>r.conq)} | ${med(rs.filter(r=>r.conq).map(r=>r.conq.d))}日目 | ${won(rs,r=>r.mconq)} | ${med(rs.filter(r=>r.mconq).map(r=>r.mconq.d-r.open))}日 | ${med(rs.filter(r=>r.debtFree!=null).map(r=>r.debtFree))}日目${nd?`（完済なし${nd}種）`:''} | ${p.bad}/${p.n}${p.bad?`（最大${p.max}G不足）`:''} |`;})].join('\n');
 }
 function sumAge(rs){
   const a={n:0,old:0,miss:0,bucket:Object.fromEntries(AGE_BUCKETS.map(k=>[k,0])),lvl:Object.fromEntries(AGE_LVLS.map(k=>[k,{n:0,old:0}])),ret:{ours:0,rival:0},dreams:Object.fromEntries(DREAM_AGE.map(([k])=>[k,0]))};
