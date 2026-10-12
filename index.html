@@ -669,22 +669,63 @@ const PUSH={
   '普通':['もうすこし だけ'],
 };
 
+// その職業が珍しくない種族から、いつもの出やすさで一人選ぶ
+function raceForCls(cls){const w={};for(const [k,r] of Object.entries(RACE))if(r.cls&&r.cls[cls])w[k]=r.w*r.cls[cls];return wpick(w);}
+const OPENING_LVL=()=>pick([1,1,1,2,2,3,3,4,5,6]);
+// 開店とつながる生い立ち。7人で重ならない。セーレ出身がいるときは、その一人が同船の客になる
+const OPENING_TIES=[
+  a=>a.sex==='女'?'空き家の前の住人の娘':'空き家の前の住人の息子',
+  ()=>'開店の夜、雨宿りに入ってそのまま居ついた',
+  ()=>'空き家の片付けを手伝ったついでに居ついた',
+  ()=>'セーレの両替商の使いとして開店の金を届け、そのまま残った',
+  ()=>'封じの門が開いたと聞いて、誰より先に店の前で待っていた',
+  ()=>'銀の杯亭には席がなく、西の縁の新しい店に来た',
+  ()=>'店の看板を、店主と一緒に掲げた',
+];
+function assignOpeningTies(cast){
+  const pool=OPENING_TIES.slice();
+  for(let i=pool.length-1;i>0;i--){const j=ri(0,i);const t=pool[i];pool[i]=pool[j];pool[j]=t;}
+  const sele=cast.find(a=>a.origin==='セーレ自由都市同盟');let n=0;
+  for(const a of cast){
+    const tie=a===sele?'店主と同じ船でセーレから来た':pool[n++](a);
+    const old=a.bg;a.bg=old+'。'+tie;
+    const mark='の出身。'+old+'。',next='の出身。'+a.bg+'。';
+    for(const c of a.chron||[])if(c.t&&c.t.includes(mark))c.t=c.t.split(mark).join(next);
+  }
+}
+function openingGuestsNews(cast){return '最初の客たち。'+cast.map(a=>a.origin+'出身の'+a.name).join('、')+'が、開店の日から黒猫亭にいる。';}
+// 迷宮に出た一行のうち、レベルが高い2人に短い夢を持たせる。同点なら先に店にいた者
+function assignOpeningDreams(S){
+  const p=Object.values(S.parties).find(x=>x.tav==='ours'&&x.members&&x.members.length);
+  const pool=(p?p.members.map(id=>S.adv[id]):Object.values(S.adv).filter(a=>a.opening)).filter(Boolean);
+  pool.sort((a,b)=>b.lvl-a.lvl||a.id-b.id);
+  pool.slice(0,2).forEach((a,i)=>{
+    a.dream={k:'stele',f:6,vi:i};
+    const t=dreamText(a.dream);
+    for(const c of a.chron||[])if(c.t&&c.t.includes('夢は「'))c.t=c.t.replace(/夢は「[^」]*」/,`夢は「${t}」`);
+  });
+}
 function newState(){
   const S={tick:0,nid:1,adv:{},parties:{},news:[],tales:[],memorial:[],
     taverns:{ours:{name:'黒猫亭',gold:400,rep:0,crystals:1,earned:0,debt:DEBT0,seats:12,nextPay:30*TICKS_PER_DAY,late:0},rival:{name:'銀の杯亭',gold:99999,rep:60,owner:RIVAL_OWNER}},
     bounties:{},deepest:{ours:1,rival:GATE_F},usedNames:{[RIVAL_OWNER]:1},usedParty:{'鉄の誓い':1,'黄金の剣':1,'七つ星':1,'夜鷹':1,'鉄の誓い傭兵団':1,'黄金の剣団':1},usedItems:{},uniqFound:{},farewells:[],edicts:[],v:23,loreFound:{},shop:{tiers:{1:true},mats:{},serial:0,log:[]},watch:[null,null],sel:0,stats:{dreams:{ours:0,rival:0}},small:SMALL_TAV.slice(0,5)};
-  for(let i=0;i<7;i++) makeAdv(S,'ours',{lvl:pick([1,1,1,2,2,3,3,4,5,6])});
+  const cast=[];
+  for(const cls of ['戦士','僧侶','盗賊','魔術師'])cast.push(makeAdv(S,'ours',{lvl:OPENING_LVL(),cls,race:raceForCls(cls),opening:true}));
+  for(let i=0;i<3;i++)cast.push(makeAdv(S,'ours',{lvl:OPENING_LVL(),opening:true}));
+  assignOpeningTies(cast);
   const vets=[];for(let i=0;i<6;i++) vets.push(makeAdv(S,'rival',{lvl:ri(12,17)}));
   for(let i=0;i<22;i++) makeAdv(S,'rival');
   news(S,`【ラウレンツ王国のお触れ】19年のあいだ閉ざしていた「封じの門」を開き、${FN(GATE_F+1)}より下の探索を解禁する。`,'edict');
   news(S,`ロウエンの酒場の頂点は、三十年来、大穴の東の縁の銀の杯亭だ。主人の${RIVAL_OWNER}はセーレの商人ギルドの元番頭で、客に装備を貸しつけ、稼ぎから取り立てる。封鎖の前、何十人もの大部隊を組み、六十年かけて${FN(GATE_F)}までの道を切り開いたのも、銀の杯亭の先代の看板たちだ。`,'info');
   news(S,'封鎖の十九年で、冒険者のやり方は変わった。大部隊は澱に魔物を呼び寄せるだけだと知れ、六人で潜るのが当たり前になった。転移の石碑の使い方が解き明かされ、梟の地図屋が浅い階の地図を揃えた。門の先は、昔とは比べものにならない速さで拓かれるだろう、と古株たちは言う。','info');
   news(S,`封じの門が開いたその月に、大穴の西の縁の空き家で、若い店主が黒猫亭を開いた。開店の金は、セーレの両替商から借りた${DEBT0}G。毎月の返済は${DEBT_DUE}Gと利息だ。`,'record');
+  news(S,openingGuestsNews(cast),'info');
   formParties(S,'rival',true,vets,ACE_NAME);
   for(const p of Object.values(S.parties)){if(p.name===ACE_NAME){S.ace=p.id;p.ace=true;}}
   for(let i=0;i<3;i++){formParties(S,'rival',true);}
   for(const p of Object.values(S.parties)){p.reach=GATE_F;const st=STONES.filter(x=>x<=Math.min(GATE_F,Math.floor(safeFloor(S,p)))).pop();if(st){p.floor=st;p.trip.deep=st;plog(p,`てんいの せきひで ${FN(st)} へ（${zoneOf(st)}）`,'sys');floorArrive(S,p);}}
   formParties(S,'ours',true);
+  assignOpeningDreams(S);
   return S;
 }
 const EDICTS=[
@@ -954,7 +995,10 @@ const DREAMS={
   tour:{w:.4,mk:a=>({amt:r100(Math.max(8000,incomeAt(depthOf(a)+2)*ri(15,22)))}),txt:d=>`大陸の八つの国を、すべて巡ってみたい（${d.amt}G）`,
     ok:(S,a,d)=>a.gold>=d.amt,pay:d=>d.amt,msg:a=>`${a.name}が、大陸をめぐる旅の支度を整えた。`,ret:()=>'大陸をめぐる旅に出る',prog:(a,d)=>`貯金 ${a.gold} / ${d.amt}G`},
   sea:{w:.3,can:a=>!ORIGINS[a.origin]||!ORIGINS[a.origin].far,mk:a=>({amt:r100(Math.max(10000,incomeAt(depthOf(a)+3)*ri(18,25))),to:pick(['東方の島国アズマ','砂の大陸ザハル','北の氷海ノルデン'])}),txt:d=>`海を渡って、${d.to}をこの目で見たい（${d.amt}G）`,
-    ok:(S,a,d)=>a.gold>=d.amt,pay:d=>d.amt,msg:(a,d)=>`${a.name}が、${d.to}行きの船の切符を手に入れた。`,ret:d=>`海を渡って${d.to}へ向かう`,prog:(a,d)=>`貯金 ${a.gold} / ${d.amt}G`}
+    ok:(S,a,d)=>a.gold>=d.amt,pay:d=>d.amt,msg:(a,d)=>`${a.name}が、${d.to}行きの船の切符を手に入れた。`,ret:d=>`海を渡って${d.to}へ向かう`,prog:(a,d)=>`貯金 ${a.gold} / ${d.amt}G`},
+  // 開店の顔ぶれだけに持たせる。重み0なので、あとから来る客の夢には入らない
+  stele:{w:0,mk:()=>({f:6}),txt:()=>'B6Fの転移の石碑に、一度触れてみたい',
+    ok:(S,a)=>(a.deepest||0)>=6,msg:(a,d)=>d.vi===1?`${a.name}が、B6Fから地上の店に戻った。`:`${a.name}が、B6Fの転移の石碑に触れた。`,prog:a=>(a.deepest||0)?`これまでの最深 ${FN(a.deepest)}`:'まだ迷宮に潜っていない'}
 
 };
 
@@ -980,6 +1024,7 @@ const DV={
   marry:{t:['{who}と所帯を持つための金（{amt}G）を貯めたい','{who}に、指輪を買って申し込みたい（{amt}G）'],who:['故郷で待つ幼なじみ','王都で知り合った仕立て屋','ロウエンの花売り','寺院で働く若者','同じ村の羊飼い','武具屋で見習いをしている子','地図屋の手伝い','パン屋の看板娘','港の船乗り']},
   pension:{t:['剣を置く前に、静かな余生のための蓄え（{amt}G）を作りたい','{place}で隠居するための蓄え（{amt}G）を作りたい'],place:['故郷の村','海の見える町','カルセの田舎','リンデの森のそば']},
   tour:{t:['大陸の八つの国を、すべて巡ってみたい（{amt}G）','{place}から{place2}まで、大陸を旅してみたい（{amt}G）'],place:['ハザンの草原','鉄の山脈','聖都'],place2:['セーレの港','帝都','リンデの森']},
+  stele:{t:['B6Fの転移の石碑に、一度触れてみたい','B6Fまで潜って、地上の店に戻ってみたい']},
 };
 function dvFill(d){const V=DV[d.k];if(!V)return;d.vi=ri(0,V.t.length-1);Object.keys(V).forEach(f=>{if(f!=='t'&&d[f]==null)d[f]=pick(V[f]);});}
 function dvText(d){const V=DV[d.k];return V.t[d.vi].replace(/\{(\w+)\}/g,(m,k)=>k==='pre'?(d.unseen?'まだ誰も見ぬ':''):d[k]!=null?d[k]:m);}
@@ -1030,6 +1075,7 @@ function makeAdv(S,tav,o){
   a.hp=a.mhp;a.mp=mmpOf(a);
   a.origin=o.origin||pickOrigin(race,cls);
   a.bg=o.bg||originBg(a.origin,a.lvl);
+  if(o.opening)a.opening=true;
   a.age=o.age?Math.max((AGE[race]||AGE['人間'])[0]-2,o.age):rollAge(race,a.lvl);
   personalize(a);assignTraits(S,a);
   a.dream=makeDream(S,a);
@@ -3346,11 +3392,12 @@ function sideShop(){
   <div class="tblwrap"><table class="shoptbl"><tbody>${rows}</tbody></table></div><p class="note" style="margin-top:6px">指輪とお守りは、品によって効き目が変わる。</p></div>
   <div class="sect"><h3>最近の買い物</h3>${log||'<p class="note">まだ誰も買っていない。</p>'}</div>`;
 }
+function openingEp(id){const a=id&&S.adv[id];return a&&a.opening?'開店からの常連。':''}
 function sideStone(){
   const fw=(S.farewells||[]).slice().reverse();
   const ln=(id,name)=>id&&S.adv[id]?`<button class="nm-link" data-act="adv" data-a="${id}">${esc(name)}</button>`:`<b>${esc(name)}</b>`;
-  return `<div class="sect"><h3>店を去った者　${fw.length}人</h3>${fw.map(f=>`<div class="stone">${ln(f.id,f.name)} <span class="meta">${f.age?f.sex+'・'+(f.hage||f.age)+'歳'+(f.race&&f.race!=='人間'?'相当':'')+' ':''}Lv${f.lvl} ${f.race}の${f.cls}</span><div class="ep">${f.tav==='ours'?'黒猫亭':'銀の杯亭'}の客。${Math.floor(f.tk/TICKS_PER_DAY)+1}日目、${esc(f.why)}ため旅立った。</div></div>`).join('')||'<p class="note">まだ誰も去っていない。</p>'}</div>
-  <div class="sect"><h3>ロストした者　${S.memorial.length}人</h3>`+(S.memorial.slice().reverse().map(m=>`<div class="stone">${ln(m.id,m.name)} <span class="meta">Lv${m.lvl} ${m.race}の${m.cls}</span><div class="ep">${m.marked?'店主が見込んだ者。':''}${m.tav==='ours'?'黒猫亭':'銀の杯亭'}の客。${FN(m.floor)}にて${esc(m.by)}に倒れ、蘇ることなく${Math.floor(m.tk/TICKS_PER_DAY)+1}日目に眠る。討伐${m.kills}。</div></div>`).join('')||'<p class="note">まだ誰の名も刻まれていない。</p>')+'</div>';
+  return `<div class="sect"><h3>店を去った者　${fw.length}人</h3>${fw.map(f=>`<div class="stone">${ln(f.id,f.name)} <span class="meta">${f.age?f.sex+'・'+(f.hage||f.age)+'歳'+(f.race&&f.race!=='人間'?'相当':'')+' ':''}Lv${f.lvl} ${f.race}の${f.cls}</span><div class="ep">${openingEp(f.id)}${f.tav==='ours'?'黒猫亭':'銀の杯亭'}の客。${Math.floor(f.tk/TICKS_PER_DAY)+1}日目、${esc(f.why)}ため旅立った。</div></div>`).join('')||'<p class="note">まだ誰も去っていない。</p>'}</div>
+  <div class="sect"><h3>ロストした者　${S.memorial.length}人</h3>`+(S.memorial.slice().reverse().map(m=>`<div class="stone">${ln(m.id,m.name)} <span class="meta">Lv${m.lvl} ${m.race}の${m.cls}</span><div class="ep">${openingEp(m.id)}${m.marked?'店主が見込んだ者。':''}${m.tav==='ours'?'黒猫亭':'銀の杯亭'}の客。${FN(m.floor)}にて${esc(m.by)}に倒れ、蘇ることなく${Math.floor(m.tk/TICKS_PER_DAY)+1}日目に眠る。討伐${m.kills}。</div></div>`).join('')||'<p class="note">まだ誰の名も刻まれていない。</p>')+'</div>';
 }
 function nmLink(a){return `<button class="nm-link" data-act="adv" data-a="${a.id}">${esc(a.name)}</button>`}
 function teamOf(a){const p=a.party&&S.parties[a.party];return p&&p.tav===a.tav?p:null}
@@ -3388,7 +3435,7 @@ function renderAdv(){
   const team=a.party&&S.parties[a.party]?partyShown(S.parties[a.party].name):'なし';
   const d=a.dream;
   const canMark=boardOpen(S)&&a.tav==='ours'&&a.status!=='lost'&&a.status!=='retired';const he=a.tav==='ours'&&heroErrand(S,a),pe=a.tav==='ours'&&boardOpen(S)&&errandsOf(S).board.find(e=>e.pend===a.id);
-  box.innerHTML=`<div class="adv-h"><h2>${a.title?`<span class="ttl">「${esc(a.title)}」</span>`:''}${esc(a.name)}</h2><span class="chip ${a.status}">${status}</span>${teamTag(a)}${markTag(a)}${canMark?`<button class="btn sm" data-act="mark" data-a="${a.id}" ${!a.marked&&markedOf(S).length>=MARK_MAX?'disabled':''}>${a.marked?'見込みを外す':'見込む'}</button>`:''}</div>
+  box.innerHTML=`<div class="adv-h"><h2>${a.title?`<span class="ttl">「${esc(a.title)}」</span>`:''}${esc(a.name)}</h2><span class="chip ${a.status}">${status}</span>${teamTag(a)}${markTag(a)}${a.opening?'<span class="markmark">開店からの常連</span>':''}${canMark?`<button class="btn sm" data-act="mark" data-a="${a.id}" ${!a.marked&&markedOf(S).length>=MARK_MAX?'disabled':''}>${a.marked?'見込みを外す':'見込む'}</button>`:''}</div>
   ${he?`<div class="dream"><small>引き受けている話</small>「${esc(he.n)}」${FN(he.f)}・あと${Math.max(1,Math.ceil((he.until-S.tick)/TICKS_PER_DAY))}日</div>`:''}
   ${pe?`<div class="dream"><small>回すつもりの話（次に酒場で会えたら伝える）</small>「${esc(pe.n)}」${FN(pe.f)}・掲示はあと${Math.max(1,Math.ceil((pe.until-S.tick)/TICKS_PER_DAY))}日</div>`:''}
   <div class="adv-sub">${S.taverns[a.tav].name}の客・出身：${esc(originOf(a))}${a.origin&&ORIGINS[a.origin].far?'（大陸の外）':''}・${sexAge(a)}${a.race!=='人間'?'（実年齢'+a.age+'歳）':''}・レベル${a.lvl}（${rankOf(a.lvl)}） ${a.race}の${a.cls}・${a.pers}・${esc(a.quirk)}・素質「${a.tal}」<br>${esc(a.bg)}<br>口調：${esc(a.tone||'普通')}・口癖「${esc(a.catch||'')}」・好物：${esc(a.food||'')}${a.fear?'・怖いもの：'+esc(a.fear):''}</div>

@@ -548,6 +548,55 @@ test('帳場の覚え書きと、次の返済までの日数・必要額が常�
   assert.deepEqual(errors,[]);await ctx.close();
 });
 
+test('開店の顔ぶれは、知らせと手帳と記念碑に出る',async()=>{
+  const {ctx,page,errors}=await open();
+  await page.locator('#sp0').click();
+  const info=await page.evaluate(()=>{
+    const cast=Object.values(S.adv).filter(a=>a.opening).sort((a,b)=>a.id-b.id);
+    const guests=S.news.find(n=>n.t.startsWith('最初の客たち'));
+    const holders=cast.filter(a=>a.dream&&a.dream.k==='stele');
+    const h=holders[0];
+    return {n:cast.length,names:cast.map(a=>a.name),origins:cast.map(a=>a.origin),guests:guests&&guests.t,id:h.id,bg:h.bg,dream:dreamText(h.dream),texts:holders.map(a=>dreamText(a.dream)).sort(),prog:DREAMS.stele.prog(h)};
+  });
+  assert.equal(info.n,7);
+  assert.deepEqual(info.texts,['B6Fの転移の石碑に、一度触れてみたい','B6Fまで潜って、地上の店に戻ってみたい'].sort());
+  assert.equal(info.prog,'まだ迷宮に潜っていない');
+  const news=await page.locator('.news li',{hasText:'最初の客たち'}).innerText();
+  assert.match(news,/最初の客たち/);
+  for(const name of info.names)assert.match(news,new RegExp(name));
+  for(const origin of info.origins)assert.match(news,new RegExp(origin+'出身'));
+  await page.locator(`.c-members button[data-a="${info.id}"]`).click();
+  const book=await page.locator('#advbox').innerText();
+  assert.match(book,/開店からの常連/);
+  assert.match(book,new RegExp(info.dream.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')));
+  assert.match(book,/まだ迷宮に潜っていない/);
+  assert.match(book,new RegExp(info.bg.replace(/[.*+?^${}()|[\]\\]/g,'\\$&').slice(-12)));
+  await page.locator('#advbox [data-act="closeadv"]').click();
+  await page.evaluate(()=>{
+    const cast=Object.values(S.adv).filter(a=>a.opening);
+    const lost=cast[0],gone=cast[1];
+    lost.status='lost';
+    S.memorial.push({id:lost.id,name:lost.name,cls:lost.cls,lvl:lost.lvl,race:lost.race,tav:'ours',tk:S.tick,by:'オーク',floor:2,kills:0});
+    S.farewells.push({id:gone.id,name:gone.name,cls:gone.cls,lvl:gone.lvl,race:gone.race,sex:gone.sex,age:gone.age,hage:gone.age,tav:'ours',tk:S.tick,why:'夢を果たした'});
+    tab='stone';render();
+  });
+  const stones=page.locator('#tbody .ep',{hasText:'開店からの常連'});
+  assert.equal(await stones.count(),2);
+  assert.match(await stones.nth(0).innerText(),/開店からの常連/);
+  assert.match(await stones.nth(1).innerText(),/開店からの常連/);
+  for(const width of [375,1280]){
+    await page.setViewportSize({width,height:width===375?812:800});
+    await page.locator('button[data-v="news"]').click();
+    const overflow=await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth+1);
+    assert.equal(overflow,false,`幅${width}で横にはみ出す`);
+    const row=page.locator('.news li',{hasText:'最初の客たち'});
+    await row.scrollIntoViewIfNeeded();
+    const box=await row.boundingBox();
+    assert.ok(box&&box.width>40,`幅${width}で知らせが見えない`);
+  }
+  assert.deepEqual(errors,[]);await ctx.close();
+});
+
 test('スマホ幅では帳場と名簿と留守のあいだの押し場所が44px以上で、見出しと知らせは語の途中で折れない',async()=>{
   const {ctx,page,errors}=await open();
   await page.locator('#sp0').click();

@@ -20,7 +20,7 @@ const html=readFileSync(new URL('../index.html',import.meta.url),'utf8');
 const ENGINE=html.match(/\/\*ENGINE START\*\/([\s\S]*?)\/\*ENGINE END\*\//)[1];
 const EXPORTS=['newState','tick','rivalTemple','seatCap','seatsUsed','nextSeats','newcomerLvl','buyPrice','investPrice','FACILITIES',
   'RARES','MAXF','DRAGON_F','TICKS_PER_DAY','awayPlan','smallOf','debtTick','DEBT0','encounter','rareSlain','rareMonOf','arrive',
-  'repay','errandsOf','assignErrand','errandBlock','designateBlock','MAXF','MINE_TOP','MINE_BOT','MINE_N','FN','mineOpen','conquest','mineConquest','title','alive','markAdv','markedOf','BOARD_MAX','MARK_MAX','ARCS','reachFloor','GATE_F','fac','nextFac','buildFac','migrate','partyShown','crestJa','glossText','PT_A','PT_B','takeCrest','pickCrest','newPartyName','combat','MON','elemMul','elemNote','sleepMul','sleepReach','MINE_RARES','supplyTeam','potionPrice','lendRival','reviveChance','reviveHint','reviveResultText','temple','checkMemo','memoState','nextDue','rankRows','MEMO'];
+  'repay','errandsOf','assignErrand','errandBlock','designateBlock','MAXF','MINE_TOP','MINE_BOT','MINE_N','FN','mineOpen','conquest','mineConquest','title','alive','markAdv','markedOf','BOARD_MAX','MARK_MAX','ARCS','reachFloor','GATE_F','fac','nextFac','buildFac','migrate','partyShown','crestJa','glossText','PT_A','PT_B','takeCrest','pickCrest','newPartyName','combat','MON','elemMul','elemNote','sleepMul','sleepReach','MINE_RARES','supplyTeam','potionPrice','lendRival','reviveChance','reviveHint','reviveResultText','temple','checkMemo','memoState','nextDue','rankRows','MEMO','setQuietLog','DREAMS'];
 
 // 乱数の種を固定したゲームの中身を1つ作る。中身の Math.random だけを差し替える
 function load(seed,fixed){
@@ -112,8 +112,9 @@ function checkScenes(){
     check('貸し付け：印を消した客は、坑道で借りた分を返しても手帳に出ない',cnt(paid)===1&&paid.debt===0&&!paid.loanItem&&cnt(owing)===1&&owing.debt===0&&!owing.loanItem,'坑道の借りを返す',`返し済み${cnt(paid)}回・借金${paid.debt} 残債${cnt(owing)}回・借金${owing.debt}`);}
   // 「戦闘」：群れで出ても、炎の息を吐くのはひと巡りに1体まで。黒竜は1ラウンドに2回とも吐ける
   // 乱数をいつも0にして、吐けるときは必ず吐くようにする。B6Fより下の記録は文字が乱れるので、B5Fで戦わせる
+  // 開店の顔ぶれには、敵を眠らせる者と急所を突く者がいる。戦士にしてMPを空にし、息の前に勝負が終わらないようにする
   for(const [name,want] of [['キメラ',1],['黒竜',2]]){const E=load(1,1e-9),S=E.newState();const p=Object.values(S.parties).find(x=>x.tav==='ours');
-    p.members.forEach(id=>{const a=S.adv[id];a.status='party';a.mhp=a.hp=99999;});
+    p.members.forEach(id=>{const a=S.adv[id];a.status='party';a.mhp=a.hp=99999;a.mp=0;a.cls='戦士';});
     const t=E.MON.find(m=>m.n===name);p.floor=5;p.state='explore';p.etype=t;p.ident=true;p.fought=true;p.enemies=Array.from({length:name==='黒竜'?1:3},()=>({hp:1e9,sleep:0}));p.log=[];
     E.combat(S,p);const n=p.log.filter(x=>x.t.startsWith(`${name} は `)&&x.t.includes('を はいた！')).length;
     check('戦闘：炎の息は、群れでもひと巡りに1体まで（黒竜は2回）',n===want,`${name}${p.enemies.length}体`,`${n}回吐いた（決まりは${want}回）`);}
@@ -637,7 +638,8 @@ function checkRevive(){
   const hint=E.reviveHint(S,a);
   check('蘇生の目安：寄進と信心深さは一言添える',hint.startsWith(`灰・成功率の目安 ${Math.round(E.reviveChance(S,a)*100)}%`)&&hint.includes('寄進で上がっている')&&hint.includes('信心深く、成功しやすい'),'灰・両方',hint);
   check('蘇生の結果：その場の文面',E.reviveResultText('ファビアン','ok')==='ファビアンがよみがえった'&&E.reviveResultText('ファビアン','ash')==='ファビアンは蘇生に失敗し、灰になった'&&E.reviveResultText('ファビアン','lost')==='ファビアンは蘇生に失敗し、ロストした','三通り','');
-  {const E2=load(2,0),S2=E2.newState();const b=Object.values(S2.adv).find(x=>x.tav==='ours');b.status='dead';b.hp=0;
+  // 第2引数の 0 は偽なので乱数を固定できない。成功する小さな値にして、開店の抽選で種の並びがずれても結果を確かめる
+  {const E2=load(2,1e-9),S2=E2.newState();const b=Object.values(S2.adv).find(x=>x.tav==='ours');b.status='dead';b.hp=0;
     check('蘇生：成功すると生き返る',E2.temple(S2,b,true)==='ok'&&b.status==='idle'&&b.hp===b.mhp,'必ず成功',b.status);}
   {const E2=load(3,.999),S2=E2.newState();const b=Object.values(S2.adv).find(x=>x.tav==='ours');b.status='dead';b.hp=0;
     check('蘇生：死から失敗すると灰になる',E2.temple(S2,b,true)==='ash'&&b.status==='ash','必ず失敗',b.status);
@@ -691,9 +693,61 @@ function checkMemoNotes(){
     check('返済：開店の数刻後も30日・5600G',n2&&n2.days===30&&n2.due===5600,'6刻',JSON.stringify(n2));}
 }
 
+const OPENING_TIE=['空き家の前の住人の娘','空き家の前の住人の息子','開店の夜、雨宿りに入ってそのまま居ついた','空き家の片付けを手伝ったついでに居ついた','セーレの両替商の使いとして開店の金を届け、そのまま残った','封じの門が開いたと聞いて、誰より先に店の前で待っていた','銀の杯亭には席がなく、西の縁の新しい店に来た','店の看板を、店主と一緒に掲げた','店主と同じ船でセーレから来た'];
+const STELE=['B6Fの転移の石碑に、一度触れてみたい','B6Fまで潜って、地上の店に戻ってみたい'];
+function openingOf(S){return Object.values(S.adv).filter(a=>a.opening).sort((a,b)=>a.id-b.id);}
+function tieOf(a){const i=a.bg.lastIndexOf('。');return i>=0?a.bg.slice(i+1):a.bg;}
+function dreamLine(a){const c=(a.chron||[]).find(x=>x.t&&x.t.includes('夢は「'));const m=c&&c.t.match(/夢は「([^」]*)」/);return m?m[1]:'';}
+function checkOpening(){
+  const names=[];
+  for(let i=0;i<16;i++){
+    const seed=1000+i*7919,E=load(seed),S=E.newState();
+    const cast=openingOf(S),ours=Object.values(S.adv).filter(a=>a.tav==='ours');
+    const cls=new Set(cast.map(a=>a.cls));
+    const ties=cast.map(tieOf);
+    const party=Object.values(S.parties).find(p=>p.tav==='ours');
+    const ranked=party.members.map(id=>S.adv[id]).sort((a,b)=>b.lvl-a.lvl||a.id-b.id);
+    const holders=cast.filter(a=>a.dream&&a.dream.k==='stele').sort((a,b)=>a.dream.vi-b.dream.vi);
+    const guests=S.news.find(n=>n.t.startsWith('最初の客たち'));
+    const opened=S.news.findIndex(n=>n.t.includes('黒猫亭を開いた'));
+    const guestAt=S.news.indexOf(guests);
+    const sele=cast.find(a=>a.origin==='セーレ自由都市同盟');
+    check('開店の顔ぶれ：最初の常連は7人で、銀の杯亭には印がない',cast.length===7&&ours.length===7&&Object.values(S.adv).every(a=>a.tav==='ours'||!a.opening),`種${seed}`,`${cast.length}人`);
+    check('開店の顔ぶれ：戦士・僧侶・盗賊・魔術師がそろう',['戦士','僧侶','盗賊','魔術師'].every(c=>cls.has(c)),`種${seed}`,[...cls].join('・'));
+    check('開店の顔ぶれ：生い立ちに開店の一行が入り、7人で重ならない',ties.every(t=>OPENING_TIE.includes(t))&&new Set(ties).size===7,`種${seed}`,ties.join(' / '));
+    check('開店の顔ぶれ：セーレ出身がいるときは、その一人が同じ船で来た',!sele||tieOf(sele)==='店主と同じ船でセーレから来た',`種${seed}`,sele?tieOf(sele):'なし');
+    check('開店の顔ぶれ：名前は種ごとに違い、主人の名は使わない',cast.every(a=>a.name!=='ロドリック'),`種${seed}`,cast.map(a=>a.name).join('・'));
+    check('開店の顔ぶれ：一行の中でレベルが高い2人が、別の文面の短い夢を持つ',holders.length===2&&holders.map(a=>a.id).join()===ranked.slice(0,2).map(a=>a.id).sort((a,b)=>S.adv[a].dream.vi-S.adv[b].dream.vi).join()&&holders.map(dreamLine).join('|')===STELE.join('|')&&party.members.includes(holders[0].id)&&party.members.includes(holders[1].id),`種${seed}`,holders.map(a=>`${a.name}Lv${a.lvl} ${dreamLine(a)}`).join(' / '));
+    check('開店の顔ぶれ：最初の客たちの知らせが、開店の知らせの次に出る',!!guests&&guests.k==='info'&&guestAt===opened+1&&cast.every(a=>guests.t.includes(a.origin+'出身の'+a.name))&&guests.t.endsWith('が、開店の日から黒猫亭にいる。'),`種${seed}`,guests&&guests.t);
+    check('開店の顔ぶれ：手帳の来店の記録に、生い立ちと夢が残る',cast.every(a=>{const door=(a.chron||[]).find(c=>c.t&&c.t.includes('扉をくぐる'));return !!(door&&door.t.includes(tieOf(a))&&door.t.includes('夢は「'+dreamLine(a)+'」'));}),`種${seed}`,()=>cast.filter(a=>{const door=(a.chron||[]).find(c=>c.t&&c.t.includes('扉をくぐる'));return !(door&&door.t.includes(tieOf(a))&&door.t.includes('夢は「'+dreamLine(a)+'」'));}).map(a=>`${a.name}：${(a.chron.find(c=>c.t&&c.t.includes('扉をくぐる'))||{}).t||'記録なし'}`).join(' / '));
+    check('開店の顔ぶれ：まだ潜っていない短い夢の進みはB0Fと出ない',holders.every(a=>(a.deepest||0)===0&&E.DREAMS.stele.prog(a)==='まだ迷宮に潜っていない'),`種${seed}`,holders.map(a=>E.DREAMS.stele.prog(a)).join(' / '));
+    names.push(cast.map(a=>a.name).join(','));
+    if(i===0){
+      Object.values(S.adv).forEach(a=>{delete a.opening;if(a.dream&&a.dream.k==='stele')a.dream={k:'fame',vi:0};});
+      S.v=23;E.migrate(S);
+      check('開店の顔ぶれ：版23の古い記録を開いても印は付かない',S.v===23&&Object.values(S.adv).every(a=>!a.opening&&!(a.dream&&a.dream.k==='stele')),'版23',`版${S.v}`);
+    }
+  }
+  check('開店の顔ぶれ：名前は使い回さず、種が違えば顔ぶれも違う',new Set(names).size===names.length,'16種',names[0]);
+  let hit=0,left=0;
+  for(let i=0;i<16;i++){
+    const seed=1000+i*7919,E=load(seed);E.setQuietLog(true);const S=E.newState();
+    for(let t=0;t<6;t++)E.tick(S);
+    let day=0;
+    for(let d=1;d<=30;d++){for(let t=0;t<E.TICKS_PER_DAY;t++){E.tick(S);E.rivalTemple(S);}if(!day&&(S.stats.dreams.ours||0)>0)day=d;}
+    if(day)hit++;
+    for(const a of Object.values(S.adv)){
+      if(!a.opening&&((a.dream&&a.dream.k==='stele')||(a.pastDreams||[]).some(d=>d.k==='stele')))left++;
+      const why=(S.farewells||[]).find(f=>f.id===a.id);
+      if(why&&/石碑/.test(why.why))left++;
+    }
+  }
+  check('開店の顔ぶれ：店主が何もしなくても、種の半数以上で30日までに黒猫亭の夢がかなう',hit>=8&&left===0,'16種',`${hit}/16 もれ${left}`);
+}
+
 if(!isMainThread){const line=runSeed(workerData.seed);parentPort.postMessage({line,res:[...results]});}
 else{
-  checkTables();checkScenes();checkErrands();checkCrest();checkRowFallback();checkMine();checkAffinity();checkRevive();checkMemoNotes();
+  checkTables();checkScenes();checkErrands();checkCrest();checkRowFallback();checkMine();checkAffinity();checkRevive();checkMemoNotes();checkOpening();
   // 種ごとの結果は、種の順に重ねる。反例は、いちばん若い種の最初のものを残す
   const out=new Array(SEEDS.length);let next=0;
   const runOne=()=>{if(next>=SEEDS.length)return Promise.resolve();const k=next++;
