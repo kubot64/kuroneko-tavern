@@ -1214,13 +1214,16 @@ test('坑道B13Fの水晶には、息を吐かない坑道都市の衛兵が出�
     p.ident=true;p.fought=true;p.ambush=false;p.potions=0;p.guard=0;p.buff=0;
     p.enemies.forEach(e=>e.hp=99999);
     p.members.forEach(id=>{const a=S.adv[id];a.lvl=8;a.hp=a.mhp=400;});
-    combat(S,p);render();
+    // 深い階の水晶は、出したあとに文字が欠ける。欠ける前の文で、息ではなく斬りかかったことを見る
+    const said=[];const orig=plog;
+    plog=function(p2,t,k){said.push(t);return orig(p2,t,k);};
+    combat(S,p);plog=orig;render();
     const crystal=document.querySelector('.crystal');
-    return {head:crystal.querySelector('.c-head').textContent,log:crystal.querySelector('.c-log').textContent};
+    return {head:crystal.querySelector('.c-head').textContent,log:crystal.querySelector('.c-log').textContent,said};
   });
   assert.match(text.head,/坑道B13F 戦闘中|坑道B13F 帰還中|坑道B13F 探索中/);
   assert.match(text.log,/坑道都市の衛兵/);
-  assert.match(text.log,/おそいかかった|かわした/);
-  assert.doesNotMatch(text.log,/ほのおを はいた/);
+  assert.ok(text.said.some(t=>/おそいかかった|かわした/.test(t)),text.said.join('\n'));
+  assert.ok(text.said.every(t=>!t.includes('ほのおを はいた')),text.said.join('\n'));
   assert.deepEqual(errors,[]);await ctx.close();
 });
