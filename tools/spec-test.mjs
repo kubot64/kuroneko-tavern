@@ -872,16 +872,19 @@ function checkAge(){
 function checkFoes(){
   const E=load(1);
   const breath=['キメラ','墓所の番犬','盲目の洞窟竜','炉の番人ゴーレム'];
-  const comp={
-    'レイス':9,'ミノタウロス':15,'溺れた衛兵':14,'水路の大蛇':16,'堕ちた騎士':18,'石の巨像':23,
-    '亡霊騎士':23,'宮廷魔術師の亡霊':18,'屍喰らい':25,'吸魂の司祭':23,'塔の番兵ゴーレム':28,
-    '狂った見習い魔術師':24,'近衛騎士長':32,'澱の落とし子':30,
-    '崩落蜘蛛':30,'鉄喰いトロール':32,'坑道ゴーレム':33,'澱の坑夫':38,'坑道都市の衛兵':39,
-    '鉱脈の大蛇':44,'晶石の亡霊':45,'地底の巨人':48,
+  const maze={
+    'レイス':9,'ミノタウロス':14,'溺れた衛兵':13,'水路の大蛇':15,'堕ちた騎士':18,'石の巨像':22,
+    '亡霊騎士':22,'宮廷魔術師の亡霊':18,'屍喰らい':24,'吸魂の司祭':22,'塔の番兵ゴーレム':26,
+    '狂った見習い魔術師':23,'近衛騎士長':31,'澱の落とし子':29,
+  };
+  const mine={
+    '崩落蜘蛛':29,'鉄喰いトロール':31,'坑道ゴーレム':32,'澱の坑夫':36,'坑道都市の衛兵':37,
+    '鉱脈の大蛇':42,'晶石の亡霊':43,'地底の巨人':46,
   };
   for(const m of E.MON){
     if(breath.includes(m.n))check('出る魔物：息の四体の出やすさは0.6で、経験の埋め合わせはない',m.w===.6&&!m.xb&&m.sp==='breath',m.n,`w${m.w} 経験${m.xb||1}`);
-    else if(comp[m.n]!=null)check('出る魔物：息を吐かない埋め合わせは攻撃がおよそ1.5割、経験が1.1倍',m.atk===comp[m.n]&&m.xb===1.1&&!m.w,m.n,`攻${m.atk} 経験${m.xb||1} 出やすさ${m.w||1}`);
+    else if(maze[m.n]!=null)check('出る魔物：迷宮の埋め合わせは攻撃がおよそ1割、経験が1.13倍',m.atk===maze[m.n]&&m.xb===1.13&&!m.w,m.n,`攻${m.atk} 経験${m.xb||1} 出やすさ${m.w||1}`);
+    else if(mine[m.n]!=null)check('出る魔物：坑道の埋め合わせは攻撃がおよそ1割、経験が1.15倍',m.atk===mine[m.n]&&m.xb===1.15&&!m.w,m.n,`攻${m.atk} 経験${m.xb||1} 出やすさ${m.w||1}`);
     else check('出る魔物：それ以外の出やすさと経験は変えない',!m.w&&!m.xb,m.n,`出やすさ${m.w||1} 経験${m.xb||1}`);
   }
   const rare=new Set(E.RARES.concat(E.MINE_RARES||[]).map(r=>r.n));
@@ -916,13 +919,16 @@ function checkFoes(){
     p.etype=Object.assign({},E2.MON.find(m=>m.n===mon));p.enemies=[{hp:0,sleep:0}];E2.victory(S,p);return {xp:a.xp,gold:p.loot};};
   const raw=f=>(6*Math.pow(f,1.6)+3)*3;
   const golem=xpOf('坑道ゴーレム'),dragon=xpOf('盲目の洞窟竜');
-  check('出る魔物：埋め合わせの経験は1.1倍で、金にはかからない',golem.xp===Math.round(raw(16)*1.1)&&golem.gold===Math.round(12*16*3),'坑道ゴーレム',`経験${golem.xp}（1.1倍は${Math.round(raw(16)*1.1)}） 金${golem.gold}`);
+  check('出る魔物：坑道の埋め合わせの経験は1.15倍で、金にはかからない',golem.xp===Math.round(raw(16)*1.15)&&golem.gold===Math.round(12*16*3),'坑道ゴーレム',`経験${golem.xp}（1.15倍は${Math.round(raw(16)*1.15)}） 金${golem.gold}`);
   check('出る魔物：息の魔物の経験と金は強さのまま',dragon.xp===Math.round(raw(17))&&dragon.gold===Math.round(12*17*3),'盲目の洞窟竜',`経験${dragon.xp} 金${dragon.gold}`);
+  const knight=xpOf('堕ちた騎士');
+  const knightRaw=(6*Math.pow(9,1.6)+3);
+  check('出る魔物：迷宮の埋め合わせの経験は1.13倍で、金にはかからない',knight.xp===Math.round(knightRaw*1.13)&&knight.gold===Math.round(12*9),'堕ちた騎士',`経験${knight.xp}（1.13倍は${Math.round(knightRaw*1.13)}） 金${knight.gold}`);
   {const E2=load(1,.99),S=E2.newState();const p=Object.values(S.parties).find(x=>x.tav==='ours');const a=S.adv[p.leader];
     a.race='エルフ';a.tal='並';a.traits=[];a.xp=0;a.lvl=10;a.hp=a.mhp=100;p.members=[a.id];p.floor=43;p.state='explore';p.maps={43:1};p.loot=0;p.trip=p.trip||{kills:{},deep:43};
     const t=E2.MON.find(m=>m.n==='坑道都市の衛兵');
     p.etype=Object.assign({},t,{n:'飢えた'+t.n,base:t.n,xpm:1.1});p.enemies=[{hp:0,sleep:0}];E2.victory(S,p);
-    check('出る魔物：変異の倍率は、埋め合わせのあとにもかかる',a.xp===Math.round(raw(t.f)*1.1*1.1),'飢えた坑道都市の衛兵',`経験${a.xp}（決まりは${Math.round(raw(t.f)*1.1*1.1)}）`);}
+    check('出る魔物：変異の倍率は、埋め合わせのあとにもかかる',a.xp===Math.round(raw(t.f)*1.15*1.1),'飢えた坑道都市の衛兵',`経験${a.xp}（決まりは${Math.round(raw(t.f)*1.15*1.1)}）`);}
   {const E2=load(3),S=E2.newState();const p=Object.values(S.parties).find(x=>x.tav==='ours'&&x.members.length);
     p.floor=43;p.state='explore';p.fought=true;p.enemies=[{hp:99999,sleep:0}];
     p.members.forEach(id=>{const a=S.adv[id];a.hp=a.mhp;});
