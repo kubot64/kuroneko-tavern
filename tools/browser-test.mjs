@@ -1215,11 +1215,12 @@ test('坑道B13Fの水晶には、息を吐かない坑道都市の衛兵が出�
     p.enemies.forEach(e=>e.hp=99999);
     p.members.forEach(id=>{const a=S.adv[id];a.lvl=8;a.hp=a.mhp=400;});
     combat(S,p);render();
-    return document.querySelector('.crystal').innerText;
+    const crystal=document.querySelector('.crystal');
+    return {head:crystal.querySelector('.c-head').textContent,log:crystal.querySelector('.c-log').textContent};
   });
-  assert.match(text,/坑道B13F 戦闘中|坑道B13F 帰還中|坑道B13F 探索中/);
-  assert.match(text,/坑道都市の衛兵/);
-  assert.match(text,/おそいかかった|かわした/);
-  assert.doesNotMatch(text,/ほのおを はいた/);
+  assert.match(text.head,/坑道B13F 戦闘中|坑道B13F 帰還中|坑道B13F 探索中/);
+  assert.match(text.log,/坑道都市の衛兵/);
+  assert.match(text.log,/おそいかかった|かわした/);
+  assert.doesNotMatch(text.log,/ほのおを はいた/);
   assert.deepEqual(errors,[]);await ctx.close();
 });
