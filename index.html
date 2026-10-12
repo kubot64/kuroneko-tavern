@@ -150,6 +150,7 @@ button:focus-visible,[tabindex]:focus-visible{outline:2px solid var(--amber);out
 .row .who{min-width:0;flex:1}
 .row .who b{font-weight:700}
 .row .meta{color:var(--muted);font-size:12px;font-variant-numeric:tabular-nums}
+.row .meta.lv{white-space:nowrap}
 .ttl{color:var(--amber);font-size:12px}
 .chip{font-size:11px;padding:0 6px;border-radius:3px;background:var(--panel2);color:var(--muted);white-space:nowrap}
 .chip.dead{color:var(--blood)} .chip.ash{color:var(--ash)} .chip.party{color:var(--glow)} .chip.missing{color:var(--blood)}
@@ -797,7 +798,8 @@ function uname(S,g){
 const AGE2={'人間':{n:[15,30],o:[31,62]},'ホビット':{n:[18,40],o:[41,95]},'ドワーフ':{n:[25,90],o:[91,190]},'エルフ':{n:[30,180],o:[181,420]}};
 const AGE=Object.fromEntries(Object.entries(AGE2).map(([k,v])=>[k,[v.n[0],v.o[1]]]));
 const OLD={'人間':55,'エルフ':400,'ドワーフ':175,'ホビット':85};
-function rollAge(race,lv0){const lvl=Math.ceil(lv0/2);const r=AGE2[race]||AGE2['人間'];const oldP=.05+(lvl>=6?.12:0)+(lvl>=9?.2:0);const old=chance(oldP);const rg=old?r.o:r.n;const t=old?clamp(R()**2*(.5+lvl*.04),0,1):clamp((lvl-1)/10*.4+R()*.6,0,1);return Math.round(rg[0]+(rg[1]-rg[0])*t);}
+// 年長枠は来店時レベルで 3% / 8% / 15%（レベルの半分を切り上げて 5 以下、6〜8、9 以上）。枠の中の寄り方は変えない
+function rollAge(race,lv0){const lvl=Math.ceil(lv0/2);const r=AGE2[race]||AGE2['人間'];const oldP=lvl>=9?.15:lvl>=6?.08:.03;const old=chance(oldP);const rg=old?r.o:r.n;const t=old?clamp(R()**2*(.5+lvl*.04),0,1):clamp((lvl-1)/10*.4+R()*.6,0,1);return Math.round(rg[0]+(rg[1]-rg[0])*t);}
 const KIN_G={'兄':'男','弟':'男','父':'男','姉':'女'};
 const KIN_AGE={'父':[20,32],'兄':[1,8],'姉':[1,8],'弟':[-7,-1],'師匠':[15,40],'幼なじみ':[-2,2]};
 function humanAge(a){if(a.race==='人間'||!AGE2[a.race])return a.age;const r=AGE2[a.race];
@@ -1974,7 +1976,7 @@ const FACILITIES=[
 const DOJO_XP=[1,1.1,1.2,1.3],DOJO_LV=[0,30,35,Infinity],INFO_AMBUSH=[1,.7,.5];
 function fac(S,k){return (S.fac&&S.fac[k])||0;}
 function nextFac(S,k){const F=FACILITIES.find(x=>x[0]===k);return F&&F[1][fac(S,k)]||null;}
-function buildFac(S,k){const t=nextFac(S,k),T0=S.taverns.ours;if(!t||T0.gold<t[1])return false;T0.gold-=t[1];S.fac=S.fac||{};S.fac[k]=fac(S,k)+1;news(S,`黒猫亭に${t[0]}ができた。${t[2]}。`,'record');return true;}
+function buildFac(S,k){const t=nextFac(S,k),T0=S.taverns.ours;if(!t||T0.gold<t[1])return false;T0.gold-=t[1];S.fac=S.fac||{};S.fac[k]=fac(S,k)+1;news(S,`黒猫亭に${t[0]}ができた（Lv${S.fac[k]}）。${t[2]}。`,'record');return true;}
 function blessed(S,a){return a.tav==='ours'&&(S.blessUntil||0)>S.tick;}
 function donatePrice(S){return r100(incomeAt(dz(Math.max(1,S.deepest.ours)))*30);}
 function donate(S){const T0=S.taverns.ours,c=donatePrice(S);if(T0.gold<c)return false;T0.gold-=c;T0.support=(T0.support||0)+c;S.blessUntil=Math.max(S.tick,S.blessUntil||0)+30*TICKS_PER_DAY;
@@ -3312,13 +3314,24 @@ function sideRoster(){
 function memoLine(m){const when=m.done&&m.tk!=null?`<span class="when">${Math.floor(m.tk/TICKS_PER_DAY)+1}日目</span>`:'';return `<li class="${m.done?'done':''}" data-id="${m.id}">${m.done?`<s>${esc(m.t)}</s>`:esc(m.t)}${when}</li>`;}
 function memoHtml(){const st=memoState(S);if(!st.show.length)return '';return `<div class="memo" id="memo"><h3>店主の覚え書き</h3><ul>${st.show.map(memoLine).join('')}</ul></div>`;}
 function memoRecordHtml(){const st=memoState(S);if(!st.log.length)return '';return `<div class="memo" id="memo-log"><h3>店主の覚え書き</h3><ul>${st.log.map(memoLine).join('')}</ul></div>`;}
+function facDeskRow(k,ts){
+  const lv=fac(S,k),n=ts.length,t=nextFac(S,k),now=lv?ts[lv-1]:null;
+  const name=now?now[0]:`${ts[0][0]}（未建築）`;
+  const tag=now?`Lv${lv}/${n}`:`Lv0/${n}　まだ建てていない`;
+  const cur=now?`いまの効き目：${now[2]}`:'いまの効き目：なし';
+  const nxt=t?`${now?'建て増すと':'建てると'}${t[0]}：${t[2]}`:'';
+  const btn=t?`<button class="btn sm" data-act="fac" data-k="${k}" ${T().gold<t[1]?'disabled':''}>${now?'建て増す':'建てる'} ${t[1]}G</button>`:'<span class="chip">建てた</span>';
+  return `<div class="row" data-fac="${k}"><span class="who"><b>${name}</b> <span class="meta lv">${tag}</span><span class="does">${cur}</span>${nxt?`<span class="does">${nxt}</span>`:''}</span>${btn}</div>`;
+}
 function sideDesk(){
   const miss=Object.values(S.parties).filter(p=>p.state==='wiped'&&p.announced&&!p.retrieved);
   const To=T(),ns=nextSeats(S),due=nextDue(S);
+  const baseSeats=To.seats||12,seatLv=SEAT_STEPS.filter(x=>x[1]<=baseSeats).length,seatExtra=seatCap(S,'ours')-baseSeats;
+  const seatDoes=`${seatExtra?`支店で+${seatExtra}席あり、あわせて${baseSeats+seatExtra}席。拡張の段とは別。`:''}${ns?`店を広げると、${ns[1]}席まで常連を迎えられる。`:'これ以上は広げられない。'}銀の杯亭は${seatCap(S,'rival')}席。`;
   const debtSect=`<div class="sect"><h3>店の借金と席</h3>
   ${To.debt>0?`<p class="note">開店のときにセーレの両替商から借りた金。30日ごとに${DEBT_DUE}Gと利息（残りの2%）を払う。足りなければ罰金が上乗せされ、取り立て人が店先に居座って評判が落ちる。次の返済まであと${due.days}日・必要額${due.due}G。</p>
   <div class="row"><span class="who"><b>借金の残り ${To.debt}G</b><span class="does">これまでに返した額 ${To.repaid||0}G</span></span>${[1000,10000].filter(x=>x<To.debt).map(x=>`<button class="btn sm" data-act="repay" data-v="${x}" ${To.gold<x?'disabled':''}>${x}G返す</button>`).join('')}<button class="btn sm" data-act="repay" data-v="${To.debt}" ${To.gold<To.debt?'disabled':''}>全額返す</button></div>`:`<p class="note">${To.debtFree!=null?`開店のときの借金は、${Math.floor(To.debtFree/TICKS_PER_DAY)+1}日目に返し終えた。`:'この店に借金はない。'}</p>`}
-  <div class="row"><span class="who"><b>常連の席 ${seatCap(S,'ours')}席</b><span class="does">${ns?`店を広げると、${ns[1]}席まで常連を迎えられる。`:'これ以上は広げられない。'}銀の杯亭は${seatCap(S,'rival')}席。</span></span>${ns?`<button class="btn sm" data-act="seats" ${To.gold<ns[2]?'disabled':''}>店を広げる ${ns[2]}G</button>`:''}</div></div>`;
+  <div class="row" data-seats="1"><span class="who"><b>常連の席 ${baseSeats}席</b><span class="meta lv">　Lv${seatLv}/${SEAT_STEPS.length}</span><span class="does">${seatDoes}</span></span>${ns?`<button class="btn sm" data-act="seats" ${To.gold<ns[2]?'disabled':''}>店を広げる ${ns[2]}G</button>`:''}</div></div>`;
   return `<div class="desk">${memoHtml()}${debtSect}<div class="sect"><h3>店の方針　冒険者への支援</h3>
   <p class="note">店の金で常連を支える。生きて帰る者が増え、恩を感じた者は店でよく飲む。これまでの支援 ${T().support||0}G・売上 ${T().earned}G。</p>
   <div class="row"><span class="who"><b>回復薬の差し入れ</b><span class="does">出発する一行に持たせる。1本 ${potionPrice(S,{members:Object.values(S.adv).filter(a=>a.tav==='ours'&&a.status!=='lost'&&a.status!=='retired').map(a=>a.id)})}G前後（深さで変わる）</span></span>${[['なし',0],['2本',1],['5本',2],['10本',3]].map(([l,v])=>`<button class="btn sm${policy(S).potion===v?' on':''}" data-act="pol" data-k="potion" data-v="${v}">${l}</button>`).join('')}</div>
@@ -3334,8 +3347,8 @@ function sideDesk(){
   </div>
 <div class="sect"><h3>寺院への寄進</h3><p class="note">灰の寺院に寄進すると、30日のあいだ黒猫亭の常連の蘇生に司祭たちが念を入れ、死からも灰からも生き返りやすくなる。重ねて寄進すれば、そのぶん日が延びる。額は常連の潜る深さで決まる。</p>
   <div class="row"><span class="who"><b>${(S.blessUntil||0)>S.tick?`寄進の効き目 あと${Math.ceil((S.blessUntil-S.tick)/TICKS_PER_DAY)}日`:'いまは寄進していない'}</b></span><button class="btn sm" data-act="donate" ${T().gold<donatePrice(S)?'disabled':''}>寄進する ${donatePrice(S)}G</button></div></div>
-<div class="sect"><h3>店の設備</h3><p class="note">店の金で設備を建てる。どれも一度建てれば、ずっと効く。下の段から順に建て増すと、よく効くようになる。</p>
-  ${FACILITIES.map(([k,ts])=>{const lv=fac(S,k),t=nextFac(S,k),now=ts[lv-1];return `<div class="row"><span class="who"><b>${now?now[0]:ts[0][0]}</b><span class="does">${now?now[2]:ts[0][2]}${t&&now?`。建て増すと${t[0]}：${t[2]}`:''}</span></span>${t?`<button class="btn sm" data-act="fac" data-k="${k}" ${T().gold<t[1]?'disabled':''}>${now?'建て増す':'建てる'} ${t[1]}G</button>`:'<span class="chip">建てた</span>'}</div>`;}).join('')}</div>
+<div class="sect"><h3>店の設備</h3><p class="note">店の金で設備を建てる。どれも一度建てれば、ずっと効く。下の段から順に建て増すと、よく効くようになる。Lvは、いまの段といちばん上までの段数。</p>
+  ${FACILITIES.map(([k,ts])=>facDeskRow(k,ts)).join('')}</div>
 <div class="sect"><h3>銀の杯亭の客を引き抜く</h3><p class="note">銀の杯亭で酒場にいる客を、借金を肩代わりして黒猫亭に迎え入れる。借金に加えて、腕に見合った支度金がかかる。席が空いているときだけ声をかけられる。</p>
   ${(()=>{const L=poachList(S);return L.length?L.map(a=>`<div class="row"><span class="who"><b>${esc(a.name)}</b> <span class="meta">Lv${a.lvl} ${a.race}の${a.cls}・借金${a.debt||0}G</span></span><button class="btn sm" data-act="poach" data-a="${a.id}" ${T().gold<poachPrice(S,a)?'disabled':''}>迎え入れる ${poachPrice(S,a)}G</button></div>`).join(''):`<p class="note">${seatsUsed(S,'ours')>=seatCap(S,'ours')?'黒猫亭の席が埋まっている。':'いま声をかけられる客はいない。'}</p>`;})()}</div>
 <div class="sect"><h3>死体回収の依頼</h3><p class="note">依頼を出すと、同じ階を歩く一行が見つけやすくなり、欲深い者も遺体を連れ帰るようになる。報酬はその階の深さに応じて決まり、回収されたときに支払う。</p>

@@ -20,7 +20,7 @@ const html=readFileSync(new URL('../index.html',import.meta.url),'utf8');
 const ENGINE=html.match(/\/\*ENGINE START\*\/([\s\S]*?)\/\*ENGINE END\*\//)[1];
 const EXPORTS=['newState','tick','rivalTemple','seatCap','seatsUsed','nextSeats','newcomerLvl','buyPrice','investPrice','FACILITIES',
   'RARES','MAXF','DRAGON_F','TICKS_PER_DAY','awayPlan','smallOf','debtTick','DEBT0','encounter','rareSlain','rareMonOf','arrive',
-  'repay','errandsOf','assignErrand','errandBlock','designateBlock','MAXF','MINE_TOP','MINE_BOT','MINE_N','FN','mineOpen','conquest','mineConquest','title','alive','markAdv','markedOf','BOARD_MAX','MARK_MAX','ARCS','reachFloor','GATE_F','fac','nextFac','buildFac','migrate','partyShown','crestJa','glossText','PT_A','PT_B','takeCrest','pickCrest','newPartyName','combat','MON','elemMul','elemNote','sleepMul','sleepReach','MINE_RARES','supplyTeam','potionPrice','lendRival','reviveChance','reviveHint','reviveResultText','temple','checkMemo','memoState','nextDue','rankRows','MEMO','setQuietLog','DREAMS'];
+  'repay','errandsOf','assignErrand','errandBlock','designateBlock','MAXF','MINE_TOP','MINE_BOT','MINE_N','FN','mineOpen','conquest','mineConquest','title','alive','markAdv','markedOf','BOARD_MAX','MARK_MAX','ARCS','reachFloor','GATE_F','fac','nextFac','buildFac','migrate','partyShown','crestJa','glossText','PT_A','PT_B','takeCrest','pickCrest','newPartyName','combat','MON','elemMul','elemNote','sleepMul','sleepReach','MINE_RARES','supplyTeam','potionPrice','lendRival','reviveChance','reviveHint','reviveResultText','temple','checkMemo','memoState','nextDue','rankRows','MEMO','setQuietLog','DREAMS','rollAge','AGE2'];
 
 // 乱数の種を固定したゲームの中身を1つ作る。中身の Math.random だけを差し替える
 function load(seed,fixed){
@@ -56,6 +56,10 @@ function checkTables(){
     check('大きな使い道：設備は下の段から順に建て増す',paid.join(' ')==='1段15000 2段60000 3段300000 建たない','修練場を4回建てる',paid.join(' '));
     const S3=E.newState();S3.taverns.ours.gold=59999;E.buildFac(S3,'dojo');S3.taverns.ours.gold=59999;
     check('大きな使い道：金が足りなければ建て増せない',!E.buildFac(S3,'dojo')&&E.fac(S3,'dojo')===1,'道場に59999G',`${E.fac(S3,'dojo')}段`);}
+  // 「店の設備」：できた知らせに、できた段を添える。記録の版は上がらない
+  {const S4=E.newState();S4.taverns.ours.gold=2e6;const lines=[];
+    for(const k of ['dojo','dojo','dojo','info','inn']){E.buildFac(S4,k);lines.push(S4.news.at(-1).t);}
+    check('店の設備：できた知らせに段を添える',lines[0].includes('稽古場ができた（Lv1）')&&lines[1].includes('道場ができた（Lv2）')&&lines[2].includes('修練場ができた（Lv3）')&&lines[3].includes('情報屋ができた（Lv1）')&&lines[4].includes('療養所ができた（Lv1）')&&S4.v===23,'知らせ',lines.join(' / ')+` 版${S4.v}`);}
   // 「借金と返済」：最初の借金と所持金
   check('借金と返済：80000Gの借金と400Gで始まる',S.taverns.ours.debt===80000&&S.taverns.ours.gold===400,'開店',`借金${S.taverns.ours.debt} 所持金${S.taverns.ours.gold}`);
   // 「借金と返済」：返済日には利息2%を足し、4000G＋利息を払う。足りれば借金は4000G減る
@@ -745,9 +749,31 @@ function checkOpening(){
   check('開店の顔ぶれ：店主が何もしなくても、種の半数以上で30日までに黒猫亭の夢がかなう',hit>=8&&left===0,'16種',`${hit}/16 もれ${left}`);
 }
 
+// 「来店時の年齢」：年長枠の割合はレベルで決まり、枠の中は若い側に寄る。55歳以上の伸びはこれまでどおり
+function checkAge(){
+  const E=load(11);
+  const N=8000;
+  const bands=[[1,.03],[10,.03],[11,.08],[16,.08],[17,.15],[24,.15]];
+  const lo=p=>p===.03?.015:p===.08?.055:.115,hi=p=>p===.03?.042:p===.08?.11:.19;
+  for(const race of Object.keys(E.AGE2))for(const [lv,p] of bands){
+    const r=E.AGE2[race];let old=0,bad=0;
+    for(let i=0;i<N;i++){const age=E.rollAge(race,lv);
+      if(age<r.n[0]||age>r.o[1]||(age>r.n[1]&&age<r.o[0]))bad++;
+      else if(age>=r.o[0])old++;}
+    const rate=old/N;
+    check('年齢：年長枠の割合は来店時レベルどおり',bad===0&&rate>lo(p)&&rate<hi(p),`${race}・レベル${lv}`,`${(rate*100).toFixed(2)}%（決まりは${Math.round(p*100)}%）範囲外${bad}`);
+  }
+  const ages=[];
+  for(let i=0;i<20000;i++){const age=E.rollAge('人間',21);if(age>=31)ages.push(age);}
+  ages.sort((a,b)=>a-b);
+  const med=ages[Math.floor(ages.length/2)];
+  const elder=ages.filter(a=>a>=55).length/ages.length;
+  check('年齢：年長枠は枠の若い側に寄り、55歳以上は多くない',ages.length>500&&med>=34&&med<=42&&elder>.04&&elder<.18,'人間・レベル21',`中央${med}歳・55歳以上${(elder*100).toFixed(1)}%（${ages.length}人）`);
+}
+
 if(!isMainThread){const line=runSeed(workerData.seed);parentPort.postMessage({line,res:[...results]});}
 else{
-  checkTables();checkScenes();checkErrands();checkCrest();checkRowFallback();checkMine();checkAffinity();checkRevive();checkMemoNotes();checkOpening();
+  checkTables();checkScenes();checkErrands();checkCrest();checkRowFallback();checkMine();checkAffinity();checkRevive();checkMemoNotes();checkOpening();checkAge();
   // 種ごとの結果は、種の順に重ねる。反例は、いちばん若い種の最初のものを残す
   const out=new Array(SEEDS.length);let next=0;
   const runOne=()=>{if(next>=SEEDS.length)return Promise.resolve();const k=next++;

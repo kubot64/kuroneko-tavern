@@ -52,6 +52,7 @@ function run(seed,mode,engine){
   const S=E.newState();const D=E.TICKS_PER_DAY;for(let i=0;i<6;i++)E.tick(S);
   const lv=names=>names.map(n=>(Object.values(S.adv).find(a=>a.name===n)||{}).lvl).join(',');
   const r={seed,mode,fights:0,pre:{},fac:{}};const marks=[];
+  const seen=new Set(),visit=emptyVisit();noteArrivals(S,seen,visit);
   for(let d=1;d<=DAYS;d++){
     if(mode==='support')supportOwner(E,S,d);
     for(let i=0;i<D;i++){E.tick(S);E.rivalTemple(S);
@@ -65,11 +66,49 @@ function run(seed,mode,engine){
     if(S.taverns.ours.debtFree!=null&&r.debtFree==null)r.debtFree=Math.floor(S.taverns.ours.debtFree/D);
     if(S.mineConq&&!r.mconq){r.mconq={d:Math.floor(S.mineConq.tk/D),tav:S.mineConq.tav,lv:r.pre[S.mineConq.party]||lv(S.mineConq.names)};break;}
     if(r.open!=null&&d%50===0){const top=Object.values(S.adv).filter(a=>a.status!=='lost'&&a.status!=='retired').map(a=>a.lvl).sort((x,y)=>y-x).slice(0,6);
-      marks.push(`  ${d}日目 坑道最深 黒${md.ours}/銀${md.rival} 上位Lv${top.join(',')}`);}}
+      marks.push(`  ${d}日目 坑道最深 黒${md.ours}/銀${md.rival} 上位Lv${top.join(',')}`);}
+    noteArrivals(S,seen,visit);}
   r.deep={maze:{...S.deepest},mine:{...(S.mineDeep||{ours:0,rival:0})}};r.rep={ours:S.taverns.ours.rep,rival:S.taverns.rival.rep};r.support=S.taverns.ours.support||0;
+  noteArrivals(S,seen,visit);r.visit=visit;
+  const aged=(S.farewells||[]).filter(f=>f.why&&f.why.includes('老いを感じ'));
+  r.ageRet={ours:aged.filter(f=>f.tav==='ours').length,rival:aged.filter(f=>f.tav==='rival').length};
+  r.dreams=dreamCounts(S);
   r.marks=marks;return r;
 }
 
+// 来店時の年齢。手帳の最初の一文に残っている年齢を読む（年を越して歳をとったあとも、来たときの年齢が分かる）
+const AGE_OLD={'人間':31,'ホビット':41,'ドワーフ':91,'エルフ':181};
+const AGE_BUCKETS=['〜19','20〜24','25〜30','31〜39','40〜49','50〜54','55〜'];
+const AGE_LVLS=['1〜10','11〜16','17〜'];
+const DREAM_AGE=[['sendhome','仕送り'],['prove','見返す（20歳未満）'],['letters','手紙（26歳未満）'],['marry','所帯'],['mentor','育てる（33歳以上）'],['pension','余生（40歳以上）'],['lastdive','老いた体（42歳以上）']];
+function ageBucket(h){return h<=19?'〜19':h<=24?'20〜24':h<=30?'25〜30':h<=39?'31〜39':h<=49?'40〜49':h<=54?'50〜54':'55〜';}
+function emptyVisit(){return {n:0,old:0,miss:0,bucket:Object.fromEntries(AGE_BUCKETS.map(k=>[k,0])),lvl:Object.fromEntries(AGE_LVLS.map(k=>[k,{n:0,old:0}]))};}
+function noteArrivals(S,seen,visit){
+  for(const a of Object.values(S.adv)){
+    if(seen.has(a.id))continue;
+    const t=(a.chron||[]).map(c=>c&&c.t).find(x=>x&&x.includes('扉をくぐる'));
+    if(!t)continue;
+    seen.add(a.id);
+    if(t.includes('救い出された'))continue;
+    const m=t.match(/(?:人間でいえば(\d+)歳ほど（実年齢(\d+)歳）|(\d+)歳)、(?:女の)?(人間|ホビット|ドワーフ|エルフ)の[^（]*（レベル(\d+)）として/);
+    if(!m){visit.miss++;continue;}
+    const hage=m[1]?+m[1]:+m[3],age=m[2]?+m[2]:+m[3],race=m[4],lvl=+m[5];
+    const old=age>=(AGE_OLD[race]||31);
+    visit.n++;if(old)visit.old++;
+    visit.bucket[ageBucket(hage)]++;
+    const lb=lvl<=10?'1〜10':lvl<=16?'11〜16':'17〜';
+    visit.lvl[lb].n++;if(old)visit.lvl[lb].old++;
+  }
+}
+function dreamCounts(S){
+  const c=Object.fromEntries(DREAM_AGE.map(([k])=>[k,0]));
+  for(const a of Object.values(S.adv)){
+    const held=new Set((a.pastDreams||[]).map(d=>d&&d.k).filter(Boolean));
+    if(a.dream&&a.dream.k)held.add(a.dream.k);
+    for(const k of held)if(c[k]!=null)c[k]++;
+  }
+  return c;
+}
 const TN=t=>t==='ours'?'黒猫亭':'銀の杯亭';
 function line(r){
   const c=r.conq?`${r.conq.d}日目 ${TN(r.conq.tav)} Lv${r.conq.lv}`:'なし';
@@ -95,6 +134,36 @@ function table(rows){
     ...rows.map(([name,rs])=>{const nd=rs.filter(r=>r.debtFree==null).length;
       return `| ${name} | ${won(rs,r=>r.conq)} | ${med(rs.filter(r=>r.conq).map(r=>r.conq.d))}日目 | ${won(rs,r=>r.mconq)} | ${med(rs.filter(r=>r.mconq).map(r=>r.mconq.d-r.open))}日 | ${med(rs.filter(r=>r.debtFree!=null).map(r=>r.debtFree))}日目${nd?`（完済なし${nd}種）`:''} |`;})].join('\n');
 }
+function sumAge(rs){
+  const a={n:0,old:0,miss:0,bucket:Object.fromEntries(AGE_BUCKETS.map(k=>[k,0])),lvl:Object.fromEntries(AGE_LVLS.map(k=>[k,{n:0,old:0}])),ret:{ours:0,rival:0},dreams:Object.fromEntries(DREAM_AGE.map(([k])=>[k,0]))};
+  for(const r of rs){if(!r.visit)continue;
+    a.n+=r.visit.n;a.old+=r.visit.old;a.miss+=r.visit.miss||0;
+    for(const k of AGE_BUCKETS)a.bucket[k]+=r.visit.bucket[k]||0;
+    for(const k of AGE_LVLS){a.lvl[k].n+=r.visit.lvl[k].n;a.lvl[k].old+=r.visit.lvl[k].old;}
+    a.ret.ours+=(r.ageRet&&r.ageRet.ours)||0;a.ret.rival+=(r.ageRet&&r.ageRet.rival)||0;
+    for(const [k] of DREAM_AGE)a.dreams[k]+=(r.dreams&&r.dreams[k])||0;}
+  return a;
+}
+function ageMarkdown(rows){
+  const ag=rows.map(([name,rs])=>[name,sumAge(rs)]);
+  if(!ag.some(([,a])=>a.n))return '';
+  const pct=(n,d)=>d?`${(100*n/d).toFixed(1)}%`:'-';
+  const head='| | '+ag.map(([n])=>n).join(' | ')+' |';
+  const sep='|---|'+ag.map(()=>'---:|').join('');
+  const row=(label,fn)=>'| '+label+' | '+ag.map(([,a])=>fn(a)).join(' | ')+' |';
+  const lines=['来店した冒険者の年齢（人間換算・来店時。救い出された身内は除く。坑道を踏破した種は、その日まで）',head,sep,
+    row('来店人数',a=>String(a.n)),
+    row('年長枠',a=>`${a.old}（${pct(a.old,a.n)}）`),
+    ...AGE_BUCKETS.map(k=>row(k,a=>`${a.bucket[k]}（${pct(a.bucket[k],a.n)}）`)),
+    '','来店時レベルごとの年長枠',head,sep,
+    ...AGE_LVLS.map(k=>row(k,a=>`${a.lvl[k].old}／${a.lvl[k].n}（${pct(a.lvl[k].old,a.lvl[k].n)}）`)),
+    '','老いによる引退（合計）',head,sep,
+    row('黒猫亭',a=>String(a.ret.ours)),row('銀の杯亭',a=>String(a.ret.rival)),
+    '','年齢で選ばれる夢を持った人数（合計。叶えた分も含む）',head,sep,
+    ...DREAM_AGE.map(([k,label])=>row(label,a=>String(a.dreams[k])))];
+  if(ag.some(([,a])=>a.miss))lines.push('',`年齢を読めなかった来店：${ag.map(([n,a])=>`${n} ${a.miss}`).join('、')}`);
+  return lines.join('\n');
+}
 
 if(!isMainThread)parentPort.postMessage(run(workerData.seed,workerData.mode,workerData.engine));
 else{
@@ -116,7 +185,7 @@ else{
   for(const mode of MODES)for(const v of vars){const rs=out.filter((r,k)=>jobs[k].mode===mode&&jobs[k].v===v);console.log(`\n== ${MODE_N[mode]}${v.name?'・'+v.name:''} ==`);
     for(const r of rs){if(r.err){bad=true;console.log(r.err);continue;}console.log(line(r));if(DETAIL)r.marks.forEach(m=>console.log(m));}
     const ok=rs.filter(r=>!r.err);if(ok.length){console.log('--\n'+summary(ok));rows.push([MODE_N[mode]+(v.row?'・'+v.row:''),ok]);}}
-  if(rows.length)console.log('\n'+table(rows));
+  if(rows.length){console.log('\n'+table(rows));const ages=ageMarkdown(rows);if(ages)console.log('\n'+ages);}
   console.error(`\n${jobs.length}本のうち、測った ${todo.length}本／残してあった結果を使った ${jobs.length-todo.length}本`);
   process.exit(bad?1:0);
 }
