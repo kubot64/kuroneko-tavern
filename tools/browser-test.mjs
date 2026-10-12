@@ -357,7 +357,7 @@ test('帳場の蘇生は、押す前に状態と成功率が出て、押した�
   assert.equal(await page.evaluate(()=>S.taverns.ours.gold),gold0-cost);
   const saved=await page.evaluate(()=>JSON.parse(localStorage.getItem('kuroneko-tavern-v1')));
   assert.equal(saved.S.reviveNote,undefined);
-  assert.equal(saved.S.v,23);
+  assert.equal(saved.S.v,24);
   assert.equal(saved.S.adv[prep.id].status,'ash');
   const again=await open({ctx,time:Date.UTC(2026,0,1)});
   await again.page.locator('#sp0').click();
@@ -430,9 +430,9 @@ test('帳場の覚え書きと、次の返済までの日数・必要額が常�
   assert.equal(opened.n,3);
   assert.equal(opened.done,0);
   assert.equal(opened.log,0);
-  assert.match(opened.text,/送り出した連中が、揃って戻ってくる/);
+  assert.match(opened.text,/送り出した連中が、生きて戻ってくる/);
   assert.match(opened.text,/取り立て人の顔は、もう見たくない/);
-  assert.match(opened.text,/席を十八にする/);
+  assert.match(opened.text,/席を18にする/);
   assert.equal(opened.hidden,false);
   assert.match(opened.pay,/次の返済まであと/);
   assert.match(opened.pay,/必要額/);
@@ -447,13 +447,13 @@ test('帳場の覚え書きと、次の返済までの日数・必要額が常�
   });
   assert.equal(back.rep,1);
   assert.equal(back.n,4);
-  assert.match(back.struck,/送り出した連中が、揃って戻ってくる/);
+  assert.match(back.struck,/送り出した連中が、生きて戻ってくる/);
   assert.match(back.when,/日目/);
   assert.equal(back.whenInside,false);
   assert.match(back.desk,/次の返済まであと30日・必要額5600G/);
   await page.locator('button[data-v="rank"]').click();
   const rank=await page.locator('#memo-log').innerText();
-  assert.match(rank,/送り出した連中が、揃って戻ってくる/);
+  assert.match(rank,/送り出した連中が、生きて戻ってくる/);
   assert.match(rank,/日目/);
   await page.evaluate(()=>{S.memo.done.home.tk=TICKS_PER_DAY;render();});
   await page.setViewportSize({width:375,height:812});
@@ -523,10 +523,10 @@ test('帳場の覚え書きと、次の返済までの日数・必要額が常�
     const home=document.querySelector('#memo li[data-id="home"]');
     return {v:S.v,rep,home:home&&home.innerText,struck:!!home&&!!home.querySelector('s'),pay:document.querySelector('#payw').hidden};
   });
-  assert.equal(old.v,23);
+  assert.equal(old.v,24);
   assert.equal(old.rep,4);
   assert.equal(old.struck,true);
-  assert.match(old.home,/送り出した連中が、揃って戻ってくる/);
+  assert.match(old.home,/送り出した連中が、生きて戻ってくる/);
   assert.equal(old.pay,false);
   const done=await page.evaluate(()=>{
     S.taverns.ours.rep=Math.max(S.taverns.ours.rep,200);
@@ -882,7 +882,7 @@ test('新しく始めると、何も押さなくても覚え書きがあると�
       else{
         const t=line.textContent;
         if(!t.startsWith('店主の覚え書き：'))bad.push(t);
-        if(!t.includes('送り出した連中が、揃って戻ってくる'))bad.push(t);
+        if(!t.includes('送り出した連中が、生きて戻ってくる'))bad.push(t);
         const r=line.getBoundingClientRect();
         if(r.top<0||r.bottom>innerHeight+1||r.left<-1||r.right>innerWidth+1)bad.push(`目標が画面の外 ${Math.round(r.top)}..${Math.round(r.bottom)}`);
         if(r.height<18)bad.push('目標が潰れている');
@@ -1138,5 +1138,58 @@ test('帳場の設備と席に、いまの段が出る',async()=>{
   assert.doesNotMatch(maxed.dojo,/建て増すと|未建築/);
   const lv3=await page.evaluate(()=>S.news.map(n=>n.t).filter(t=>t.includes('修練場')));
   assert.ok(lv3.some(t=>t.includes('修練場ができた（Lv3）')),lv3.join(' / '));
+  assert.deepEqual(errors,[]);await ctx.close();
+});
+
+test('帳場の説明、資料のヨミガエリ、地図屋のとどめ、踏破の年',async()=>{
+  const {ctx,page,errors}=await open();
+  await page.locator('#sp0').click();
+  await page.locator('button[data-v="desk"]').click();
+  const desk=await page.locator('#tbody').innerText();
+  assert.match(desk,/額は黒猫亭の最深到達の深さで決まる/);
+  assert.doesNotMatch(desk,/常連の潜る深さ/);
+  assert.match(desk,/依頼を出すときに預ける/);
+  assert.match(desk,/連れ帰った一行に払い、見つからなければ戻る/);
+  assert.doesNotMatch(desk,/回収されたときに支払う/);
+  await page.evaluate(()=>{
+    const a=Object.values(S.adv).find(x=>x.tav==='ours');
+    a.trips=1;S.taverns.ours.cleanPay=S.tick;S.taverns.ours.seats=18;render();
+  });
+  assert.match(await page.locator('#memo').innerText(),/B6Fの石碑に触れる/);
+  assert.doesNotMatch(await page.locator('#memo').innerText(),/B6の石碑/);
+  await page.locator('button[data-v="ref"]').click();
+  const ref=await page.locator('#tbody').innerText();
+  assert.match(ref,/B16Fから先の澱の中でだけ/);
+  assert.doesNotMatch(ref,/より深い澱/);
+  await page.locator('button[data-v="maps"]').click();
+  await page.evaluate(()=>{
+    const ours=Object.values(S.parties).find(p=>p.tav==='ours');
+    const rival=Object.values(S.parties).find(p=>p.tav==='rival');
+    const a=S.adv[ours.members[0]],b=S.adv[ours.members[1]];
+    S.rares=S.rares||{};
+    S.rares[1]={killed:{party:ours.name,tav:'ours',names:[a.name,b.name],by:a.name,tk:S.tick}};
+    S.rares[2]={killed:{party:rival.name,tav:'rival',names:[S.adv[rival.members[0]].name],tk:10}};
+    render();
+  });
+  const row=floor=>page.locator('#tbody table').nth(1).locator('tr',{has:page.locator('td.fl',{hasText:new RegExp('^'+floor+'$')})});
+  const slayer=await page.evaluate(()=>S.adv[Object.values(S.parties).find(p=>p.tav==='ours').members[0]].name);
+  assert.match(await row('B1F').innerText(),new RegExp('とどめ：'+slayer));
+  assert.match(await row('B2F').innerText(),/とどめ：不明/);
+  await page.locator('.c-members button').first().click();
+  assert.equal(await page.locator('#advm').isVisible(),true);
+  await page.locator('#advm').click({position:{x:2,y:2}});
+  assert.equal(await page.locator('#advm').isHidden(),true);
+  await page.evaluate(()=>{
+    const p=Object.values(S.parties).find(x=>x.tav==='ours');
+    p.members.forEach(id=>{const a=S.adv[id];a.hp=a.mhp;a.status='party';});
+    S.tick=365*TICKS_PER_DAY;conquest(S,p);render();
+  });
+  assert.match(await page.locator('#ed-sub').innerText(),/迷宮暦82年・解禁から366日目/);
+  const cleared=await page.evaluate(()=>S.news.find(n=>n.t.includes('初めての踏破')).t);
+  assert.match(cleared,/迷宮暦82年、初めての踏破である/);
+  assert.doesNotMatch(cleared,/81年以来/);
+  await page.locator('#ed-btn').click();
+  await page.locator('button[data-v="rank"]').click();
+  assert.match(await page.locator('#tbody').innerText(),/迷宮暦82年・解禁から366日目/);
   assert.deepEqual(errors,[]);await ctx.close();
 });

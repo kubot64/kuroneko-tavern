@@ -714,7 +714,7 @@ function assignOpeningDreams(S){
 function newState(){
   const S={tick:0,nid:1,adv:{},parties:{},news:[],tales:[],memorial:[],
     taverns:{ours:{name:'黒猫亭',gold:400,rep:0,crystals:1,earned:0,debt:DEBT0,seats:12,nextPay:30*TICKS_PER_DAY,late:0},rival:{name:'銀の杯亭',gold:99999,rep:60,owner:RIVAL_OWNER}},
-    bounties:{},deepest:{ours:1,rival:GATE_F},usedNames:{[RIVAL_OWNER]:1},usedParty:{'鉄の誓い':1,'黄金の剣':1,'七つ星':1,'夜鷹':1,'鉄の誓い傭兵団':1,'黄金の剣団':1},usedItems:{},uniqFound:{},farewells:[],edicts:[],v:23,loreFound:{},shop:{tiers:{1:true},mats:{},serial:0,log:[]},watch:[null,null],sel:0,stats:{dreams:{ours:0,rival:0}},small:SMALL_TAV.slice(0,5)};
+    bounties:{},deepest:{ours:1,rival:GATE_F},usedNames:{[RIVAL_OWNER]:1},usedParty:{'鉄の誓い':1,'黄金の剣':1,'七つ星':1,'夜鷹':1,'鉄の誓い傭兵団':1,'黄金の剣団':1},usedItems:{},uniqFound:{},farewells:[],edicts:[],v:24,loreFound:{},shop:{tiers:{1:true},mats:{},serial:0,log:[]},watch:[null,null],sel:0,stats:{dreams:{ours:0,rival:0}},small:SMALL_TAV.slice(0,5)};
   const cast=[];
   for(const cls of ['戦士','僧侶','盗賊','魔術師'])cast.push(makeAdv(S,'ours',{lvl:OPENING_LVL(),cls,race:raceForCls(cls),opening:true}));
   for(let i=0;i<3;i++)cast.push(makeAdv(S,'ours',{lvl:OPENING_LVL(),opening:true}));
@@ -1877,7 +1877,7 @@ function conquest(S,p){
   floorThrough(S,p,MAXF);const al=alive(S,p);S.mine=S.mine||{openAt:S.tick+ri(5,10)*TICKS_PER_DAY};S.conquered={tk:S.tick,tav:p.tav,party:p.name,names:al.map(a=>a.name),ending:true};
   plog(p,'……ぎょくざの ひとかげが くずれおちた','sys');plog(p,'めいきゅうは しずまりかえった','sys');
   const CR=r100(incomeAt(20)*20);al.forEach(a=>{a.conq=true;a.gold+=CR;chron(S,a,`${FN(MAXF)}玉座の間で、沈んだ王を討つ。迷宮踏破`);title(S,a);});
-  news(S,`${S.taverns[p.tav].name}の${p.name}（${al.map(a=>a.name).join('・')}）が、${FN(MAXF)}玉座の間で「沈んだ王」を討ち果たした。迷宮暦81年以来、初めての踏破である。`,'record');
+  news(S,`${S.taverns[p.tav].name}の${p.name}（${al.map(a=>a.name).join('・')}）が、${FN(MAXF)}玉座の間で「沈んだ王」を討ち果たした。迷宮暦${calDate(S.tick).y}年、初めての踏破である。`,'record');
   news(S,`【ラウレンツ王国のお触れ】迷宮踏破の功を讃え、${p.name}の一人ひとりに${CR}Gを授ける。`,'edict');
   news(S,'王が討たれても、大穴から澱は湧き続けた。寺院の蘇生は、何事もなかったかのように続いている。','rumor');
   if(p.tav==='ours'){S.taverns.ours.rep+=50;S.taverns.ours.gold+=50000;news(S,'黒猫亭の名がロウエンじゅうに響いた。王都からの祝い金50000Gが店に届いた。','loot');}
@@ -2107,7 +2107,7 @@ const CAN={
 const SPELL_LIST=[
   ['イヤシ','仲間ひとりの傷を癒やす','僧侶・司教・聖騎士'],['ゼンカイ','仲間全員の傷をまとめて癒やす','僧侶Lv17〜・司教Lv15〜'],
   ['ドクケシ','仲間ひとりの毒を消す','僧侶・司教・聖騎士'],['マモリ','その戦闘のあいだ、全員の守りを上げる','僧侶・司教・聖騎士（Lv7〜）'],
-  ['ダッシュツ','迷宮のどこからでも、一行を地上へ戻す','僧侶Lv19〜・司教Lv15〜・聖騎士Lv23〜'],['ヨミガエリ','B16Fより深い澱の中でだけ、倒れた仲間をその場で蘇らせる。失敗すると灰になる','僧侶Lv27〜・司教Lv23〜'],
+  ['ダッシュツ','迷宮のどこからでも、一行を地上へ戻す','僧侶Lv19〜・司教Lv15〜・聖騎士Lv23〜'],['ヨミガエリ','B16Fから先の澱の中でだけ、倒れた仲間をその場で蘇らせる。失敗すると灰になる','僧侶Lv27〜・司教Lv23〜'],
   ['ホノオ','敵の群れを炎で焼く。亡霊や虫によく効き、竜にはほとんど効かず、溶岩にも効きにくい','魔術師・魔導士・司教・侍・剣聖'],['ゴウカ','ホノオの強力版','魔術師Lv13〜・司教Lv23〜・魔導士'],
   ['コオリ','敵の群れを凍らせる。威力は控えめだが、しばらく動きを止めることがある。竜や溶岩、澱の魔物によく効く','魔術師Lv5〜・司教Lv9〜・魔導士'],
   ['イカズチ','敵一体に雷を落とす大技。石や鉄の魔物、鎧を着た者によく効く','魔術師Lv9〜・司教Lv13〜・魔導士'],
@@ -2656,13 +2656,13 @@ function rankRows(S){
   const rows=[['最深到達',`${FN(S.deepest.ours)}`,`${FN(S.deepest.rival)}`,S.deepest.ours-S.deepest.rival],...(mineOpen(S)?[['坑道の最深到達',md.ours?FN(MAXF+md.ours):'―',md.rival?FN(MAXF+md.rival):'―',md.ours-md.rival]]:[]),['初到達した階（解禁後）',arr.ours,arr.rival,arr.ours-arr.rival],['最初に突破した階',thr.ours,thr.rival,thr.ours-thr.rival],['名のある魔物の討伐',rar.ours,rar.rival,rar.ours-rar.rival],['かなえた夢',dr.ours||0,dr.rival||0,(dr.ours||0)-(dr.rival||0)],['常連の数',seatsUsed(S,'ours'),seatsUsed(S,'rival'),seatsUsed(S,'ours')-seatsUsed(S,'rival')],['評判',To.rep,Tr.rep,To.rep-Tr.rep],['ロストした者',lost.ours,lost.rival,lost.rival-lost.ours]];
   return rows.map(r=>({name:r[0],ours:r[1],rival:r[2],lead:r[3]}));
 }
-// 店主の覚え書き。近い目標を3行だけ出し、かなえたら線を引いて次の行を出す。見返りの評判は小さい
+// 店主の覚え書き。まだかなえていない行を3行と、いちばん新しくかなえた行を出す。見返りの評判は小さい
 const MEMO=[
-  {id:'home',rep:1,t:'送り出した連中が、揃って戻ってくる',met:S=>Object.values(S.adv).some(a=>a.tav==='ours'&&(a.trips||0)>=1)},
+  {id:'home',rep:1,t:'送り出した連中が、生きて戻ってくる',met:S=>Object.values(S.adv).some(a=>a.tav==='ours'&&(a.trips||0)>=1)},
   {id:'bill',rep:1,t:'取り立て人の顔は、もう見たくない',met:S=>{const T0=S.taverns.ours;return T0.cleanPay!=null||!(T0.debt>0);}},
-  {id:'seats',rep:1,t:'壁際に卓を足して、席を十八にする',met:S=>(S.taverns.ours.seats||0)>=18},
+  {id:'seats',rep:1,t:'壁際に卓を足して、席を18にする',met:S=>(S.taverns.ours.seats||0)>=18},
   {id:'rare',rep:2,t:'名のある魔物を、一頭仕留める',met:S=>Object.values(S.rares||{}).some(v=>v.killed&&v.killed.tav==='ours')},
-  {id:'stone',rep:2,t:'うちの客の誰かが、B6の石碑に触れる',met:S=>(S.deepest&&S.deepest.ours||0)>=6},
+  {id:'stone',rep:2,t:'うちの客の誰かが、B6Fの石碑に触れる',met:S=>(S.deepest&&S.deepest.ours||0)>=6},
   {id:'dream',rep:2,t:'誰かの夢が、ひとつかなう',met:S=>((S.stats&&S.stats.dreams&&S.stats.dreams.ours)||0)>=1||Object.values(S.adv).some(a=>a.tav==='ours'&&(a.pastDreams||[]).length)},
   {id:'rank',rep:2,t:'番付のどこか一つ、銀の杯亭に勝つ',met:S=>rankRows(S).some(r=>r.lead>0)},
   {id:'half',rep:3,t:'借金を、半分まで減らす',met:S=>S.taverns.ours.debt<=DEBT0/2},
@@ -2900,6 +2900,17 @@ function arcAdvance(S,e,a){const A0=ARCS[e.arc],arc=S.arcs[e.arc];arc.stage=e.st
   if(e.arc==='gate'&&e.stage===3)Object.values(S.adv).forEach(b=>{const d=b.dream;if(b.tav!=='ours'||b.status==='lost'||b.status==='retired'||!d||d.k!=='kin'||d.hint)return;d.hint=true;
     chron(S,b,`抜け穴の受け取りの束に、${d.who}の${d.name}の名が見つかる`);news(S,`抜け穴の受け取りの束に、${b.name}が探す${d.who}の${d.name}の名があった。${FN(d.f)}の方へ向かったらしい。`,'record');});
   if(e.stage===A0.stages.length){arc.done=S.tick;S.taverns.ours.rep+=5;}}
+// 無事に払えた返済日。知らせが残っていれば、そのいちばん古い日。
+// 知らせがこぼれていても、返した額があり、延滞中でなく、返済日を一度は迎えていれば、直前の返済日（次の返済の30日前）とみなす
+function inferCleanPay(S){
+  const T0=S.taverns.ours;if(!T0||T0.cleanPay!=null)return;
+  const n=(S.news||[]).find(x=>x&&typeof x.t==='string'&&x.t.startsWith('セーレの両替商に、今月の返済'));
+  if(n&&n.tk!=null){T0.cleanPay=n.tk;return;}
+  if((T0.repaid||0)>0&&!(T0.late>0)&&T0.nextPay!=null&&T0.nextPay>30*TICKS_PER_DAY){
+    const guessed=T0.nextPay-30*TICKS_PER_DAY;
+    if(guessed>0&&guessed<=S.tick)T0.cleanPay=guessed;
+  }
+}
 function migrate(S){
   if(!(S.v>=2)){migrateV2(S);}
   if(!(S.v>=3)){
@@ -3032,10 +3043,13 @@ function migrate(S){
     Object.values(S.adv).forEach(a=>{if(!(a.debt>0))delete a.loanItem;});
     S.v=22;
   }
-  if(!(S.v>=23)){// 店主の覚え書き。もうかなえている行には線だけ引き、評判は足さない。返済の知らせが残っていれば、その日を最初の無事な返済とする
-    const T0=S.taverns.ours;
-    if(T0.cleanPay==null){const n=(S.news||[]).find(x=>x&&typeof x.t==='string'&&x.t.startsWith('セーレの両替商に、今月の返済'));if(n&&n.tk!=null)T0.cleanPay=n.tk;}
-    checkMemo(S,true);S.v=23;
+  if(!(S.v>=23)){// 店主の覚え書き。もうかなえている行には線だけ引き、評判は足さない。無事な返済の日は、知らせか、返した額と延滞から戻す
+    inferCleanPay(S);checkMemo(S,true);S.v=23;
+  }
+  if(!(S.v>=24)){// 覚え書きをつけたあとの記録で、無事な返済の知らせがこぼれているとき。返した額と延滞から日付を推定し、線だけ引く
+    const had=S.taverns.ours.cleanPay;inferCleanPay(S);
+    if(S.taverns.ours.cleanPay!=null&&S.taverns.ours.cleanPay!==had)checkMemo(S,true);
+    S.v=24;
   }
   Object.values(S.adv).forEach(a=>{if(!a.tone)personalize(a);if(!a.traits)assignTraits(S,a,true);});
   smallOf(S);
@@ -3116,7 +3130,7 @@ function fastForward(n,awaySec){
 function maybeEnding(){
   const c=S.conquered;if(ff||!c||!c.ending||!$('digest').hidden||!$('ending').hidden)return;
   const RO=esc(S.taverns.rival.owner||RIVAL_OWNER),pn=esc(partyShown(c.party)),who=c.names.map(esc).join('・'),d=Math.floor(c.tk/TICKS_PER_DAY)+1;
-  $('ed-sub').textContent=`迷宮暦81年・解禁から${d}日目`;
+  $('ed-sub').textContent=`迷宮暦${calDate(c.tk).y}年・解禁から${d}日目`;
   const P=(t,said)=>`<p${said?' class="said"':''}>${t}</p>`;
   $('ed-body').innerHTML=c.tav==='ours'?[
     P(`${pn}が、玉座の間から戻ってきた。沈んだ王を討ったのは、${who}。黒猫亭の常連たちだった。`),
@@ -3347,13 +3361,13 @@ function sideDesk(){
     return gone+(dead.length?dead.map(a=>{const c=templeCost(S,a);const hit=note&&note.id===a.id;return `<div class="row"><span class="who"><span class="chip ${a.status}">${a.status==='ash'?'寺院・灰':'寺院・死'}</span>${nmLink(a,true)}${teamTag(a)} <span class="meta">Lv${a.lvl} ${a.race}の${a.cls}</span><span class="does">${esc(reviveHint(S,a))}</span>${hit?`<span class="does revive revive-result ${note.kind}">${esc(note.t)}</span>`:''}</span><button class="btn sm" data-act="revive" data-a="${a.id}" ${T().gold<c?'disabled':''}>蘇生を頼む ${c}G</button></div>`}).join(''):'<p class="note">寺院で眠っている常連はいない。</p>')+
     (gifts.length?`<p class="note" style="margin-top:8px">酒場にいる常連に、店の金で武具屋の品を贈れる。贈られた者は恩を感じ、帰還のたびに店でよく飲むようになる。</p>`+gifts.map(({a,o})=>`<div class="row"><span class="who">${nmLink(a,true)}${teamTag(a)} <span class="meta">Lv${a.lvl} ${a.race}の${a.cls}</span></span><button class="btn sm" data-act="gift" data-a="${a.id}" ${T().gold<o.price?'disabled':''}>${SHOP_MAT[o.b.m][o.t-1]}の${o.b.t}を贈る ${o.price}G</button></div>`).join(''):'');})()}
   </div>
-<div class="sect"><h3>寺院への寄進</h3><p class="note">灰の寺院に寄進すると、30日のあいだ黒猫亭の常連の蘇生に司祭たちが念を入れ、死からも灰からも生き返りやすくなる。重ねて寄進すれば、そのぶん日が延びる。額は常連の潜る深さで決まる。</p>
+<div class="sect"><h3>寺院への寄進</h3><p class="note">灰の寺院に寄進すると、30日のあいだ黒猫亭の常連の蘇生に司祭たちが念を入れ、死からも灰からも生き返りやすくなる。重ねて寄進すれば、そのぶん日が延びる。額は黒猫亭の最深到達の深さで決まる。</p>
   <div class="row"><span class="who"><b>${(S.blessUntil||0)>S.tick?`寄進の効き目 あと${Math.ceil((S.blessUntil-S.tick)/TICKS_PER_DAY)}日`:'いまは寄進していない'}</b></span><button class="btn sm" data-act="donate" ${T().gold<donatePrice(S)?'disabled':''}>寄進する ${donatePrice(S)}G</button></div></div>
 <div class="sect"><h3>店の設備</h3><p class="note">店の金で設備を建てる。どれも一度建てれば、ずっと効く。下の段から順に建て増すと、よく効くようになる。Lvは、いまの段といちばん上までの段数。</p>
   ${FACILITIES.map(([k,ts])=>facDeskRow(k,ts)).join('')}</div>
 <div class="sect"><h3>銀の杯亭の客を引き抜く</h3><p class="note">銀の杯亭で酒場にいる客を、借金を肩代わりして黒猫亭に迎え入れる。借金に加えて、腕に見合った支度金がかかる。席が空いているときだけ声をかけられる。</p>
   ${(()=>{const L=poachList(S);return L.length?L.map(a=>`<div class="row"><span class="who"><b>${esc(a.name)}</b> <span class="meta">Lv${a.lvl} ${a.race}の${a.cls}・借金${a.debt||0}G</span></span><button class="btn sm" data-act="poach" data-a="${a.id}" ${T().gold<poachPrice(S,a)?'disabled':''}>迎え入れる ${poachPrice(S,a)}G</button></div>`).join(''):`<p class="note">${seatsUsed(S,'ours')>=seatCap(S,'ours')?'黒猫亭の席が埋まっている。':'いま声をかけられる客はいない。'}</p>`;})()}</div>
-<div class="sect"><h3>死体回収の依頼</h3><p class="note">依頼を出すと、同じ階を歩く一行が見つけやすくなり、欲深い者も遺体を連れ帰るようになる。報酬はその階の深さに応じて決まり、回収されたときに支払う。</p>
+<div class="sect"><h3>死体回収の依頼</h3><p class="note">依頼を出すと、同じ階を歩く一行が見つけやすくなり、欲深い者も遺体を連れ帰るようになる。報酬はその階の深さで決まり、依頼を出すときに預ける。連れ帰った一行に払い、見つからなければ戻る。</p>
   ${miss.map(p=>`<div class="row"><span class="who"><b>${partyHtml(p.name)}</b> <span class="meta">${S.taverns[p.tav].name}・${FN(p.floor)}・${p.members.length}人${p.looted?'・装備が持ち去られた形跡':''}</span></span>${S.bounties[p.id]?`<span class="chip">依頼中 ${S.bounties[p.id]}G</span>`:`<button class="btn sm" data-act="bounty" data-p="${p.id}" ${T().gold<bountyPrice(p)?'disabled':''}>依頼を出す ${bountyPrice(p)}G</button>`}</div>`).join('')||'<p class="note">消息不明の一行はいない。</p>'}</div>
   <div class="sect"><h3>店の帳簿</h3><div class="row"><span class="who">これまでの売上</span><span class="meta">${T().earned}G</span></div><div class="row"><span class="who">これまでの支援</span><span class="meta">${T().support||0}G</span></div></div>
   <div class="sect"><h3>記録</h3><div class="row"><span class="who"><b>最初から始める</b><span class="does">いまの記録を消して、若い店主が借金をして黒猫亭を開くところから始め直す。消した記録は戻らない。</span></span><button class="btn sm" data-act="reset">最初から始める</button></div></div></div>`;
@@ -3364,7 +3378,7 @@ function sideRank(){
   ${mineOpen(S)?`<h3 style="margin-top:12px">坑道の記録　${MINE_LORE.filter((L,i)=>(S.loreFound||{})['m'+i]).length} / ${MINE_LORE.length}</h3>${MINE_LORE.map((L,i)=>{const f=(S.loreFound||{})['m'+i];return f?`<div class="quote">「${esc(L.t)}」<span class="by">${FN(L.f)}付近の${esc(L.what)}・${esc(S.taverns[f.tav].name)}の${partyHtml(f.party)}が発見</span></div>`:`<div class="quote"><span class="by">${FN(L.f)}より深く……まだ見つかっていない</span></div>`}).join('')}`:''}
   ${sideArcs()}
   ${S.mineConq?`<p class="note">解禁から${Math.floor(S.mineConq.tk/TICKS_PER_DAY)+1}日目、${esc(S.taverns[S.mineConq.tav].name)}の${partyHtml(S.mineConq.party)}が澱呑みの坑道王を討ち、鉄の山脈の坑道は踏破された。</p>`:''}
-  ${S.conquered?`<p class="note">迷宮暦81年・解禁から${Math.floor(S.conquered.tk/TICKS_PER_DAY)+1}日目、${esc(S.taverns[S.conquered.tav].name)}の${partyHtml(S.conquered.party)}が沈んだ王を討ち、迷宮は踏破された。</p>`:''}</div>`;
+  ${S.conquered?`<p class="note">迷宮暦${calDate(S.conquered.tk).y}年・解禁から${Math.floor(S.conquered.tk/TICKS_PER_DAY)+1}日目、${esc(S.taverns[S.conquered.tav].name)}の${partyHtml(S.conquered.party)}が沈んだ王を討ち、迷宮は踏破された。</p>`:''}</div>`;
 }
 function sideArcs(){if(!boardOpen(S))return '';errandsOf(S);
   return Object.entries(ARCS).map(([k,A0])=>{const arc=S.arcs[k]||{stage:0,log:[]};
@@ -3399,7 +3413,7 @@ function sideMaps(){
   <div class="sect" style="margin-top:14px"><h3>名のある魔物</h3><p class="note">各階に一体ずつ潜む。めったに姿を見せず、倒した一行には財宝・経験・素材・伝説の品のいずれかが手に入る。今のところ、一度討たれた魔物が再び現れたという話はない。名を知ったものには、炎・氷・雷の相性を添える。</p>
   <div class="tblwrap"><table class="maptbl"><thead><tr><th>階</th><th>名</th><th>討伐</th></tr></thead><tbody>${RARES.concat(mineOpen(S)?MINE_RARES:[]).map(R0=>{const r=(S.rares||{})[R0.f]||{};const k=r.killed;
     const note=(r.seen||k)?elemNote({n:R0.n}):'';
-    return `<tr><td class="fl">${FN(R0.f)}</td><td>${r.seen||k?`<b>${esc(R0.n)}</b><div class="meta">${esc(R0.lore)}</div>${note?`<div class="aff">${esc(note)}</div>`:''}`:'<span class="meta">？？？</span>'}</td><td>${k?`${esc(S.taverns[k.tav].name)}の${partyHtml(k.party)}<div class="meta">${Math.floor(k.tk/TICKS_PER_DAY)+1}日目・${esc(k.names.join('・'))}・${RW_N[R0.rw]}</div>`:r.seen?`<span class="meta">${esc(S.taverns[r.seen.tav].name)}の${partyHtml(r.seen.party)}が目撃</span>`:'<span class="meta">―</span>'}</td></tr>`}).join('')}</tbody></table></div></div>
+    return `<tr><td class="fl">${FN(R0.f)}</td><td>${r.seen||k?`<b>${esc(R0.n)}</b><div class="meta">${esc(R0.lore)}</div>${note?`<div class="aff">${esc(note)}</div>`:''}`:'<span class="meta">？？？</span>'}</td><td>${k?`${esc(S.taverns[k.tav].name)}の${partyHtml(k.party)}<div class="meta">${Math.floor(k.tk/TICKS_PER_DAY)+1}日目・${esc(k.names.join('・'))}・${RW_N[R0.rw]}</div><div class="meta">とどめ：${esc(k.by||'不明')}</div>`:r.seen?`<span class="meta">${esc(S.taverns[r.seen.tav].name)}の${partyHtml(r.seen.party)}が目撃</span>`:'<span class="meta">―</span>'}</td></tr>`}).join('')}</tbody></table></div></div>
   <p class="note" style="margin-top:10px">${FN(DRAGON_F)}の門番・黒竜：${dragonAlive(S)?`健在。倒さなければ${FN(DRAGON_F+1)}より下へは降りられない`:'討伐済み。あと'+Math.max(1,Math.ceil((S.dragon.respawnAt-S.tick)/TICKS_PER_DAY))+'日ほどで澱からよみがえる'}${S.dragon&&S.dragon.kills?`（これまでに${S.dragon.kills}回討たれた）`:''}</p>`;
 }
 let shopTier=1;
