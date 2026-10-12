@@ -54,20 +54,44 @@ function supportOwner(E,S,day){
     const o=E.giftOffer(S,a);if(o&&spare()>=o.price){E.giveGift(S,a,o,'店主から');n++;}}
 }
 
+// 死因を数えるためだけに、倒れた瞬間を受け取る。乱数は引かない。手帳は90件で消えるので、終わってから数えると足りない
+function instrument(engine){
+  const from='function dieInDungeon(S,p,a,by){';
+  if(!engine.includes(from))throw new Error('計測：dieInDungeon が見つからない');
+  return engine.replace(from,'function dieInDungeon(S,p,a,by){if(__meas)__meas(p.floor,by);');
+}
+const BANDS=[['坑道B8〜15F',f=>f>=38&&f<=45],['迷宮B11〜15F',f=>f>=11&&f<=15],['迷宮B16〜22F',f=>f>=16&&f<=22]];
+const VPRE=['澱にまみれた','群れの長の','手負いの','年老いた','飢えた','凶暴な','巨大な','若い'];
+function monBase(n){let s=String(n||'');for(const p of VPRE)if(s.startsWith(p))return s.slice(p.length);return s;}
+function emptyBands(){return Object.fromEntries(BANDS.map(([k])=>[k,{fights:{},deaths:{},fightN:0,deathN:0}]));}
+function bandOf(f){for(const [k,ok] of BANDS)if(ok(f))return k;return null;}
+function noteBandFights(S,fighting,bands){
+  for(const p of Object.values(S.parties)){
+    const on=!!(p.enemies&&p.etype);
+    if(on&&!fighting.get(p)){const b=bandOf(p.floor);if(b){const n=monBase(p.etype.base||p.etype.n);const o=bands[b];o.fightN++;o.fights[n]=(o.fights[n]||0)+1;}}
+    fighting.set(p,on);
+  }
+}
+function noteBandDeaths(deaths,bands){
+  for(const [floor,by] of deaths){const b=bandOf(floor);if(!b)continue;const o=bands[b];o.deathN++;const n=monBase(by);o.deaths[n]=(o.deaths[n]||0)+1;}
+}
+
 function run(seed,mode,engine){
   let s=seed>>>0;const M=Object.create(Math);M.random=()=>{s=(s+0x6D2B79F5)>>>0;let t=s;t=Math.imul(t^(t>>>15),t|1);t^=t+Math.imul(t^(t>>>7),t|61);return ((t^(t>>>14))>>>0)/4294967296;};
-  const E=new Function('Math',`${engine};return {${EXPORTS.map(k=>`${k}:typeof ${k}==='undefined'?undefined:${k}`).join(',')}};`)(M);
+  const deaths=[];
+  const E=new Function('Math','__meas',`${instrument(engine)};return {${EXPORTS.map(k=>`${k}:typeof ${k}==='undefined'?undefined:${k}`).join(',')}};`)(M,(floor,by)=>deaths.push([floor,by]));
   // 水晶のログは測るのに使わないので残さない（乱数の引き方は変わらない）
   if(E.setQuietLog)E.setQuietLog(true);
   const S=E.newState();const D=E.TICKS_PER_DAY;for(let i=0;i<6;i++)E.tick(S);
   const lv=names=>names.map(n=>(Object.values(S.adv).find(a=>a.name===n)||{}).lvl).join(',');
   const r={seed,mode,fights:0,pre:{},fac:{},payN:0,payPen:0};const marks=[];
-  const seen=new Set(),visit=emptyVisit();noteArrivals(S,seen,visit);
+  const seen=new Set(),visit=emptyVisit(),fighting=new WeakMap(),bands=emptyBands();noteArrivals(S,seen,visit);
   for(let d=1;d<=DAYS;d++){
     if(mode==='support')supportOwner(E,S,d);
     for(let i=0;i<D;i++){E.tick(S);E.rivalTemple(S);
       // 坑道王との戦いを数え、戦いが始まったときの一行のレベルを残す（坑道王はレベルを吸うので、勝ったあとのレベルは下がっている）
-      for(const p of Object.values(S.parties))if(p.enemies&&p.etype&&p.etype.mboss){if(!p.bossKey){p.bossKey=S.tick;r.fights++;r.pre[p.name]=p.members.map(id=>S.adv[id].lvl).join(',');}}else if(p.bossKey)p.bossKey=0;}
+      for(const p of Object.values(S.parties))if(p.enemies&&p.etype&&p.etype.mboss){if(!p.bossKey){p.bossKey=S.tick;r.fights++;r.pre[p.name]=p.members.map(id=>S.adv[id].lvl).join(',');}}else if(p.bossKey)p.bossKey=0;
+      noteBandFights(S,fighting,bands);}
     notePays(S,r,d);
     const md=S.mineDeep||{ours:0,rival:0};
     for(const [k,ts] of E.FACILITIES)ts.forEach((t,i)=>{if(((S.fac||{})[k]||0)>i&&r.fac[t[0]]==null)r.fac[t[0]]=d;});
@@ -84,6 +108,7 @@ function run(seed,mode,engine){
   const aged=(S.farewells||[]).filter(f=>f.why&&f.why.includes('老いを感じ'));
   r.ageRet={ours:aged.filter(f=>f.tav==='ours').length,rival:aged.filter(f=>f.tav==='rival').length};
   r.dreams=dreamCounts(S);
+  noteBandDeaths(deaths,bands);r.bands=bands;r.deathN=deaths.length;
   r.marks=marks;return r;
 }
 
@@ -196,6 +221,45 @@ function ageMarkdown(rows){
   return lines.join('\n');
 }
 
+function sumBands(rs){
+  const out={};
+  for(const [name] of BANDS){
+    const fights={},deaths={};let fightN=0,deathN=0;
+    for(const r of rs){const b=(r.bands||{})[name];if(!b)continue;fightN+=b.fightN;deathN+=b.deathN;
+      for(const [k,v] of Object.entries(b.fights))fights[k]=(fights[k]||0)+v;
+      for(const [k,v] of Object.entries(b.deaths))deaths[k]=(deaths[k]||0)+v;}
+    out[name]={fights,deaths,fightN,deathN};
+  }
+  return out;
+}
+function pct(n,d){return d?`${Math.round(100*n/d)}%`:'-';}
+function bandMarkdown(rows){
+  if(!rows.some(([,rs])=>rs.some(r=>r.bands)))return '';
+  const ag=rows.map(([name,rs])=>[name,sumBands(rs),rs.reduce((s,r)=>s+(r.deathN||0),0)]);
+  const top=(b,k)=>Object.entries(b.deaths).sort((a,c)=>c[1]-a[1]||(b.fights[c[0]]||0)-(b.fights[a[0]]||0)).slice(0,k);
+  const lines=['死因の顔ぶれ（変異の肩書きは外す。その帯で倒れた人数に占める割合）','',
+    '| | '+BANDS.map(([n])=>n+'の1位').join(' | ')+' | '+BANDS.map(([n])=>n+'の2位').join(' | ')+' | 全体の死 |',
+    '|---|'+BANDS.map(()=>'---|').join('')+BANDS.map(()=>'---|').join('')+'---|'];
+  for(const [name,b,deathN] of ag){
+    const cell=(band,i)=>{const t=top(b[band],2)[i];return t?`${t[0]} ${pct(t[1],b[band].deathN)}`:'-';};
+    lines.push('| '+name+' | '+BANDS.map(([n])=>cell(n,0)).join(' | ')+' | '+BANDS.map(([n])=>cell(n,1)).join(' | ')+` | ${deathN} |`);
+  }
+  for(const [band] of BANDS){
+    const mons=[...new Set(ag.flatMap(([,b])=>Object.keys(b[band].deaths)))];
+    mons.sort((a,c)=>(ag[0][1][band].deaths[c]||0)-(ag[0][1][band].deaths[a]||0));
+    const show=mons.filter(n=>ag.some(([,b])=>(b[band].deaths[n]||0)>=b[band].deathN*.02)).slice(0,10);
+    lines.push('',`#### ${band}`,`| 魔物 | `+ag.map(([n])=>`${n} 戦`).join(' | ')+' | '+ag.map(([n])=>`${n} 死`).join(' | ')+' |',
+      '|---|'+ag.map(()=>'---:|').join('')+ag.map(()=>'---:|').join(''));
+    for(const n of show){
+      const fight=ag.map(([,b])=>b[band].fightN?`${pct(b[band].fights[n]||0,b[band].fightN)}`:'-');
+      const dead=ag.map(([,b])=>b[band].deathN?`${pct(b[band].deaths[n]||0,b[band].deathN)}（${b[band].fights[n]?((b[band].deaths[n]||0)/(b[band].fights[n])*100).toFixed(1):'-'}/100戦）`:'-');
+      lines.push(`| ${n} | ${fight.join(' | ')} | ${dead.join(' | ')} |`);
+    }
+    lines.push(`| 合計 | `+ag.map(([,b])=>String(b[band].fightN)).join(' | ')+' | '+ag.map(([,b])=>String(b[band].deathN)).join(' | ')+' |');
+  }
+  return lines.join('\n');
+}
+
 if(!isMainThread)parentPort.postMessage(run(workerData.seed,workerData.mode,workerData.engine));
 else{
   const TOOL=readFileSync(fileURLToPath(import.meta.url),'utf8');
@@ -216,7 +280,7 @@ else{
   for(const mode of MODES)for(const v of vars){const rs=out.filter((r,k)=>jobs[k].mode===mode&&jobs[k].v===v);console.log(`\n== ${MODE_N[mode]}${v.name?'・'+v.name:''} ==`);
     for(const r of rs){if(r.err){bad=true;console.log(r.err);continue;}console.log(line(r));if(DETAIL)r.marks.forEach(m=>console.log(m));}
     const ok=rs.filter(r=>!r.err);if(ok.length){console.log('--\n'+summary(ok));rows.push([MODE_N[mode]+(v.row?'・'+v.row:''),ok]);}}
-  if(rows.length){console.log('\n'+table(rows));const ages=ageMarkdown(rows);if(ages)console.log('\n'+ages);}
+  if(rows.length){console.log('\n'+table(rows));console.log('\n'+bandMarkdown(rows));const ages=ageMarkdown(rows);if(ages)console.log('\n'+ages);}
   console.error(`\n${jobs.length}本のうち、測った ${todo.length}本／残してあった結果を使った ${jobs.length-todo.length}本`);
   process.exit(bad?1:0);
 }

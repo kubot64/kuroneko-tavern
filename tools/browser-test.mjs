@@ -1193,3 +1193,33 @@ test('帳場の説明、資料のヨミガエリ、地図屋のとどめ、踏�
   assert.match(await page.locator('#tbody').innerText(),/迷宮暦82年・解禁から366日目/);
   assert.deepEqual(errors,[]);await ctx.close();
 });
+
+test('坑道B13Fの水晶には、息を吐かない坑道都市の衛兵が出る',async()=>{
+  const {ctx,page,errors}=await open();
+  const text=await page.evaluate(()=>{
+    const p=Object.values(S.parties).find(x=>x.tav==='ours'&&x.members.length);
+    S.watch=[p.id];S.sel=0;
+    p.floor=MINE_TOP+12;p.state='explore';p.maps=Object.assign({},p.maps,{[p.floor]:1});
+    S.floors=S.floors||{};S.floors[p.floor]={through:1};
+    S.mine={open:0};S.rares=S.rares||{};S.rares[p.floor]={killed:1};
+    p.members.forEach(id=>{const a=S.adv[id];a.traits=[...new Set([...(a.traits||[]),'博識'])];a.lvl=40;a.hp=a.mhp=500;a.mp=20;a.status='party';});
+    p.log=[];p.enemies=null;p.etype=null;
+    let seen=false;
+    for(let i=0;i<80&&!seen;i++){
+      encounter(S,p);
+      seen=!!(p.etype&&(p.etype.base||p.etype.n)==='坑道都市の衛兵');
+      if(!seen){p.enemies=null;p.etype=null;p.log=[];}
+    }
+    if(!seen)return '衛兵が出なかった';
+    p.ident=true;p.fought=true;p.ambush=false;p.potions=0;p.guard=0;p.buff=0;
+    p.enemies.forEach(e=>e.hp=99999);
+    p.members.forEach(id=>{const a=S.adv[id];a.lvl=8;a.hp=a.mhp=400;});
+    combat(S,p);render();
+    return document.querySelector('.crystal').innerText;
+  });
+  assert.match(text,/坑道B13F 戦闘中|坑道B13F 帰還中|坑道B13F 探索中/);
+  assert.match(text,/坑道都市の衛兵/);
+  assert.match(text,/おそいかかった|かわした/);
+  assert.doesNotMatch(text,/ほのおを はいた/);
+  assert.deepEqual(errors,[]);await ctx.close();
+});
