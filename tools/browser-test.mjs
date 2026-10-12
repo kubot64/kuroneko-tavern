@@ -357,7 +357,7 @@ test('帳場の蘇生は、押す前に状態と成功率が出て、押した�
   assert.equal(await page.evaluate(()=>S.taverns.ours.gold),gold0-cost);
   const saved=await page.evaluate(()=>JSON.parse(localStorage.getItem('kuroneko-tavern-v1')));
   assert.equal(saved.S.reviveNote,undefined);
-  assert.equal(saved.S.v,24);
+  assert.equal(saved.S.v,25);
   assert.equal(saved.S.adv[prep.id].status,'ash');
   const again=await open({ctx,time:Date.UTC(2026,0,1)});
   await again.page.locator('#sp0').click();
@@ -523,7 +523,7 @@ test('帳場の覚え書きと、次の返済までの日数・必要額が常�
     const home=document.querySelector('#memo li[data-id="home"]');
     return {v:S.v,rep,home:home&&home.innerText,struck:!!home&&!!home.querySelector('s'),pay:document.querySelector('#payw').hidden};
   });
-  assert.equal(old.v,24);
+  assert.equal(old.v,25);
   assert.equal(old.rep,4);
   assert.equal(old.struck,true);
   assert.match(old.home,/送り出した連中が、生きて戻ってくる/);
@@ -739,7 +739,7 @@ test('スマホ幅では帳場と名簿と留守のあいだの押し場所が44
       const T0=S.taverns.ours;
       const debt=T0.debt,free=T0.debtFree,ch=S.chatter,mem=S.memorial.slice(),fw=(S.farewells||[]).slice();
       T0.debt=0;T0.debtFree=S.tick;
-      const E=errandsOf(S),board=E.board.slice();
+      const E=errandsOf(S);E.stage=3;const board=E.board.slice();
       S.chatter=[{tk:S.tick,lines:[{id:a.id,who:'ルゥ',t:'今夜は静かだな'},{who:'語り',t:'名前のない行です'}]}];
       S.memorial=[{id:a.id,name:'ルゥ',cls:'戦士',lvl:1,race:'人間',tav:'ours',tk:S.tick,by:'魔物',floor:1,kills:0}];
       S.farewells=[{name:'ルゥ',cls:'戦士',lvl:1,race:'人間',tav:'ours',tk:S.tick,why:'故郷へ帰る',age:30,sex:'男'}];
@@ -1191,5 +1191,74 @@ test('帳場の説明、資料のヨミガエリ、地図屋のとどめ、踏�
   await page.locator('#ed-btn').click();
   await page.locator('button[data-v="rank"]').click();
   assert.match(await page.locator('#tbody').innerText(),/迷宮暦82年・解禁から366日目/);
+  assert.deepEqual(errors,[]);await ctx.close();
+});
+
+test('酒場の掲示は段ごとに開き、見込みの人数も段で変わる',async()=>{
+  const {ctx,page,errors}=await open();
+  await page.locator('#sp0').click();
+  await page.locator('button[data-v="bar"]').click();
+  const empty=await page.locator('#tbody').innerText();
+  assert.match(empty,/掲示板はまだ空だ/);
+  assert.match(empty,/最初の返済の日を迎えていない店に、頼みごとを持ち込む者はいない/);
+  assert.doesNotMatch(empty,/見込んだ者/);
+  assert.doesNotMatch(empty,/浅い頼みごと/);
+  await page.locator('button[data-v="rank"]').click();
+  assert.doesNotMatch(await page.locator('#tbody').innerText(),/地上の話の筋/);
+  await page.locator('button[data-v="roster"]').click();
+  await page.locator('#tbody .nm-link').first().click();
+  assert.equal(await page.locator('#advbox button[data-act="mark"]').count(),0);
+  await page.locator('#advbox button[data-act="closeadv"]').click();
+  await page.evaluate(()=>{
+    const E=errandsOf(S);E.stage=1;E.stage1At=S.tick;
+    E.board=[{id:900,k:'kitten',n:'迷い込んだ子猫',from:'黒猫亭の厨房',t:'店の黒猫の子が、大穴に落ちた',f:2,until:S.tick+TICKS_PER_DAY*10,hero:null,refused:[],tk:S.tick}];
+    tab='bar';render();
+  });
+  const s1=await page.locator('#tbody').innerText();
+  assert.match(s1,/1 \/ 1/);
+  assert.match(s1,/いまは浅い頼みごとだけ。名が上がれば、もっと持ち込まれる。/);
+  assert.match(s1,/迷い込んだ子猫/);
+  assert.doesNotMatch(s1,/見込んだ者/);
+  await page.locator('button[data-v="roster"]').click();
+  await page.locator('#tbody .nm-link').first().click();
+  assert.equal(await page.locator('#advbox button[data-act="mark"]').count(),0);
+  await page.locator('#advbox button[data-act="closeadv"]').click();
+  const id=await page.evaluate(()=>{
+    errandsOf(S).stage=2;
+    const a=Object.values(S.adv).find(x=>x.tav==='ours'&&x.status!=='lost'&&x.status!=='retired');
+    tab='bar';render();
+    return a.id;
+  });
+  const s2=await page.locator('#tbody').innerText();
+  assert.match(s2,/1 \/ 2/);
+  assert.match(s2,/見込んだ者　0 \/ 1/);
+  assert.match(s2,/見込めるのは、いまは一人だけ。/);
+  assert.doesNotMatch(s2,/いまは浅い頼みごとだけ/);
+  await page.locator('button[data-v="roster"]').click();
+  await page.locator(`#tbody button[data-act="adv"][data-a="${id}"]`).first().click();
+  const btn=page.locator('#advbox button[data-act="mark"]');
+  assert.equal(await btn.innerText(),'見込む');
+  assert.equal(await btn.isDisabled(),false);
+  await btn.click();
+  assert.equal(await page.locator('#advbox button[data-act="mark"]').innerText(),'見込みを外す');
+  await page.locator('#advbox button[data-act="closeadv"]').click();
+  const id2=await page.evaluate(first=>{
+    return Object.values(S.adv).find(x=>x.tav==='ours'&&x.status!=='lost'&&x.status!=='retired'&&x.id!==first).id;
+  },id);
+  await page.locator(`#tbody button[data-act="adv"][data-a="${id2}"]`).first().click();
+  const btn2=page.locator('#advbox button[data-act="mark"]');
+  assert.equal(await btn2.innerText(),'見込む');
+  assert.equal(await btn2.isDisabled(),true);
+  await page.locator('#advbox button[data-act="closeadv"]').click();
+  await page.evaluate(()=>{
+    errandsOf(S).stage=3;S.taverns.ours.debt=0;S.taverns.ours.debtFree=S.tick;
+    tab='bar';render();
+  });
+  const s3=await page.locator('#tbody').innerText();
+  assert.match(s3,/1 \/ 3/);
+  assert.match(s3,/見込んだ者　1 \/ 3/);
+  assert.doesNotMatch(s3,/見込めるのは、いまは一人だけ/);
+  await page.locator('button[data-v="rank"]').click();
+  assert.match(await page.locator('#tbody').innerText(),/地上の話の筋　封じの門の抜け穴/);
   assert.deepEqual(errors,[]);await ctx.close();
 });

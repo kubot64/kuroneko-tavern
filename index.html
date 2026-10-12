@@ -714,7 +714,7 @@ function assignOpeningDreams(S){
 function newState(){
   const S={tick:0,nid:1,adv:{},parties:{},news:[],tales:[],memorial:[],
     taverns:{ours:{name:'黒猫亭',gold:400,rep:0,crystals:1,earned:0,debt:DEBT0,seats:12,nextPay:30*TICKS_PER_DAY,late:0},rival:{name:'銀の杯亭',gold:99999,rep:60,owner:RIVAL_OWNER}},
-    bounties:{},deepest:{ours:1,rival:GATE_F},usedNames:{[RIVAL_OWNER]:1},usedParty:{'鉄の誓い':1,'黄金の剣':1,'七つ星':1,'夜鷹':1,'鉄の誓い傭兵団':1,'黄金の剣団':1},usedItems:{},uniqFound:{},farewells:[],edicts:[],v:24,loreFound:{},shop:{tiers:{1:true},mats:{},serial:0,log:[]},watch:[null,null],sel:0,stats:{dreams:{ours:0,rival:0}},small:SMALL_TAV.slice(0,5)};
+    bounties:{},deepest:{ours:1,rival:GATE_F},usedNames:{[RIVAL_OWNER]:1},usedParty:{'鉄の誓い':1,'黄金の剣':1,'七つ星':1,'夜鷹':1,'鉄の誓い傭兵団':1,'黄金の剣団':1},usedItems:{},uniqFound:{},farewells:[],edicts:[],v:25,loreFound:{},shop:{tiers:{1:true},mats:{},serial:0,log:[]},watch:[null,null],sel:0,stats:{dreams:{ours:0,rival:0}},small:SMALL_TAV.slice(0,5)};
   const cast=[];
   for(const cls of ['戦士','僧侶','盗賊','魔術師'])cast.push(makeAdv(S,'ours',{lvl:OPENING_LVL(),cls,race:raceForCls(cls),opening:true}));
   for(let i=0;i<3;i++)cast.push(makeAdv(S,'ours',{lvl:OPENING_LVL(),opening:true}));
@@ -2634,7 +2634,7 @@ function title(S,a,quiet){
 }
 
 /* ---- the tavern's debt, the rival and the small taverns ---- */
-function debtNews(S){const T0=S.taverns.ours;if(T0.debt<=0&&!T0.debtFree){T0.debt=0;T0.debtFree=S.tick;T0.rep+=10;news(S,'黒猫亭の借金を、すべて返し終えた。店はようやく、本当に店主のものになった。','record');}}
+function debtNews(S){const T0=S.taverns.ours;if(T0.debt<=0&&!T0.debtFree){T0.debt=0;T0.debtFree=S.tick;T0.rep+=10;news(S,'黒猫亭の借金を、すべて返し終えた。店はようやく、本当に店主のものになった。','record');}advanceErrandStage(S);}
 function repay(S,amt){const T0=S.taverns.ours;const x=Math.min(amt,T0.debt,Math.max(0,T0.gold));if(x<=0)return 0;T0.gold-=x;T0.debt-=x;T0.repaid=(T0.repaid||0)+x;debtNews(S);checkMemo(S);return x;}
 function debtTick(S){const T0=S.taverns.ours;if(!(T0.debt>0))return;if(T0.nextPay==null)T0.nextPay=S.tick+30*TICKS_PER_DAY;if(S.tick<T0.nextPay)return;
   T0.nextPay=S.tick+30*TICKS_PER_DAY;const intr=Math.round(T0.debt*.02);T0.debt+=intr;const due=Math.min(T0.debt,DEBT_DUE+intr);
@@ -2747,9 +2747,13 @@ function rivalTemple(S){
   Object.values(S.adv).forEach(a=>{if(a.tav==='rival'&&(a.status==='dead'||a.status==='ash')&&chance(.1)){a.debt=(a.debt||0)+templeCost(S,a);temple(S,a,true);}});
 }
 /* ---- 店に持ち込まれる話と、見込んだ者 ---- */
-// 借金を返し終えると、店に話（噂・依頼・頼みごと）が持ち込まれる。誰を主役に回すかは店主が決め、決めるのは本人。
-// 手がかりは話の文面にしかない。数字は見せず、すでにある個性（怖いもの・得意不得意・出身・職業など）を指す言葉で書く
+// 話は段を追って開く。段1は最初の返済日（罰金の有無は問わない）、段2はそこから20日かつ評判150、段3は完済。
+// 誰を主役に回すかは店主が決め、引き受けるかは本人。手がかりは文面にしかなく、数字は見せない
 const BOARD_MAX=3,MARK_MAX=3;
+const STAGE_NEWS=['',
+  '最初の返済の日を迎えた黒猫亭に、街の小さな頼みごとが届きはじめた。掲示板に、釘がひとつ打たれた。',
+  '黒猫亭の名が、裏通りの外でも聞かれるようになった。掲示の釘がもうひとつ増えた。店主は、これと思う客を一人だけ見込むことにした。',
+  '借用書に最後の印を押した夜から、持ち込まれる話の質が変わった。'];
 // 手がかりの言葉が指す個性。w が正なら向き、負なら不向き。why は結果の知らせに添える一言
 const FIT={fear:(k,w,why)=>({t:a=>a.fear===k,w,why,fear:k}),tr:(k,w,why)=>({t:a=>has(a,k),w,why}),cls:(cs,w,why)=>({t:a=>cs.includes(a.cls),w,why}),
   race:(r,w,why)=>({t:a=>a.race===r,w,why}),og:(o,w,why)=>({t:a=>a.origin===o,w,why}),qk:(q,w,why)=>({t:a=>a.quirk===q,w,why}),ps:(p,w,why)=>({t:a=>a.pers===p,w,why})};
@@ -2796,9 +2800,27 @@ const ARCS={gate:{n:'封じの門の抜け穴',stages:[
     '封鎖の十九年、探索管理所の役人たちは門の脇の古い抜け穴の通行料を取っていた。払ったのは、沈んだ故郷の墓を詣でたい荒野の流民たちだった。抜け穴を通った者の名は、どの帳簿にも残っていない。'],
   deep:'壁の言葉には続きがあった。「役人は、帰り道の分の通行料を取らなかった。はじめから、帰すつもりはなかったのだ」。老婆の息子の名は、壁のいちばん下に刻まれていた。',
   half:'噂：銀の杯亭の一行が、封じの門の抜け穴について何か掴んだらしい。王国の役人の名が出たとか、出ないとか。'}};
-function errandsOf(S){if(!S.errands)S.errands={board:[],next:null,log:[],nid:1};if(!S.arcs)S.arcs={gate:{stage:0,log:[]}};return S.errands;}
+function errandsOf(S){if(!S.errands)S.errands={board:[],next:null,log:[],nid:1,stage:0};if(S.errands.stage==null)S.errands.stage=0;if(!S.arcs)S.arcs={gate:{stage:0,log:[]}};return S.errands;}
 function errandDef(e){return e.arc?ARCS[e.arc].stages[e.stage-1]:ERRANDS.find(x=>x.k===e.k);}
-function boardOpen(S){return S.taverns.ours.debtFree!=null;}
+function errandStage(S){return (S.errands&&S.errands.stage)||0;}
+function boardMax(S){return [0,1,2,3][errandStage(S)]||0;}
+function markMax(S){return [0,0,1,3][errandStage(S)]||0;}
+function boardOpen(S){return errandStage(S)>=1;}
+// 予定の返済日を一度でも迎えたか。手返済だけでは開かない。罰金でも、足りていても、迎えていれば真
+function sawPayDay(S){const T0=S.taverns.ours;if(!T0)return false;if(T0.cleanPay!=null||(T0.late||0)>0)return true;return T0.nextPay!=null&&T0.nextPay>30*TICKS_PER_DAY&&S.tick>=30*TICKS_PER_DAY;}
+// ふつうの店は、開いてから30日の刻が最初の返済日。次の返済がその先なら、そこを段1の起点にする
+function firstPayAt(S){const T0=S.taverns.ours,standard=30*TICKS_PER_DAY;if(T0.nextPay!=null&&T0.nextPay>standard)return standard;if(T0.cleanPay!=null)return Math.min(T0.cleanPay,S.tick);return Math.min(standard,S.tick);}
+// 段は上がるだけ。同じ刻に上の段まで条件がそろっていれば、その段だけ開き、知らせも一つ
+function advanceErrandStage(S,quiet){
+  const E=errandsOf(S),cur=E.stage||0;if(cur>=3)return;
+  if(cur>=1&&E.stage1At==null)E.stage1At=S.tick;
+  const T0=S.taverns.ours;let goal=cur;
+  if(T0&&T0.debtFree!=null)goal=3;
+  else if(sawPayDay(S)||cur>=1){const at=E.stage1At;const ripe=cur>=1&&at!=null&&S.tick-at>=20*TICKS_PER_DAY&&(T0.rep||0)>=150;goal=ripe?2:1;}
+  if(goal<=cur)return;
+  if(E.stage1At==null&&goal<3)E.stage1At=S.tick;
+  E.stage=goal;if(!quiet)news(S,STAGE_NEWS[goal],'record');
+}
 // 手がかりと本人の個性の噛み合い。s は合計、neg は不向きの重さ、best と worst は知らせに添える一言の元
 function fitOf(def,a){let s=0,neg=0,best=null,worst=null;for(const r of def.fit){if(!r.t(a))continue;s+=r.w;if(r.w<0){neg-=r.w;if(!worst||r.w<worst.w)worst=r;}else if(!best||r.w>best.w)best=r;}return {s,neg,best,worst};}
 function markedOf(S){return Object.values(S.adv).filter(a=>a.marked&&a.tav==='ours'&&a.status!=='lost'&&a.status!=='retired');}
@@ -2827,18 +2849,20 @@ function offerErrand(S,e,a){
   e.hero=a.id;e.taken=S.tick;e.until=Math.max(e.until,S.tick+5*TICKS_PER_DAY);chron(S,a,`店主に「${def.n}」を回され、引き受ける`);
   news(S,`黒猫亭の店主が、「${def.n}」を${a.name}に回した。${p.name}が引き受け、次の探索で${FN(e.f)}に立ち寄る。`,'errand');return 'ok';}
 function markAdv(S,a,on){
-  if(on){if(!boardOpen(S)||a.marked||a.tav!=='ours'||a.status==='lost'||a.status==='retired'||markedOf(S).length>=MARK_MAX)return false;a.marked=true;chron(S,a,'黒猫亭の店主に見込まれる');return true;}
+  if(on){if(markMax(S)<1||a.marked||a.tav!=='ours'||a.status==='lost'||a.status==='retired'||markedOf(S).length>=markMax(S))return false;a.marked=true;chron(S,a,'黒猫亭の店主に見込まれる');return true;}
   if(!a.marked)return false;a.marked=false;a.favor=Math.max(0,(a.favor||0)-1);chron(S,a,'店主の見込みを外される');
   // 外された者は気づいて、酒場で一言こぼす
   if(a.status!=='lost'&&a.status!=='retired'){S.chatter=S.chatter||[];S.chatter.push({tk:S.tick,lines:[{id:a.id,who:a.name,t:voice(a,pick(['店主は、もう俺には期待してないらしい','まあ、見込み違いってやつさ','……見込まれるってのも、肩が凝るもんだ','次は、見返してやる']))}]});if(S.chatter.length>40)S.chatter.shift();}
   return true;}
-function postErrand(S){const E=errandsOf(S),reach=Math.max(1,S.deepest.ours);
+function postErrand(S){const E=errandsOf(S),reach=Math.max(1,S.deepest.ours),stage=E.stage||0;if(stage<1)return;
   const post=o=>{const e=Object.assign({id:E.nid++,tk:S.tick,until:S.tick+ri(28,32)*TICKS_PER_DAY,hero:null,refused:[]},o);const def=errandDef(e);e.n=def.n;e.from=def.from;e.t=def.txt(e.f);E.board.push(e);
     news(S,`【黒猫亭の掲示】${def.from}から話が持ち込まれた。「${e.t}」`,'errand');};
-  const arc=S.arcs.gate,st=ARCS.gate.stages;
-  if(!arc.stopped&&arc.stage<st.length&&!E.board.some(e=>e.arc==='gate')&&(arc.retryAt||0)<=S.tick){const d=st[arc.stage];
-    if(reach>=d.f[0]&&chance(.6)){post({arc:'gate',stage:arc.stage+1,f:ri(d.f[0],Math.min(d.f[1],reach))});return;}}
-  const cand=ERRANDS.filter(d=>d.f[0]<=reach&&!E.board.some(e=>e.k===d.k));if(!cand.length)return;
+  // 続きものは段3（借金を返し終えて）から。それより前は乱数も引かない
+  if(stage>=3){const arc=S.arcs.gate,st=ARCS.gate.stages;
+    if(!arc.stopped&&arc.stage<st.length&&!E.board.some(e=>e.arc==='gate')&&(arc.retryAt||0)<=S.tick){const d=st[arc.stage];
+      if(reach>=d.f[0]&&chance(.6)){post({arc:'gate',stage:arc.stage+1,f:ri(d.f[0],Math.min(d.f[1],reach))});return;}}}
+  // 段1は、区画の始まりがB3Fまでの単発（子猫・名簿・指輪）だけ。段2からは単発のすべて
+  let cand=ERRANDS.filter(d=>d.f[0]<=reach&&!E.board.some(e=>e.k===d.k));if(stage<2)cand=cand.filter(d=>d.f[0]<=3);if(!cand.length)return;
   // 見込んだ者の個性に噛み合う手がかりを持つ話は、来やすい
   const mk=markedOf(S);const w=Object.fromEntries(cand.map(d=>[d.k,mk.some(a=>{const f=fitOf(d,a);return f.s>=.7&&f.neg===0;})?3:1]));
   const k=wpick(w),d=ERRANDS.find(x=>x.k===k);post({k:d.k,f:ri(d.f[0],Math.min(d.f[1],reach))});}
@@ -2852,7 +2876,7 @@ function expireErrand(S,e){const E=errandsOf(S);E.board=E.board.filter(x=>x!==e)
     errandLog(S,e,a,false,'銀の杯亭に流れた');}
   else{news(S,`掲示の「${e.n}」は、期限を過ぎて剥がされた。`,'errand');errandLog(S,e,a,false,'期限を過ぎた');}}
 function errandTick(S){
-  if(!boardOpen(S))return;const E=errandsOf(S);
+  advanceErrandStage(S);if(!boardOpen(S))return;const E=errandsOf(S);
   for(const e of E.board.slice()){const a=e.hero&&S.adv[e.hero];
     if(a&&(a.tav!=='ours'||a.status==='lost'||a.status==='retired')){e.hero=null;news(S,`「${e.n}」を引き受けた${a.name}がいなくなり、話は掲示に戻った。`,'errand');}
     // 伝えるのを待っている主役が、酒場にいて一行が街で休んでいれば、ここで伝える
@@ -2862,7 +2886,7 @@ function errandTick(S){
     if(e.until<=S.tick)expireErrand(S,e);}
   if(E.next==null)E.next=S.tick+ri(1,3)*TICKS_PER_DAY;
   if(S.tick<E.next)return;E.next=S.tick+ri(2,4)*TICKS_PER_DAY;
-  if(E.board.length<BOARD_MAX)postErrand(S);}
+  if(E.board.length<boardMax(S))postErrand(S);}
 // 一行が引き受けている話。主役が生きて一行にいるものだけ。浅い階の話から順に並べる
 function partyErrands(S,p){if(p.tav!=='ours'||!S.errands)return [];return S.errands.board.filter(e=>e.hero&&p.members.includes(e.hero)&&S.adv[e.hero]&&S.adv[e.hero].hp>0).sort((x,y)=>x.f-y.f);}
 function partyErrand(S,p){return partyErrands(S,p)[0]||null;}
@@ -3050,6 +3074,13 @@ function migrate(S){
     const had=S.taverns.ours.cleanPay;inferCleanPay(S);
     if(S.taverns.ours.cleanPay!=null&&S.taverns.ours.cleanPay!==had)checkMemo(S,true);
     S.v=24;
+  }
+  if(!(S.v>=25)){// 話の段。完済なら段3。返済日を迎えていれば段1、そこから20日かつ評判150なら段2。知らせは出さず、評判も動かさない
+    const E=errandsOf(S),T0=S.taverns.ours;
+    if(T0.debtFree!=null)E.stage=3;
+    else if(sawPayDay(S)){const at=firstPayAt(S);E.stage1At=at;E.stage=(S.tick-at>=20*TICKS_PER_DAY&&(T0.rep||0)>=150)?2:1;}
+    else E.stage=0;
+    S.v=25;
   }
   Object.values(S.adv).forEach(a=>{if(!a.tone)personalize(a);if(!a.traits)assignTraits(S,a,true);});
   smallOf(S);
@@ -3288,7 +3319,9 @@ function sideNews(){const ed=(S.edicts||[]).filter(e=>e.until>S.tick);return `${
 function markTag(a){return a.marked&&a.tav==='ours'&&a.status!=='lost'&&a.status!=='retired'?'<span class="markmark" title="店主が見込んだ者">◆見込み</span>':''}
 // 酒場の掲示。持ち込まれた話と、誰に回すか
 function sideBoard(){
-  if(!boardOpen(S))return '';const E=errandsOf(S),mk=markedOf(S),dd=tk=>Math.max(1,Math.ceil((tk-S.tick)/TICKS_PER_DAY));
+  const st=errandStage(S);
+  if(st<1)return `<div class="sect"><h3>掲示　持ち込まれた話</h3><p class="note">掲示板はまだ空だ。最初の返済の日を迎えていない店に、頼みごとを持ち込む者はいない。</p></div>`;
+  const E=errandsOf(S),mk=markedOf(S),cap=boardMax(S),markCap=markMax(S),dd=tk=>Math.max(1,Math.ceil((tk-S.tick)/TICKS_PER_DAY));
   const card=e=>{const h=e.hero&&S.adv[e.hero],hp=h&&h.party&&S.parties[h.party],w=!h&&e.pend&&S.adv[e.pend];let foot='';
     if(h)foot=`<span class="by">主役：${nmLink(h)}${hp?`（${partyHtml(hp.name)}）`:''}が引き受けている・あと${dd(e.until)}日</span>`;
     else if(w)foot=`<div style="margin-top:6px"><span class="meta">主役：${nmLink(w)}に、次に酒場で会えたら伝える（いまは${esc(errandBlock(S,e,w)||'まもなく伝わる')}）</span> <button class="btn sm" data-act="unpend" data-e="${e.id}">取り消す</button></div>`;
@@ -3300,10 +3333,13 @@ function sideBoard(){
       foot=`<div class="pick"><p class="note" style="margin:4px 0">誰を主役にするか。名前を押すと手帳が開く。迷宮や寺院にいる者を選んだときは、次に酒場で会えたときに伝える。<button class="btn sm" data-act="pickerr" data-e="">やめる</button></p>${cs.map(({a,d,b})=>`<div class="row"><span class="who">${nmLink(a,true)}${markTag(a)}${teamTag(a)} <span class="meta">Lv${a.lvl} ${a.race}の${a.cls}・${a.pers}${b&&!d?'・'+esc(b):''}</span></span>${d?`<span class="chip">${d}</span>`:`<button class="btn sm" data-act="assign" data-e="${e.id}" data-a="${a.id}">${b?'戻ったら伝える':'回す'}</button>`}</div>`).join('')||'<p class="note">黒猫亭の常連がいない。</p>'}</div>`;}
     return `<div class="quote board"><b>${esc(e.n)}</b>${e.arc?`<span class="markmark">続きもの・${esc(ARCS[e.arc].n)}　${e.stage}/${ARCS[e.arc].stages.length}</span>`:''}<span class="by">${esc(e.from)}から・${h?'引き受け済み':`掲示はあと${dd(e.until)}日`}</span>「${esc(e.t)}」${foot}</div>`;};
   const log=E.log.slice(-5).reverse().map(l=>`<div class="row"><span class="who">${l.ok?'<span class="chip">果たした</span>':'<span class="chip ash">果たせず</span>'} ${esc(l.n)}${l.who?`・${l.id&&S.adv[l.id]?nmLink(S.adv[l.id]):esc(l.who)}`:''}<span class="does">${esc(l.t)}</span></span><span class="meta">${Math.floor(l.tk/TICKS_PER_DAY)+1}日目</span></div>`).join('');
-  return `<div class="sect"><h3>掲示　持ち込まれた話　${E.board.length} / ${BOARD_MAX}</h3>
+  const shallow=st===1?'<p class="note">いまは浅い頼みごとだけ。名が上がれば、もっと持ち込まれる。</p>':'';
+  const marks=markCap?`<p class="note">見込んだ者　${mk.length} / ${markCap}${mk.length?'：'+mk.map(a=>nmLink(a)).join('・'):''}。${st===2?'見込めるのは、いまは一人だけ。':''}手帳から見込める。見込んだ者に噛み合う話が来やすくなる。</p>`:'';
+  return `<div class="sect"><h3>掲示　持ち込まれた話　${E.board.length} / ${cap}</h3>
   <p class="note">店主が決めるのは、話を誰に回すかだけ。向き不向きは話の文面ににじむ。手帳を開いて、怖いものや得意不得意、出身と照らし合わせること。話が伝わるのは、主役が酒場にいて、一行が街で休んでいるとき。迷宮に出ている者を選んでおけば、戻ったときに伝える。</p>
+  ${shallow}
   ${E.board.map(card).join('')||'<p class="note">いまは、持ち込まれた話はない。</p>'}
-  <p class="note">見込んだ者　${mk.length} / ${MARK_MAX}${mk.length?'：'+mk.map(a=>nmLink(a)).join('・'):''}。手帳から見込める。見込んだ者に噛み合う話が来やすくなる。</p>
+  ${marks}
   ${log?`<h3 style="margin-top:8px">これまでの話</h3>${log}`:''}</div>`;
 }
 function sideBar(){
@@ -3380,7 +3416,7 @@ function sideRank(){
   ${S.mineConq?`<p class="note">解禁から${Math.floor(S.mineConq.tk/TICKS_PER_DAY)+1}日目、${esc(S.taverns[S.mineConq.tav].name)}の${partyHtml(S.mineConq.party)}が澱呑みの坑道王を討ち、鉄の山脈の坑道は踏破された。</p>`:''}
   ${S.conquered?`<p class="note">迷宮暦${calDate(S.conquered.tk).y}年・解禁から${Math.floor(S.conquered.tk/TICKS_PER_DAY)+1}日目、${esc(S.taverns[S.conquered.tav].name)}の${partyHtml(S.conquered.party)}が沈んだ王を討ち、迷宮は踏破された。</p>`:''}</div>`;
 }
-function sideArcs(){if(!boardOpen(S))return '';errandsOf(S);
+function sideArcs(){if(errandStage(S)<3)return '';errandsOf(S);
   return Object.entries(ARCS).map(([k,A0])=>{const arc=S.arcs[k]||{stage:0,log:[]};
     return `<h3 style="margin-top:12px">地上の話の筋　${esc(A0.n)}　${arc.stage} / ${A0.stages.length}</h3>${(arc.log||[]).map(l=>`<div class="quote">「${esc(l.t)}」<span class="by">${esc(A0.stages[l.stage-1].n)}・${esc(l.who)}が果たした・${Math.floor(l.tk/TICKS_PER_DAY)+1}日目${l.deep?'・壁の言葉を最後まで読んだ':''}</span></div>`).join('')}
     ${arc.stopped?`<div class="quote"><span class="by">「${esc(A0.stages[arc.stopped-1].n)}」は銀の杯亭に流れ、筋はそこで止まった。聞こえてくるのは噂だけだ。</span>${esc(A0.half.replace(/^噂：/,''))}</div>`:arc.done?'':`<div class="quote"><span class="by">${arc.stage?'続きは、また店に持ち込まれるだろう':'まだ、この筋の話は持ち込まれていない'}</span></div>`}`;}).join('');}
@@ -3475,8 +3511,8 @@ function renderAdv(){
   const status={idle:'酒場にいる',party:'探索中',missing:'行方不明',dead:'寺院で眠る（死）',ash:'寺院で眠る（灰）',lost:'ロスト',retired:'店を去った'}[a.status];
   const team=a.party&&S.parties[a.party]?partyShown(S.parties[a.party].name):'なし';
   const d=a.dream;
-  const canMark=boardOpen(S)&&a.tav==='ours'&&a.status!=='lost'&&a.status!=='retired';const he=a.tav==='ours'&&heroErrand(S,a),pe=a.tav==='ours'&&boardOpen(S)&&errandsOf(S).board.find(e=>e.pend===a.id);
-  box.innerHTML=`<div class="adv-h"><h2>${a.title?`<span class="ttl">「${esc(a.title)}」</span>`:''}${esc(a.name)}</h2><span class="chip ${a.status}">${status}</span>${teamTag(a)}${markTag(a)}${a.opening?'<span class="markmark">開店からの常連</span>':''}${canMark?`<button class="btn sm" data-act="mark" data-a="${a.id}" ${!a.marked&&markedOf(S).length>=MARK_MAX?'disabled':''}>${a.marked?'見込みを外す':'見込む'}</button>`:''}</div>
+  const canMark=markMax(S)>0&&a.tav==='ours'&&a.status!=='lost'&&a.status!=='retired';const he=a.tav==='ours'&&heroErrand(S,a),pe=a.tav==='ours'&&boardOpen(S)&&errandsOf(S).board.find(e=>e.pend===a.id);
+  box.innerHTML=`<div class="adv-h"><h2>${a.title?`<span class="ttl">「${esc(a.title)}」</span>`:''}${esc(a.name)}</h2><span class="chip ${a.status}">${status}</span>${teamTag(a)}${markTag(a)}${a.opening?'<span class="markmark">開店からの常連</span>':''}${canMark?`<button class="btn sm" data-act="mark" data-a="${a.id}" ${!a.marked&&markedOf(S).length>=markMax(S)?'disabled':''}>${a.marked?'見込みを外す':'見込む'}</button>`:''}</div>
   ${he?`<div class="dream"><small>引き受けている話</small>「${esc(he.n)}」${FN(he.f)}・あと${Math.max(1,Math.ceil((he.until-S.tick)/TICKS_PER_DAY))}日</div>`:''}
   ${pe?`<div class="dream"><small>回すつもりの話（次に酒場で会えたら伝える）</small>「${esc(pe.n)}」${FN(pe.f)}・掲示はあと${Math.max(1,Math.ceil((pe.until-S.tick)/TICKS_PER_DAY))}日</div>`:''}
   <div class="adv-sub">${S.taverns[a.tav].name}の客・出身：${esc(originOf(a))}${a.origin&&ORIGINS[a.origin].far?'（大陸の外）':''}・${sexAge(a)}${a.race!=='人間'?'（実年齢'+a.age+'歳）':''}・レベル${a.lvl}（${rankOf(a.lvl)}） ${a.race}の${a.cls}・${a.pers}・${esc(a.quirk)}・素質「${a.tal}」<br>${esc(a.bg)}<br>口調：${esc(a.tone||'普通')}・口癖「${esc(a.catch||'')}」・好物：${esc(a.food||'')}${a.fear?'・怖いもの：'+esc(a.fear):''}</div>
