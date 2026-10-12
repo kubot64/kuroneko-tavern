@@ -1035,3 +1035,108 @@ test('900px以下では返済の帯とタブが初めから見え、ページ自
   assert.equal(uniq.length,1,`中身の上端が揺れている ${uniq.join(',')}`);
   assert.deepEqual(errors,[]);await ctx.close();
 });
+
+test('帳場の設備と席に、いまの段が出る',async()=>{
+  const {ctx,page,errors}=await open();
+  await page.locator('#sp0').click();
+  await page.locator('button[data-v="desk"]').click();
+  const phrases=(sel)=>page.evaluate(sel=>{
+    const bad=[];
+    const one=(el,s)=>{
+      const node=[...el.childNodes].find(n=>n.nodeType===3&&n.textContent.includes(s));
+      if(!node)return;
+      const text=node.textContent,i=text.indexOf(s);
+      const range=document.createRange();range.setStart(node,i);range.setEnd(node,i+s.length);
+      const tops=new Set([...range.getClientRects()].filter(r=>r.width>2).map(r=>Math.round(r.top)));
+      if(tops.size!==1)bad.push(s+' が折れている');
+    };
+    const row=document.querySelector(sel);
+    if(!row){bad.push(sel+' がない');return bad;}
+    for(const node of row.querySelectorAll('b,.meta,.does,.chip')){
+      for(const s of ['Lv0/3','Lv0/2','Lv0/1','Lv1/3','Lv2/3','Lv3/3','Lv0/4','Lv1/4','まだ建てていない','いまの効き目','未建築','建てた','拡張の段とは別'])one(node,s);
+    }
+    if(row.scrollWidth>row.clientWidth+1)bad.push(sel+' が横にはみ出す');
+    return bad;
+  },sel);
+  const read=()=>page.evaluate(()=>{
+    const flat=s=>s.replace(/[ \t\n\r\f]+/g,' ');
+    const fac=k=>{const row=document.querySelector(`[data-fac="${k}"]`);return row?flat(row.innerText):'';};
+    const seats=document.querySelector('[data-seats]');
+    return {dojo:fac('dojo'),info:fac('info'),inn:fac('inn'),seats:seats?flat(seats.innerText):'',wide:document.documentElement.scrollWidth>innerWidth+1};
+  });
+  for(const [width,height] of [[375,740],[1280,800]]){
+    await page.setViewportSize({width,height});
+    await page.evaluate(()=>document.fonts.ready.then(()=>new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)))));
+    const fresh=await read();
+    assert.match(fresh.dojo,/稽古場（未建築）/);
+    assert.match(fresh.dojo,/Lv0\/3　まだ建てていない/);
+    assert.match(fresh.dojo,/いまの効き目：なし/);
+    assert.match(fresh.dojo,/建てると稽古場：/);
+    assert.match(fresh.info,/情報屋（未建築）/);
+    assert.match(fresh.info,/Lv0\/2/);
+    assert.match(fresh.inn,/療養所（未建築）/);
+    assert.match(fresh.inn,/Lv0\/1/);
+    assert.match(fresh.seats,/常連の席 12席/);
+    assert.match(fresh.seats,/Lv0\/4/);
+    assert.doesNotMatch(fresh.seats,/支店/);
+    assert.equal(fresh.wide,false,width+' でページが横にはみ出す');
+    for(const sel of ['[data-fac="dojo"]','[data-fac="info"]','[data-fac="inn"]','[data-seats]'])assert.deepEqual(await phrases(sel),[],`${width}px の ${sel}`);
+  }
+  await page.setViewportSize({width:375,height:740});
+  await page.evaluate(()=>{S.taverns.ours.gold=20000;render();});
+  await page.locator('button[data-act="fac"][data-k="dojo"]').click();
+  const built=await read();
+  assert.match(built.dojo,/^稽古場 /);
+  assert.match(built.dojo,/Lv1\/3/);
+  assert.doesNotMatch(built.dojo,/未建築|まだ建てていない/);
+  assert.match(built.dojo,/いまの効き目：/);
+  assert.match(built.dojo,/建て増すと道場：/);
+  const news=await page.evaluate(()=>S.news.map(n=>n.t).filter(t=>t.includes('稽古場')));
+  assert.ok(news.some(t=>t.includes('稽古場ができた（Lv1）')),news.join(' / '));
+  await page.evaluate(()=>{
+    S.taverns.ours.gold=2000000;
+    buildFac(S,'dojo');buildFac(S,'inn');
+    S.taverns.ours.seats=18;
+    const t=smallOf(S)[0];t.owned=S.tick;
+    render();
+  });
+  const mid=await read();
+  assert.match(mid.dojo,/道場/);
+  assert.match(mid.dojo,/Lv2\/3/);
+  assert.match(mid.dojo,/建て増すと修練場：/);
+  assert.match(mid.info,/Lv0\/2　まだ建てていない/);
+  assert.match(mid.inn,/療養所/);
+  assert.match(mid.inn,/Lv1\/1/);
+  assert.match(mid.inn,/建てた/);
+  assert.doesNotMatch(mid.inn,/建てると|建て増すと/);
+  assert.match(mid.seats,/常連の席 18席/);
+  assert.match(mid.seats,/Lv1\/4/);
+  assert.match(mid.seats,/支店で\+6席あり、あわせて24席/);
+  assert.match(mid.seats,/拡張の段とは別/);
+  for(const [width,height] of [[375,740],[1280,800]]){
+    await page.setViewportSize({width,height});
+    await page.evaluate(()=>document.fonts.ready.then(()=>new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)))));
+    const view=await read();
+    assert.equal(view.wide,false,width+' でページが横にはみ出す');
+    if(width<=640)for(const sel of ['[data-fac="dojo"]','[data-fac="info"]','[data-fac="inn"]','[data-seats]'])assert.deepEqual(await phrases(sel),[],`${width}px の段 ${sel}`);
+    if(width>640){
+      const beside=await page.evaluate(()=>{
+        const row=document.querySelector('[data-fac="info"]');
+        const who=row.querySelector('.who').getBoundingClientRect();
+        const btn=row.querySelector('button').getBoundingClientRect();
+        return {ok:btn.top<who.bottom&&btn.left>who.left,who:{t:who.top,l:who.left,b:who.bottom,w:who.width},btn:{t:btn.top,l:btn.left,w:btn.width},iw:innerWidth};
+      });
+      assert.equal(beside.ok,true,'広い画面では建てるボタンが見出しの横にある '+JSON.stringify(beside));
+    }
+  }
+  await page.evaluate(()=>{S.taverns.ours.gold=2000000;buildFac(S,'dojo');render();});
+  const maxed=await read();
+  assert.match(maxed.dojo,/修練場/);
+  assert.match(maxed.dojo,/Lv3\/3/);
+  assert.match(maxed.dojo,/いまの効き目：/);
+  assert.match(maxed.dojo,/建てた/);
+  assert.doesNotMatch(maxed.dojo,/建て増すと|未建築/);
+  const lv3=await page.evaluate(()=>S.news.map(n=>n.t).filter(t=>t.includes('修練場')));
+  assert.ok(lv3.some(t=>t.includes('修練場ができた（Lv3）')),lv3.join(' / '));
+  assert.deepEqual(errors,[]);await ctx.close();
+});
