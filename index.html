@@ -18,6 +18,7 @@
   --f-body:"Zen Kaku Gothic New","Hiragino Sans","Yu Gothic",sans-serif;
   --f-log:"DotGothic16","MS Gothic","Osaka-Mono",monospace;
   --paybar-h:0px;
+  --toast-h:0px;
   color-scheme:dark;
 }
 *{box-sizing:border-box}
@@ -114,9 +115,9 @@ button:focus-visible,[tabindex]:focus-visible{outline:2px solid var(--amber);out
 .memo{font-family:var(--f-display);border:1px dashed var(--line);border-radius:6px;padding:8px 12px 4px;margin:0 0 14px;background:var(--panel2)}
 .memo h3{font-family:var(--f-display);color:var(--amber);letter-spacing:.12em;font-size:14px;font-weight:700;margin:0 0 4px}
 .memo ul{margin:0;padding:0 0 4px 1.2em}
-.memo li{margin:3px 0;line-height:1.55}
+.memo li{margin:3px 0;line-height:1.55;word-break:keep-all;line-break:strict;overflow-wrap:anywhere}
 .memo li.done{color:var(--muted)}
-.memo .when{font-family:var(--f-body);font-size:12px;margin-left:.6em;color:var(--muted)}
+.memo .when{font-family:var(--f-body);font-size:12px;margin-left:.6em;color:var(--muted);white-space:nowrap;overflow-wrap:normal}
 @media (max-width:900px){
   .side{position:static;max-height:none}
   .payline:not([hidden]){position:sticky;top:0;z-index:6}
@@ -244,13 +245,20 @@ button:focus-visible,[tabindex]:focus-visible{outline:2px solid var(--amber);out
 .quote.revive.lost{border-left:3px solid var(--ash)}
 /* 幅640px以下。タブは画面下に固定し、帳場は見出しの下にボタン、地図屋の階は1枚の札。押しやすい大きさは44px */
 @media (max-width:640px){
-  body{padding-bottom:calc(var(--tabbar-pad, 140px) + var(--paybar-h, 0px))}
+  /* 下の余白はタブと返済の帯と知らせの分。中身はその上だけをスクロールし、ボタンが帯に隠れない */
+  body{height:100dvh;overflow:hidden;display:flex;flex-direction:column;padding-bottom:calc(var(--tabbar-h, 140px) + var(--paybar-h, 0px) + var(--toast-h, 0px))}
+  .wrap{flex:1;min-height:0;overflow-x:clip;overflow-y:auto;padding-bottom:var(--tabbar-pad, 12px)}
   html{scroll-padding-bottom:calc(var(--tabbar-h, 140px) + var(--paybar-h, 0px) + 12px)}
-  .toast{bottom:calc(var(--tabbar-h, 140px) + var(--paybar-h, 0px) + 12px + env(safe-area-inset-bottom,0px))}
+  .toast{left:16px;right:16px;width:auto;transform:none;text-align:center;word-break:keep-all;line-break:strict;overflow-wrap:anywhere;bottom:calc(var(--tabbar-h, 140px) + var(--paybar-h, 0px) + 12px + env(safe-area-inset-bottom,0px))}
   .payline:not([hidden]){position:fixed;left:0;right:0;top:auto;bottom:var(--tabbar-h, 140px);z-index:9;border-bottom:0;border-top:1px solid var(--line);box-shadow:0 -4px 12px #0006}
   .tabs{position:fixed;left:0;right:0;bottom:0;z-index:8;background:var(--panel);border-top:1px solid var(--line);border-bottom:0;padding:2px 4px calc(6px + env(safe-area-inset-bottom,0px));box-shadow:0 -8px 20px #0008}
   .tbody{max-height:none;min-height:calc(100vh - var(--tabbar-h, 140px) - 12px)}
   .tabs button,.ctrl .btn{display:inline-flex;align-items:center;justify-content:center;min-width:44px;min-height:44px}
+  /* 帳場など右の列と、留守のあいだに。お金のボタンと名前は44px。横の間隔は .row の 8px */
+  .tbody .btn,.modal .btn{display:inline-flex;align-items:center;justify-content:center;min-width:44px;min-height:44px}
+  .tbody .nm-link{display:inline-flex;align-items:center;justify-content:center;box-sizing:border-box;min-width:44px;min-height:44px;padding:0 4px}
+  .h2{flex-wrap:wrap;row-gap:2px;word-break:keep-all;line-break:strict;overflow-wrap:anywhere}
+  .h2 span{flex:1 0 100%}
   .c-members{gap:0 10px}
   .c-members .m{min-height:44px;align-items:center}
   .c-members .nm-link{display:inline-flex;align-items:center;min-width:44px;min-height:44px;padding:0 4px;margin-left:-4px}
@@ -3400,7 +3408,30 @@ function renderAdv(){
   <div style="margin-top:14px;text-align:right"><button class="btn on" data-act="closeadv">閉じる</button></div>`;
   box.scrollTop=st;
 }
-function toast(t){let el=document.querySelector('.toast');if(!el){el=document.createElement('div');el.className='toast';document.body.appendChild(el);}el.textContent=t;clearTimeout(toastT);toastT=setTimeout(()=>el.remove(),2200);}
+function toast(t){
+  let el=document.querySelector('.toast');if(!el){el=document.createElement('div');el.className='toast';document.body.appendChild(el);}
+  el.textContent=t;clearTimeout(toastT);toastT=setTimeout(()=>{el.remove();document.documentElement.style.removeProperty('--toast-h');},2200);
+  // 帯と知らせの分だけ下を空ける。それでもボタンが重なれば、その上までスクロールする
+  requestAnimationFrame(()=>{
+    if(!el.isConnected||!matchMedia('(max-width:640px)').matches)return;
+    document.documentElement.style.setProperty('--toast-h',(Math.ceil(el.getBoundingClientRect().height)+12)+'px');
+    requestAnimationFrame(()=>{
+      if(!el.isConnected)return;
+      const tr=el.getBoundingClientRect();
+      const pay=document.querySelector('#payw');
+      const pr=pay&&!pay.hidden?pay.getBoundingClientRect():null;
+      const top=Math.min(tr.top,pr&&pr.height?pr.top:tr.top);
+      const bottom=Math.max(tr.bottom,pr&&pr.height?pr.bottom:tr.bottom);
+      let dy=0;
+      for(const b of document.querySelectorAll('#tbody .btn')){
+        const r=b.getBoundingClientRect();
+        if(r.width<1||r.bottom<=top+1||r.top>=bottom-1||r.right<=0||r.left>=innerWidth)continue;
+        dy=Math.max(dy,Math.ceil(r.bottom-top)+8);
+      }
+      if(dy)document.querySelector('.wrap').scrollBy(0,dy);
+    });
+  });
+}
 
 document.addEventListener('click',e=>{
   const b=e.target.closest('[data-act]');if(!b)return;
