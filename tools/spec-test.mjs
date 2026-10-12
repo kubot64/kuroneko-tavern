@@ -32,7 +32,7 @@ const html=readFileSync(new URL('../index.html',import.meta.url),'utf8');
 const ENGINE=html.match(/\/\*ENGINE START\*\/([\s\S]*?)\/\*ENGINE END\*\//)[1];
 const EXPORTS=['newState','tick','rivalTemple','seatCap','seatsUsed','nextSeats','newcomerLvl','buyPrice','investPrice','FACILITIES',
   'RARES','MAXF','DRAGON_F','TICKS_PER_DAY','awayPlan','smallOf','debtTick','DEBT0','encounter','rareSlain','rareMonOf','arrive',
-  'repay','errandsOf','assignErrand','errandBlock','designateBlock','MAXF','MINE_TOP','MINE_BOT','MINE_N','FN','mineOpen','conquest','mineConquest','title','alive','markAdv','markedOf','BOARD_MAX','MARK_MAX','ARCS','reachFloor','GATE_F','fac','nextFac','buildFac','migrate','partyShown','crestJa','glossText','PT_A','PT_B','takeCrest','pickCrest','newPartyName','combat','MON','elemMul','elemNote','sleepMul','sleepReach','MINE_RARES','supplyTeam','potionPrice','lendRival','reviveChance','reviveHint','reviveResultText','temple','checkMemo','memoState','nextDue','rankRows','MEMO','setQuietLog','DREAMS','rollAge','AGE2'];
+  'repay','errandsOf','assignErrand','errandBlock','designateBlock','MAXF','MINE_TOP','MINE_BOT','MINE_N','FN','mineOpen','conquest','mineConquest','title','alive','markAdv','markedOf','BOARD_MAX','MARK_MAX','ARCS','reachFloor','GATE_F','fac','nextFac','buildFac','migrate','partyShown','crestJa','glossText','PT_A','PT_B','takeCrest','pickCrest','newPartyName','combat','MON','elemMul','elemNote','sleepMul','sleepReach','MINE_RARES','supplyTeam','potionPrice','lendRival','reviveChance','reviveHint','reviveResultText','temple','checkMemo','memoState','nextDue','rankRows','MEMO','setQuietLog','DREAMS','rollAge','AGE2','ORIGINS','careerLine','originBg'];
 
 // 乱数の種を固定したゲームの中身を1つ作る。中身の Math.random だけを差し替える
 function load(seed,fixed){
@@ -606,7 +606,9 @@ function runSeed(seed){
     // 「夢」：一度叶えた種類の夢は二度と持たない
     for(const a of advs){const ks=(a.pastDreams||[]).map(d=>d.k);
       check('夢：同じ種類の夢を二度叶えない',new Set(ks).size===ks.length,at,()=>`${a.name}：${ks.join(',')}`);
-      if(a.dream)check('夢：叶えた種類の夢を再び持たない',!ks.includes(a.dream.k),at,()=>`${a.name}：${a.dream.k}`);}
+      if(a.dream)check('夢：叶えた種類の夢を再び持たない',!ks.includes(a.dream.k),at,()=>`${a.name}：${a.dream.k}`);
+      const clash=sexClash(a.sex,a.bg);
+      check('経歴：来た者の生い立ちが性別と食い違わない',!clash,at,()=>`${a.name}（${a.sex}・${a.origin}）${a.bg}：${clash}`);}
     // 「お触れ」：同じ種類は重ならない。蘇生代の値上げと半額も重ならない
     {const act=(S.edicts||[]).filter(e=>e.until>S.tick).map(e=>e.k);
       check('お触れ：同じ種類は重ならない',new Set(act).size===act.length,at,act.join(','));
@@ -761,6 +763,55 @@ function checkOpening(){
   check('開店の顔ぶれ：店主が何もしなくても、種の半数以上で30日までに黒猫亭の夢がかなう',hit>=8&&left===0,'16種',`${hit}/16 もれ${left}`);
 }
 
+// 「出身と経歴」：性別を決めつける文は、その人の性別に合わせる。女に男・息子・三男、男に娘は付かない
+function sexClash(sex,t){
+  t=String(t||'');
+  if(sex==='女'){
+    if(/男|息子|人夫/.test(t))return '男・息子・人夫';
+    if(t.includes('僧')&&!t.includes('尼僧'))return '僧';
+    if(t.includes('浪人')&&!t.includes('女浪人'))return '浪人';
+  }else if(/娘|女|尼/.test(t))return '娘・女・尼';
+  return '';
+}
+function checkCareer(){
+  const E=load(1);
+  const bad=[];
+  for(const [name,o] of Object.entries(E.ORIGINS)){
+    if(!o.bg||o.bg.length!==3)bad.push(`${name}の段階が${o.bg?o.bg.length:'なし'}`);
+    (o.bg||[]).forEach((pool,i)=>pool.forEach(line=>{
+      for(const sex of ['男','女']){
+        const t=E.careerLine(line,sex);
+        const why=sexClash(sex,t);
+        if(why||typeof t!=='string'||!t)bad.push(`${name}[${i}]${sex}「${t}」${why||'空'}`);
+      }
+    }));
+  }
+  check('経歴：文の候補は性別と食い違わない',!bad.length,'出身ごとの経歴',bad.join(' / ')||'合う');
+  // 乱数を先頭・中間・末尾に固定して、各段階の候補を取り切る
+  const bands=[[1,0],[4,0],[5,1],[10,1],[11,2],[24,2]];
+  const miss=[];
+  for(const fixed of [1e-9,.5,.999]){
+    const F=load(2,fixed);
+    for(const [name,o] of Object.entries(F.ORIGINS))for(const [lv,bi] of bands)for(const sex of ['男','女']){
+      const t=F.originBg(name,lv,sex);
+      const allow=o.bg[bi].map(line=>F.careerLine(line,sex));
+      if(!allow.includes(t)||sexClash(sex,t))miss.push(`${name}・Lv${lv}・${sex}・乱数${fixed}「${t}」`);
+    }
+  }
+  check('経歴：来店時のレベルと性別で、その段階の文だけが出る',!miss.length,'出身×段階×性別',miss.slice(0,8).join(' / ')||'合う');
+  const lived=[];
+  for(let i=0;i<8;i++){
+    const S=load(1000+i*7919).newState();
+    for(const a of Object.values(S.adv)){const why=sexClash(a.sex,a.bg);if(why)lived.push(`${a.name}（${a.sex}・${a.origin}）${a.bg}`);}
+  }
+  check('経歴：来た者の生い立ちが性別と食い違わない',!lived.length,'8種の開店',lived.slice(0,4).join(' / ')||'合う');
+  {const E3=load(3),S=E3.newState(),a=Object.values(S.adv).find(x=>x.tav==='ours');
+    a.sex='女';a.bg='辺境の農家の三男坊。空き家の前の住人の息子';
+    const door=a.chron.find(c=>c.t&&c.t.includes('扉をくぐる'));const before=door&&door.t;
+    S.v=23;E3.migrate(S);
+    check('経歴：この決まりより前の記録は、食い違った文のまま残る',S.v===23&&a.bg==='辺境の農家の三男坊。空き家の前の住人の息子'&&door&&door.t===before,'版23',`版${S.v} ${a.bg}`);}
+}
+
 // 「来店時の年齢」：年長枠の割合はレベルで決まり、枠の中は若い側に寄る。55歳以上の伸びはこれまでどおり
 function checkAge(){
   const E=load(11);
@@ -785,7 +836,7 @@ function checkAge(){
 
 if(!isMainThread){const line=runSeed(workerData.seed);parentPort.postMessage({line,res:[...results]});}
 else{
-  checkTables();checkScenes();checkErrands();checkCrest();checkRowFallback();checkMine();checkAffinity();checkRevive();checkMemoNotes();checkOpening();checkAge();
+  checkTables();checkScenes();checkErrands();checkCrest();checkRowFallback();checkMine();checkAffinity();checkRevive();checkMemoNotes();checkOpening();checkCareer();checkAge();
   // 種ごとの結果は、種の順に重ねる。反例は、いちばん若い種の最初のものを残す。進捗の行も種の順に出す
   const out=new Array(SEEDS.length);let next=0,printed=0;
   const flush=()=>{while(printed<out.length&&out[printed]){if(out[printed].line)console.log(out[printed].line);printed++;}};
