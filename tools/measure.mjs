@@ -109,7 +109,22 @@ function run(seed,mode,engine){
   r.ageRet={ours:aged.filter(f=>f.tav==='ours').length,rival:aged.filter(f=>f.tav==='rival').length};
   r.dreams=dreamCounts(S);
   noteBandDeaths(deaths,bands);r.bands=bands;r.deathN=deaths.length;
+  r.earned=S.taverns.ours.earned||0;
+  r.deaths=noteDeaths(S);
   r.marks=marks;return r;
+}
+// 手帳の「に倒れる」を数える。羽根で持ちこたえた行（「倒れるが」）は死んでいないので数えない
+function noteDeaths(S){
+  const d={ours:{n:0,chest:0},rival:{n:0,chest:0}};
+  for(const a of Object.values(S.adv)){
+    const tav=a.tav==='rival'?'rival':'ours';
+    for(const c of a.chron||[]){
+      const t=c&&c.t||'';
+      if(!t.includes('に倒れる')||t.includes('に倒れるが'))continue;
+      d[tav].n++;if(t.includes('宝箱'))d[tav].chest++;
+    }
+  }
+  return d;
 }
 
 // 来店時の年齢。手帳の最初の一文に残っている年齢を読む（年を越して歳をとったあとも、来たときの年齢が分かる）
@@ -179,7 +194,26 @@ function summary(rs){
     ...(fs.length?[`設備を建てた日の中央値：${fs.map(n=>{const ds=rs.filter(r=>r.fac[n]!=null).map(r=>r.fac[n]);return `${n} ${med(ds)}日目（${ds.length}種）`;}).join('／')}`]:[]),
     `借金完済の中央値 ${med(rs.filter(r=>r.debtFree!=null).map(r=>r.debtFree))}日目（完済なし ${cnt(r=>r.debtFree==null)}種）。最後の評判の中央値 黒猫亭${med(rs.map(r=>r.rep.ours))}／銀の杯亭${med(rs.map(r=>r.rep.rival))}`,
     `初回の返済で罰金 ${((p)=>`${p.bad}/${p.n}${p.bad?`（最大で${p.max}G足りない）`:''}。そのあとの返済で罰金 ${p.later}回`)(firstPen(rs))}`,
+    deathLine(rs),
   ].join('\n');
+}
+function deathLine(rs){
+  const med=a=>{if(!a.length)return '-';a=[...a].sort((x,y)=>x-y);return a[Math.floor((a.length-1)/2)];};
+  const sum=(tav,k)=>rs.reduce((s,r)=>s+(((r.deaths||{})[tav]||{})[k]||0),0);
+  return `倒れた回数：黒猫亭 ${sum('ours','n')}（宝箱 ${sum('ours','chest')}）／銀の杯亭 ${sum('rival','n')}（宝箱 ${sum('rival','chest')}）。黒猫亭の売上の中央値 ${med(rs.map(r=>r.earned||0))}G`;
+}
+function deathMarkdown(rows){
+  const med=a=>{if(!a.length)return '-';a=[...a].sort((x,y)=>x-y);return a[Math.floor((a.length-1)/2)];};
+  const sum=(rs,tav,k)=>rs.reduce((s,r)=>s+(((r.deaths||{})[tav]||{})[k]||0),0);
+  const head='| | '+rows.map(([n])=>n).join(' | ')+' |';
+  const sep='|---|'+rows.map(()=>'---:|').join('');
+  const row=(label,fn)=>'| '+label+' | '+rows.map(([,rs])=>fn(rs)).join(' | ')+' |';
+  return ['倒れた回数（手帳。羽根で持ちこたえた分は除く）と、黒猫亭の売上',head,sep,
+    row('黒猫亭が倒れた回数',rs=>String(sum(rs,'ours','n'))),
+    row('うち宝箱',rs=>String(sum(rs,'ours','chest'))),
+    row('銀の杯亭が倒れた回数',rs=>String(sum(rs,'rival','n'))),
+    row('うち宝箱',rs=>String(sum(rs,'rival','chest'))),
+    row('黒猫亭の売上の中央値',rs=>med(rs.map(r=>r.earned||0))+'G')].join('\n');
 }
 
 // PR に貼る表。行は、支援なし・支援ありと、--base のときは変更前・変更後
@@ -280,7 +314,7 @@ else{
   for(const mode of MODES)for(const v of vars){const rs=out.filter((r,k)=>jobs[k].mode===mode&&jobs[k].v===v);console.log(`\n== ${MODE_N[mode]}${v.name?'・'+v.name:''} ==`);
     for(const r of rs){if(r.err){bad=true;console.log(r.err);continue;}console.log(line(r));if(DETAIL)r.marks.forEach(m=>console.log(m));}
     const ok=rs.filter(r=>!r.err);if(ok.length){console.log('--\n'+summary(ok));rows.push([MODE_N[mode]+(v.row?'・'+v.row:''),ok]);}}
-  if(rows.length){console.log('\n'+table(rows));console.log('\n'+bandMarkdown(rows));const ages=ageMarkdown(rows);if(ages)console.log('\n'+ages);}
+  if(rows.length){console.log('\n'+table(rows));console.log('\n'+bandMarkdown(rows));console.log('\n'+deathMarkdown(rows));const ages=ageMarkdown(rows);if(ages)console.log('\n'+ages);}
   console.error(`\n${jobs.length}本のうち、測った ${todo.length}本／残してあった結果を使った ${jobs.length-todo.length}本`);
   process.exit(bad?1:0);
 }
