@@ -20,7 +20,7 @@ const html=readFileSync(new URL('../index.html',import.meta.url),'utf8');
 const ENGINE=html.match(/\/\*ENGINE START\*\/([\s\S]*?)\/\*ENGINE END\*\//)[1];
 const EXPORTS=['newState','tick','rivalTemple','seatCap','seatsUsed','nextSeats','newcomerLvl','buyPrice','investPrice','FACILITIES',
   'RARES','MAXF','DRAGON_F','TICKS_PER_DAY','awayPlan','smallOf','debtTick','DEBT0','encounter','rareSlain','rareMonOf','arrive',
-  'repay','errandsOf','assignErrand','errandBlock','designateBlock','MAXF','MINE_TOP','MINE_BOT','MINE_N','FN','mineOpen','conquest','mineConquest','title','alive','markAdv','markedOf','BOARD_MAX','MARK_MAX','ARCS','reachFloor','GATE_F','fac','nextFac','buildFac','migrate','partyShown','crestJa','glossText','PT_A','PT_B','takeCrest','pickCrest','newPartyName','combat','MON','elemMul','elemNote','sleepMul','sleepReach','MINE_RARES','supplyTeam','potionPrice','lendRival','reviveChance','reviveHint','reviveResultText','temple','checkMemo','memoState','nextDue','rankRows','MEMO','setQuietLog'];
+  'repay','errandsOf','assignErrand','errandBlock','designateBlock','MAXF','MINE_TOP','MINE_BOT','MINE_N','FN','mineOpen','conquest','mineConquest','title','alive','markAdv','markedOf','BOARD_MAX','MARK_MAX','ARCS','reachFloor','GATE_F','fac','nextFac','buildFac','migrate','partyShown','crestJa','glossText','PT_A','PT_B','takeCrest','pickCrest','newPartyName','combat','MON','elemMul','elemNote','sleepMul','sleepReach','MINE_RARES','supplyTeam','potionPrice','lendRival','reviveChance','reviveHint','reviveResultText','temple','checkMemo','memoState','nextDue','rankRows','MEMO','setQuietLog','DREAMS'];
 
 // 乱数の種を固定したゲームの中身を1つ作る。中身の Math.random だけを差し替える
 function load(seed,fixed){
@@ -638,6 +638,7 @@ function checkRevive(){
   const hint=E.reviveHint(S,a);
   check('蘇生の目安：寄進と信心深さは一言添える',hint.startsWith(`灰・成功率の目安 ${Math.round(E.reviveChance(S,a)*100)}%`)&&hint.includes('寄進で上がっている')&&hint.includes('信心深く、成功しやすい'),'灰・両方',hint);
   check('蘇生の結果：その場の文面',E.reviveResultText('ファビアン','ok')==='ファビアンがよみがえった'&&E.reviveResultText('ファビアン','ash')==='ファビアンは蘇生に失敗し、灰になった'&&E.reviveResultText('ファビアン','lost')==='ファビアンは蘇生に失敗し、ロストした','三通り','');
+  // 第2引数の 0 は偽なので乱数を固定できない。成功する小さな値にして、開店の抽選で種の並びがずれても結果を確かめる
   {const E2=load(2,1e-9),S2=E2.newState();const b=Object.values(S2.adv).find(x=>x.tav==='ours');b.status='dead';b.hp=0;
     check('蘇生：成功すると生き返る',E2.temple(S2,b,true)==='ok'&&b.status==='idle'&&b.hp===b.mhp,'必ず成功',b.status);}
   {const E2=load(3,.999),S2=E2.newState();const b=Object.values(S2.adv).find(x=>x.tav==='ours');b.status='dead';b.hp=0;
@@ -693,7 +694,7 @@ function checkMemoNotes(){
 }
 
 const OPENING_TIE=['空き家の前の住人の娘','空き家の前の住人の息子','開店の夜、雨宿りに入ってそのまま居ついた','空き家の片付けを手伝ったついでに居ついた','セーレの両替商の使いとして開店の金を届け、そのまま残った','封じの門が開いたと聞いて、誰より先に店の前で待っていた','銀の杯亭には席がなく、西の縁の新しい店に来た','店の看板を、店主と一緒に掲げた','店主と同じ船でセーレから来た'];
-const STELE=['B6Fの転移の石碑に、一度触れてみたい','B6Fの石碑から、地上へ戻ってみたい'];
+const STELE=['B6Fの転移の石碑に、一度触れてみたい','B6Fまで潜って、地上の店に戻ってみたい'];
 function openingOf(S){return Object.values(S.adv).filter(a=>a.opening).sort((a,b)=>a.id-b.id);}
 function tieOf(a){const i=a.bg.lastIndexOf('。');return i>=0?a.bg.slice(i+1):a.bg;}
 function dreamLine(a){const c=(a.chron||[]).find(x=>x.t&&x.t.includes('夢は「'));const m=c&&c.t.match(/夢は「([^」]*)」/);return m?m[1]:'';}
@@ -719,6 +720,7 @@ function checkOpening(){
     check('開店の顔ぶれ：一行の中でレベルが高い2人が、別の文面の短い夢を持つ',holders.length===2&&holders.map(a=>a.id).join()===ranked.slice(0,2).map(a=>a.id).sort((a,b)=>S.adv[a].dream.vi-S.adv[b].dream.vi).join()&&holders.map(dreamLine).join('|')===STELE.join('|')&&party.members.includes(holders[0].id)&&party.members.includes(holders[1].id),`種${seed}`,holders.map(a=>`${a.name}Lv${a.lvl} ${dreamLine(a)}`).join(' / '));
     check('開店の顔ぶれ：最初の客たちの知らせが、開店の知らせの次に出る',!!guests&&guests.k==='info'&&guestAt===opened+1&&cast.every(a=>guests.t.includes(a.origin+'出身の'+a.name))&&guests.t.endsWith('が、開店の日から黒猫亭にいる。'),`種${seed}`,guests&&guests.t);
     check('開店の顔ぶれ：手帳の来店の記録に、生い立ちと夢が残る',cast.every(a=>{const door=(a.chron||[]).find(c=>c.t&&c.t.includes('扉をくぐる'));return !!(door&&door.t.includes(tieOf(a))&&door.t.includes('夢は「'+dreamLine(a)+'」'));}),`種${seed}`,()=>cast.filter(a=>{const door=(a.chron||[]).find(c=>c.t&&c.t.includes('扉をくぐる'));return !(door&&door.t.includes(tieOf(a))&&door.t.includes('夢は「'+dreamLine(a)+'」'));}).map(a=>`${a.name}：${(a.chron.find(c=>c.t&&c.t.includes('扉をくぐる'))||{}).t||'記録なし'}`).join(' / '));
+    check('開店の顔ぶれ：まだ潜っていない短い夢の進みはB0Fと出ない',holders.every(a=>(a.deepest||0)===0&&E.DREAMS.stele.prog(a)==='まだ迷宮に潜っていない'),`種${seed}`,holders.map(a=>E.DREAMS.stele.prog(a)).join(' / '));
     names.push(cast.map(a=>a.name).join(','));
     if(i===0){
       Object.values(S.adv).forEach(a=>{delete a.opening;if(a.dream&&a.dream.k==='stele')a.dream={k:'fame',vi:0};});

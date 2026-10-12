@@ -452,6 +452,7 @@ test('帳場の覚え書きと、次の返済までの日数・必要額が常�
   const rank=await page.locator('#memo-log').innerText();
   assert.match(rank,/送り出した連中が、揃って戻ってくる/);
   assert.match(rank,/日目/);
+  await page.evaluate(()=>{S.memo.done.home.tk=TICKS_PER_DAY;render();});
   await page.setViewportSize({width:375,height:812});
   await page.evaluate(()=>document.fonts.ready);
   await page.locator('button[data-v="desk"]').click();
@@ -465,6 +466,33 @@ test('帳場の覚え書きと、次の返済までの日数・必要額が常�
     if(pr.top<0||pr.left<-1||pr.right>innerWidth+1||pr.height<18)bad.push('返済が画面に収まらない');
     if(mr.left<-1||mr.right>innerWidth+1)bad.push('覚え書きが横にはみ出す');
     if(mr.top<0||mr.bottom>tr.top+1)bad.push('覚え書きがタブに隠れている');
+    const punct='、。！？ 　';
+    for(const li of document.querySelectorAll('#memo li')){
+      const node=li.querySelector('s')?.firstChild||[...li.childNodes].find(n=>n.nodeType===3&&n.textContent.trim());
+      if(!node)continue;
+      const text=node.textContent;
+      const range=document.createRange();
+      let last=null;
+      for(let i=0;i<text.length;i++){
+        range.setStart(node,i);range.setEnd(node,i+1);
+        const rr=[...range.getClientRects()].find(x=>x.width>1);
+        if(!rr)continue;
+        if(last!=null&&Math.abs(rr.top-last)>4){
+          if(!punct.includes(text[i-1]))bad.push(text+' が途中で折れている');
+          break;
+        }
+        last=rr.top;
+      }
+      const when=li.querySelector('.when');
+      if(when){
+        const wtext=when.textContent;
+        if(li.dataset.id==='home'&&wtext!=='2日目')bad.push('かなえた日付が2日目ではない '+wtext);
+        const node=when.firstChild;
+        range.setStart(node,0);range.setEnd(node,wtext.length);
+        const tops=new Set([...range.getClientRects()].filter(x=>x.width>2).map(x=>Math.round(x.top)));
+        if(tops.size!==1)bad.push('日付が折れている '+wtext);
+      }
+    }
     if(document.documentElement.scrollWidth>innerWidth+1)bad.push('ページが横にはみ出す');
     return bad;
   });
@@ -527,9 +555,12 @@ test('開店の顔ぶれは、知らせと手帳と記念碑に出る',async()=>
     const cast=Object.values(S.adv).filter(a=>a.opening).sort((a,b)=>a.id-b.id);
     const guests=S.news.find(n=>n.t.startsWith('最初の客たち'));
     const holders=cast.filter(a=>a.dream&&a.dream.k==='stele');
-    return {n:cast.length,names:cast.map(a=>a.name),origins:cast.map(a=>a.origin),guests:guests&&guests.t,id:holders[0].id,bg:holders[0].bg};
+    const h=holders[0];
+    return {n:cast.length,names:cast.map(a=>a.name),origins:cast.map(a=>a.origin),guests:guests&&guests.t,id:h.id,bg:h.bg,dream:dreamText(h.dream),texts:holders.map(a=>dreamText(a.dream)).sort(),prog:DREAMS.stele.prog(h)};
   });
   assert.equal(info.n,7);
+  assert.deepEqual(info.texts,['B6Fの転移の石碑に、一度触れてみたい','B6Fまで潜って、地上の店に戻ってみたい'].sort());
+  assert.equal(info.prog,'まだ迷宮に潜っていない');
   const news=await page.locator('.news li',{hasText:'最初の客たち'}).innerText();
   assert.match(news,/最初の客たち/);
   for(const name of info.names)assert.match(news,new RegExp(name));
@@ -537,7 +568,8 @@ test('開店の顔ぶれは、知らせと手帳と記念碑に出る',async()=>
   await page.locator(`.c-members button[data-a="${info.id}"]`).click();
   const book=await page.locator('#advbox').innerText();
   assert.match(book,/開店からの常連/);
-  assert.match(book,/石碑/);
+  assert.match(book,new RegExp(info.dream.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')));
+  assert.match(book,/まだ迷宮に潜っていない/);
   assert.match(book,new RegExp(info.bg.replace(/[.*+?^${}()|[\]\\]/g,'\\$&').slice(-12)));
   await page.locator('#advbox [data-act="closeadv"]').click();
   await page.evaluate(()=>{
@@ -562,5 +594,187 @@ test('開店の顔ぶれは、知らせと手帳と記念碑に出る',async()=>
     const box=await row.boundingBox();
     assert.ok(box&&box.width>40,`幅${width}で知らせが見えない`);
   }
+  assert.deepEqual(errors,[]);await ctx.close();
+});
+
+test('スマホ幅では帳場と名簿と留守のあいだの押し場所が44px以上で、見出しと知らせは語の途中で折れない',async()=>{
+  const {ctx,page,errors}=await open();
+  await page.locator('#sp0').click();
+  await page.evaluate(()=>document.fonts.ready);
+  const frames=()=>page.evaluate(()=>new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r))));
+  const headsOf=()=>page.evaluate(()=>{
+    const bad=[];
+    const lines=node=>{
+      const range=document.createRange();range.selectNodeContents(node);
+      return new Set([...range.getClientRects()].filter(r=>r.width>2).map(r=>Math.round(r.top))).size;
+    };
+    const phrase=(node,s)=>{
+      const text=node.textContent,i=text.indexOf(s);if(i<0)return 0;
+      const range=document.createRange();range.setStart(node,i);range.setEnd(node,i+s.length);
+      return new Set([...range.getClientRects()].filter(r=>r.width>2).map(r=>Math.round(r.top))).size;
+    };
+    for(const h of document.querySelectorAll('h2.h2')){
+      const tn=[...h.childNodes].find(n=>n.nodeType===3&&n.textContent.trim());
+      const span=h.querySelector('span');
+      const title=tn.textContent.trim();
+      if(lines(tn)!==1)bad.push(title+' が見出しの途中で折れている');
+      const tb=Math.max(...[...(()=>{const range=document.createRange();range.selectNodeContents(tn);return range.getClientRects();})()].map(r=>r.bottom));
+      const spanTop=span.getBoundingClientRect().top;
+      if(innerWidth<=640){
+        if(spanTop<tb-1)bad.push(title+' の副題が横にある');
+      }else if(spanTop>tn.parentElement.getBoundingClientRect().top+14){
+        bad.push(title+' の副題が下に落ちている');
+      }
+      if(phrase(span.firstChild,'映ります')!==1)bad.push('映ります が途中で折れている');
+    }
+    if(document.documentElement.scrollWidth>innerWidth+1)bad.push('ページが横にはみ出す');
+    return bad;
+  });
+  for(const width of [375,390]){
+    await page.setViewportSize({width,height:width===375?740:844});
+    await page.evaluate(()=>document.fonts.ready);
+    assert.deepEqual(await headsOf(),[],width+' の見出し');
+    await page.locator('button[data-v="desk"]').click();
+    const desk=await page.evaluate(()=>{
+      const bad=[];
+      const size=(el,name)=>{
+        const r=el.getBoundingClientRect();
+        if(r.width<44||r.height<44)bad.push(`${name} ${Math.round(r.width)}×${Math.round(r.height)}`);
+      };
+      const buttons=[...document.querySelectorAll('#tbody .btn')];
+      if(buttons.length<5)bad.push('帳場のボタンが少ない');
+      for(const b of buttons)size(b,b.innerText.replace(/\s+/g,' '));
+      const links=[...document.querySelectorAll('#tbody .nm-link')];
+      if(!links.length)bad.push('帳場に名前がない');
+      for(const b of links)size(b,'名前 '+b.innerText);
+      for(const g of [[...document.querySelectorAll('button[data-act="repay"]')],[...document.querySelectorAll('button[data-act="pol"][data-k="potion"]')]]){
+        const rs=g.map(b=>b.getBoundingClientRect());
+        for(let i=1;i<rs.length;i++){
+          if(Math.abs(rs[i].top-rs[i-1].top)>8)continue;
+          const gap=rs[i].left-rs[i-1].right;
+          if(gap<7)bad.push(`ボタンの間隔 ${Math.round(gap)}`);
+        }
+      }
+      const pay=document.querySelector('#payw');
+      const pr=pay.getBoundingClientRect();
+      const port=document.querySelector('.wrap').getBoundingClientRect();
+      if(pay.hidden||getComputedStyle(pay).position!=='fixed')bad.push('返済の帯が下にない');
+      for(const b of document.querySelectorAll('#tbody .btn')){
+        const r=b.getBoundingClientRect();
+        if(r.width<1||r.bottom<=port.top+1||r.top>=port.bottom-1)continue;
+        if(!(r.right<=pr.left||r.left>=pr.right||r.bottom<=pr.top+1||r.top>=pr.bottom-1))bad.push('返済の帯がボタンを隠す '+b.innerText.replace(/\s+/g,' ').slice(0,20));
+      }
+      return bad;
+    });
+    assert.deepEqual(desk,[],width+' の帳場');
+    await page.locator('button[data-v="roster"]').click();
+    const roster=await page.evaluate(()=>{
+      const links=[...document.querySelectorAll('#tbody .nm-link')];
+      if(!links.length)return ['名簿に名前がない'];
+      const bad=[];
+      for(const b of links){
+        const r=b.getBoundingClientRect();
+        if(r.width<44||r.height<44)bad.push(`${b.innerText} ${Math.round(r.width)}×${Math.round(r.height)}`);
+      }
+      return bad;
+    });
+    assert.deepEqual(roster,[],width+' の名簿');
+  }
+  await page.setViewportSize({width:375,height:740});
+  await page.evaluate(()=>{document.querySelector('#digest').hidden=false;});
+  const back=await page.evaluate(()=>{
+    const b=document.querySelector('[data-act="closedigest"]');
+    const r=b.getBoundingClientRect();
+    return r.width<44||r.height<44?[`店に戻る ${Math.round(r.width)}×${Math.round(r.height)}`]:[];
+  });
+  assert.deepEqual(back,[]);
+  await page.evaluate(()=>{document.querySelector('#digest').hidden=true;});
+  await page.locator('button[data-v="desk"]').click();
+  await page.evaluate(()=>{
+    const a=Object.values(S.adv).find(x=>x.tav==='ours'&&x.status!=='lost'&&x.status!=='retired');
+    a.name='エリン';a.status='ash';a.hp=0;a.party=null;S.taverns.ours.gold=100000;render();
+  });
+  await page.locator('h3',{hasText:'常連への手当て'}).scrollIntoViewIfNeeded();
+  const toastAt=async()=>{
+    await page.evaluate(()=>toast('エリンは蘇生に失敗し、ロストした'));
+    await frames();
+    return page.evaluate(()=>{
+      const el=document.querySelector('.toast');
+      if(!el)return ['知らせがない'];
+      const bad=[];
+      const r=el.getBoundingClientRect();
+      const tab=document.querySelector('.tabs').getBoundingClientRect();
+      const pay=document.querySelector('#payw');
+      const payOn=pay&&!pay.hidden&&pay.getBoundingClientRect().height>0;
+      const anchor=payOn?pay.getBoundingClientRect():tab;
+      const text=el.firstChild,s=el.textContent,i=s.indexOf('ロスト');
+      const range=document.createRange();range.setStart(text,i);range.setEnd(text,i+'ロスト'.length);
+      const rows=new Set([...range.getClientRects()].filter(x=>x.width>2).map(x=>Math.round(x.top)));
+      if(rows.size!==1)bad.push('ロスト が途中で折れている');
+      if(Math.abs(r.left-16)>2||Math.abs(innerWidth-r.right-16)>2)bad.push(`知らせの幅 ${Math.round(r.left)}..${Math.round(r.right)}`);
+      if(r.bottom>anchor.top+1||anchor.top-r.bottom>20)bad.push(`知らせが${payOn?'返済の帯':'タブ'}のすぐ上にない ${Math.round(anchor.top-r.bottom)}`);
+      if(payOn&&pay.getBoundingClientRect().bottom>tab.top+1)bad.push('返済の帯がタブに重なる');
+      const zones=[{name:'知らせ',rect:r}];
+      if(payOn)zones.push({name:'返済の帯',rect:pay.getBoundingClientRect()});
+      const port=document.querySelector('.wrap').getBoundingClientRect();
+      for(const b of document.querySelectorAll('#tbody .btn')){
+        const br=b.getBoundingClientRect();
+        if(br.width<1||br.bottom<=port.top+1||br.top>=port.bottom-1)continue;
+        for(const z of zones){
+          const zr=z.rect;
+          const hit=!(br.right<=zr.left||br.left>=zr.right||br.bottom<=zr.top+1||br.top>=zr.bottom-1);
+          if(hit)bad.push(z.name+'がボタンを隠す '+b.innerText.replace(/\s+/g,' ').slice(0,24));
+        }
+      }
+      return bad;
+    });
+  };
+  assert.deepEqual(await toastAt(),[],'手当てを見ているときの知らせ');
+  await page.evaluate(()=>{
+    document.querySelector('.toast')?.remove();
+    const b=document.querySelector('button[data-act="reset"]');
+    const tab=document.querySelector('.tabs').getBoundingClientRect().top;
+    document.querySelector('.wrap').scrollBy(0,b.getBoundingClientRect().bottom-(tab-24));
+  });
+  assert.deepEqual(await toastAt(),[],'最初から始めるの上に知らせを出したとき');
+  await page.evaluate(()=>{
+    document.querySelector('.toast')?.remove();
+    S.taverns.ours.debt=0;render();
+    const b=document.querySelector('button[data-act="reset"]');
+    const tab=document.querySelector('.tabs').getBoundingClientRect().top;
+    document.querySelector('.wrap').scrollBy(0,b.getBoundingClientRect().bottom-(tab-24));
+  });
+  const paid=await page.evaluate(()=>({hidden:document.querySelector('#payw').hidden,h:getComputedStyle(document.documentElement).getPropertyValue('--paybar-h')}));
+  assert.equal(paid.hidden,true);
+  assert.equal(paid.h.trim(),'0px');
+  assert.deepEqual(await toastAt(),[],'借金を返し終えたあとの知らせ');
+  await page.evaluate(()=>{
+    document.querySelector('.toast')?.remove();
+    document.documentElement.style.removeProperty('--toast-h');
+    S.taverns.ours.debt=DEBT0;render();
+  });
+  await page.setViewportSize({width:1280,height:800});
+  await page.evaluate(()=>document.fonts.ready);
+  await page.locator('button[data-v="desk"]').click();
+  const wide=await page.evaluate(()=>{
+    const bad=[];
+    for(const h of document.querySelectorAll('h2.h2')){
+      const tn=[...h.childNodes].find(n=>n.nodeType===3&&n.textContent.trim());
+      const span=h.querySelector('span');
+      const top=h.getBoundingClientRect().top;
+      if(span.getBoundingClientRect().top>top+14)bad.push(tn.textContent.trim()+' の副題が下に落ちている');
+    }
+    const btn=document.querySelector('button[data-act="repay"]');
+    const br=btn.getBoundingClientRect();
+    if(br.height>=40)bad.push(`広い画面のボタンが高い ${Math.round(br.height)}`);
+    const who=btn.closest('.row').querySelector('.who').getBoundingClientRect();
+    if(!(br.top<who.bottom&&br.left>who.left))bad.push('広い画面で返済ボタンが見出しの横にない');
+    toast('エリンは蘇生に失敗し、ロストした');
+    const t=document.querySelector('.toast').getBoundingClientRect();
+    if(t.width>innerWidth-80)bad.push('広い画面の知らせが幅いっぱい');
+    if(t.left<40)bad.push('広い画面の知らせが左に寄っている');
+    return bad;
+  });
+  assert.deepEqual(wide,[]);
   assert.deepEqual(errors,[]);await ctx.close();
 });
