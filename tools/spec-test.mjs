@@ -873,23 +873,23 @@ function checkFoes(){
   const E=load(1);
   const breath=['キメラ','墓所の番犬','盲目の洞窟竜','炉の番人ゴーレム'];
   const maze={
-    'レイス':9,'ミノタウロス':14,'溺れた衛兵':13,'水路の大蛇':15,'堕ちた騎士':18,'石の巨像':22,
-    '亡霊騎士':22,'宮廷魔術師の亡霊':18,'屍喰らい':24,'吸魂の司祭':22,'塔の番兵ゴーレム':26,
-    '狂った見習い魔術師':23,'近衛騎士長':31,'澱の落とし子':29,
+    'レイス':8,'ミノタウロス':13,'溺れた衛兵':12,'水路の大蛇':14,'堕ちた騎士':16,'石の巨像':20,
+    '亡霊騎士':20,'宮廷魔術師の亡霊':16,'屍喰らい':22,'吸魂の司祭':20,'塔の番兵ゴーレム':24,
+    '狂った見習い魔術師':21,'近衛騎士長':28,'澱の落とし子':26,
   };
   const mine={
-    '崩落蜘蛛':29,'鉄喰いトロール':31,'坑道ゴーレム':32,'澱の坑夫':36,'坑道都市の衛兵':37,
-    '鉱脈の大蛇':42,'晶石の亡霊':43,'地底の巨人':46,
+    '崩落蜘蛛':26,'鉄喰いトロール':28,'坑道ゴーレム':29,'澱の坑夫':33,'坑道都市の衛兵':34,
+    '鉱脈の大蛇':38,'晶石の亡霊':39,'地底の巨人':42,
   };
   for(const m of E.MON){
     if(breath.includes(m.n))check('出る魔物：息の四体の出やすさは0.6で、経験の埋め合わせはない',m.w===.6&&!m.xb&&m.sp==='breath',m.n,`w${m.w} 経験${m.xb||1}`);
-    else if(maze[m.n]!=null)check('出る魔物：迷宮の埋め合わせは攻撃がおよそ1割、経験が1.13倍',m.atk===maze[m.n]&&m.xb===1.13&&!m.w,m.n,`攻${m.atk} 経験${m.xb||1} 出やすさ${m.w||1}`);
-    else if(mine[m.n]!=null)check('出る魔物：坑道の埋め合わせは攻撃がおよそ1割、経験が1.15倍',m.atk===mine[m.n]&&m.xb===1.15&&!m.w,m.n,`攻${m.atk} 経験${m.xb||1} 出やすさ${m.w||1}`);
+    else if(maze[m.n]!=null)check('出る魔物：迷宮の埋め合わせは攻撃を上げず、経験が1.13倍',m.atk===maze[m.n]&&m.xb===1.13&&!m.w,m.n,`攻${m.atk} 経験${m.xb||1} 出やすさ${m.w||1}`);
+    else if(mine[m.n]!=null)check('出る魔物：坑道の埋め合わせは攻撃を上げず、経験が1.15倍',m.atk===mine[m.n]&&m.xb===1.15&&!m.w,m.n,`攻${m.atk} 経験${m.xb||1} 出やすさ${m.w||1}`);
     else check('出る魔物：それ以外の出やすさと経験は変えない',!m.w&&!m.xb,m.n,`出やすさ${m.w||1} 経験${m.xb||1}`);
   }
   const rare=new Set(E.RARES.concat(E.MINE_RARES||[]).map(r=>r.n));
   for(let f=1;f<=E.MINE_BOT;f++)for(const fr of [0,1]){
-    const pool=E.foePool(f,!!fr),mine=f>E.MAXF,fs=E.dz(f)+(fr?1.8:0),span=mine?3:2;
+    const pool=E.foePool(f,!!fr),mine=f>E.MAXF,fs=E.dz(f)+(fr?1.8:0),span=2;
     const here=E.MON.filter(m=>!m.boss&&!m.gate&&!!m.mine===mine);
     const win=here.filter(m=>m.f<=fs+.4&&m.f>=fs-span);
     const want=(win.length?win:here.filter(m=>m.f<=fs+.4).slice(-3));
@@ -901,19 +901,19 @@ function checkFoes(){
   const pin=(f,fr,want)=>check('出る魔物：階ごとの顔ぶれが決まりどおり',E.foePool(f,fr).map(m=>m.n).join('、')===want,`${E.FN(f)}${fr?'・前人未踏':''}`,E.foePool(f,fr).map(m=>m.n).join('、'));
   pin(14,false,'溺れた衛兵、キメラ、水路の大蛇、堕ちた騎士');
   pin(14,true,'石の巨像、亡霊騎士');
-  pin(37,false,'崩落蜘蛛、鉄喰いトロール、坑道ゴーレム、盲目の洞窟竜');
-  pin(38,false,'鉄喰いトロール、坑道ゴーレム、盲目の洞窟竜');
-  pin(42,false,'盲目の洞窟竜、澱の坑夫、坑道都市の衛兵、炉の番人ゴーレム');
-  pin(43,false,'澱の坑夫、坑道都市の衛兵、炉の番人ゴーレム');
-  pin(45,false,'坑道都市の衛兵、炉の番人ゴーレム、鉱脈の大蛇、晶石の亡霊');
+  pin(37,false,'鉄喰いトロール、坑道ゴーレム、盲目の洞窟竜');
+  pin(38,false,'坑道ゴーレム、盲目の洞窟竜');
+  pin(42,false,'澱の坑夫、坑道都市の衛兵、炉の番人ゴーレム');
+  pin(43,false,'坑道都市の衛兵、炉の番人ゴーレム');
+  pin(45,false,'炉の番人ゴーレム、鉱脈の大蛇、晶石の亡霊');
   const boss=()=>{const S=E.newState();const p=Object.values(S.parties).find(x=>x.tav==='ours');p.floor=E.MAXF;p.state='explore';E.encounter(S,p);return p.etype&&p.etype.n;};
   check('出る魔物：まだ討っていないB30Fの相手は沈んだ王',boss()==='沈んだ王','B30F',boss());
-  // 坑道B13F。出やすさは洞窟竜0.6・坑夫1・衛兵1・ゴーレム0.6。種を固定して、ゴーレムが衛兵より少ないことを見る
+  // 坑道B12F。顔ぶれは坑夫1・衛兵1・ゴーレム0.6。種を固定して、ゴーレムが衛兵より少ないことを見る
   {const E2=load(7),S=E2.newState();const p=Object.values(S.parties).find(x=>x.tav==='ours');
     p.floor=42;p.state='explore';S.floors=S.floors||{};S.floors[42]={through:1};S.rares=S.rares||{};S.rares[42]={killed:1};
     const c={};for(let i=0;i<800;i++){E2.encounter(S,p);const n=(p.etype.base||p.etype.n);c[n]=(c[n]||0)+1;p.enemies=null;}
     const g=c['炉の番人ゴーレム']||0,w=c['坑道都市の衛兵']||0,d=c['盲目の洞窟竜']||0,k=c['澱の坑夫']||0;
-    check('出る魔物：息の魔物は、同じ階の息を吐かない魔物より出にくい',g<w&&d<k&&g+w+d+k===800,'坑道B12Fを800回',`ゴーレム${g} 洞窟竜${d} 衛兵${w} 坑夫${k}`);}
+    check('出る魔物：息の魔物は、同じ階の息を吐かない魔物より出にくい',g<w&&g<k&&d===0&&g+w+k===800,'坑道B12Fを800回',`ゴーレム${g} 洞窟竜${d} 衛兵${w} 坑夫${k}`);}
   const xpOf=mon=>{const E2=load(1,.99),S=E2.newState();const p=Object.values(S.parties).find(x=>x.tav==='ours');const a=S.adv[p.leader];
     a.race='エルフ';a.tal='並';a.traits=[];a.xp=0;a.lvl=10;a.hp=a.mhp=100;p.members=[a.id];p.floor=43;p.state='explore';p.maps={43:1};p.loot=0;p.trip=p.trip||{kills:{},deep:43};
     p.etype=Object.assign({},E2.MON.find(m=>m.n===mon));p.enemies=[{hp:0,sleep:0}];E2.victory(S,p);return {xp:a.xp,gold:p.loot};};
@@ -932,9 +932,9 @@ function checkFoes(){
   {const E2=load(3),S=E2.newState();const p=Object.values(S.parties).find(x=>x.tav==='ours'&&x.members.length);
     p.floor=43;p.state='explore';p.fought=true;p.enemies=[{hp:99999,sleep:0}];
     p.members.forEach(id=>{const a=S.adv[id];a.hp=a.mhp;});
-    p.etype={n:'坑道都市の衛兵',u:'ずんぐりした よろいの ひとかげ',f:19,hp:215,atk:34,mine:true};
+    p.etype={n:'坑道都市の衛兵',u:'ずんぐりした よろいの ひとかげ',f:19,hp:215,atk:99,mine:true};
     S.v=23;E2.migrate(S);const t0=S.tick;E2.tick(S);
-    check('古い記録：戦いの途中の魔物は今の強さに読み替えず、開いたあとにも進む',p.etype&&p.etype.atk===34&&p.etype.n==='坑道都市の衛兵'&&p.enemies&&p.enemies[0].hp>0&&S.v===24&&S.tick>t0,'版23',`攻${p.etype&&p.etype.atk} 版${S.v} 刻${S.tick}`);}
+    check('古い記録：戦いの途中の魔物は今の強さに読み替えず、開いたあとにも進む',p.etype&&p.etype.atk===99&&p.etype.n==='坑道都市の衛兵'&&p.enemies&&p.enemies[0].hp>0&&S.v===24&&S.tick>t0,'版23',`攻${p.etype&&p.etype.atk} 版${S.v} 刻${S.tick}`);}
 }
 
 if(!isMainThread){const line=runSeed(workerData.seed);parentPort.postMessage({line,res:[...results]});}
