@@ -370,6 +370,9 @@ test('帳場の蘇生は、押す前に状態と成功率が出て、押した�
   assert.equal(await again.page.locator('.revive-result').innerText(),`${prep.name}がよみがえった`);
   assert.equal(await again.page.locator('.toast').innerText(),`${prep.name}がよみがえった`);
   assert.equal(await again.page.locator(`button[data-act="revive"][data-a="${prep.id}"]`).count(),0);
+  await again.page.evaluate(id=>{const a=S.adv[id];a.status='dead';a.hp=0;a.party=null;render();},prep.id);
+  assert.doesNotMatch(await again.page.locator('#tbody').innerText(),/よみがえった/,'また寺院に運ばれても、前の一文が残っている');
+  await again.page.evaluate(id=>{const a=S.adv[id];a.status='idle';a.hp=a.mhp;render();},prep.id);
   const other=await again.page.evaluate(()=>{
     const a=Object.values(S.adv).find(x=>x.tav==='ours'&&x.status!=='lost'&&x.status!=='retired'&&x.status!=='dead'&&x.status!=='ash');
     a.status='ash';a.hp=0;a.party=null;S.taverns.ours.gold=100000;render();
@@ -600,6 +603,11 @@ test('開店の顔ぶれは、知らせと手帳と記念碑に出る',async()=>
 test('スマホ幅では帳場と名簿と留守のあいだの押し場所が44px以上で、見出しと知らせは語の途中で折れない',async()=>{
   const {ctx,page,errors}=await open();
   await page.locator('#sp0').click();
+  await page.evaluate(()=>{
+    const p=Object.values(S.parties).find(x=>x.tav==='ours');
+    if(p)p.state='explore';
+    render();
+  });
   await page.evaluate(()=>document.fonts.ready);
   const frames=()=>page.evaluate(()=>new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r))));
   const headsOf=()=>page.evaluate(()=>{
@@ -679,6 +687,48 @@ test('スマホ幅では帳場と名簿と留守のあいだの押し場所が44
       return bad;
     });
     assert.deepEqual(roster,[],width+' の名簿');
+    const recall=await page.evaluate(()=>{
+      const b=document.querySelector('.c-foot .btn');
+      if(!b)return ['撤退のボタンがない'];
+      const r=b.getBoundingClientRect();
+      return r.width<44||r.height<44?[`撤退 ${Math.round(r.width)}×${Math.round(r.height)}`]:[];
+    });
+    assert.deepEqual(recall,[],width+' の撤退');
+    const lines=await page.evaluate(()=>{
+      const bad=[];
+      const a=Object.values(S.adv).find(x=>x.tav==='ours'&&x.status!=='lost'&&x.status!=='retired');
+      const name=a.name;
+      a.name='ルゥ';
+      const T0=S.taverns.ours;
+      const debt=T0.debt,free=T0.debtFree,ch=S.chatter,mem=S.memorial.slice(),fw=(S.farewells||[]).slice();
+      T0.debt=0;T0.debtFree=S.tick;
+      const E=errandsOf(S),board=E.board.slice();
+      S.chatter=[{tk:S.tick,lines:[{id:a.id,who:'ルゥ',t:'今夜は静かだな'},{who:'語り',t:'名前のない行です'}]}];
+      S.memorial=[{id:a.id,name:'ルゥ',cls:'戦士',lvl:1,race:'人間',tav:'ours',tk:S.tick,by:'魔物',floor:1,kills:0}];
+      S.farewells=[{name:'ルゥ',cls:'戦士',lvl:1,race:'人間',tav:'ours',tk:S.tick,why:'故郷へ帰る',age:30,sex:'男'}];
+      E.board=[{id:9001,n:'試しの話',from:'王国',t:'文面だけ',until:S.tick+TICKS_PER_DAY,hero:a.id,tk:S.tick,refused:[]}];
+      const h=el=>el.getBoundingClientRect().height;
+      tab='bar';render();
+      const chats=[...document.querySelectorAll('.quote.chat div')];
+      if(chats.length<2)bad.push('ざわめきが足りない');
+      else if(Math.abs(h(chats[0])-h(chats[1]))>4)bad.push(`ざわめきの行 ${Math.round(h(chats[0]))} と ${Math.round(h(chats[1]))}`);
+      const link=chats[0]&&chats[0].querySelector('.nm-link');
+      if(link&&link.getBoundingClientRect().width>=40)bad.push('短い名前が箱になっている '+Math.round(link.getBoundingClientRect().width));
+      const by=document.querySelector('.quote.board .by');
+      if(!by)bad.push('掲示がない');
+      else if(h(by)>36)bad.push('掲示の一行が高い '+Math.round(h(by)));
+      tab='stone';render();
+      const stones=[...document.querySelectorAll('.stone')];
+      const withName=stones.find(s=>s.querySelector('.nm-link'));
+      const plain=stones.find(s=>!s.querySelector('.nm-link'));
+      const nameRow=el=>{const ep=el.querySelector('.ep');return ep.getBoundingClientRect().top-el.getBoundingClientRect().top;};
+      if(!withName||!plain)bad.push('記念碑が足りない');
+      else if(Math.abs(nameRow(withName)-nameRow(plain))>6)bad.push(`記念碑の名前の行 ${Math.round(nameRow(withName))} と ${Math.round(nameRow(plain))}`);
+      a.name=name;T0.debt=debt;T0.debtFree=free;S.chatter=ch;S.memorial=mem;S.farewells=fw;E.board=board;
+      tab='desk';render();
+      return bad;
+    });
+    assert.deepEqual(lines,[],width+' の文中の名前');
   }
   await page.setViewportSize({width:375,height:740});
   await page.evaluate(()=>{document.querySelector('#digest').hidden=false;});
@@ -776,5 +826,175 @@ test('スマホ幅では帳場と名簿と留守のあいだの押し場所が44
     return bad;
   });
   assert.deepEqual(wide,[]);
+  assert.deepEqual(errors,[]);await ctx.close();
+});
+
+test('新しく始めると、何も押さなくても覚え書きがあると分かる',async()=>{
+  const {ctx,page,errors}=await open();
+  await page.locator('#sp0').click();
+  await page.evaluate(()=>document.fonts.ready);
+  for(const [width,height] of [[375,740],[1280,800]]){
+    await page.setViewportSize({width,height});
+    await page.evaluate(()=>{document.querySelector('.wrap').scrollTo(0,0);window.scrollTo(0,0);});
+    await page.evaluate(()=>document.fonts.ready);
+    const seen=await page.evaluate(()=>{
+      const bad=[];
+      const line=document.querySelector('#memoline');
+      const desk=document.querySelector('button[data-v="desk"]');
+      if(!line||line.hidden)bad.push('いちばん近い目標が出ていない');
+      else{
+        const t=line.textContent;
+        if(!t.startsWith('店主の覚え書き：'))bad.push(t);
+        if(!t.includes('送り出した連中が、揃って戻ってくる'))bad.push(t);
+        const r=line.getBoundingClientRect();
+        if(r.top<0||r.bottom>innerHeight+1||r.left<-1||r.right>innerWidth+1)bad.push(`目標が画面の外 ${Math.round(r.top)}..${Math.round(r.bottom)}`);
+        if(r.height<18)bad.push('目標が潰れている');
+      }
+      if(!desk||!desk.textContent.includes('覚え書き'))bad.push('帳場に覚え書きの印がない '+(desk&&desk.textContent));
+      const dr=desk.getBoundingClientRect();
+      if(dr.top<0||dr.bottom>innerHeight+1||dr.left<-1||dr.right>innerWidth+1)bad.push('帳場の札が画面の外');
+      if(document.documentElement.scrollWidth>innerWidth+1)bad.push('ページが横にはみ出す');
+      return bad;
+    });
+    assert.deepEqual(seen,[],width+' の初めの画面');
+  }
+  await page.setViewportSize({width:375,height:740});
+  await page.locator('#memoline').click();
+  const opened=await page.evaluate(()=>{
+    const bad=[];
+    const memo=document.querySelector('#memo');
+    const desk=document.querySelector('button[data-v="desk"]');
+    if(!memo)bad.push('帳場の覚え書きが開いていない');
+    else{
+      const r=memo.getBoundingClientRect();
+      const bar=document.querySelector('.tabs').getBoundingClientRect().top;
+      if(r.top<0||r.bottom>bar+1)bad.push('覚え書きが画面に入っていない');
+    }
+    if(desk.textContent.includes('覚え書き'))bad.push('帳場を開いたあとも印が残っている');
+    if(document.querySelector('#memoline').hidden)bad.push('かなえていないのに一行が消えた');
+    return bad;
+  });
+  assert.deepEqual(opened,[]);
+  await page.evaluate(()=>{
+    S.taverns.ours.rep=Math.max(S.taverns.ours.rep,200);
+    const a=Object.values(S.adv).find(x=>x.tav==='ours');
+    a.trips=1;a.pastDreams=[{k:'fame',t:'夢',tk:S.tick}];S.stats.dreams.ours=1;
+    S.taverns.ours.seats=18;S.taverns.ours.cleanPay=S.tick;S.deepest.ours=30;
+    S.rares={1:{killed:{tav:'ours',tk:S.tick,party:'p',names:[a.name]}}};
+    S.taverns.ours.debt=0;S.taverns.ours.debtFree=S.tick;
+    render();
+  });
+  const done=await page.evaluate(()=>({line:document.querySelector('#memoline').hidden,mark:document.querySelector('button[data-v="desk"]').textContent.includes('覚え書き')}));
+  assert.equal(done.line,true);
+  assert.equal(done.mark,false);
+  assert.deepEqual(errors,[]);await ctx.close();
+});
+
+test('900px以下では返済の帯とタブが初めから見え、ページ自体は動かず、最後の空きは12pxほど',async()=>{
+  const {ctx,page,errors}=await open();
+  await page.locator('#sp0').click();
+  await page.evaluate(()=>document.fonts.ready);
+  const look=()=>page.evaluate(()=>{
+    const bad=[];
+    const pay=document.querySelector('#payw'),tabs=document.querySelector('.tabs');
+    const narrow=innerWidth<=900;
+    const pr=pay.getBoundingClientRect(),tr=tabs.getBoundingClientRect();
+    if(pay.hidden)bad.push('返済の帯が隠れている');
+    if(getComputedStyle(pay).position!==(narrow?'fixed':'static')&&!(narrow&&getComputedStyle(pay).position==='fixed')){
+      if(narrow&&getComputedStyle(pay).position!=='fixed')bad.push('返済が下に固定されていない');
+      if(!narrow&&getComputedStyle(pay).position==='fixed')bad.push('広い幅で返済が画面下に固定されている');
+    }
+    if(narrow&&getComputedStyle(tabs).position!=='fixed')bad.push('タブが下に固定されていない');
+    if(!narrow&&getComputedStyle(tabs).position==='fixed')bad.push('広い幅でタブが画面下に固定されている');
+    if(pr.top<-1||pr.bottom>innerHeight+1||pr.left<-1||pr.right>innerWidth+1||pr.height<18)bad.push(`返済が画面の外 ${Math.round(pr.top)}..${Math.round(pr.bottom)}`);
+    if(tr.top<-1||tr.bottom>innerHeight+1||tr.left<-1||tr.right>innerWidth+1)bad.push(`タブが画面の外 ${Math.round(tr.top)}..${Math.round(tr.bottom)}`);
+    if(narrow&&pr.bottom>tr.top+1)bad.push('返済がタブに重なる');
+    if(document.scrollingElement.scrollTop!==0)bad.push('ページ自体が動いている '+document.scrollingElement.scrollTop);
+    if(getComputedStyle(document.body).marginTop!=='0px'||getComputedStyle(document.body).marginLeft!=='0px')bad.push('body の余白が残っている');
+    const wrap=document.querySelector('.wrap').getBoundingClientRect();
+    if(narrow&&Math.round(wrap.left)!==16)bad.push('中身の左が16pxではない '+Math.round(wrap.left));
+    if(document.documentElement.scrollWidth>innerWidth+1)bad.push('ページが横にはみ出す');
+    const bs=[...document.querySelectorAll('.ctrl .btn')].map(b=>b.getBoundingClientRect()).sort((a,b)=>a.top-b.top||a.left-b.left);
+    for(let i=1;i<bs.length;i++){
+      if(Math.abs(bs[i].top-bs[i-1].top)>8)continue;
+      const gap=bs[i].left-bs[i-1].right;
+      if(gap<7||gap>10)bad.push(`速さのボタンの間隔 ${Math.round(gap)}`);
+    }
+    return {bad,wrapTop:Math.round(wrap.top)};
+  });
+  const tops=[];
+  for(const [width,height] of [[375,740],[390,844],[640,900],[641,900],[768,1024],[844,390],[900,700],[901,800],[1280,800]]){
+    await page.setViewportSize({width,height});
+    await page.evaluate(()=>{document.querySelector('.wrap').scrollTo(0,0);window.scrollTo(0,0);});
+    await page.evaluate(()=>document.fonts.ready);
+    const first=await look();
+    assert.deepEqual(first.bad,[],`${width}×${height} を開いた直後`);
+    if(width<=900)tops.push(first.wrapTop);
+    await page.locator('button[data-v="desk"]').click();
+    const desk=await page.evaluate(()=>{
+      const bad=[];
+      const pay=document.querySelector('#payw'),tabs=document.querySelector('.tabs');
+      const pr=pay.getBoundingClientRect(),tr=tabs.getBoundingClientRect();
+      const narrow=innerWidth<=900;
+      if(narrow&&(getComputedStyle(pay).position!=='fixed'||getComputedStyle(tabs).position!=='fixed'))bad.push('帳場でも帯かタブが固定されていない');
+      if(pr.top<-1||pr.bottom>innerHeight+1||tr.top<-1||tr.bottom>innerHeight+1)bad.push('帳場で帯かタブが画面の外');
+      if(document.scrollingElement.scrollTop!==0)bad.push('ページ自体が動いている');
+      const side=document.querySelector('.side').getBoundingClientRect();
+      const wrap=document.querySelector('.wrap').getBoundingClientRect();
+      if(narrow&&side.top>wrap.top+8)bad.push(`帳場の先頭が上に来ていない ${Math.round(side.top-wrap.top)}`);
+      const row=[...document.querySelectorAll('#tbody .row')].find(el=>el.innerText.includes('借金の残り'));
+      const label=row.querySelector('b').getBoundingClientRect();
+      const btn=row.querySelector('button').getBoundingClientRect();
+      const stacked=btn.top>=label.bottom-1;
+      if(innerWidth<=640&&!stacked)bad.push('帳場のボタンが見出しの横にある');
+      if(innerWidth>640&&stacked)bad.push('帳場のボタンが見出しの下にある');
+      const port=document.querySelector('.wrap').getBoundingClientRect();
+      for(const b of document.querySelectorAll('#tbody .btn')){
+        const r=b.getBoundingClientRect();
+        const top=Math.max(r.top,port.top),bot=Math.min(r.bottom,port.bottom);
+        if(r.width<1||bot-top<8)continue;
+        if(r.right>innerWidth+1||r.left<-1)bad.push('ボタンが横にはみ出す');
+        if(narrow&&!(r.right<=pr.left||r.left>=pr.right||bot<=pr.top+1||top>=pr.bottom-1))bad.push('返済の帯がボタンを隠す '+b.innerText.replace(/\s+/g,' ').slice(0,16));
+        if(narrow&&!(r.right<=tr.left||r.left>=tr.right||bot<=tr.top+1||top>=tr.bottom-1))bad.push('タブがボタンを隠す');
+      }
+      if(document.documentElement.scrollWidth>innerWidth+1)bad.push('ページが横にはみ出す');
+      if(innerWidth===768||innerWidth===900){
+        const trf=document.querySelector('.mapfloors tr.flr');
+        if(trf)bad.push('帳場に階の札がある');
+      }
+      return {bad,wrapTop:Math.round(wrap.top)};
+    });
+    assert.deepEqual(desk.bad,[],`${width}×${height} の帳場`);
+    if(width<=900)tops.push(desk.wrapTop);
+    if(width===768){
+      await page.locator('button[data-v="maps"]').click();
+      const table=await page.evaluate(()=>{
+        const tr=document.querySelector('.mapfloors tr.flr');
+        const a=tr.children[0].getBoundingClientRect(),b=tr.children[1].getBoundingClientRect();
+        return Math.abs(a.top-b.top)<8&&b.left>a.left;
+      });
+      assert.equal(table,true,'768pxでは階の一覧が表のまま');
+    }
+    if(width===375||width===390){
+      const gaps=[];
+      for(const name of ['news','desk','stone','ref']){
+        await page.locator(`button[data-v="${name}"]`).click();
+        const gap=await page.evaluate(()=>{
+          const wrap=document.querySelector('.wrap');
+          wrap.scrollTop=wrap.scrollHeight;
+          const pay=document.querySelector('#payw');
+          const tabs=document.querySelector('.tabs');
+          const anchor=(pay&&!pay.hidden?pay:tabs).getBoundingClientRect().top;
+          const last=document.querySelector('#tbody').lastElementChild;
+          const mb=parseFloat(getComputedStyle(last).marginBottom)||0;
+          return Math.round(anchor-(last.getBoundingClientRect().bottom+mb));
+        });
+        gaps.push([name,gap]);
+      }
+      for(const [name,gap] of gaps)assert.ok(gap>=12&&gap<=24,`${width}px の${name}の下の空きは ${gap}px（${gaps.map(g=>g.join(':')).join(' ')}）`);
+    }
+  }
+  const uniq=[...new Set(tops)];
+  assert.equal(uniq.length,1,`中身の上端が揺れている ${uniq.join(',')}`);
   assert.deepEqual(errors,[]);await ctx.close();
 });
