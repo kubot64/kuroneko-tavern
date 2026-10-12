@@ -587,6 +587,22 @@ test('開店の顔ぶれは、知らせと手帳と記念碑に出る',async()=>
   assert.equal(await stones.count(),2);
   assert.match(await stones.nth(0).innerText(),/開店からの常連/);
   assert.match(await stones.nth(1).innerText(),/開店からの常連/);
+  // 記念碑の名前は文の頭ではなく添え書きの前。44pxの箱（nm-head）にはしない
+  const inline=await page.evaluate(()=>{
+    const bad=[];
+    const marked=[...document.querySelectorAll('.stone')].filter(s=>s.querySelector('.ep')?.textContent.includes('開店からの常連'));
+    if(marked.length<2)bad.push('開店からの常連の碑が足りない');
+    for(const s of marked){
+      const b=s.querySelector('.nm-link');
+      if(!b)bad.push('碑の名前がない');
+      else if(b.classList.contains('nm-head'))bad.push('碑の名前が行頭の44px');
+      const ep=s.querySelector('.ep');
+      const row=ep.getBoundingClientRect().top-s.getBoundingClientRect().top;
+      if(row>36)bad.push('碑の名前の行が高い '+Math.round(row));
+    }
+    return bad;
+  });
+  assert.deepEqual(inline,[]);
   for(const width of [375,1280]){
     await page.setViewportSize({width,height:width===375?812:800});
     await page.locator('button[data-v="news"]').click();
@@ -596,6 +612,27 @@ test('開店の顔ぶれは、知らせと手帳と記念碑に出る',async()=>
     await row.scrollIntoViewIfNeeded();
     const box=await row.boundingBox();
     assert.ok(box&&box.width>40,`幅${width}で知らせが見えない`);
+    const newsFit=await row.evaluate(el=>{
+      const bad=[];
+      if(el.querySelector('.nm-link,.nm-head,button'))bad.push('最初の客たちの名前がボタンになっている');
+      const span=[...el.children].find(n=>!n.classList.contains('d'));
+      const range=document.createRange();range.selectNodeContents(span);
+      const lineH=Math.max(...[...range.getClientRects()].map(r=>r.height));
+      if(!(lineH<28))bad.push('最初の客たちの行が高い '+Math.round(lineH));
+      return bad;
+    });
+    assert.deepEqual(newsFit,[],`幅${width}の最初の客たち`);
+    if(width===375){
+      await page.locator('button[data-v="stone"]').click();
+      const stoneRow=await page.evaluate(()=>{
+        const s=[...document.querySelectorAll('.stone')].find(el=>el.querySelector('.ep')?.textContent.includes('開店からの常連'));
+        if(!s)return 999;
+        const b=s.querySelector('.nm-link');
+        if(!b||b.classList.contains('nm-head'))return 999;
+        return s.querySelector('.ep').getBoundingClientRect().top-s.getBoundingClientRect().top;
+      });
+      assert.ok(stoneRow<=36,`幅375で記念碑の名前の行が高い ${stoneRow}`);
+    }
   }
   assert.deepEqual(errors,[]);await ctx.close();
 });
