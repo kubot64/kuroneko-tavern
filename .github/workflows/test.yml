@@ -4,6 +4,10 @@ on:
   pull_request:
   push:
     branches: [main]
+  schedule:
+    # 毎晩、日本時間 0:00 に完全版を回す
+    - cron: '0 15 * * *'
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -19,5 +23,14 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npx playwright install --with-deps chromium
-      - run: node tools/spec-test.mjs
+      # pull request は速い版（決まった12種）。main への push、毎晩、手動実行は48種の完全版
+      - name: spec-test
+        run: |
+          if [ "$EVENT" = "pull_request" ]; then
+            node tools/spec-test.mjs --quick
+          else
+            node tools/spec-test.mjs
+          fi
+        env:
+          EVENT: ${{ github.event_name }}
       - run: node --test tools/browser-test.mjs

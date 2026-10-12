@@ -1,11 +1,12 @@
 // docs/spec.md に書かれた決まりを「いつでも成り立つはずの性質」として、ゲームの中身を回しながら確かめる。
 // ブラウザは使わない。index.html の /*ENGINE START*/〜/*ENGINE END*/ を取り出して node で動かす。
 //
-//   node tools/spec-test.mjs                 乱数の種を48個、それぞれ30000刻（600日）回す
+//   node tools/spec-test.mjs                 完全版。乱数の種を48個、それぞれ30000刻（600日）回す
+//   node tools/spec-test.mjs --quick         速い版。完全版と同じ並びの先頭12種を、それぞれ30000刻回す
 //   node tools/spec-test.mjs --seeds 40 --ticks 10000
 //   node tools/spec-test.mjs --seed 12345    その種だけを回す（不合格の再現に使う）
-//   node tools/spec-test.mjs --jobs 2        同時に回す数（ふだんは CPU のコア数）
-// 種ごとに別のスレッドで回すので、コアが多いほど早く終わる。
+//   node tools/spec-test.mjs --jobs 2        同時に回す数。環境変数 SPEC_TEST_JOBS でも指定できる（ふだんは CPU のコア数）
+// 種ごとに別のスレッドで回す。進捗と合否は種の順に出すので、同時に回す数を変えても結果は同じになる。
 import {readFileSync} from 'node:fs';
 import {Worker,isMainThread,parentPort,workerData} from 'node:worker_threads';
 import {availableParallelism} from 'node:os';
@@ -13,8 +14,19 @@ import {availableParallelism} from 'node:os';
 const args=process.argv.slice(2);
 const opt=(k,d)=>{const i=args.indexOf(k);return i>=0?Number(args[i+1]):d;};
 const TICKS=opt('--ticks',30000);
-const SEEDS=args.includes('--seed')?[opt('--seed',1)]:Array.from({length:opt('--seeds',48)},(_,i)=>1000+i*7919);
-const JOBS=Math.max(1,opt('--jobs',availableParallelism()));
+// 速い版の12種は、完全版（1000 から 7919 ずつ）の先頭で、毎回同じ並び
+const QUICK_SEEDS=12;
+const seedN=args.includes('--seed')?1:opt('--seeds',args.includes('--quick')?QUICK_SEEDS:48);
+const SEEDS=args.includes('--seed')?[opt('--seed',1)]:Array.from({length:Number.isFinite(seedN)&&seedN>=0?seedN:0},(_,i)=>1000+i*7919);
+// --jobs が最優先。なければ SPEC_TEST_JOBS。どちらもなければ CPU の数
+function jobCount(){
+  let n;
+  if(args.includes('--jobs'))n=opt('--jobs',1);
+  else if(process.env.SPEC_TEST_JOBS!=null&&process.env.SPEC_TEST_JOBS!=='')n=Number(process.env.SPEC_TEST_JOBS);
+  else n=availableParallelism();
+  return Math.max(1,Number.isFinite(n)?Math.floor(n):1);
+}
+const JOBS=jobCount();
 
 const html=readFileSync(new URL('../index.html',import.meta.url),'utf8');
 const ENGINE=html.match(/\/\*ENGINE START\*\/([\s\S]*?)\/\*ENGINE END\*\//)[1];
@@ -774,14 +786,16 @@ function checkAge(){
 if(!isMainThread){const line=runSeed(workerData.seed);parentPort.postMessage({line,res:[...results]});}
 else{
   checkTables();checkScenes();checkErrands();checkCrest();checkRowFallback();checkMine();checkAffinity();checkRevive();checkMemoNotes();checkOpening();checkAge();
-  // 種ごとの結果は、種の順に重ねる。反例は、いちばん若い種の最初のものを残す
-  const out=new Array(SEEDS.length);let next=0;
+  // 種ごとの結果は、種の順に重ねる。反例は、いちばん若い種の最初のものを残す。進捗の行も種の順に出す
+  const out=new Array(SEEDS.length);let next=0,printed=0;
+  const flush=()=>{while(printed<out.length&&out[printed]){if(out[printed].line)console.log(out[printed].line);printed++;}};
   const runOne=()=>{if(next>=SEEDS.length)return Promise.resolve();const k=next++;
-    return new Promise((ok,ng)=>{const w=new Worker(new URL(import.meta.url),{workerData:{seed:SEEDS[k]},argv:args});
-      w.once('message',m=>{out[k]=m;console.log(m.line);});
+    return new Promise((ok)=>{const w=new Worker(new URL(import.meta.url),{workerData:{seed:SEEDS[k]},argv:args});
+      w.once('message',m=>{out[k]=m;flush();});
       // ゲームの中身が例外を投げたら、その種は「エラーで止まった」として不合格にする
-      w.once('error',e=>{out[k]={res:[['ゲームがエラーで止まらない',`種${SEEDS[k]}：${e&&e.stack?e.stack.split('\n').slice(0,3).join(' / '):e}`]]};console.log(`種${SEEDS[k]}：エラーで止まった`);});
-      w.once('exit',()=>ok());}).then(runOne);};
+      const stopped=e=>`種${SEEDS[k]}：${e&&e.stack?e.stack.split('\n').slice(0,3).join(' / '):e}`;
+      w.once('error',e=>{if(!out[k])out[k]={line:`種${SEEDS[k]}：エラーで止まった`,res:[['ゲームがエラーで止まらない',stopped(e)]]};flush();});
+      w.once('exit',code=>{if(!out[k])out[k]={line:`種${SEEDS[k]}：エラーで止まった`,res:[['ゲームがエラーで止まらない',`種${SEEDS[k]}：終了コード${code}`]]};flush();ok();});}).then(runOne);};
   await Promise.all(Array.from({length:Math.min(JOBS,SEEDS.length)},runOne));
   pass('ゲームがエラーで止まらない');
   for(const m of out)for(const [name,f] of m.res){pass(name);if(f&&!results.get(name))results.set(name,f);}
