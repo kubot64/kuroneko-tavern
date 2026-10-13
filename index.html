@@ -101,7 +101,7 @@ button:focus-visible,[tabindex]:focus-visible{outline:2px solid var(--amber);out
 .tag.rival{color:var(--rival);border-color:#3c4a66}
 .pcard .facts{display:flex;flex-wrap:wrap;gap:2px 12px;font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
 .pcard .facts b{color:var(--fg);font-weight:700;margin-inline-start:3px}
-.pcard .st{font-size:12px;color:var(--muted)}
+.pcard .st{font-size:12px;color:var(--muted);word-break:keep-all;line-break:strict;overflow-wrap:anywhere}
 .pcard .st.bad{color:var(--blood)}
 .pcard .roster{display:grid;grid-template-columns:repeat(auto-fill,minmax(11em,1fr));gap:1px 10px;font-size:12px;line-height:1.45}
 .pcard .who{display:flex;align-items:baseline;gap:4px;min-width:0}
@@ -231,11 +231,11 @@ button:focus-visible,[tabindex]:focus-visible{outline:2px solid var(--amber);out
 .kv div{background:var(--panel2);border-radius:4px;padding:6px 8px;font-size:12px;color:var(--muted)}
 .kv b{display:block;color:var(--fg);font-size:15px;font-variant-numeric:tabular-nums}
 .tl{list-style:none;margin:8px 0 0;padding:0;border-left:1px solid var(--line)}
-.tl li{position:relative;padding:3px 0 7px 14px;font-size:13px}
+.tl li{position:relative;padding:3px 0 7px 14px;font-size:13px;word-break:keep-all;line-break:strict;overflow-wrap:anywhere}
 .tl li::before{content:"";position:absolute;left:-4px;top:10px;width:7px;height:7px;border-radius:50%;background:var(--amber-dim)}
 .tl .d{color:var(--muted);font-size:11px;margin-right:8px;font-variant-numeric:tabular-nums}
 .does{display:block;color:var(--muted);font-size:12px}
-/* 右の列の行と碑、地図の札、迷宮日報。語の途中では折らない。行より長い語だけ、収まるところで折る */
+/* 右の列の行と碑、地図の札、迷宮日報、一行の様子、手帳。語の途中では折らない。行より長い語だけ、収まるところで折る */
 .row .who,.meta,.does,.stone,.mv,.news li>span:not(.d){word-break:keep-all;line-break:strict;overflow-wrap:anywhere}
 .nw{white-space:nowrap;overflow-wrap:normal}
 .seats{display:flex;gap:3px;margin:2px 0 10px}
@@ -1896,8 +1896,9 @@ function tick(S){
     if(p.state==='wiped'&&!p.announced&&S.tick-p.wipedAt>=(p.tav==='ours'?15:25)){
       p.announced=true;
       const WHY={race:'銀の杯亭に先を越されまいと深く潜った',first:'一番乗りを狙って最前線に挑んだ',bounty:'王国の報奨金を狙って無理をした',dream:'仲間の夢のために深みを目指した',avenge:'仇の魔物を追って深みに踏み込んだ',errand:'店主に回された話を果たしに向かった',boss:'坑道王を討ちに底へ向かった'};
-      if(p.tav==='ours') news(S,`${p.name}が予定を過ぎても戻らない。${p.pushWhy?WHY[p.pushWhy]+'という。':''}最後に向かったのは${FN(p.floor)}だという。`,'death');
-      else news(S,`噂：銀の杯亭の${p.name}が、${FN(p.floor)}から戻らないらしい。${p.pushWhy==='race'?'黒猫亭に負けまいと焦ったのだろう、と皆が言う。':p.pushWhy==='bounty'?'報奨金に目がくらんだのだろう。':''}`,'rumor');
+      const cause=wipedCause(S,p);
+      if(p.tav==='ours') news(S,`${p.name}が予定を過ぎても戻らない。${cause}。${p.pushWhy?WHY[p.pushWhy]+'という。':''}最後に向かったのは${FN(p.floor)}だという。`,'death');
+      else news(S,`噂：銀の杯亭の${p.name}が、${FN(p.floor)}から戻らないらしい。${cause}。${p.pushWhy==='race'?'黒猫亭に負けまいと焦ったのだろう、と皆が言う。':p.pushWhy==='bounty'?'報奨金に目がくらんだのだろう。':''}`,'rumor');
     }
   }
   releaseRetrieved(S);
@@ -1928,7 +1929,7 @@ function stepParty(S,p){
     if(ms.length>=3&&(allIn||(!full&&(p.wait||0)>150))&&(ms.includes(L)||(p.wait||0)>300)){
       p.wait=0;
       p.members=ms.map(a=>a.id); ms.forEach(a=>{a.status='party'});
-      Object.assign(p,{floor:1,state:'explore',steps:0,fsteps:0,loot:0,carried:[],trip:newTrip(),rescue:[],tmap:{},guard:0,announced:false,knownWiped:false,retrieved:false});
+      Object.assign(p,{floor:1,state:'explore',steps:0,fsteps:0,loot:0,carried:[],trip:newTrip(),rescue:[],tmap:{},guard:0,announced:false,knownWiped:false,retrieved:false,cause:''});
       p.mineTrip=wantsMine(S,p);
       plog(p,'――――――――――','move'); plog(p,`${p.mineTrip?'こうどう':'めいきゅう'}へ しゅっぱつした`,'sys');supplyTeam(S,p);setPlan(S,p);
       if(p.mineTrip){const lim=Math.min(Math.floor(safeFloor(S,p)),p.cap||99);const st=MINE_STONES.filter(x=>x<=(p.mineReach||0)&&fx(x)<=lim).pop()||MINE_TOP;
@@ -2610,15 +2611,44 @@ function chest(S,p){
   }
   plog(p,line,'loot');
 }
+// 全滅の一文。乱数では選ばない。上から最初に当たったものを、そのときの顔ぶれで決める。担いでいた遺体は数えない
+function wipeCause(S,p,by){
+  by=by||p.killer||'';
+  const ms=(p.members||[]).map(id=>A(S,id)).filter(Boolean);
+  const healers=ms.filter(a=>C(a).heal);
+  const healMp=healers.reduce((s,a)=>s+(a.mp||0),0);
+  if(healers.length&&healMp<=0)return '癒し手の呪文が尽きていた';
+  if(p.trip&&p.trip.poison&&p.trip.poison.length&&healMp<=0)return '毒が抜けないまま倒れた';
+  if(String(by).startsWith('宝箱'))return '宝箱の罠にかかっていた';
+  if(p.floor>GATE_F&&!hasMap(p)&&isFrontier(S,p.floor))return '地図のない最前線で倒れた';
+  if(!healers.length)return '癒し手がひとりもいなかった';
+  if(by)return by+'に倒れた';
+  return '誰も立てなかった';
+}
+function wipedCause(S,p){return (p&&p.cause)||wipeCause(S,p,p&&p.killer);}
+// 引き返す歩数を過ぎても、黒猫亭の一行が探索か帰還のまま。戦闘中は歩かないので、ここでは数えない
+function partyOverdue(S,p){
+  if(!p||p.tav!=='ours')return false;
+  if(p.state!=='explore'&&p.state!=='return')return false;
+  if(p.announced||p.knownWiped)return false;
+  const walk=p.plan==='grind'?220:160;
+  let deep=(p.trip&&p.trip.deep)||p.floor||1;
+  if(inMine(deep))deep-=MAXF;
+  deep=Math.max(1,deep);
+  return (p.steps||0)>walk+deep*6;
+}
 function wipe(S,p,by){
   p.enemies=null;p.state='wiped';p.wipedAt=S.tick;p.killer=by;
   plog(p,'……','death');plog(p,'いっこうは ぜんめつした','death');
-  p.members.forEach(id=>{const a=A(S,id);a.hp=0;a.status='missing';a.lastFloor=p.floor;});
-  // carried corpses fall again with them
+  const ids=(p.members||[]).slice();
+  ids.forEach(id=>{const a=A(S,id);if(!a)return;a.hp=0;a.status='missing';a.lastFloor=p.floor;});
+  const cause=wipeCause(S,p,by);p.cause=cause;
+  ids.forEach(id=>{const a=A(S,id);if(a)chron(S,a,`全滅した。${cause}`);});
+  // carried corpses fall again with them。一文は、担ぐ前の顔ぶれで決めたまま
   (p.carried||[]).forEach(id=>{const a=A(S,id);if(!a)return;a.status='missing';if(!p.members.includes(id))p.members.push(id);});p.carried=[];
   (p.bountyFor||[]).forEach(b=>{if(b)S.taverns.ours.gold+=b;});p.bountyFor=[];
   const watched=S.watch.includes(p.id);
-  if(watched&&p.tav==='ours'){p.knownWiped=true;p.announced=true;news(S,`水晶が${p.name}の最期を映した。${FN(p.floor)}、${by}に倒れる。${p.pushWhy==='race'?'銀の杯亭に先を越されまいとした末だった。':p.pushWhy==='first'?'一番乗りを狙った末だった。':p.pushWhy==='bounty'?'報奨金を狙った末だった。':p.pushWhy==='avenge'?'仇を追った末だった。':p.pushWhy==='errand'?'店主に回された話を果たしに向かった末だった。':p.pushWhy==='boss'?'坑道王を討ちに向かった末だった。':''}`,'death');}
+  if(watched&&p.tav==='ours'){p.knownWiped=true;p.announced=true;const extra=cause===by+'に倒れた'?'':cause+'。';news(S,`水晶が${p.name}の最期を映した。${FN(p.floor)}、${by}に倒れる。${extra}${p.pushWhy==='race'?'銀の杯亭に先を越されまいとした末だった。':p.pushWhy==='first'?'一番乗りを狙った末だった。':p.pushWhy==='bounty'?'報奨金を狙った末だった。':p.pushWhy==='avenge'?'仇を追った末だった。':p.pushWhy==='errand'?'店主に回された話を果たしに向かった末だった。':p.pushWhy==='boss'?'坑道王を討ちに向かった末だった。':''}`,'death');}
   if(p.tav==='rival'&&S.ace===p.id){p.ace=false;S.ace=null;pickAce(S);}
 }
 // 運ばれていた遺体が街に着いた（あるいは途中でロストした）ら、一行を街の支度に戻す
@@ -3146,6 +3176,12 @@ function errandTick(S){
 // 一行が引き受けている話。主役が生きて一行にいるものだけ。浅い階の話から順に並べる
 function partyErrands(S,p){if(p.tav!=='ours'||!S.errands)return [];return S.errands.board.filter(e=>e.hero&&p.members.includes(e.hero)&&S.adv[e.hero]&&S.adv[e.hero].hp>0).sort((x,y)=>x.f-y.f);}
 function partyErrand(S,p){return partyErrands(S,p)[0]||null;}
+// しくじった理由の一文。不向きがあればその一言、向きも不向きもなければ話が向かなかった、向いていて果たせなければ手を尽くした
+function errandFailLine(def,a,fit){
+  if(fit.worst)return fit.worst.why(a.name);
+  if(!fit.best)return `心得のない者に「${def.n}」は向かなかった`;
+  return `${a.name}は手を尽くしたが、目当てのものは見つからなかった`;
+}
 function errandEvent(S,p,e){
   const E=errandsOf(S),def=errandDef(e),a=S.adv[e.hero],T0=S.taverns.ours;E.board=E.board.filter(x=>x!==e);
   const f=fitOf(def,a);let help=0,helper=null;
@@ -3162,10 +3198,10 @@ function errandEvent(S,p,e){
     errandLog(S,e,a,true,why);
     if(e.arc)arcAdvance(S,e,a);
     return;}
-  const why=f.worst?f.worst.why(a.name):f.best?`${a.name}は手を尽くしたが、目当てのものは見つからなかった`:`${a.name}は手がかりをつかめず、空振りに終わった`;
+  const why=errandFailLine(def,a,f);
   if(f.worst&&f.worst.fear)plog(p,`${a.name}「${FEAR_SAY[a.fear]}」`,'say');
   if(e.arc)S.arcs[e.arc].retryAt=S.tick+ri(3,6)*TICKS_PER_DAY;
-  chron(S,a,`店主に回された「${def.n}」をしくじる`);errandLog(S,e,a,false,why);
+  chron(S,a,`店主に回された「${def.n}」をしくじる。${why}`);errandLog(S,e,a,false,why);
   // 読み違えの重さは、ずれの大きさで変わる。小さなずれなら空振り、大きなずれならその場で死人が出ることもある
   if(f.neg>=2){plog(p,`${a.name} は ${def.at}で おおけがを した`,'death');
     if(chance(.5)){a.hp=0;die(S,p,a,def.at);news(S,a.hp<=0?`${p.name}の${a.name}が「${def.n}」で倒れた。${why}。`:`${p.name}の${a.name}が「${def.n}」をしくじり、死の淵から戻った。${why}。`,a.hp<=0?'death':'errand');if(!alive(S,p).length)wipe(S,p,def.at);return;}
@@ -3549,7 +3585,7 @@ function render(){
 }
 function stateText(p){
   if(p.state==='wiped'){
-    if(p.tav==='ours') return p.knownWiped?[`全滅（${FN(p.floor)}）`,true]:(!p.retrieved&&S.tick-p.wipedAt<15?[`${FN(p.floor)} 探索中…？`,false]:[`消息不明（${FN(p.floor)}）`,true]);
+    if(p.tav==='ours') return p.knownWiped?[`全滅（${FN(p.floor)}）`,true]:(!p.retrieved&&S.tick-p.wipedAt<15?[`${FN(p.floor)} まだ戻らない`,true]:[`消息不明（${FN(p.floor)}）`,true]);
     return [`消息不明（噂）`,true];
   }
   if(p.state==='town') return [(p.wait||0)>10?'仲間の回復を待っている':'酒場で休息中',false];
@@ -3561,8 +3597,10 @@ function partyStatus(p){
   const [st,bad]=stateText(p);
   if(p.tav!=='ours'||p.state==='wiped'||p.state==='town')return [st,bad];
   const d=partyDanger(S,p);
-  if(!d||!d.card)return [st,bad];
-  return [st+'・'+d.card,true];
+  let text=st,mark=bad;
+  if(d&&d.card){text+='・'+d.card;mark=true;}
+  if(partyOverdue(S,p)){text+='・まだ戻らない';mark=true;}
+  return [text,mark];
 }
 function renderCrystals(){
   const box=$('crystals');

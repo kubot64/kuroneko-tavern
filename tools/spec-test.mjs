@@ -32,7 +32,7 @@ const html=readFileSync(new URL('../index.html',import.meta.url),'utf8');
 const ENGINE=html.match(/\/\*ENGINE START\*\/([\s\S]*?)\/\*ENGINE END\*\//)[1];
 const EXPORTS=['newState','tick','rivalTemple','seatCap','seatsUsed','nextSeats','newcomerLvl','buyPrice','investPrice','FACILITIES',
   'RARES','MAXF','DRAGON_F','TICKS_PER_DAY','awayPlan','smallOf','debtTick','DEBT0','encounter','rareSlain','rareMonOf','arrive',
-  'repay','errandsOf','assignErrand','errandBlock','designateBlock','MAXF','MINE_TOP','MINE_BOT','MINE_N','FN','mineOpen','conquest','mineConquest','title','alive','markAdv','markedOf','BOARD_MAX','MARK_MAX','errandStage','boardMax','markMax','ARCS','reachFloor','GATE_F','fac','nextFac','buildFac','migrate','partyShown','crestJa','glossText','PT_A','PT_B','takeCrest','pickCrest','newPartyName','combat','MON','elemMul','elemNote','sleepMul','sleepReach','MINE_RARES','supplyTeam','potionPrice','lendRival','reviveChance','reviveHint','reviveResultText','temple','checkMemo','memoState','nextDue','rankRows','MEMO','setQuietLog','DREAMS','rollAge','AGE2','ORIGINS','careerLine','originBg','SPELL_LIST','foePool','dz','chest','victory','partyDanger','hpBand','retreatLine','retire','letterTick','kinTick','schedulePendingLetters','scheduleLostKin','memorialize','lostRareLine','dreamText','letterQuote','checkDream'];
+  'repay','errandsOf','assignErrand','errandBlock','designateBlock','MAXF','MINE_TOP','MINE_BOT','MINE_N','FN','mineOpen','conquest','mineConquest','title','alive','markAdv','markedOf','BOARD_MAX','MARK_MAX','errandStage','boardMax','markMax','ARCS','reachFloor','GATE_F','fac','nextFac','buildFac','migrate','partyShown','crestJa','glossText','PT_A','PT_B','takeCrest','pickCrest','newPartyName','combat','MON','elemMul','elemNote','sleepMul','sleepReach','MINE_RARES','supplyTeam','potionPrice','lendRival','reviveChance','reviveHint','reviveResultText','temple','checkMemo','memoState','nextDue','rankRows','MEMO','setQuietLog','DREAMS','rollAge','AGE2','ORIGINS','careerLine','originBg','SPELL_LIST','foePool','dz','chest','victory','partyDanger','hpBand','retreatLine','retire','letterTick','kinTick','schedulePendingLetters','scheduleLostKin','memorialize','lostRareLine','dreamText','letterQuote','checkDream','wipe','wipeCause','errandEvent','errandFailLine','partyOverdue','fitOf','ERRANDS'];
 
 // 乱数の種を固定したゲームの中身を1つ作る。中身の Math.random だけを差し替える
 function load(seed,fixed){
@@ -716,6 +716,63 @@ function checkAffinity(){
     check('危険の知らせ：強欲のリーダーには、引き返さない一言は出さない',greed.d&&greed.d.key==='wound'&&!greed.d.thought&&!greed.d.fight,'強欲',JSON.stringify(greed.d));
     const calm=dangerScene((S,p,L)=>{S.adv[p.leader].pers='無謀';});
     check('危険の知らせ：無謀でも深手がなければ、リーダーの考えは出さない',!calm.d,'無謀・満タン',JSON.stringify(calm.d));}
+  // 全滅の一文と、引き返す歩数を過ぎた札。乱数では選ばない
+  {const scene=()=>{const E=load(1),S=E.newState();const p=Object.values(S.parties).find(x=>x.tav==='ours');return {E,S,p};};
+    const prep=(E,S,p,opt={})=>{
+      p.state='explore';p.floor=opt.floor||4;p.maps={};p.tmap={};p.plan='normal';p.pushWhy=null;p.enemies=null;
+      p.trip=p.trip||{};p.trip.poison=opt.poison||[];p.trip.deep=opt.deep||p.floor;p.cause='';p.killer='';
+      p.knownWiped=false;p.announced=false;p.retrieved=false;p.steps=0;
+      p.members.forEach(id=>{const a=S.adv[id];a.hp=a.mhp||10;a.mp=5;a.cls='戦士';a.status='party';a.poison=0;});
+      if(opt.healer){const a=S.adv[p.members[0]];a.cls='僧侶';a.mp=opt.mp==null?0:opt.mp;}
+      if(opt.floor)S.floors=Object.assign({},S.floors,{[opt.floor]:opt.through?{through:1}:{}});
+      S.watch=opt.watch?[p.id,null]:[null,null];
+      return p;
+    };
+    {const {E,S,p}=scene();prep(E,S,p,{healer:true,mp:0,poison:['誰か']});const n0=S.news.length;E.wipe(S,p,'オーク');
+      const chron=p.members.every(id=>(S.adv[id].chron||[]).some(c=>c.tk===S.tick&&c.t==='全滅した。癒し手の呪文が尽きていた'));
+      check('全滅：癒し手の呪文が尽きた一文は、毒より先で、見ていなければその場では知らせない',p.cause==='癒し手の呪文が尽きていた'&&chron&&S.news.length===n0&&S.v===26,'僧侶MP0・毒あり',p.cause);
+      Object.values(S.parties).forEach(q=>{if(q!==p){q.state='town';q.rest=99;}});p.wipedAt=S.tick-14;E.tick(S);
+      check('全滅：遅れて届く知らせにも、決まった一文が残る',S.news.some(n=>n.t.includes(`${p.name}が予定を過ぎても戻らない。癒し手の呪文が尽きていた。`))&&S.v===26,'15刻後',S.news.slice(-3).map(n=>n.t).join(' / '));}
+    {const {E,S,p}=scene();prep(E,S,p,{watch:true});E.wipe(S,p,'オーク');
+      const n=S.news.slice(-1)[0].t;
+      check('全滅：癒し手がいなければ、その一文を水晶の知らせに添える',p.cause==='癒し手がひとりもいなかった'&&n.includes('癒し手がひとりもいなかった')&&n.includes('オークに倒れる'),'戦士だけ',n);}
+    {const {E,S,p}=scene();prep(E,S,p,{healer:true,mp:4,watch:true});E.wipe(S,p,'オーク');
+      const n=S.news.slice(-1)[0].t;
+      const chron=p.members.every(id=>(S.adv[id].chron||[]).some(c=>c.t==='全滅した。オークに倒れた'));
+      check('全滅：倒した相手の繰り返しは、水晶の知らせに重ねない',p.cause==='オークに倒れた'&&n.includes('オークに倒れる')&&!n.includes('オークに倒れた')&&chron,'僧侶MP4・B4F',n);}
+    {const {E,S,p}=scene();prep(E,S,p,{poison:['誰か']});E.wipe(S,p,'オーク');
+      check('全滅：毒が抜けない一文は、癒し手不在より先',p.cause==='毒が抜けないまま倒れた','毒あり・戦士だけ',p.cause);}
+    {const {E,S,p}=scene();prep(E,S,p,{healer:true,mp:3});E.wipe(S,p,'宝箱のどくばり');
+      check('全滅：宝箱の罠なら、その一文',p.cause==='宝箱の罠にかかっていた','僧侶MP3・B4F',p.cause);}
+    {const {E,S,p}=scene();prep(E,S,p,{healer:true,mp:4,floor:12});E.wipe(S,p,'オーク');
+      check('全滅：地図のない最前線なら、その一文',p.cause==='地図のない最前線で倒れた','B12F・地図なし・僧侶MP4',p.cause);}
+    {const {E,S,p}=scene();const a=S.adv[p.leader];
+      p.state='explore';p.floor=2;p.enemies=null;p.members.forEach(id=>{const m=S.adv[id];m.hp=m.mhp;m.status='party';m.pers='普通';m.quirk='無口';m.fear=null;m.traits=[];m.cls='戦士';});
+      const def=E.ERRANDS.find(x=>x.k==='kitten');const plain=E.fitOf(def,a);
+      check('依頼：向きも不向きもなければ、向かなかったと書く',E.errandFailLine(def,a,plain)==='心得のない者に「迷い込んだ子猫」は向かなかった','無口・普通',JSON.stringify(plain));
+      a.fear='獣';const fear=E.fitOf(def,a);
+      check('依頼：不向きがあれば、その一言を書く',E.errandFailLine(def,a,fear)===`獣を嫌う${a.name}は、子猫に手を伸ばせなかった`,'獣が怖い',JSON.stringify(fear));
+      a.fear=null;a.quirk='猫好き';const like=E.fitOf(def,a);
+      check('依頼：向いていて果たせなければ、手を尽くしたと書く',E.errandFailLine(def,a,like)===`${a.name}は手を尽くしたが、目当てのものは見つからなかった`,'猫好き',JSON.stringify(like));
+      const F=load(1,0.99),T=F.newState(),q=Object.values(T.parties).find(x=>x.tav==='ours'),h=T.adv[q.leader];
+      q.state='explore';q.floor=2;q.enemies=null;q.members.forEach(id=>{const m=T.adv[id];m.hp=m.mhp;m.status='party';m.pers='普通';m.quirk='無口';m.fear=null;m.traits=[];m.cls='戦士';});
+      const run=(mut)=>{mut();const e={id:1,k:'kitten',n:'迷い込んだ子猫',f:2,hero:h.id};F.errandEvent(T,q,e);
+        return {news:T.news.slice(-1)[0].t,chron:(h.chron||[]).slice(-1)[0].t};};
+      const none=run(()=>{});
+      check('依頼：向かなかった一文は、知らせと手帳に残る',none.news.includes('心得のない者に「迷い込んだ子猫」は向かなかった')&&none.chron===`店主に回された「迷い込んだ子猫」をしくじる。心得のない者に「迷い込んだ子猫」は向かなかった`,'手がかりなし',none.news+' / '+none.chron);
+      const scared=run(()=>{h.fear='獣';});
+      check('依頼：不向きの一文は、知らせと手帳に残る',scared.news.includes(`獣を嫌う${h.name}は、子猫に手を伸ばせなかった`)&&scared.chron.includes('をしくじる。')&&scared.chron.includes(`獣を嫌う${h.name}は、子猫に手を伸ばせなかった`),'獣が怖い',scared.news);
+      const suited=run(()=>{h.fear=null;h.quirk='猫好き';});
+      check('依頼：手を尽くした一文は、知らせと手帳に残る',suited.news.includes(`${h.name}は手を尽くしたが、目当てのものは見つからなかった`)&&suited.chron.includes('をしくじる。')&&suited.chron.includes('手を尽くしたが'),'猫好きなのに果たせない',suited.news);}
+    {const {E,S,p}=scene();p.tav='ours';p.state='explore';p.plan='normal';p.announced=false;p.knownWiped=false;p.steps=200;p.trip={deep:1};
+      check('まだ戻らない：ふつうの回は、160歩に深さの6倍を足した歩数を過ぎると真',E.partyOverdue(S,p)===true,'200歩・B1F',p.steps);
+      p.steps=100;check('まだ戻らない：引き返す歩数の内側では偽',E.partyOverdue(S,p)===false,'100歩',p.steps);
+      p.plan='grind';p.steps=230;check('まだ戻らない：腕を磨く回は220歩が基準',E.partyOverdue(S,p)===true,'230歩',p.steps);
+      p.steps=220;check('まだ戻らない：腕を磨く回の基準ちょうどでは偽',E.partyOverdue(S,p)===false,'220歩',p.steps);
+      p.plan='normal';p.steps=200;p.state='town';check('まだ戻らない：街にいるあいだは偽',E.partyOverdue(S,p)===false,'休息',p.state);
+      p.state='explore';p.tav='rival';check('まだ戻らない：銀の杯亭の札には出さない',E.partyOverdue(S,p)===false,'銀の杯亭',p.tav);
+      p.tav='ours';p.trip={deep:35};p.steps=200;check('まだ戻らない：坑道の深さは入口から数える',E.partyOverdue(S,p)===true,'坑道B5F・200歩',p.trip.deep);}
+  }
 }
 
 // 「便り」「次の世代」「記念碑」の場面。乱数を固定して、届くときと届かないときを分ける
@@ -917,7 +974,25 @@ function runSeed(seed){
       if(p.state==='wiped'&&!p.retrieved)check('全滅：見つからない一行は1000刻でロストする',S.tick-p.wipedAt<=1001,at,()=>`${p.name} 全滅から${S.tick-p.wipedAt}刻`);
       // 「黒竜」：黒竜を一度も倒していなければ、B29Fより下には降りられない
       if(p.state!=='wiped'&&p.state!=='town')check('黒竜：倒すまではB29Fより下に降りられない',p.floor<=E.DRAGON_F||(S.dragon&&S.dragon.kills>0),at,()=>`${p.name} B${p.floor}F`);
+      if(p.state==='wiped'&&prevState[p.id]!=='wiped'){
+        const cause=p.cause;
+        const ok=cause&&(p.members||[]).some(id=>{const a=S.adv[id];return a&&(a.chron||[]).some(c=>c.tk===S.tick&&c.t===`全滅した。${cause}`);});
+        check('全滅：原因の一文が手帳に残る',!!ok,at,()=>`${p.name} ${cause||'なし'}`);
+      }
       prevState[p.id]=p.state;
+    }
+    for(const n of S.news){
+      if(n.tk!==S.tick)continue;
+      if(n.t.includes('最期を映した')||n.t.includes('予定を過ぎても戻らない')||n.t.includes('から戻らないらしい')){
+        const hit=parties.filter(q=>q.state==='wiped'&&q.cause&&n.t.includes(q.name)).sort((a,b)=>b.name.length-a.name.length)[0];
+        const cause=hit&&hit.cause;
+        const said=cause&&(n.t.includes(cause)||(cause.endsWith('に倒れた')&&n.t.includes(cause.slice(0,-1)+'る')));
+        check('全滅：知らせに原因の一文がある',!!said,at,()=>n.t);
+      }
+      if(n.t.includes('をしくじった。')||n.t.includes('をしくじり、')){
+        const said=advs.some(a=>(a.chron||[]).some(c=>c.tk===S.tick&&typeof c.t==='string'&&c.t.includes('をしくじる。')));
+        check('依頼：しくじった理由が手帳に残る',said,at,n.t);
+      }
     }
     // 数値が壊れていない（NaN や無限大にならない）
     check('お金と体力が数として壊れない',num(T0.gold)&&num(T0.rep)&&num(T0.debt)&&advs.every(a=>num(a.gold)&&num(a.hp)&&num(a.xp)&&Number.isInteger(a.lvl)&&a.lvl>=1),at,
