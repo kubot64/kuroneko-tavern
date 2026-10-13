@@ -138,8 +138,9 @@ test('一行の札に、平均と最高と到達と顔ぶれが出て、狭い�
       if(ms.length&&!text.includes('最高'))bad.push(p.name+' 最高がない');
       if(!text.includes('到達'))bad.push(p.name+' 到達がない');
       for(const a of ms){if(!text.includes(a.name)||!text.includes(a.cls))bad.push(`${p.name} に ${a.name}（${a.cls}）がいない`);
-        const cls=[...el.querySelectorAll('.cls')].find(n=>n.textContent.includes(a.cls));
-        if(cls&&!new RegExp(a.cls+' Lv'+a.lvl).test(cls.textContent))bad.push(`${a.name} のLv`);}
+        const who=[...el.querySelectorAll('.who')].find(n=>(n.querySelector('.nm')||{}).textContent.includes(a.name));
+        const cls=who&&who.querySelector('.cls');
+        if(!cls||!cls.textContent.startsWith(a.cls+' Lv'+a.lvl))bad.push(`${a.name} のLv ${cls&&cls.textContent}`);}
       if(p.leader&&S.adv[p.leader]&&ms.some(a=>a.id===p.leader)&&!text.includes('★'+S.adv[p.leader].name))bad.push(p.name+' のリーダー');
       const ja=crestJa(p.name);
       if(ja&&!text.includes(p.name+'（'+ja+'）'))bad.push(p.name+' の訳がない');
@@ -185,8 +186,9 @@ test('金額・階・席の知らせは、画面どうしで同じ書き方に�
     const idleBook=document.querySelector('#advbox .kv').innerText;
     advOpen=diver.id;renderAdv();
     const diveBook=document.querySelector('#advbox .kv').innerText;
+    const diveHead=document.querySelector('#advbox .adv-sub').innerText;
     document.getElementById('advm').hidden=true;advOpen=null;
-    return {gold,debt,desk,maps,idleBook,diveBook,rare:MEMO.find(m=>m.id==='rare').t,chatter:partyCount('鉄の誓い傭兵団（四十人）')};
+    return {gold,debt,desk,maps,idleBook,diveBook,diveHead,rare:MEMO.find(m=>m.id==='rare').t,chatter:partyCount('鉄の誓い傭兵団（四十人）')};
   });
   assert.equal(shown.gold,'154,420');
   assert.equal(shown.debt,'80,000');
@@ -200,7 +202,7 @@ test('金額・階・席の知らせは、画面どうしで同じ書き方に�
   assert.match(shown.idleBook,/最深到達/);
   assert.doesNotMatch(shown.idleBook,/B0F/);
   assert.match(shown.diveBook,/B1F/);
-  assert.match(shown.diveBook,/Lv\d/);
+  assert.match(shown.diveHead,/Lv\d/);
   assert.doesNotMatch(shown.diveBook,/B0F/);
   assert.equal(shown.rare,'名のある魔物を、一体仕留める');
   assert.equal(shown.chatter,'鉄の誓い傭兵団（40人）');
