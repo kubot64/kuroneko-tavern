@@ -706,15 +706,16 @@ const OPENING_TIES=[
   ()=>'銀の杯亭には席がなく、西の縁の新しい店に来た',
   ()=>'店の看板を、店主と一緒に掲げた',
 ];
-function assignOpeningTies(cast){
+function assignOpeningTies(S,cast){
   const pool=OPENING_TIES.slice();
   for(let i=pool.length-1;i>0;i--){const j=ri(0,i);const t=pool[i];pool[i]=pool[j];pool[j]=t;}
   const sele=cast.find(a=>a.origin==='セーレ自由都市同盟');let n=0;
   for(const a of cast){
     const tie=a===sele?'店主と同じ船でセーレから来た':pool[n++](a);
-    const old=a.bg;a.bg=old+'。'+tie;
-    const mark='の出身。'+old+'。',next='の出身。'+a.bg+'。';
-    for(const c of a.chron||[])if(c.t&&c.t.includes(mark))c.t=c.t.split(mark).join(next);
+    a.bg+='。'+tie;
+    // 経歴に出身の名があるときは「○○の出身。」が無いので、来店の記録を組み直す
+    const line=doorLine(S,a);
+    for(const c of a.chron||[]) if(c.t&&c.t.includes('扉をくぐる')) c.t=line;
   }
 }
 function openingGuestsNews(cast){return '最初の客たち。'+cast.map(a=>a.origin+'出身の'+a.name).join('、')+'が、開店の日から黒猫亭にいる。';}
@@ -736,7 +737,7 @@ function newState(){
   const cast=[];
   for(const cls of ['戦士','僧侶','盗賊','魔術師'])cast.push(makeAdv(S,'ours',{lvl:OPENING_LVL(),cls,race:raceForCls(cls),opening:true}));
   for(let i=0;i<3;i++)cast.push(makeAdv(S,'ours',{lvl:OPENING_LVL(),opening:true}));
-  assignOpeningTies(cast);
+  assignOpeningTies(S,cast);
   const vets=[];for(let i=0;i<6;i++) vets.push(makeAdv(S,'rival',{lvl:ri(12,17)}));
   for(let i=0;i<22;i++) makeAdv(S,'rival');
   news(S,`【ラウレンツ王国のお触れ】19年のあいだ閉ざしていた「封じの門」を開き、${FN(GATE_F+1)}より下の探索を解禁する。`,'edict');
@@ -842,19 +843,19 @@ const QUIRKS={
   '読書家':{d:['{n}は かべの もじを よみとこうとしている'],t:['分厚い本を読みふけっている','古い迷宮誌を写している']},
 };
 const ORIGINS={
-  'ラウレンツ王国':{short:'王国',w:{'人間':4,'ホビット':.6,'ドワーフ':.3,'エルフ':.2},bg:[['王都の下町育ち',{m:'辺境の農家の三男坊',f:'辺境の農家の三女'},'没落した騎士家の末子'],['王国軍の元衛兵','王都の自警団あがり'],['元王国騎士団員','辺境の守備隊長だった']],
+  'ラウレンツ王国':{short:'王国',w:{'人間':4,'ホビット':.6,'ドワーフ':.3,'エルフ':.2},bg:[['王都の下町育ち',{m:'辺境の農家の三男坊',f:'辺境の農家の三女'},'没落した騎士家の末子'],['王国軍の元衛兵','王都の自警団あがり'],['元王国騎士団員','辺境の元守備隊長']],
     tale:['王都の連中は、この穴の底のことなんて何も知らない','騎士団の連中に見せてやりたいよ、{deep}の景色を']},
   'グラウ帝国':{short:'帝国',w:{'人間':2,'ドワーフ':.8},bg:[['帝国の徴兵から逃げてきた若者','鉱山労働者の子'],['帝国の脱走兵','帝国から流れてきた傭兵'],['帝国の元百人隊長','帝国の戦場帰り']],
     tale:['帝国の行軍に比べりゃ、迷宮なんて散歩だ','帝国の将軍どもも、この穴は欲しがるだろうな']},
-  'セーレ自由都市同盟':{short:'同盟',w:{'人間':2,'ホビット':1,'エルフ':.3},bg:[['家出した商家の子',{m:'港の荷運び人夫',f:'港の荷運び'}],['密輸船の用心棒だった','借金を抱えた元商人'],['同盟の私掠船の元船長']],
+  'セーレ自由都市同盟':{short:'同盟',w:{'人間':2,'ホビット':1,'エルフ':.3},bg:[['家出した商家の子',{m:'港の荷運び人夫',f:'港の荷運び'}],['密輸船の元用心棒','借金を抱えた元商人'],['同盟の私掠船の元船長']],
     tale:['今回の獲物、セーレの港ならもっと高く売れるんだがな','商人どもは潜らない。潜るのはいつも俺たちだ']},
   '聖オルド教国':{short:'教国',w:{'人間':1.2,'エルフ':.3},bg:[['神学校の落ちこぼれ','教国の巡礼者'],[{m:'破門された僧',f:'破門された尼僧'},'異端審問から逃げてきた者'],['元聖堂騎士']],
     tale:['寺院の連中は、祈りより先に値段を言う。故郷でもそうだった','教国の教えじゃ、ロストした魂は迷宮に召されるんだとさ。……冗談じゃない']},
-  'カルセ王国':{short:'カルセ',w:{'人間':2.2,'ホビット':.5},bg:[[{m:'小作農の次男',f:'小作農の次女'},'飢饉で畑を手放した若者','粉屋の見習い'],['麦の隊商の護衛だった','カルセの国境警備隊あがり'],['カルセ王家の元近衛']],
+  'カルセ王国':{short:'カルセ',w:{'人間':2.2,'ホビット':.5},bg:[[{m:'小作農の次男',f:'小作農の次女'},'飢饉で畑を手放した若者','粉屋の見習い'],['麦の隊商の元護衛','カルセの国境警備隊あがり'],['カルセ王家の元近衛']],
     tale:['ロウエンのパンはカルセの麦だ。故郷の畑の味がする','カルセじゃ、麦が実れば誰も剣なんか握らない。……ここは違う']},
   'リンデ公国':{short:'リンデ',w:{'人間':1,'エルフ':.6},bg:[['森番の子','公国の猟師見習い'],['公国の弓兵あがり','森の街道の用心棒'],['公爵家の私生児','元公国弓兵隊長']],
     tale:['リンデの森なら、獣の足跡で道がわかる。ここは石しかない','公爵さまは王国の顔色ばかり見てる。俺は自分の顔で稼ぐ']},
-  'ベルクラント鉱山諸侯領':{short:'ベルク',w:{'人間':1,'ドワーフ':1},bg:[['落盤で職を失った鉱夫',{m:'坑夫頭の息子',f:'坑夫頭の娘'}],[{m:'鉱山主の放蕩息子',f:'鉱山主の放蕩娘'},'鉱山の用心棒だった'],[{m:'ベルクの坑道を三つ潰した男',f:'ベルクの坑道を三つ潰した女'}]],
+  'ベルクラント鉱山諸侯領':{short:'ベルク',w:{'人間':1,'ドワーフ':1},bg:[['落盤で職を失った鉱夫',{m:'坑夫頭の息子',f:'坑夫頭の娘'}],[{m:'鉱山主の放蕩息子',f:'鉱山主の放蕩娘'},'鉱山の元用心棒'],[{m:'ベルクの坑道を三つ潰した男',f:'ベルクの坑道を三つ潰した女'}]],
     tale:['{deep}の鉱石、ベルクの親方衆が見たら目の色を変えるぞ','坑道で死ぬか、迷宮で死ぬか。稼げるほうを選んだだけさ']},
   'ハザン草原':{short:'ハザン',w:{'人間':.5},bg:[['氏族を出た若い騎手'],['氏族を追われた馬泥棒','草原の隊商の案内人'],['ハザンの元氏族長']],
     tale:['馬で駆けられない場所は好きじゃない。……金になるなら別だが','草原の風が恋しい。ここの風は死人の匂いがする']},
@@ -882,10 +883,27 @@ function pickOrigin(race,cls){
 // 性別を決めつける経歴は {m,f}。選ぶ乱数は一つで、文はその人の性別で決める
 function careerLine(line,sex){if(line&&typeof line==='object')return sex==='女'?line.f:line.m;return line;}
 function originBg(o,lv0,sex){const lvl=Math.ceil(lv0/2);const pools=ORIGINS[o].bg;const i=Math.min(pools.length-1,lvl>=6?2:lvl>=3?1:0);return careerLine(pick(pools[i]),sex);}
-const BGS=[[1,['村を出たばかりの若者','見習いあがり','家出した商家の子','神学校の落ちこぼれ','元粉挽き職人','羊飼いだった']],
-  [3,['元傭兵','街の自警団あがり','よその街の迷宮帰り','旅の修行者','元衛兵','密輸船の用心棒だった']],
-  [6,['流れの古強者','戦場帰り','元騎士団員','名の知れた冒険者','辺境の守備隊長だった']],
+const BGS=[[1,['村を出たばかりの若者','見習いあがり','家出した商家の子','神学校の落ちこぼれ','元粉挽き職人','元羊飼い']],
+  [3,['元傭兵','街の自警団あがり','よその街の迷宮帰り','旅の修行者','元衛兵','密輸船の元用心棒']],
+  [6,['流れの古強者','戦場帰り','元騎士団員','名の知れた冒険者','辺境の元守備隊長']],
   [9,['伝説に片足をかけた老兵','滅んだ王国の生き残り','隠遁から戻ってきた達人']]];
+// 経歴に出身の名前か短い呼びが既にあるとき、知らせと手帳で地名を重ねない
+function originIntro(origin,bg){
+  const o=ORIGINS[origin]; if(!o) return {news:'',door:''};
+  const named=!!bg&&(bg.includes(origin)||bg.includes(o.short));
+  if(named) return o.far?{news:'海の向こうから来た',door:'海の向こうから来た。'}:{news:'',door:''};
+  return o.far?{news:'海の向こう、'+origin+'から来た',door:'海の向こう、'+origin+'の出身。'}:{news:origin+'出身の',door:origin+'の出身。'};
+}
+function newcomerClause(origin,bg){return originIntro(origin,bg).news+(bg||'')+(bg&&String(bg).endsWith('だった')?'という':'だという');}
+function doorLine(S,a){
+  return `${originIntro(a.origin,a.bg).door}${a.bg}。${ageWords(a)}、${a.sex==='女'?'女の':''}${a.race}の${a.cls}（レベル${a.lvl}）として${S.taverns[a.tav].name}の扉をくぐる。夢は「${dreamText(a.dream)}」`;
+}
+function ourNewcomerNews(a){
+  const age=a.race==='人間'?a.age+'歳の':'人間でいえば'+humanAge(a)+'歳ほどの';
+  const tail=`${a.odd?a.race+'の'+a.cls+'とは珍しい。':''}${CLS[a.cls].rare?a.cls+'とは、めったに見ない職業だ。':''}${a.blessed?'生まれながらに'+a.traits.join('・')+'を備えた、天に愛された者らしい。':''}${a.cursed?'見るからに星回りが悪い。'+a.traits.join('・')+'と、不得手ばかりだという。':''}`;
+  const rare=a.odd||CLS[a.cls].rare||ORIGINS[a.origin].far||a.blessed||a.cursed;
+  return {t:`新顔がやってきた。${newcomerClause(a.origin,a.bg)}${age}${a.sex==='女'?'女':''}${a.race}の${a.cls}、${a.name}（レベル${a.lvl}）。${tail}`,k:rare?'record':'info'};
+}
 function PL(a){return Math.ceil(a.lvl/2)}
 function rankOf(l){return l>=50?'神話':l>=40?'伝説':l>=30?'英雄':l>=20?'ベテラン':l>=10?'一人前':'駆け出し'}
 function xpNeed(l){const k=(l+1)/2;return Math.round(15*Math.pow(k,3)*Math.pow(Math.max(1,k/8),1.5))}
@@ -1122,7 +1140,7 @@ function makeAdv(S,tav,o){
   if(odd)chron(S,a,`${ODD_PERK[race]}`);
   if(c.rare)chron(S,a,`めったに見ない${cls}。${c.desc}`);
   if(c.beast){a.beast={kind:pick(BEAST_KIND),name:pick(BEAST_NAMES)};chron(S,a,`相棒は${a.beast.kind}の${a.beast.name}`);}
-  chron(S,a,`${ORIGINS[a.origin].far?'海の向こう、':''}${a.origin}の出身。${a.bg}。${ageWords(a)}、${a.sex==='女'?'女の':''}${a.race}の${a.cls}（レベル${a.lvl}）として${S.taverns[tav].name}の扉をくぐる。夢は「${dreamText(a.dream)}」`);
+  chron(S,a,doorLine(S,a));
   if(a.debt)chron(S,a,`銀の杯亭から${a.loanItem}を借りる。借金${a.debt}G`);
   S.adv[a.id]=a; return a;
 }
@@ -1871,7 +1889,7 @@ function tick(S){
     if(chance(.12)) formParties(S,tav);
     const rate=(tav==='ours'?0.016+Math.min(S.taverns.ours.rep,200)*0.00008:0.018)*(edict(S,'mercs')?1.8:1);
     if(seatsUsed(S,tav)<seatCap(S,tav)&&chance(rate)){const a=makeAdv(S,tav,Object.assign({lvl:newcomerLvl(S,tav)},edict(S,'mercs')&&chance(.5)?{origin:'グラウ帝国',race:'人間'}:{})); if(tav==='ours'&&policy(S).rookie&&a.lvl<10){for(let k=0;k<2;k++){const o=giftOffer(S,a);if(!o||o.price>incomeAt(depthOf(a)+2)*3)break;giveGift(S,a,o,'店主から支度の品として');}}
-      if(tav==='ours') news(S,`新顔がやってきた。${ORIGINS[a.origin].far?'海の向こう、'+a.origin+'から来た':a.origin+'出身の'}${a.bg}だという${a.race==='人間'?a.age+'歳の':'人間でいえば'+humanAge(a)+'歳ほどの'}${a.sex==='女'?'女':''}${a.race}の${a.cls}、${a.name}（レベル${a.lvl}）。${a.odd?a.race+'の'+a.cls+'とは珍しい。':''}${CLS[a.cls].rare?a.cls+'とは、めったに見ない職業だ。':''}${a.blessed?'生まれながらに'+a.traits.join('・')+'を備えた、天に愛された者らしい。':''}${a.cursed?'見るからに星回りが悪い。'+a.traits.join('・')+'と、不得手ばかりだという。':''}`,a.odd||CLS[a.cls].rare||ORIGINS[a.origin].far||a.blessed||a.cursed?'record':'info');
+      if(tav==='ours'){const ev=ourNewcomerNews(a);news(S,ev.t,ev.k);}
       else if(a.odd||CLS[a.cls].rare) news(S,`噂：銀の杯亭に${a.race}の${a.cls}が現れたらしい。`,'rumor');}
   }
   if(S.tick%(TICKS_PER_DAY*365)===0){

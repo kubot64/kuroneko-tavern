@@ -32,7 +32,7 @@ const html=readFileSync(new URL('../index.html',import.meta.url),'utf8');
 const ENGINE=html.match(/\/\*ENGINE START\*\/([\s\S]*?)\/\*ENGINE END\*\//)[1];
 const EXPORTS=['newState','tick','rivalTemple','seatCap','seatsUsed','nextSeats','newcomerLvl','buyPrice','investPrice','FACILITIES',
   'RARES','MAXF','DRAGON_F','TICKS_PER_DAY','awayPlan','smallOf','debtTick','DEBT0','encounter','rareSlain','rareMonOf','arrive',
-  'repay','flowAdd','flowView','flowRoll','policyCost','goldSign','errandsOf','assignErrand','errandBlock','designateBlock','MAXF','MINE_TOP','MINE_BOT','MINE_N','FN','mineOpen','conquest','mineConquest','title','alive','markAdv','markedOf','BOARD_MAX','MARK_MAX','errandStage','boardMax','markMax','ARCS','reachFloor','GATE_F','fac','nextFac','buildFac','migrate','partyShown','crestJa','glossText','PT_A','PT_B','takeCrest','pickCrest','newPartyName','combat','MON','elemMul','elemNote','sleepMul','sleepReach','MINE_RARES','supplyTeam','potionPrice','lendRival','reviveChance','reviveHint','reviveResultText','temple','checkMemo','memoState','nextDue','rankRows','MEMO','setQuietLog','DREAMS','rollAge','AGE2','ORIGINS','careerLine','originBg','SPELL_LIST','foePool','dz','chest','victory','partyDanger','hpBand','retreatLine','retire','letterTick','kinTick','schedulePendingLetters','scheduleLostKin','memorialize','lostRareLine','dreamText','letterQuote','checkDream','wipe','wipeCause','errandEvent','errandFailLine','partyOverdue','fitOf','ERRANDS'];
+  'repay','flowAdd','flowView','flowRoll','policyCost','goldSign','errandsOf','assignErrand','errandBlock','designateBlock','MAXF','MINE_TOP','MINE_BOT','MINE_N','FN','mineOpen','conquest','mineConquest','title','alive','markAdv','markedOf','BOARD_MAX','MARK_MAX','errandStage','boardMax','markMax','ARCS','reachFloor','GATE_F','fac','nextFac','buildFac','migrate','partyShown','crestJa','glossText','PT_A','PT_B','takeCrest','pickCrest','newPartyName','combat','MON','elemMul','elemNote','sleepMul','sleepReach','MINE_RARES','supplyTeam','potionPrice','lendRival','reviveChance','reviveHint','reviveResultText','temple','checkMemo','memoState','nextDue','rankRows','MEMO','setQuietLog','DREAMS','rollAge','AGE2','ORIGINS','careerLine','originBg','BGS','originIntro','newcomerClause','doorLine','ourNewcomerNews','SPELL_LIST','foePool','dz','chest','victory','partyDanger','hpBand','retreatLine','retire','letterTick','kinTick','schedulePendingLetters','scheduleLostKin','memorialize','lostRareLine','dreamText','letterQuote','checkDream','wipe','wipeCause','errandEvent','errandFailLine','partyOverdue','fitOf','ERRANDS'];
 
 // 乱数の種を固定したゲームの中身を1つ作る。中身の Math.random だけを差し替える
 function load(seed,fixed){
@@ -1430,9 +1430,75 @@ function checkFlow(){
   check('きょうの出入り：古い記録の過ぎた日は0で、版は上がらない',v5.y.e===0&&v5.w.e===0&&v5.all.e===0&&S5.v===26,'版26',`売上${v5.w.e} 版${S5.v}`);
 }
 
+// 「出身と経歴」：知らせと手帳で、出身と経歴の言葉が重ならない。経歴はどの出身とも組んで確かめる
+function checkIntro(){
+  const E=load(1);
+  const bgs=[];
+  for(const o of Object.values(E.ORIGINS)) for(const pool of o.bg) for(const line of pool) for(const sex of ['男','女']) bgs.push(E.careerLine(line,sex));
+  for(const [,pool] of E.BGS) for(const line of pool) bgs.push(line);
+  const lines=[...new Set(bgs)];
+  const bad=[],past=[];
+  for(const origin of Object.keys(E.ORIGINS)){
+    const o=E.ORIGINS[origin];
+    for(const bg of lines){
+      if(bg.endsWith('だった')) past.push(`${origin}「${bg}」`);
+      const intro=E.originIntro(origin,bg);
+      const clause=E.newcomerClause(origin,bg);
+      if(clause.includes('だっただ')) bad.push(`だっただ ${origin}「${bg}」${clause}`);
+      for(const token of [origin,o.short]){
+        if(bg.includes(token)&&(intro.news.includes(token)||intro.door.includes(token))) bad.push(`重なり ${origin}「${token}」${bg}`);
+      }
+      const tail=bg.endsWith('だった')?'という':'だという';
+      if(clause!==intro.news+bg+tail) bad.push(`つなぎ ${origin}「${bg}」${clause}`);
+    }
+  }
+  check('知らせ：出身と経歴のすべての組み合わせで、だっただと地名の重なりがない',!bad.length,'出身×経歴',bad.slice(0,6).join(' / ')||'合う');
+  check('経歴：文は「だった」で終わらない',!past.length,'経歴の一覧',past.slice(0,6).join(' / ')||'名詞');
+  const sheep=E.newcomerClause('カルセ王国','羊飼いだった');
+  const mine=E.newcomerClause('ベルクラント鉱山諸侯領','鉱山の元用心棒');
+  const lowen=E.newcomerClause('ロウエン','ロウエン生まれの冒険者の二世');
+  const empire=E.newcomerClause('グラウ帝国','帝国の脱走兵');
+  const azuma=E.newcomerClause('東方の島国アズマ','アズマで名を馳せた剣客');
+  check('知らせ：重なっていた事例は、地名を一度だけにする',
+    sheep==='カルセ王国出身の羊飼いだったという'&&!sheep.includes('だっただ')
+    &&mine==='ベルクラント鉱山諸侯領出身の鉱山の元用心棒だという'
+    &&lowen==='ロウエン生まれの冒険者の二世だという'&&!lowen.includes('ロウエン出身')
+    &&empire==='帝国の脱走兵だという'&&!empire.includes('グラウ帝国出身')
+    &&azuma==='海の向こうから来たアズマで名を馳せた剣客だという'&&!azuma.includes('東方の島国アズマから来た'),
+    '事例',[sheep,mine,lowen,empire,azuma].join(' / '));
+  const who={race:'人間',age:18,sex:'男',cls:'戦士',lvl:11,name:'アルト',odd:false,blessed:false,cursed:false,traits:[]};
+  const news=E.ourNewcomerNews(Object.assign({origin:'ロウエン',bg:'ロウエン生まれの冒険者の二世'},who));
+  const far=E.ourNewcomerNews(Object.assign({origin:'東方の島国アズマ',bg:'海を渡ってきた若い剣士'},who));
+  check('知らせ：新顔の文は、省いた出身のあとに年齢と名前が続く',
+    news.k==='info'&&news.t==='新顔がやってきた。ロウエン生まれの冒険者の二世だという18歳の人間の戦士、アルト（レベル11）。'
+    &&far.k==='record'&&far.t.startsWith('新顔がやってきた。海の向こう、東方の島国アズマから来た海を渡ってきた若い剣士だという18歳の'),
+    '新顔の文',news.t+' / '+far.t);
+  const S0={taverns:{ours:{name:'黒猫亭'}}};
+  const door=E.doorLine(S0,{origin:'ロウエン',bg:'ロウエン生まれの冒険者の二世',race:'人間',age:18,sex:'男',cls:'戦士',lvl:12,tav:'ours',dream:{k:'abyss'}});
+  const plain=E.doorLine(S0,{origin:'ラウレンツ王国',bg:'辺境の元守備隊長',race:'人間',age:40,sex:'女',cls:'戦士',lvl:14,tav:'ours',dream:{k:'abyss'}});
+  check('手帳：出身の名が経歴にあるときは「の出身。」を重ねない',
+    door.startsWith('ロウエン生まれの冒険者の二世。')&&!door.includes('ロウエンの出身')&&door.includes('黒猫亭の扉をくぐる')
+    &&plain.startsWith('ラウレンツ王国の出身。辺境の元守備隊長。'),
+    '来店の記録',door+' / '+plain);
+  const lived=[];
+  for(let i=0;i<4;i++){
+    const S=load(1000+i*7919).newState();
+    for(const a of Object.values(S.adv)){
+      const o=E.ORIGINS[a.origin];
+      const doorC=(a.chron||[]).find(c=>c.t&&c.t.includes('扉をくぐる'));
+      const again=E.doorLine(S,a);
+      if(!doorC||doorC.t!==again) lived.push(`${a.name}：${doorC&&doorC.t} ≠ ${again}`);
+      const intro=E.originIntro(a.origin,a.bg);
+      for(const token of [a.origin,o.short]) if(a.bg.includes(token)&&(intro.news.includes(token)||intro.door.includes(token))) lived.push(`重なり ${a.name}「${token}」${a.bg}`);
+      if(E.newcomerClause(a.origin,a.bg).includes('だっただ')) lived.push(`だっただ ${a.name} ${a.bg}`);
+    }
+  }
+  check('手帳：来た者の記録でも、出身と経歴は重ならない',!lived.length,'4種の開店',lived.slice(0,3).join(' / ')||'合う');
+}
+
 if(!isMainThread){const line=runSeed(workerData.seed);parentPort.postMessage({line,res:[...results]});}
 else{
-  checkTables();checkScenes();checkLetters();checkErrands();checkCrest();checkRowFallback();checkMine();checkAffinity();checkRevive();checkMemoNotes();checkOpening();checkCareer();checkAge();checkFoes();checkFlow();
+  checkTables();checkScenes();checkLetters();checkErrands();checkCrest();checkRowFallback();checkMine();checkAffinity();checkRevive();checkMemoNotes();checkOpening();checkCareer();checkIntro();checkAge();checkFoes();checkFlow();
   // 種ごとの結果は、種の順に重ねる。反例は、いちばん若い種の最初のものを残す。進捗の行も種の順に出す
   const out=new Array(SEEDS.length);let next=0,printed=0;
   const flush=()=>{while(printed<out.length&&out[printed]){if(out[printed].line)console.log(out[printed].line);printed++;}};
