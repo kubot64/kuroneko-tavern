@@ -78,6 +78,82 @@ test('1時間裏にいて戻ると、「留守のあいだに」が出て10日�
   assert.deepEqual(errors,[]);await ctx.close();
 });
 
+test('留守のあいだの減りは売上と書かず、帳場は返した額と利息を分ける',async()=>{
+  const {ctx,page,errors}=await open();
+  await page.locator('#sp0').click();
+  const shown=await page.evaluate(()=>{
+    const T=S.taverns.ours;
+    // 売上 +923、返済 5580、支援 0 で、所持金は -4657
+    T.gold=5343;T.earned=923;T.support=0;T.repaid=5580;T.interestPaid=1580;T.debt=75000;
+    drawDigest({i:50,n:50,awaySec:3600,startTick:0,g0:10000,e0:0,s0:0,r0:0,lost0:S.memorial.length,returns:1,wipes:0});
+    document.querySelector('#digest').hidden=false;
+    return {sum:document.querySelector('#dg-sum').innerText,brk:document.querySelector('#dg-brk').innerText};
+  });
+  assert.match(shown.sum,/-4657G/);
+  assert.match(shown.sum,/所持金/);
+  assert.doesNotMatch(shown.sum,/売上/);
+  assert.match(shown.brk,/売上 \+923G/);
+  assert.match(shown.brk,/支援 0G/);
+  assert.match(shown.brk,/返済 5580G/);
+  await page.setViewportSize({width:375,height:740});
+  await page.evaluate(()=>document.fonts.ready);
+  const digestWrap=await page.evaluate(()=>{
+    const bad=[];
+    for(const s of document.querySelectorAll('#dg-brk .nw')){
+      const range=document.createRange();range.selectNodeContents(s);
+      const n=new Set([...range.getClientRects()].filter(r=>r.width>2).map(r=>Math.round(r.top))).size;
+      if(n!==1)bad.push(s.textContent);
+    }
+    if(document.documentElement.scrollWidth>innerWidth+1)bad.push('はみ出す');
+    return bad;
+  });
+  assert.deepEqual(digestWrap,[]);
+  await page.evaluate(()=>{document.querySelector('#digest').hidden=true;});
+  await page.setViewportSize({width:1280,height:800});
+  const live=await page.evaluate(()=>{
+    const T=S.taverns.ours;
+    T.gold=20000;T.earned=100;T.support=40;T.repaid=1000;T.interestPaid=0;T.debt=79000;T.late=0;T.nextPay=S.tick;
+    S.policy=Object.assign({},S.policy,{potion:3,mapPay:1,revive:1,rookie:1});
+    return {gold:T.gold,earned:T.earned,support:T.support,repaid:T.repaid};
+  });
+  await page.locator('[data-act="skip"]').click();
+  await page.clock.runFor(5000);
+  const after=await page.evaluate(()=>{
+    const T=S.taverns.ours;
+    return {gold:T.gold,earned:T.earned,support:T.support||0,repaid:T.repaid||0,interest:T.interestPaid||0,v:S.v,
+      sum:document.querySelector('#dg-sum').innerText,brk:document.querySelector('#dg-brk').innerText};
+  });
+  assert.equal(after.v,26);
+  assert.doesNotMatch(after.sum,/売上/);
+  assert.match(after.sum,/所持金/);
+  const gd=after.gold-live.gold,esign=gd>=0?`+${gd}`:String(gd);
+  assert.match(after.sum,new RegExp(esign.replace(/[+-]/g,'\\$&')+'G'));
+  assert.match(after.brk,new RegExp('売上 \\+'+(after.earned-live.earned)+'G'));
+  assert.match(after.brk,new RegExp('支援 '+(after.support-live.support)+'G'));
+  assert.match(after.brk,new RegExp('返済 '+(after.repaid-live.repaid)+'G'));
+  assert.equal(after.repaid-live.repaid,5580);
+  assert.equal(after.interest,1580);
+  await page.locator('[data-act="closedigest"]').click();
+  await page.locator('button[data-v="desk"]').click();
+  const desk=await page.locator('#tbody').innerText();
+  assert.match(desk,/これまでに返した額 6580G（うち利息 1580G）/);
+  assert.doesNotMatch(desk,/売上 -/);
+  await page.setViewportSize({width:375,height:740});
+  await page.evaluate(()=>document.fonts.ready);
+  const deskWrap=await page.evaluate(()=>{
+    const bad=[];
+    for(const s of document.querySelectorAll('.row.debt .nw')){
+      const range=document.createRange();range.selectNodeContents(s);
+      const n=new Set([...range.getClientRects()].filter(r=>r.width>2).map(r=>Math.round(r.top))).size;
+      if(n!==1)bad.push(s.textContent+' が折れている');
+    }
+    if(document.documentElement.scrollWidth>innerWidth+1)bad.push('はみ出す');
+    return bad;
+  });
+  assert.deepEqual(deskWrap,[]);
+  assert.deepEqual(errors,[]);await ctx.close();
+});
+
 test('30刻に満たない留守は、画面を出さずにその分だけ進め、そのあとも時間が流れる',async()=>{
   const {ctx,page,errors}=await open();
   const t0=await tick(page);
