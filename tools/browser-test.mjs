@@ -83,8 +83,9 @@ test('留守のあいだの減りは売上と書かず、帳場は返した額�
   await page.locator('#sp0').click();
   const shown=await page.evaluate(()=>{
     const T=S.taverns.ours;
-    T.gold=400+923-4657;T.earned=923;T.support=0;T.repaid=5580;T.interestPaid=1580;T.debt=75000;
-    drawDigest({i:50,n:50,awaySec:3600,startTick:0,g0:400,e0:0,s0:0,r0:0,lost0:S.memorial.length,returns:1,wipes:0});
+    // 売上 +923、返済 5580、支援 0 で、所持金は -4657
+    T.gold=5343;T.earned=923;T.support=0;T.repaid=5580;T.interestPaid=1580;T.debt=75000;
+    drawDigest({i:50,n:50,awaySec:3600,startTick:0,g0:10000,e0:0,s0:0,r0:0,lost0:S.memorial.length,returns:1,wipes:0});
     document.querySelector('#digest').hidden=false;
     return {sum:document.querySelector('#dg-sum').innerText,brk:document.querySelector('#dg-brk').innerText};
   });
