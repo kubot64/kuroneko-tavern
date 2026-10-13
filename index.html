@@ -1016,7 +1016,9 @@ const DREAMS={
     ok:(S,a)=>(a.deepest||0)>=6,msg:(a,d)=>d.vi===1?`${a.name}が、B6Fから地上の店に戻った。`:`${a.name}が、B6Fの転移の石碑に触れた。`,prog:a=>(a.deepest||0)?`これまでの最深 ${FN(a.deepest)}`:'まだ迷宮に潜っていない'},
   // 続柄で来た者だけが持つ。重み0なので、ほかの客の夢には入らない
   kinvenge:{w:0,txt:d=>`${d.elder||'兄'}を殺した${d.m||'魔物'}を討ちたい`,
-    ok:(S,a,d)=>(a.slain||{})[d.m],msg:(a,d)=>`${a.name}が、${d.elder||'兄'}を殺した${d.m}を討った。`,prog:a=>`これまでの最深 ${FN(a.deepest)}`},
+    ok:(S,a,d)=>!!(a.slain||{})[d.m]||kinVengeOther(S,a,d.m),
+    msg:(a,d,S)=>kinVengeOther(S,a,d.m)?`${a.name}は、${d.elder||'兄'}を殺した${d.m}が、すでに別の者に討たれていたと知った。`:`${a.name}が、${d.elder||'兄'}を殺した${d.m}を討った。`,
+    prog:(a,d,S)=>kinVengeOther(S,a,d&&d.m)?'仇は別の者に討たれた':(a.deepest||0)?`これまでの最深 ${FN(a.deepest)}`:'まだ迷宮に潜っていない'},
   kinflower:{w:0,txt:d=>`${d.elder||'兄'}の名が刻まれた記念碑に、花を手向けたい`,
     ok:(S,a)=> (a.trips||0)>=1,msg:(a,d)=>`${a.name}が、記念碑に刻まれた${d.who||'家族'}の前に花を供えた。`,prog:()=>'一度、迷宮から戻ってから花を供える'},
   kinname:{w:0,txt:d=>`${d.uncle||'叔父'}のように、黒猫亭で名を上げたい`,
@@ -1201,23 +1203,27 @@ const LETTER_GOODS={'ラウレンツ王国':['焼き菓子','古い騎士の徽�
 const LETTER_TOUR=['ベルクラントの鉱山町','セーレの港','王都の裏通り','カルセの街道','リンデの森の入口'];
 const KIN_KEEPS=['ペンダント','折れた剣','日記','指輪','革の帽子','手紙'];
 function letterPlace(a){return LETTER_PLACE[a.origin]||'故郷';}
+// 1通目は先頭の土地。2通目と3通目は通数でずらし、3通とも別の土地にする。先頭とは重ねない
+function tourPlace(a,n){if((n||1)<=1)return LETTER_TOUR[0];return LETTER_TOUR[1+((a.id+(n-2))%(LETTER_TOUR.length-1))];}
 function marryWho(a){const d=(a.pastDreams||[]).slice().reverse().find(x=>x.k==='marry');if(d&&d.who)return d.who;if(d&&d.t){const m=String(d.t).match(/^(.+?)と所帯を/);if(m)return m[1];}return '連れ合い';}
 function letterQuote(S,a,n){
   const why=leftWhy(S,a),place=letterPlace(a),me=a.sex==='女'?'私':'俺';
   if(n>=2){
     if(n===2&&why.includes('所帯を持つ'))return {place,quote:'子が生まれた。名前は、まだこちらで呼んでいる。元気な泣き声だ',line:'子が生まれた',child:true};
     if(n>=3&&why.includes('所帯を持つ'))return {place,quote:'こちらは変わりない。子は、もう歩いている。そっちは、まだあの穴に潜っているのか',line:'子は、もう歩いている'};
-    if(why.includes('大陸をめぐる'))return {place:LETTER_TOUR[1+(a.id%(LETTER_TOUR.length-1))],line:'差出地は、前の便りと違う',tour:true};
+    if(why.includes('大陸をめぐる'))return {place:tourPlace(a,n),line:'差出地は、前の便りと違う',tour:true};
     return {place,quote:'こちらは変わりない。そっちは、まだあの穴に潜っているのか',line:'こちらは変わりない'};
   }
-  const shop=why.match(/に(.+?)を構える/);
-  if(shop)return {place,quote:`${shop[1]}はどうにか回っている。黒猫亭の名を書いた札を、勝手に掛けさせてもらった`,line:`${shop[1]}はどうにか回っている`};
+  // 「に」より前は店の名に入れない。屋敷は店ではない
+  const shop=why.match(/に([^に]+)を構える/);
+  if(shop&&/(?:屋|酒場|道場)$/.test(shop[1]))return {place,quote:`${shop[1]}はどうにか回っている。黒猫亭の名を書いた札を、勝手に掛けさせてもらった`,line:`${shop[1]}はどうにか回っている`};
   if(why.includes('騎士'))return {place:why.includes('辺境')?place:'王都',quote:'鎧が重い。迷宮の方が、まだ気楽だった',line:'鎧が重い'};
   if(why.includes('所帯を持つ')){const who=marryWho(a);return {place,quote:`${who}は元気だ。${me}が迷宮の話をすると、黙って皿を片づける`,line:`${who}は元気だ`};}
   const built=why.match(/建てた(.+?)を守る/);
   if(built){const what=built[1];const line=what==='井戸と水車'?'水車が回った':`${what}ができた`;return {place,quote:`${line}。村の子どもが、黒猫の絵を彫った`,line};}
-  if(why.includes('大陸をめぐる'))return {place:LETTER_TOUR[0],line:'差出地は、前の便りと違う',tour:true};
-  if(why.includes('老い')||why.includes('隠居')||why.includes('身を引く')||why.includes('引退'))return {place,quote:'膝が痛む日は、迷宮の階段を思い出す',line:'膝が痛む日は、迷宮の階段を思い出す',short:true};
+  if(why.includes('大陸をめぐる'))return {place:tourPlace(a,n),line:'差出地は、前の便りと違う',tour:true};
+  // 「引退」だけでは老いにしない。「思い残すことなく引退する」は膝の便りにしない
+  if(why.includes('老い')||why.includes('隠居')||why.includes('身を引く'))return {place,quote:'膝が痛む日は、迷宮の階段を思い出す',line:'膝が痛む日は、迷宮の階段を思い出す',short:true};
   if(why.includes('弔い'))return {place,quote:'形見は、故郷の墓に納めた。もう、探さなくていい',line:'形見は、故郷の墓に納めた',bare:true};
   if(why.includes('海を渡って')||why.includes('海に出る'))return {place:'セーレの港',line:'潮で字が半分にじんでいる',tide:true};
   const kin=why.match(/見つけ出した(.+)と故郷へ帰る/);
@@ -1274,6 +1280,14 @@ function letterTick(S){
   deliverLetter(S,due[0]);
 }
 function knownFoe(name){if(!name||name==='不明')return false;return MON.some(m=>m.n===name)||RARES.some(r=>r.n===name)||MINE_RARES.some(r=>r.n===name);}
+function rareByName(name){return RARES.find(r=>r.n===name)||MINE_RARES.find(r=>r.n===name)||null;}
+// 名のある魔物を、この者でもこの者の一行でもなく、ほかの一行がすでに討っている
+function kinVengeOther(S,a,m){
+  const R0=rareByName(m);if(!R0||!S)return false;
+  const k=S.rares&&S.rares[R0.f]&&S.rares[R0.f].killed;if(!k)return false;
+  if(a&&((a.slain||{})[m]||k.by===a.name||(k.names&&k.names.includes(a.name))))return false;
+  return true;
+}
 function kinWords(parent,kind){
   if(kind==='lost'||kind==='ysib'){const sex=pick(['男','女']);const rel=sex==='女'?'妹':'弟';return {sex,rel,elder:parent.sex==='女'?'姉':'兄'};}
   if(kind==='nibling'){const sex=pick(['男','女']);return {sex,rel:sex==='女'?'姪':'甥',uncle:parent.sex==='女'?'叔母':'叔父'};}
@@ -1330,7 +1344,7 @@ function checkDream(S,a){
   if(!a.dream){if(S.tick>=(a.nextDreamAt||0)){a.dream=makeDream(S,a);chron(S,a,`新たな夢を抱く――${dreamText(a.dream)}`);}return;}
   const d=a.dream,D=DREAMS[d.k];if(!D||d.done||!D.ok(S,a,d))return;
   if(D.pay)a.gold-=D.pay(d);if(D.act)D.act(S,a,d);
-  const msg=D.msg(a,d);const ret=D.ret?D.ret(d):null;
+  const msg=D.msg(a,d,S);const ret=D.ret?D.ret(d):null;
   chron(S,a,`夢がかなう――${dreamText(d)}`);news(S,(a.tav==='rival'?'銀の杯亭の':'')+msg,'record');
   fulfill(S,a);
   if(ret)retire(S,a,ret);
@@ -3756,7 +3770,7 @@ function doing(a){
 }
 function dreamProgress(a){
   const d=a.dream;if(!d||!DREAMS[d.k])return '';
-  return DREAMS[d.k].prog?DREAMS[d.k].prog(a,d):'';
+  return DREAMS[d.k].prog?DREAMS[d.k].prog(a,d,S):'';
 }
 let advOpen=null;
 function renderAdv(){

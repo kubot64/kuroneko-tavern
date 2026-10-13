@@ -1417,6 +1417,21 @@ test('便りは青く出て、記念碑と手帳に残る',async()=>{
   const book=await page.locator('#advbox').innerText();
   assert.match(book,/続柄は/);
   assert.match(book,/の手帳/);
+  assert.match(book,/まだ迷宮に潜っていない/);
+  const other=await page.evaluate(()=>{
+    const kin=S.adv[advOpen];
+    kin.dream={k:'kinvenge',m:'ドブ王',elder:'兄',who:'親'};
+    renderAdv();
+    const prog=document.getElementById('advbox').innerText;
+    kin.status='idle';kin.party=null;checkDream(S,kin);
+    const told=(S.news||[]).slice(-1)[0];
+    return {prog,dream:kin.dream,past:(kin.pastDreams||[]).some(d=>d.k==='kinvenge'),news:told&&told.t};
+  });
+  assert.match(other.prog,/仇は別の者に討たれた/);
+  assert.equal(other.dream,null);
+  assert.ok(other.past);
+  assert.match(other.news,/別の者に討たれていた/);
+  assert.doesNotMatch(other.news,/を討った/);
   await page.locator('#advbox .nm-link').click();
   const parent=await page.locator('#advbox').innerText();
   assert.match(parent,new RegExp(`${info.kname}（.+）が黒猫亭に来た`));
