@@ -351,6 +351,7 @@ button:focus-visible,[tabindex]:focus-visible{outline:2px solid var(--amber);out
     <h2 id="dg-t">留守のあいだに</h2>
     <div class="note" id="dg-sub"></div>
     <div class="sum" id="dg-sum"></div>
+    <div class="note" id="dg-brk"></div>
     <ul class="news" id="dg-news"></ul>
     <div style="margin-top:16px;text-align:right"><button class="btn on" data-act="closedigest">店に戻る</button></div>
   </div>
@@ -2893,8 +2894,8 @@ function debtNews(S){const T0=S.taverns.ours;if(T0.debt<=0&&!T0.debtFree){T0.deb
 function repay(S,amt){const T0=S.taverns.ours;const x=Math.min(amt,T0.debt,Math.max(0,T0.gold));if(x<=0)return 0;T0.gold-=x;T0.debt-=x;T0.repaid=(T0.repaid||0)+x;debtNews(S);checkMemo(S);return x;}
 function debtTick(S){const T0=S.taverns.ours;if(!(T0.debt>0))return;if(T0.nextPay==null)T0.nextPay=S.tick+30*TICKS_PER_DAY;if(S.tick<T0.nextPay)return;
   T0.nextPay=S.tick+30*TICKS_PER_DAY;const intr=Math.round(T0.debt*.02);T0.debt+=intr;const due=Math.min(T0.debt,DEBT_DUE+intr);
-  if(T0.gold>=due){T0.gold-=due;T0.debt-=due;T0.repaid=(T0.repaid||0)+due;T0.late=0;if(T0.cleanPay==null)T0.cleanPay=S.tick;news(S,`セーレの両替商に、今月の返済${due}G（うち利息${intr}G）を払った。借金の残りは${T0.debt}G。`,'info');}
-  else{const p0=Math.max(0,T0.gold);T0.gold-=p0;T0.debt-=p0;const pen=Math.round((due-p0)*.25);T0.debt+=pen;T0.late=(T0.late||0)+1;T0.rep=Math.max(0,T0.rep-3);
+  if(T0.gold>=due){T0.gold-=due;T0.debt-=due;T0.repaid=(T0.repaid||0)+due;T0.interestPaid=(T0.interestPaid||0)+intr;T0.late=0;if(T0.cleanPay==null)T0.cleanPay=S.tick;news(S,`セーレの両替商に、今月の返済${due}G（うち利息${intr}G）を払った。借金の残りは${T0.debt}G。`,'info');}
+  else{const p0=Math.max(0,T0.gold);T0.gold-=p0;T0.debt-=p0;if(p0>0){T0.repaid=(T0.repaid||0)+p0;T0.interestPaid=(T0.interestPaid||0)+Math.min(p0,intr);}const pen=Math.round((due-p0)*.25);T0.debt+=pen;T0.late=(T0.late||0)+1;T0.rep=Math.max(0,T0.rep-3);
     news(S,`今月の返済に${due-p0}G足りなかった。両替商の取り立て人が店先に居座り、客が眉をひそめている。延滞の罰金${pen}Gが上乗せされ、借金の残りは${T0.debt}G。`,'death');}
   debtNews(S);}
 // 次の返済日に払う額と、そこまでの日数。借金が残っていなければ出さない。当日は1日と数える
@@ -3179,6 +3180,20 @@ function arcAdvance(S,e,a){const A0=ARCS[e.arc],arc=S.arcs[e.arc];arc.stage=e.st
   if(e.arc==='gate'&&e.stage===3)Object.values(S.adv).forEach(b=>{const d=b.dream;if(b.tav!=='ours'||b.status==='lost'||b.status==='retired'||!d||d.k!=='kin'||d.hint)return;d.hint=true;
     chron(S,b,`抜け穴の受け取りの束に、${d.who}の${d.name}の名が見つかる`);news(S,`抜け穴の受け取りの束に、${b.name}が探す${d.who}の${d.name}の名があった。${FN(d.f)}の方へ向かったらしい。`,'record');});
   if(e.stage===A0.stages.length){arc.done=S.tick;S.taverns.ours.rep+=5;}}
+// 利息の内訳がない記録。延滞の跡がなければ、返した額と借金の減りの差を利息にする。跡があれば、残っている知らせの利息だけ足す
+function inferInterestPaid(S){
+  const T0=S.taverns.ours;if(!T0)return 0;
+  let fromNews=0,short=false;
+  for(const n of S.news||[]){
+    if(!n||typeof n.t!=='string')continue;
+    const m=n.t.match(/今月の返済\d+G（うち利息(\d+)G）を払った/);
+    if(m)fromNews+=+m[1];
+    if(n.t.includes('足りなかった')&&n.t.includes('延滞の罰金'))short=true;
+  }
+  if(short||(T0.late>0)||(T0.debt||0)>DEBT0)return fromNews;
+  const gap=(T0.repaid||0)-(DEBT0-(T0.debt||0));
+  return gap>fromNews?gap:fromNews;
+}
 // 無事に払えた返済日。知らせが残っていれば、そのいちばん古い日。
 // 知らせがこぼれていても、返した額があり、延滞中でなく、返済日を一度は迎えていれば、直前の返済日（次の返済の30日前）とみなす
 function inferCleanPay(S){
@@ -3340,6 +3355,7 @@ function migrate(S){
   if(!(S.v>=26)){// 便り。去った常連に、開いた日から1通目の予定を付ける。乱数は引かない。話の段は触らない。弟妹や子の予定は遡らない
     schedulePendingLetters(S);S.v=26;
   }
+  if(typeof S.taverns.ours.interestPaid!=='number')S.taverns.ours.interestPaid=inferInterestPaid(S);
   Object.values(S.adv).forEach(a=>{if(!a.tone)personalize(a);if(!a.traits)assignTraits(S,a,true);});
   smallOf(S);
   Object.values(S.adv).filter(a=>a.title&&!a.titleKind&&a.status!=='lost'&&a.status!=='retired').forEach(a=>{a.title='';title(S,a,true);});
@@ -3399,7 +3415,8 @@ function setSpeed(v){
 }
 function fastForward(n,awaySec){
   if(ff)return;
-  const st=ff={n,i:0,awaySec,startTick:S.tick,g0:S.taverns.ours.gold,lost0:S.memorial.length,returns:0,wipes:0};
+  const T0=S.taverns.ours;
+  const st=ff={n,i:0,awaySec,startTick:S.tick,g0:T0.gold,e0:T0.earned||0,s0:T0.support||0,r0:T0.repaid||0,lost0:S.memorial.length,returns:0,wipes:0};
   const btn=document.querySelector('[data-act="closedigest"]');btn.disabled=true;btn.textContent='時が流れている…';
   $('digest').hidden=false;drawDigest(st);
   const run=()=>{
@@ -3440,9 +3457,12 @@ function maybeEnding(){
 function drawDigest(st){
   const done=st.i>=st.n,days=(st.i/TICKS_PER_DAY).toFixed(1);
   const items=S.news.filter(x=>x.tk>st.startTick);
+  const T0=S.taverns.ours,sign=n=>(n>=0?'+':'')+n+'G';
   $('dg-sub').textContent=(st.awaySec>=60?`店をあけていたのは約${fmtAway(st.awaySec)}。`:'')+(done?`迷宮では${days}日が過ぎた。`:`迷宮では時が流れている……（${days}日／${(st.n/TICKS_PER_DAY).toFixed(1)}日）`);
-  const gd=S.taverns.ours.gold-st.g0;
-  $('dg-sum').innerHTML=[[st.returns,'帰還'],[st.wipes,'消息不明'],[S.memorial.length-st.lost0,'ロスト'],[(gd>=0?'+':'')+gd+'G','売上']].map(([v,l])=>`<div><b>${v}</b><span>${l}</span></div>`).join('');
+  const gd=T0.gold-st.g0;
+  $('dg-sum').innerHTML=[[st.returns,'帰還'],[st.wipes,'消息不明'],[S.memorial.length-st.lost0,'ロスト'],[sign(gd),'所持金']].map(([v,l])=>`<div><b>${v}</b><span>${l}</span></div>`).join('');
+  const earned=(T0.earned||0)-(st.e0||0),support=(T0.support||0)-(st.s0||0),paid=(T0.repaid||0)-(st.r0||0);
+  $('dg-brk').innerHTML=[`売上 ${sign(earned)}`,`支援 ${support}G`,`返済 ${paid}G`].map(nw).join('、');
   $('dg-news').innerHTML=items.length?items.slice(-30).reverse().map(newsLi).join(''):`<li><span></span><span class="note">${done?'静かな日々だった。':'……'}</span></li>`;
 }
 // 丸めて60分や24時間になるときは、上の単位で出す
@@ -3699,7 +3719,7 @@ function sideDesk(){
   const seatDoes=`${seatExtra?`支店で+${seatExtra}席あり、あわせて${baseSeats+seatExtra}席。拡張の段とは別。`:''}${ns?`店を広げると、${ns[1]}席まで常連を迎えられる。`:'これ以上は広げられない。'}銀の杯亭は${seatCap(S,'rival')}席。`;
   const debtSect=`<div class="sect"><h3>店の借金と席</h3>
   ${To.debt>0?`<p class="note">開店のときにセーレの両替商から借りた金。30日ごとに${DEBT_DUE}Gと利息（残りの2%）を払う。足りなければ罰金が上乗せされ、取り立て人が店先に居座って評判が落ちる。次の返済まであと${due.days}日・必要額${due.due}G。</p>
-  <div class="row debt"><span class="who"><b>${nw('借金の残り '+To.debt+'G')}</b><span class="does">${nw('これまでに返した額 '+(To.repaid||0)+'G')}</span></span>${[1000,10000].filter(x=>x<To.debt).map(x=>`<button class="btn sm" data-act="repay" data-v="${x}" ${To.gold<x?'disabled':''}>${x}G返す</button>`).join('')}<button class="btn sm" data-act="repay" data-v="${To.debt}" ${To.gold<To.debt?'disabled':''}>全額返す</button></div>`:`<p class="note">${To.debtFree!=null?`開店のときの借金は、${Math.floor(To.debtFree/TICKS_PER_DAY)+1}日目に返し終えた。`:'この店に借金はない。'}</p>`}
+  <div class="row debt"><span class="who"><b>${nw('借金の残り '+To.debt+'G')}</b><span class="does">${nw('これまでに返した額 '+(To.repaid||0)+'G')}<wbr>${nw('（うち利息 '+(To.interestPaid||0)+'G）')}</span></span>${[1000,10000].filter(x=>x<To.debt).map(x=>`<button class="btn sm" data-act="repay" data-v="${x}" ${To.gold<x?'disabled':''}>${x}G返す</button>`).join('')}<button class="btn sm" data-act="repay" data-v="${To.debt}" ${To.gold<To.debt?'disabled':''}>全額返す</button></div>`:`<p class="note">${To.debtFree!=null?`開店のときの借金は、${Math.floor(To.debtFree/TICKS_PER_DAY)+1}日目に返し終えた。`:'この店に借金はない。'}</p>`}
   <div class="row" data-seats="1"><span class="who"><b>常連の席 ${baseSeats}席</b><span class="meta lv">　Lv${seatLv}/${SEAT_STEPS.length}</span><span class="does">${seatDoes}</span></span>${ns?`<button class="btn sm" data-act="seats" ${To.gold<ns[2]?'disabled':''}>店を広げる ${ns[2]}G</button>`:''}</div></div>`;
   return `<div class="desk">${memoHtml()}${debtSect}<div class="sect"><h3>店の方針　冒険者への支援</h3>
   <p class="note">店の金で常連を支える。生きて帰る者が増え、恩を感じた者は店でよく飲む。これまでの支援 ${T().support||0}G・売上 ${T().earned}G。</p>

@@ -82,6 +82,37 @@ function checkTables(){
   // 「借金と返済」：足りないと、不足の25%が罰金として足され、評判が3下がる（0未満にはならない）
   {const T0=S.taverns.ours;T0.gold=1000;T0.debt=50000;T0.rep=2;T0.nextPay=S.tick;const due=4000+Math.round(50000*.02);E.debtTick(S);
     check('借金と返済：足りないと罰金25%、評判は0未満にならない',T0.debt===50000+Math.round(50000*.02)-1000+Math.round((due-1000)*.25)&&T0.rep===0,'返済日',`借金${T0.debt} 評判${T0.rep}`);}
+  // 「借金と返済」：返した額と利息。手返済は元だけ。返済日は利息込み。延滞で払えた分も足し、利息を先に充てる。版は上がらない
+  {const E2=load(4),S2=E2.newState(),U=S2.taverns.ours;U.gold=999999;const hand=E2.repay(S2,1000);
+    check('借金と返済：手で返した分は利息に入らない',hand===1000&&U.debt===79000&&U.repaid===1000&&!(U.interestPaid>0)&&S2.v===26,'1000G',`借金${U.debt} 返${U.repaid} 利息${U.interestPaid||0}`);
+    U.nextPay=S2.tick;E2.debtTick(S2);
+    const intr=Math.round(79000*.02),due=4000+intr;
+    check('借金と返済：返済日は利息込みで、借金の減りは元の分だけ',U.debt===75000&&U.repaid===1000+due&&U.interestPaid===intr&&U.repaid-U.interestPaid===80000-U.debt&&S2.v===26,'79000Gの翌月',`借金${U.debt} 返${U.repaid} 利息${U.interestPaid}`);
+    const rep=U.rep;U.gold=2500;U.debt=50000;U.nextPay=S2.tick;const r0=U.repaid,i0=U.interestPaid;const intr2=Math.round(50000*.02);E2.debtTick(S2);
+    const p0=2500,pen=Math.round((4000+intr2-p0)*.25);
+    check('借金と返済：延滞で払えた分は返した額に入り、利息を先に充てる',U.repaid===r0+p0&&U.interestPaid===i0+intr2&&U.debt===50000+intr2-p0+pen&&U.late===1&&U.rep===Math.max(0,rep-3),'2500G',`借金${U.debt} 返${U.repaid} 利息${U.interestPaid}`);
+    U.gold=400;U.debt=50000;U.late=0;U.rep=5;U.nextPay=S2.tick;const r1=U.repaid,i1=U.interestPaid;const intr3=Math.round(50000*.02);E2.debtTick(S2);
+    check('借金と返済：利息より少ない延滞は、払った分がすべて利息',U.repaid===r1+400&&U.interestPaid===i1+400&&U.debt===50000+intr3-400+Math.round((4000+intr3-400)*.25),'400G',`借金${U.debt} 返${U.repaid} 利息${U.interestPaid}`);
+    U.gold=0;U.debt=50000;U.nextPay=S2.tick;const r2=U.repaid,i2=U.interestPaid;E2.debtTick(S2);
+    check('借金と返済：1Gも払えなければ返した額も利息も増えない',U.repaid===r2&&U.interestPaid===i2&&U.gold===0,'所持金0',`返${U.repaid} 利息${U.interestPaid}`);
+    U.gold=5000;const i3=U.interestPaid;E2.repay(S2,1000);
+    check('借金と返済：利息を積んだあとの手返済は利息を増やさない',U.interestPaid===i3&&U.repaid===r2+1000,'手で1000G',`返${U.repaid} 利息${U.interestPaid}`);}
+  {const fill=(patch,news)=>{const E3=load(5),S3=E3.newState(),U=S3.taverns.ours;Object.assign(U,patch);if(!('interestPaid' in patch))delete U.interestPaid;if(news)S3.news.push(...news);S3.v=26;E3.migrate(S3);return {E:E3,S:S3,U};};
+    const pay=t=>[{tk:1,t,k:'info'}];
+    const a=fill({repaid:6580,debt:75000,late:0},pay('セーレの両替商に、今月の返済5580G（うち利息1580G）を払った。借金の残りは75000G。'));
+    check('借金と返済：延滞の跡がなければ、返した額と借金の減りの差を利息にする',a.U.interestPaid===1580&&a.S.v===26,'6580G・借金75000',`利息${a.U.interestPaid} 版${a.S.v}`);
+    a.U.debt=74000;a.E.migrate(a.S);
+    check('借金と返済：一度埋めた利息は開き直しても計算し直さない',a.U.interestPaid===1580,'借金を動かして開き直す',a.U.interestPaid);
+    const b=fill({repaid:11120,debt:72000,late:0},[]);
+    check('借金と返済：知らせがこぼれていても、延滞の跡がなければ差を利息にする',b.U.interestPaid===3120,'知らせなし',b.U.interestPaid);
+    const c=fill({repaid:5660,debt:79000,late:0},pay('今月の返済に4600G足りなかった。延滞の罰金1400Gが上乗せされ、借金の残りは83000G。').concat(pay('セーレの両替商に、今月の返済5660G（うち利息1660G）を払った。借金の残りは79000G。')));
+    check('借金と返済：延滞の知らせが残っていれば、知らせの利息だけを足す',c.U.interestPaid===1660,'延滞のあと完済の月',c.U.interestPaid);
+    const d=fill({repaid:0,debt:81750,late:1},[]);
+    check('借金と返済：いま延滞している記録は、残っている知らせの利息だけ',d.U.interestPaid===0,'延滞中',d.U.interestPaid);
+    const e=fill({repaid:5660,debt:81000,late:0},pay('セーレの両替商に、今月の返済5660G（うち利息1660G）を払った。借金の残りは81000G。'));
+    check('借金と返済：借金が80000Gを超える記録は、知らせの利息だけを足す',e.U.interestPaid===1660,'借金81000',e.U.interestPaid);
+    const f=fill({repaid:1000,debt:79000,late:0,interestPaid:40});
+    check('借金と返済：すでに利息がある記録は埋め直さない',f.U.interestPaid===40,'利息40',f.U.interestPaid);}
   // 「裏通りの酒場」：買収の値段は景気で0.5〜2倍、支店を持つたびに1.3倍。出資は同じ店に重ねるたびに1.5倍
   {const t={score:0};const base=E.buyPrice(S,t);const mul=sc=>E.buyPrice(S,{score:sc})/base;
     check('裏通りの酒場：買収の値段は景気で0.5〜2倍',[-3,-1,0,1,3].map(mul).join(',')==='0.5,0.8,1,1.5,2','景気ごと',[-3,-1,0,1,3].map(mul).join(','));
