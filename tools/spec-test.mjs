@@ -32,7 +32,7 @@ const html=readFileSync(new URL('../index.html',import.meta.url),'utf8');
 const ENGINE=html.match(/\/\*ENGINE START\*\/([\s\S]*?)\/\*ENGINE END\*\//)[1];
 const EXPORTS=['newState','tick','rivalTemple','seatCap','seatsUsed','nextSeats','newcomerLvl','buyPrice','investPrice','FACILITIES',
   'RARES','MAXF','DRAGON_F','TICKS_PER_DAY','awayPlan','smallOf','debtTick','DEBT0','encounter','rareSlain','rareMonOf','arrive',
-  'repay','errandsOf','assignErrand','errandBlock','designateBlock','MAXF','MINE_TOP','MINE_BOT','MINE_N','FN','mineOpen','conquest','mineConquest','title','alive','markAdv','markedOf','BOARD_MAX','MARK_MAX','errandStage','boardMax','markMax','ARCS','reachFloor','GATE_F','fac','nextFac','buildFac','migrate','partyShown','crestJa','glossText','PT_A','PT_B','takeCrest','pickCrest','newPartyName','combat','MON','elemMul','elemNote','sleepMul','sleepReach','MINE_RARES','supplyTeam','potionPrice','lendRival','reviveChance','reviveHint','reviveResultText','temple','checkMemo','memoState','nextDue','rankRows','MEMO','setQuietLog','DREAMS','rollAge','AGE2','ORIGINS','careerLine','originBg','SPELL_LIST','foePool','dz','chest','victory','partyDanger','hpBand','retreatLine','retire','letterTick','kinTick','schedulePendingLetters','scheduleLostKin','memorialize','lostRareLine','dreamText','letterQuote','checkDream'];
+  'repay','errandsOf','assignErrand','errandBlock','designateBlock','MAXF','MINE_TOP','MINE_BOT','MINE_N','FN','deepNow','G','groupMoney','floorsInit','mineOpen','conquest','mineConquest','title','alive','markAdv','markedOf','BOARD_MAX','MARK_MAX','errandStage','boardMax','markMax','ARCS','reachFloor','GATE_F','fac','nextFac','buildFac','migrate','partyShown','crestJa','glossText','PT_A','PT_B','takeCrest','pickCrest','newPartyName','combat','MON','elemMul','elemNote','sleepMul','sleepReach','MINE_RARES','supplyTeam','potionPrice','lendRival','reviveChance','reviveHint','reviveResultText','temple','checkMemo','memoState','nextDue','rankRows','MEMO','setQuietLog','DREAMS','rollAge','AGE2','ORIGINS','careerLine','originBg','SPELL_LIST','foePool','dz','chest','victory','partyDanger','hpBand','retreatLine','retire','letterTick','kinTick','schedulePendingLetters','scheduleLostKin','memorialize','lostRareLine','dreamText','letterQuote','checkDream'];
 
 // 乱数の種を固定したゲームの中身を1つ作る。中身の Math.random だけを差し替える
 function load(seed,fixed){
@@ -76,6 +76,12 @@ function checkTables(){
     check('店の設備：できた知らせに段を添える',lines[0].includes('稽古場ができた（Lv1）')&&lines[1].includes('道場ができた（Lv2）')&&lines[2].includes('修練場ができた（Lv3）')&&lines[3].includes('情報屋ができた（Lv1）')&&lines[4].includes('療養所ができた（Lv1）')&&S4.v===26,'知らせ',lines.join(' / ')+` 版${S4.v}`);}
   // 「借金と返済」：最初の借金と所持金
   check('借金と返済：80000Gの借金と400Gで始まる',S.taverns.ours.debt===80000&&S.taverns.ours.gold===400,'開店',`借金${S.taverns.ours.debt} 所持金${S.taverns.ours.gold}`);
+  check('金額：画面に出すときは3桁ごとに区切る',E.G(600000)==='600,000G'&&E.G(5600)==='5,600G'&&E.G(50)==='50G'&&E.G(0)==='0G'&&E.G(-1540)==='-1,540G'&&E.groupMoney('返済5600Gと罰金1600G。残りは600000G。')==='返済5,600Gと罰金1,600G。残りは600,000G。'&&E.groupMoney(E.groupMoney('600000G'))==='600,000G','G',E.G(600000));
+  check('最深：着いていないときは―',E.deepNow(0)==='―'&&E.deepNow(1)==='B1F'&&E.FN(0)==='B0F','deepNow',E.deepNow(0));
+  {const rare=E.MEMO.find(m=>m.id==='rare');
+    check('覚え書き：名のある魔物は一体',!!rare&&rare.t==='名のある魔物を、一体仕留める','MEMO',rare&&rare.t);}
+  {const F=E.floorsInit(E.newState());const blob=JSON.stringify(F);
+    check('地図の昔の人数は算用数字',F[4].arrive.party.includes('40人')&&F[11].arrive.party.includes('200人')&&!blob.includes('四十')&&!blob.includes('三十')&&!blob.includes('二十')&&!blob.includes('五十')&&!blob.includes('百人')&&!blob.includes('二百'),'階の記録',blob);}
   // 「借金と返済」：返済日には利息2%を足し、4000G＋利息を払う。足りれば借金は4000G減る
   {const T0=S.taverns.ours;T0.gold=999999;T0.debt=50000;T0.nextPay=S.tick;const d0=T0.debt,g0=T0.gold;E.debtTick(S);
     check('借金と返済：返済日に4000G＋利息2%を払う',T0.debt===d0-4000&&g0-T0.gold===4000+Math.round(d0*.02),'返済日',`借金${d0}→${T0.debt} 支払い${g0-T0.gold}`);}
@@ -1103,7 +1109,11 @@ function checkOpening(){
     check('開店の顔ぶれ：一行の中でレベルが高い2人が、別の文面の短い夢を持つ',holders.length===2&&holders.map(a=>a.id).join()===ranked.slice(0,2).map(a=>a.id).sort((a,b)=>S.adv[a].dream.vi-S.adv[b].dream.vi).join()&&holders.map(dreamLine).join('|')===STELE.join('|')&&party.members.includes(holders[0].id)&&party.members.includes(holders[1].id),`種${seed}`,holders.map(a=>`${a.name}Lv${a.lvl} ${dreamLine(a)}`).join(' / '));
     check('開店の顔ぶれ：最初の客たちの知らせが、開店の知らせの次に出る',!!guests&&guests.k==='info'&&guestAt===opened+1&&cast.every(a=>guests.t.includes(a.origin+'出身の'+a.name))&&guests.t.endsWith('が、開店の日から黒猫亭にいる。'),`種${seed}`,guests&&guests.t);
     check('開店の顔ぶれ：手帳の来店の記録に、生い立ちと夢が残る',cast.every(a=>{const door=(a.chron||[]).find(c=>c.t&&c.t.includes('扉をくぐる'));return !!(door&&door.t.includes(tieOf(a))&&door.t.includes('夢は「'+dreamLine(a)+'」'));}),`種${seed}`,()=>cast.filter(a=>{const door=(a.chron||[]).find(c=>c.t&&c.t.includes('扉をくぐる'));return !(door&&door.t.includes(tieOf(a))&&door.t.includes('夢は「'+dreamLine(a)+'」'));}).map(a=>`${a.name}：${(a.chron.find(c=>c.t&&c.t.includes('扉をくぐる'))||{}).t||'記録なし'}`).join(' / '));
-    check('開店の顔ぶれ：まだ潜っていない短い夢の進みはB0Fと出ない',holders.every(a=>(a.deepest||0)===0&&E.DREAMS.stele.prog(a)==='まだ迷宮に潜っていない'),`種${seed}`,holders.map(a=>E.DREAMS.stele.prog(a)).join(' / '));
+    const idle=cast.find(a=>!party.members.includes(a.id));
+    const onFloor=p=>E.alive(S,p).every(a=>(a.deepest||0)>=p.floor&&p.floor>0);
+    check('開店の顔ぶれ：入り口に立った短い夢の進みはこれまでの最深B1F',holders.every(a=>a.deepest===1&&party.floor===1&&E.DREAMS.stele.prog(a)==='これまでの最深 B1F'&&!String(E.DREAMS.stele.prog(a)).includes('B0F')),`種${seed}`,holders.map(a=>`${a.deepest}:${E.DREAMS.stele.prog(a)}`).join(' / '));
+    check('開店の顔ぶれ：まだ階に立っていない客の最深は―',!!idle&&(idle.deepest||0)===0&&E.deepNow(idle.deepest)==='―'&&E.DREAMS.stele.prog(idle)==='まだ迷宮に潜っていない',`種${seed}`,idle&&`${idle.deepest}:${E.DREAMS.stele.prog(idle)}`);
+    check('階に着いた者の最深は、いまいる階以上',Object.values(S.parties).every(onFloor),`種${seed}`,Object.values(S.parties).map(p=>`${p.name}@${p.floor}:${E.alive(S,p).map(a=>a.deepest).join(',')}`).join(' / '));
     names.push(cast.map(a=>a.name).join(','));
     if(i===0){
       Object.values(S.adv).forEach(a=>{delete a.opening;if(a.dream&&a.dream.k==='stele')a.dream={k:'fame',vi:0};});

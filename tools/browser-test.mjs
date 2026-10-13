@@ -137,7 +137,9 @@ test('一行の札に、平均と最高と到達と顔ぶれが出て、狭い�
       if(ms.length&&!text.includes('平均'))bad.push(p.name+' 平均がない');
       if(ms.length&&!text.includes('最高'))bad.push(p.name+' 最高がない');
       if(!text.includes('到達'))bad.push(p.name+' 到達がない');
-      for(const a of ms){if(!text.includes(a.name)||!text.includes(a.cls))bad.push(`${p.name} に ${a.name}（${a.cls}）がいない`);}
+      for(const a of ms){if(!text.includes(a.name)||!text.includes(a.cls))bad.push(`${p.name} に ${a.name}（${a.cls}）がいない`);
+        const cls=[...el.querySelectorAll('.cls')].find(n=>n.textContent.includes(a.cls));
+        if(cls&&!new RegExp(a.cls+' Lv'+a.lvl).test(cls.textContent))bad.push(`${a.name} のLv`);}
       if(p.leader&&S.adv[p.leader]&&ms.some(a=>a.id===p.leader)&&!text.includes('★'+S.adv[p.leader].name))bad.push(p.name+' のリーダー');
       const ja=crestJa(p.name);
       if(ja&&!text.includes(p.name+'（'+ja+'）'))bad.push(p.name+' の訳がない');
@@ -156,6 +158,55 @@ test('一行の札に、平均と最高と到達と顔ぶれが出て、狭い�
   await page.setViewportSize({width:360,height:740});
   const narrow=await page.evaluate(()=>[...document.querySelectorAll('.pcard')].filter(el=>el.scrollWidth>el.clientWidth+1).map(el=>el.textContent.slice(0,20)));
   assert.deepEqual(narrow,[]);
+  assert.deepEqual(errors,[]);await ctx.close();
+});
+
+test('金額・階・席の知らせは、画面どうしで同じ書き方になる',async()=>{
+  const {ctx,page,errors}=await open();
+  await page.locator('#sp0').click();
+  const shown=await page.evaluate(()=>{
+    const cast=Object.values(S.adv).filter(a=>a.opening);
+    const party=Object.values(S.parties).find(p=>p.tav==='ours');
+    const idle=cast.find(a=>!party.members.includes(a.id));
+    const diver=S.adv[party.members[0]];
+    floorsInit(S);
+    S.taverns.ours.gold=154420;
+    S.taverns.ours.earned=462443;
+    S.taverns.ours.support=154420;
+    S.floors[4].arrive.party='鉄の誓い傭兵団（四十人）';
+    S.floors[11].arrive.party='王国の調査隊二百人（全滅）';
+    tab='desk';render();
+    const desk=document.querySelector('#tbody').innerText;
+    const gold=document.querySelector('#gold').textContent;
+    const debt=document.querySelector('#debt').textContent;
+    tab='maps';render();
+    const maps=document.querySelector('#tbody').innerText;
+    advOpen=idle.id;document.getElementById('advm').hidden=false;renderAdv();
+    const idleBook=document.querySelector('#advbox .kv').innerText;
+    advOpen=diver.id;renderAdv();
+    const diveBook=document.querySelector('#advbox .kv').innerText;
+    document.getElementById('advm').hidden=true;advOpen=null;
+    return {gold,debt,desk,maps,idleBook,diveBook,rare:MEMO.find(m=>m.id==='rare').t,chatter:partyCount('鉄の誓い傭兵団（四十人）')};
+  });
+  assert.equal(shown.gold,'154,420');
+  assert.equal(shown.debt,'80,000');
+  assert.match(shown.desk,/462,443G/);
+  assert.match(shown.desk,/154,420G/);
+  assert.match(shown.desk,/店を広げる 5,000G/);
+  assert.match(shown.maps,/40人/);
+  assert.match(shown.maps,/200人/);
+  assert.doesNotMatch(shown.maps,/四十人|二百人/);
+  assert.match(shown.idleBook,/―/);
+  assert.match(shown.idleBook,/最深到達/);
+  assert.doesNotMatch(shown.idleBook,/B0F/);
+  assert.match(shown.diveBook,/B1F/);
+  assert.match(shown.diveBook,/Lv\d/);
+  assert.doesNotMatch(shown.diveBook,/B0F/);
+  assert.equal(shown.rare,'名のある魔物を、一体仕留める');
+  assert.equal(shown.chatter,'鉄の誓い傭兵団（40人）');
+  await page.locator('button[data-v="desk"]').click();
+  await page.locator('[data-act="seats"]').click();
+  assert.equal(await page.locator('.toast').innerText(),'常連の席は18席になった');
   assert.deepEqual(errors,[]);await ctx.close();
 });
 
@@ -437,7 +488,7 @@ test('帳場の覚え書きと、次の返済までの日数・必要額が常�
   assert.match(opened.pay,/次の返済まであと/);
   assert.match(opened.pay,/必要額/);
   assert.match(opened.pay,/30/);
-  assert.match(opened.pay,/5600/);
+  assert.match(opened.pay,/5,600/);
   const back=await page.evaluate(()=>{
     const a=Object.values(S.adv).find(x=>x.tav==='ours');
     const rep=S.taverns.ours.rep;a.trips=1;render();
@@ -450,7 +501,7 @@ test('帳場の覚え書きと、次の返済までの日数・必要額が常�
   assert.match(back.struck,/送り出した連中が、生きて戻ってくる/);
   assert.match(back.when,/日目/);
   assert.equal(back.whenInside,false);
-  assert.match(back.desk,/次の返済まであと30日・必要額5600G/);
+  assert.match(back.desk,/次の返済まであと30日・必要額5,600G/);
   await page.locator('button[data-v="rank"]').click();
   const rank=await page.locator('#memo-log').innerText();
   assert.match(rank,/送り出した連中が、生きて戻ってくる/);
@@ -563,7 +614,7 @@ test('開店の顔ぶれは、知らせと手帳と記念碑に出る',async()=>
   });
   assert.equal(info.n,7);
   assert.deepEqual(info.texts,['B6Fの転移の石碑に、一度触れてみたい','B6Fまで潜って、地上の店に戻ってみたい'].sort());
-  assert.equal(info.prog,'まだ迷宮に潜っていない');
+  assert.equal(info.prog,'これまでの最深 B1F');
   const news=await page.locator('.news li',{hasText:'最初の客たち'}).innerText();
   assert.match(news,/最初の客たち/);
   for(const name of info.names)assert.match(news,new RegExp(name));
@@ -572,7 +623,9 @@ test('開店の顔ぶれは、知らせと手帳と記念碑に出る',async()=>
   const book=await page.locator('#advbox').innerText();
   assert.match(book,/開店からの常連/);
   assert.match(book,new RegExp(info.dream.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')));
-  assert.match(book,/まだ迷宮に潜っていない/);
+  assert.match(book,/これまでの最深 B1F/);
+  assert.match(book,/Lv\d/);
+  assert.doesNotMatch(book,/B0F/);
   assert.match(book,new RegExp(info.bg.replace(/[.*+?^${}()|[\]\\]/g,'\\$&').slice(-12)));
   await page.locator('#advbox [data-act="closeadv"]').click();
   await page.evaluate(()=>{
@@ -1419,6 +1472,7 @@ test('便りは青く出て、記念碑と手帳に残る',async()=>{
   assert.match(book,/続柄は/);
   assert.match(book,/の手帳/);
   assert.match(book,/まだ迷宮に潜っていない/);
+  assert.doesNotMatch(book,/B0F/);
   const other=await page.evaluate(()=>{
     const kin=S.adv[advOpen];
     kin.dream={k:'kinvenge',m:'ドブ王',elder:'兄',who:'親'};
