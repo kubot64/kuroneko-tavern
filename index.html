@@ -752,7 +752,7 @@ function newState(){
   formParties(S,'rival',true,vets,ACE_NAME);
   for(const p of Object.values(S.parties)){if(p.name===ACE_NAME){S.ace=p.id;p.ace=true;}}
   for(let i=0;i<3;i++){formParties(S,'rival',true);}
-  for(const p of Object.values(S.parties)){p.reach=GATE_F;const st=STONES.filter(x=>x<=Math.min(GATE_F,Math.floor(safeFloor(S,p)))).pop();if(st){p.floor=st;p.trip.deep=st;plog(p,`てんいの せきひで ${FN(st)} へ（${zoneOf(st)}）`,'sys');floorArrive(S,p);reachFloor(S,p,false);}}
+  for(const p of Object.values(S.parties)){p.reach=GATE_F;const st=STONES.filter(x=>x<=Math.min(GATE_F,Math.floor(safeFloor(S,p)))).pop();if(st){p.floor=st;p.trip.deep=st;plog(p,`てんいの せきひで ${FN(st)} へ（${zoneOf(st)}）`,'sys');floorArrive(S,p);}}
   formParties(S,'ours',true);
   assignOpeningDreams(S);
   return S;
@@ -1473,7 +1473,7 @@ function formParties(S,tav,quiet,forced,fname){
     log:[],loot:0,carried:[],enemies:null,etype:null,ident:false,rest:0,trip:newTrip(),wipedAt:0,knownWiped:false,announced:false,retrieved:false,seen:-999,killer:''};
   take.forEach(a=>{a.party=p.id;a.status='party';chron(S,a,a===L?`仲間を集め、${nm}を結成してリーダーになる`:`${L.name}に誘われ、${nm}に加わる`)});
   S.parties[p.id]=p;
-  plog(p,`${nm} が めいきゅうへ しゅっぱつした`,'sys');p.maps={};supplyTeam(S,p);setPlan(S,p);floorArrive(S,p);reachFloor(S,p,false);
+  plog(p,`${nm} が めいきゅうへ しゅっぱつした`,'sys');p.maps={};supplyTeam(S,p);setPlan(S,p);floorArrive(S,p);
   plog(p,'B1F いりぐち','move');
   if(!quiet&&tav==='ours') news(S,`${L.name}が仲間を集め、${nm}を結成した。仲間は${take.filter(a=>a!==L).map(a=>a.name).join('・')}。`,'info');
   if(!quiet) noteDepart(S,p);
@@ -1962,7 +1962,7 @@ function stepParty(S,p){
         p.floor=st;p.trip.deep=st;plog(p,`てんいの せきひで てつの さんみゃくの ${FN(st)} へ（${zoneOf(st)}）`,'sys');floorArrive(S,p);reachFloor(S,p,false);}
       else{const pe=partyErrand(S,p);const lim=Math.min(p.reach||0,Math.floor(safeFloor(S,p)),p.cap||99,pe?pe.f:99);const st=STONES.filter(x=>x<=lim).pop();
         if(st){p.floor=st;p.trip.deep=st;plog(p,`てんいの せきひで ${FN(st)} へ（${zoneOf(st)}）`,'sys');}
-        floorArrive(S,p);reachFloor(S,p,false);}
+        floorArrive(S,p);}
       noteDepart(S,p);
     } else {
       p.wait=(p.wait||0)+1;

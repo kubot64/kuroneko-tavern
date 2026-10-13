@@ -639,7 +639,7 @@ test('開店の顔ぶれは、知らせと手帳と記念碑に出る',async()=>
   });
   assert.equal(info.n,7);
   assert.deepEqual(info.texts,['B6Fの転移の石碑に、一度触れてみたい','B6Fまで潜って、地上の店に戻ってみたい'].sort());
-  assert.equal(info.prog,'これまでの最深 B1F');
+  assert.equal(info.prog,'まだ迷宮に潜っていない');
   const news=await page.locator('.news li',{hasText:'最初の客たち'}).innerText();
   assert.match(news,/最初の客たち/);
   for(const name of info.names)assert.match(news,new RegExp(name));
@@ -648,7 +648,7 @@ test('開店の顔ぶれは、知らせと手帳と記念碑に出る',async()=>
   const book=await page.locator('#advbox').innerText();
   assert.match(book,/開店からの常連/);
   assert.match(book,new RegExp(info.dream.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')));
-  assert.match(book,/これまでの最深 B1F/);
+  assert.match(book,/まだ迷宮に潜っていない/);
   assert.match(book,new RegExp(info.bg.replace(/[.*+?^${}()|[\]\\]/g,'\\$&').slice(-12)));
   await page.locator('#advbox [data-act="closeadv"]').click();
   await page.evaluate(()=>{
