@@ -32,7 +32,7 @@ const html=readFileSync(new URL('../index.html',import.meta.url),'utf8');
 const ENGINE=html.match(/\/\*ENGINE START\*\/([\s\S]*?)\/\*ENGINE END\*\//)[1];
 const EXPORTS=['newState','tick','rivalTemple','seatCap','seatsUsed','nextSeats','newcomerLvl','buyPrice','investPrice','FACILITIES',
   'RARES','MAXF','DRAGON_F','TICKS_PER_DAY','awayPlan','smallOf','debtTick','DEBT0','encounter','rareSlain','rareMonOf','arrive',
-  'repay','errandsOf','assignErrand','errandBlock','designateBlock','MAXF','MINE_TOP','MINE_BOT','MINE_N','FN','mineOpen','conquest','mineConquest','title','alive','markAdv','markedOf','BOARD_MAX','MARK_MAX','errandStage','boardMax','markMax','ARCS','reachFloor','GATE_F','fac','nextFac','buildFac','migrate','partyShown','crestJa','glossText','PT_A','PT_B','takeCrest','pickCrest','newPartyName','combat','MON','elemMul','elemNote','sleepMul','sleepReach','MINE_RARES','supplyTeam','potionPrice','lendRival','reviveChance','reviveHint','reviveResultText','temple','checkMemo','memoState','nextDue','rankRows','MEMO','setQuietLog','DREAMS','rollAge','AGE2','ORIGINS','careerLine','originBg','SPELL_LIST','foePool','dz','chest','victory','partyDanger','hpBand','retreatLine','retire','letterTick','kinTick','schedulePendingLetters','scheduleLostKin','memorialize','lostRareLine','dreamText','letterQuote','checkDream','wipe','wipeCause','errandEvent','errandFailLine','partyOverdue','fitOf','ERRANDS'];
+  'repay','flowAdd','flowView','flowRoll','policyCost','goldSign','errandsOf','assignErrand','errandBlock','designateBlock','MAXF','MINE_TOP','MINE_BOT','MINE_N','FN','mineOpen','conquest','mineConquest','title','alive','markAdv','markedOf','BOARD_MAX','MARK_MAX','errandStage','boardMax','markMax','ARCS','reachFloor','GATE_F','fac','nextFac','buildFac','migrate','partyShown','crestJa','glossText','PT_A','PT_B','takeCrest','pickCrest','newPartyName','combat','MON','elemMul','elemNote','sleepMul','sleepReach','MINE_RARES','supplyTeam','potionPrice','lendRival','reviveChance','reviveHint','reviveResultText','temple','checkMemo','memoState','nextDue','rankRows','MEMO','setQuietLog','DREAMS','rollAge','AGE2','ORIGINS','careerLine','originBg','SPELL_LIST','foePool','dz','chest','victory','partyDanger','hpBand','retreatLine','retire','letterTick','kinTick','schedulePendingLetters','scheduleLostKin','memorialize','lostRareLine','dreamText','letterQuote','checkDream','wipe','wipeCause','errandEvent','errandFailLine','partyOverdue','fitOf','ERRANDS'];
 
 // 乱数の種を固定したゲームの中身を1つ作る。中身の Math.random だけを差し替える
 function load(seed,fixed){
@@ -999,6 +999,8 @@ function runSeed(seed){
       ()=>`所持金${T0.gold} 評判${T0.rep} 借金${T0.debt} ${(advs.find(a=>!(num(a.gold)&&num(a.hp)&&num(a.xp)))||{}).name||''}`);
     // 「借金と返済」：借金は負にならず、評判は0より下にならない
     check('借金と返済：借金は負にならない',T0.debt>=0,at,T0.debt);
+    {const A=S.flow&&S.flow.all;check('きょうの出入り：売上・支援・蘇生代・返済が帳簿の増分と合う',!!A&&A.e===(T0.earned||0)&&(A.s||0)+(A.v||0)===(T0.support||0)&&(A.r||0)===(T0.repaid||0)&&!(A.f>0),at,
+      ()=>`出入り 売上${A&&A.e} 支援${A&&A.s} 蘇生${A&&A.v} 返済${A&&A.r} 施設${A&&A.f}／帳簿 売上${T0.earned||0} 支援${T0.support||0} 返済${T0.repaid||0}`);}
     check('評判：0より下にならない',T0.rep>=0,at,T0.rep);
     // 「沈んだ王」：踏破は一度きりで、記録が書き換わらない
     if(S.conquered){if(!conquered)conquered=JSON.stringify({tk:S.conquered.tk,tav:S.conquered.tav,party:S.conquered.party});
@@ -1374,9 +1376,63 @@ function checkFoes(){
     check('古い記録：戦いの途中の魔物は今の強さに読み替えず、開いたあとにも進む',p.etype&&p.etype.atk===99&&p.etype.n==='坑道都市の衛兵'&&p.enemies&&p.enemies[0].hp>0&&S.v===26&&S.tick>t0,'版23',`攻${p.etype&&p.etype.atk} 版${S.v} 刻${S.tick}`);}
 }
 
+function checkFlow(){
+  const E=load(1),S=E.newState();
+  const z=E.flowView(S);
+  check('きょうの出入り：初日の前日は0',z.y.e===0&&z.y.s===0&&z.y.v===0&&z.y.r===0&&z.y.f===0&&z.w.e===0,'開店',JSON.stringify(z.y));
+  E.flowAdd(S,'e',923);E.flowAdd(S,'s',180);E.flowAdd(S,'v',470);E.flowAdd(S,'r',5580);E.flowAdd(S,'f',15000);
+  const a=E.flowView(S);
+  check('きょうの出入り：その日の分は直近7日に入り、前日は0',a.y.e===0&&a.w.e===923&&a.w.s===180&&a.w.v===470&&a.w.r===5580&&a.w.f===15000,'初日',JSON.stringify(a.w));
+  check('金額の表記：増減は+923Gと-4657G、0は0G',E.goldSign(923)==='+923G'&&E.goldSign(-4657)==='-4657G'&&E.goldSign(0)==='0G'&&E.goldSign(-180)==='-180G','表記',E.goldSign(-4657));
+  S.tick=E.TICKS_PER_DAY;
+  const b=E.flowView(S);
+  check('きょうの出入り：日が変わると前日になる',b.y.e===923&&b.y.s===180&&b.y.v===470&&b.y.r===5580&&b.y.f===15000&&b.w.e===923&&b.w.f===15000,'2日目',JSON.stringify(b.y));
+  S.tick=E.TICKS_PER_DAY*7;
+  const c=E.flowView(S);
+  check('きょうの出入り：7日より前は直近7日から外れる',c.y.e===0&&c.w.e===0&&c.w.f===0&&c.all.e===923&&c.all.f===15000,'8日目',JSON.stringify(c.w));
+  const E2=load(2),S2=E2.newState(),T=S2.taverns.ours;
+  T.gold=20000;S2.policy={potion:1,mapPay:false,revive:false,rookie:false};
+  const paid=E2.repay(S2,1000);
+  check('きょうの出入り：手で返した分は返済に入る',paid===1000&&E2.flowView(S2).w.r===1000&&S2.v===26,'1000G',`返${E2.flowView(S2).w.r} 版${S2.v}`);
+  E2.buildFac(S2,'dojo');
+  const p=Object.values(S2.parties).find(x=>x.tav==='ours');
+  const sup=T.support||0;E2.supplyTeam(S2,p);const pot=(T.support||0)-sup;
+  const v2=E2.flowView(S2);
+  check('きょうの出入り：設備は施設、回復薬は支援で、蘇生代には入らない',v2.w.f===15000&&pot>0&&v2.w.s===pot&&v2.w.v===0&&v2.w.r===1000,'建てる・差し入れ',`施設${v2.w.f} 支援${v2.w.s} 薬${pot}`);
+  const E3=load(3),S3=E3.newState();
+  const dead=Object.values(S3.adv).find(x=>x.tav==='ours'&&x.status!=='lost');
+  const team=dead.party&&S3.parties[dead.party];if(team)team.members=team.members.filter(id=>id!==dead.id);
+  dead.party=null;dead.status='dead';dead.hp=0;dead.tw=0;S3.policy={potion:0,mapPay:false,revive:true,rookie:false};
+  S3.taverns.ours.gold=100000;const sup0=S3.taverns.ours.support||0;
+  E3.tick(S3);
+  const v3=E3.flowView(S3),dsup=(S3.taverns.ours.support||0)-sup0;
+  check('きょうの出入り：自動の蘇生代は支援の行に入れない',v3.all.v>0&&v3.all.s===0&&v3.all.v===dsup&&dead.status!=='dead','肩代わり',`蘇生${v3.all.v} 支援${v3.all.s} 帳簿${dsup} 状態${dead.status}`);
+  const E4=load(4),S4=E4.newState();
+  Object.values(S4.adv).forEach(a=>{if(a.tav==='ours'&&a.status!=='lost'&&a.status!=='retired')a.lvl=19;});
+  const c4=E4.policyCost(S4);
+  const inc=f=>Math.round(70*Math.pow(Math.max(1,f),1.45));
+  const mp=f=>{const d=E4.dz(f);return f<=3?[0,40,80,150][f]:Math.round((30*d*d+100*d)/10)*10;};
+  const potU=Math.max(20,Math.round(inc(8)*.12/10)*10),per=.25;
+  const base=Math.round(inc(8)*.5/10)*10;
+  check('方針の費用：深さ8・一行1組の見積もり',c4.depth===8&&c4.parties===1&&c4.potion.join(',')===[0,2,5,10].map(b=>Math.round(b*potU*per)).join(',')&&c4.map===Math.round(mp(8)*per)&&c4.revive===Math.round(base/10),'Lv19',`深さ${c4.depth} 一行${c4.parties} 薬${c4.potion.join(',')} 地図${c4.map} 蘇生${c4.revive}`);
+  S4.edicts=[{k:'templeUp',m:1.5,until:99999,t:''}];
+  const up=E4.policyCost(S4);
+  check('方針の費用：蘇生の見積もりはお触れの倍率を掛ける',up.revive===Math.round(Math.round(base*1.5)/10),'五割増',up.revive);
+  Object.values(S4.adv).forEach(a=>{if(a.tav==='ours')a.lvl=1;});S4.taverns.ours.rep=0;S4.edicts=[];
+  const low=E4.policyCost(S4);
+  check('方針の費用：平均レベルが10未満の新人は、肩を並べる者も対象に数える',low.rookie===Math.round(0.016*50*(0.5+0.5*0.8)*300),'Lv1・評判0',low.rookie);
+  Object.values(S4.adv).forEach(a=>{if(a.tav==='ours')a.lvl=19;});S4.edicts=[{k:'mercs',until:99999,t:''}];
+  const merc=E4.policyCost(S4);
+  check('方針の費用：平均レベル10以上の新人は肩を並べる者を外し、傭兵のお触れは1.8倍',merc.rookie===Math.round(0.016*50*1.8*(1-0.5)*0.8*300),'Lv19・傭兵',merc.rookie);
+  const E5=load(5),S5=E5.newState();
+  delete S5.flow;S5.tick=100*E5.TICKS_PER_DAY;S5.taverns.ours.earned=5000;S5.v=26;E5.migrate(S5);
+  const v5=E5.flowView(S5);
+  check('きょうの出入り：古い記録の過ぎた日は0で、版は上がらない',v5.y.e===0&&v5.w.e===0&&v5.all.e===0&&S5.v===26,'版26',`売上${v5.w.e} 版${S5.v}`);
+}
+
 if(!isMainThread){const line=runSeed(workerData.seed);parentPort.postMessage({line,res:[...results]});}
 else{
-  checkTables();checkScenes();checkLetters();checkErrands();checkCrest();checkRowFallback();checkMine();checkAffinity();checkRevive();checkMemoNotes();checkOpening();checkCareer();checkAge();checkFoes();
+  checkTables();checkScenes();checkLetters();checkErrands();checkCrest();checkRowFallback();checkMine();checkAffinity();checkRevive();checkMemoNotes();checkOpening();checkCareer();checkAge();checkFoes();checkFlow();
   // 種ごとの結果は、種の順に重ねる。反例は、いちばん若い種の最初のものを残す。進捗の行も種の順に出す
   const out=new Array(SEEDS.length);let next=0,printed=0;
   const flush=()=>{while(printed<out.length&&out[printed]){if(out[printed].line)console.log(out[printed].line);printed++;}};
