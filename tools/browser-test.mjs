@@ -1704,3 +1704,64 @@ test('375pxと1280pxでは所属の札が行に収まり、名簿と日報と地
   }
   assert.deepEqual(errors,[]);await ctx.close();
 });
+
+test('帳場のきょうの出入りは前日と直近7日で、375pxでも短く、方針に1日あたりが出る',async()=>{
+  const {ctx,page,errors}=await open();
+  await page.setViewportSize({width:375,height:740});
+  await page.locator('#sp0').click();
+  await page.locator('button[data-v="desk"]').click();
+  await page.evaluate(()=>document.fonts.ready);
+  const flow=page.locator('#flow');
+  const text=await flow.innerText();
+  assert.match(text,/前日/);
+  assert.match(text,/直近7日/);
+  for(const name of ['売上','支援','蘇生代','返済','施設'])assert.match(text,new RegExp(name));
+  const zeros=await page.locator('#flow .num').allInnerTexts();
+  assert.deepEqual(zeros,Array(10).fill('0G'));
+  assert.match(await page.locator('[data-cost="potion"]').innerText(),/2本にすると、いまの深さだと 1日あたり約\d+G/);
+  for(const k of ['mapPay','revive','rookie'])assert.match(await page.locator(`[data-cost="${k}"]`).innerText(),/^いまの深さだと 1日あたり約\d+G$/);
+  const layout=async()=>page.evaluate(()=>{
+    const bad=[];
+    const lines=el=>el.getClientRects().length;
+    const box=document.querySelector('#flow').getBoundingClientRect();
+    if(box.height>200)bad.push(`出入りが長い ${Math.round(box.height)}px`);
+    if(box.right>innerWidth+1||box.left<-1)bad.push('出入りが横にはみ出す');
+    for(const n of document.querySelectorAll('#flow .num'))if(lines(n)!==1)bad.push(n.textContent+' が折れている');
+    for(const c of document.querySelectorAll('[data-cost]')){
+      if(c.getBoundingClientRect().height>52)bad.push(`${c.dataset.cost} の見積もりが長い ${Math.round(c.getBoundingClientRect().height)}px`);
+      if(c.getBoundingClientRect().right>innerWidth+1)bad.push(c.dataset.cost+' が横にはみ出す');
+    }
+    if(document.documentElement.scrollWidth>innerWidth+1)bad.push('ページが横にはみ出す');
+    return bad;
+  });
+  assert.deepEqual(await layout(),[]);
+  await page.evaluate(()=>{S.taverns.ours.gold=5000;render();});
+  await page.locator('button[data-act="repay"][data-v="1000"]').click();
+  assert.match(await flow.innerText(),/-1000G/);
+  const rev=await page.evaluate(()=>{
+    const a=Object.values(S.adv).find(x=>x.tav==='ours'&&x.status==='idle');
+    a.status='dead';a.hp=0;a.party=null;
+    S.taverns.ours.gold=100000;S.taverns.ours.support=0;
+    const c=templeCost(S,a);render();return {c,id:a.id};
+  });
+  await page.locator(`button[data-act="revive"][data-a="${rev.id}"]`).click();
+  assert.match(await flow.innerText(),new RegExp('-'+rev.c+'G'));
+  assert.equal(await page.evaluate(()=>S.taverns.ours.support||0),0);
+  await page.evaluate(()=>{
+    S.flow=null;S.tick=0;
+    flowAdd(S,'e',923);flowAdd(S,'s',180);flowAdd(S,'v',470);flowAdd(S,'r',5580);flowAdd(S,'f',15000);
+    render();
+  });
+  const shown=await flow.innerText();
+  assert.match(shown,/\+923G/);
+  assert.match(shown,/-180G/);
+  assert.match(shown,/-470G/);
+  assert.match(shown,/-5580G/);
+  assert.match(shown,/-15000G/);
+  assert.deepEqual(await layout(),[]);
+  const want=await page.evaluate(()=>policyCost(S).potion[1]);
+  await page.locator('button[data-act="pol"][data-k="potion"][data-v="1"]').click();
+  assert.equal(await page.locator('[data-cost="potion"]').innerText(),`いまの深さだと 1日あたり約${want}G`);
+  assert.deepEqual(await layout(),[]);
+  assert.deepEqual(errors,[]);await ctx.close();
+});
