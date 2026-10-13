@@ -639,7 +639,7 @@ test('開店の顔ぶれは、知らせと手帳と記念碑に出る',async()=>
   });
   assert.equal(info.n,7);
   assert.deepEqual(info.texts,['B6Fの転移の石碑に、一度触れてみたい','B6Fまで潜って、地上の店に戻ってみたい'].sort());
-  assert.equal(info.prog,'まだ迷宮に潜っていない');
+  assert.equal(info.prog,'これまでの最深 B1F');
   const news=await page.locator('.news li',{hasText:'最初の客たち'}).innerText();
   assert.match(news,/最初の客たち/);
   for(const name of info.names)assert.match(news,new RegExp(name));
@@ -648,7 +648,7 @@ test('開店の顔ぶれは、知らせと手帳と記念碑に出る',async()=>
   const book=await page.locator('#advbox').innerText();
   assert.match(book,/開店からの常連/);
   assert.match(book,new RegExp(info.dream.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')));
-  assert.match(book,/まだ迷宮に潜っていない/);
+  assert.match(book,/これまでの最深 B1F/);
   assert.match(book,new RegExp(info.bg.replace(/[.*+?^${}()|[\]\\]/g,'\\$&').slice(-12)));
   await page.locator('#advbox [data-act="closeadv"]').click();
   await page.evaluate(()=>{
@@ -1847,5 +1847,91 @@ test('倒れた者の札、番付の数、出資の買い取り、記念碑の�
   const still=await page.locator('button[data-v="stone"] .cnt').innerText();
   assert.equal(still,'ロスト1');
   assert.match(await page.locator('#tbody').innerText(),/消えた者/);
+  assert.deepEqual(errors,[]);await ctx.close();
+});
+
+test('札の印は右上に揃い、方針ボタンの幅は変わらず、狭い画面ではログとタブの位置が収まる',async()=>{
+  const {ctx,page,errors}=await open();
+  await page.locator('#sp0').click();
+  await page.evaluate(()=>document.fonts.ready);
+  const tags=()=>page.evaluate(()=>{
+    const bad=[];
+    for(const el of document.querySelectorAll('.pcard')){
+      const top=el.querySelector('.top'),pn=el.querySelector('.pn'),tag=el.querySelector('.tag');
+      if(!top||!pn||!tag){bad.push('札の頭がない');continue;}
+      const tr=top.getBoundingClientRect(),pr=pn.getBoundingClientRect(),gr=tag.getBoundingClientRect();
+      if(gr.top>pr.bottom-1)bad.push('印が次の行に落ちた');
+      if(Math.abs(gr.right-tr.right)>2)bad.push(`印が右上にない ${Math.round(gr.right-tr.right)}`);
+      if(gr.left<pr.right-2)bad.push('印が名前に重なる');
+      const cs=getComputedStyle(pn);
+      if(cs.textOverflow!=='ellipsis'||cs.overflowX!=='hidden'&&cs.overflow!=='hidden')bad.push('名前が省略されない');
+      if(el.scrollWidth>el.clientWidth+1)bad.push('札が横にはみ出す');
+    }
+    return bad;
+  });
+  assert.deepEqual(await tags(),[]);
+  await page.setViewportSize({width:375,height:740});
+  await page.evaluate(()=>document.fonts.ready);
+  await page.evaluate(()=>{
+    const p=Object.values(S.parties).find(x=>x.tav==='ours');
+    p.name='ナハト・ラーベ・とても長い一行の名前が札の端で省略される';
+    render();
+  });
+  const long=await page.evaluate(()=>{
+    const el=[...document.querySelectorAll('.pcard')].find(x=>x.textContent.includes('ナハト・ラーベ・とても長い'));
+    const pn=el.querySelector('.pn');
+    const range=document.createRange();range.selectNodeContents(pn);
+    const lines=new Set([...range.getClientRects()].map(r=>Math.round(r.top))).size;
+    return {clipped:pn.scrollWidth>pn.clientWidth+1,lines};
+  });
+  assert.equal(long.clipped,true,'長い名前が省略されていない');
+  assert.equal(long.lines,1);
+  assert.deepEqual(await tags(),[]);
+  const phone=await page.evaluate(()=>{
+    const bad=[];
+    const log=document.querySelector('.c-log');
+    if(!log)bad.push('ログがない');
+    else{
+      const h=log.getBoundingClientRect().height;
+      if(h>innerHeight/2+1)bad.push(`ログが高い ${Math.round(h)} / 半分 ${Math.round(innerHeight/2)}`);
+      if(h>380)bad.push(`ログが380pxを超える ${Math.round(h)}`);
+    }
+    for(const b of document.querySelectorAll('.ctrl .btn')){
+      const r=b.getBoundingClientRect();
+      if(r.right>innerWidth-15)bad.push(b.textContent.trim()+' が右端 '+Math.round(innerWidth-r.right));
+      if(r.left<15)bad.push(b.textContent.trim()+' が左端');
+    }
+    return bad;
+  });
+  assert.deepEqual(phone,[]);
+  await page.locator('button[data-v="desk"]').click();
+  const widths=()=>page.evaluate(()=>{
+    const bs=[...document.querySelectorAll('#tbody button.pol')];
+    return bs.map(b=>({k:b.dataset.k,t:b.textContent,w:Math.round(b.getBoundingClientRect().width)}));
+  });
+  const before=await widths();
+  assert.equal(before.length,3);
+  assert.equal(new Set(before.map(b=>b.w)).size,1,`方針の幅が違う ${before.map(b=>b.k+b.w).join(' ')}`);
+  await page.locator('button.pol').first().click();
+  const after=await widths();
+  assert.deepEqual(after.map(b=>b.w),before.map(b=>b.w),`切り替えると幅が変わる ${before.map(b=>b.t+b.w).join(' ')} → ${after.map(b=>b.t+b.w).join(' ')}`);
+  await page.setViewportSize({width:390,height:844});
+  await page.locator('button[data-v="news"]').click();
+  await page.evaluate(()=>{const w=document.querySelector('.wrap');w.scrollTop=w.scrollHeight;});
+  await page.locator('button[data-v="ref"]').click();
+  const dy=await page.evaluate(()=>{
+    const side=document.querySelector('.side').getBoundingClientRect();
+    const wrap=document.querySelector('.wrap').getBoundingClientRect();
+    return side.top-wrap.top;
+  });
+  assert.ok(Math.abs(dy)<=8,`タブを切り替えても先頭に来ない ${dy}`);
+  const close=await page.evaluate(()=>{
+    const a=Object.values(S.adv).find(x=>x.tav==='ours');
+    advOpen=a.id;document.getElementById('advm').hidden=false;renderAdv();
+    const b=[...document.querySelectorAll('#advbox button')].find(x=>x.textContent==='閉じる');
+    return {on:b.classList.contains('on'),bg:getComputedStyle(b).backgroundColor};
+  });
+  assert.equal(close.on,true);
+  assert.equal(close.bg,'rgb(227, 166, 73)');
   assert.deepEqual(errors,[]);await ctx.close();
 });
