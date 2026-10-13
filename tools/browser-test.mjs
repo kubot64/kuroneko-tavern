@@ -1638,6 +1638,76 @@ test('深手の者は水晶と札で赤くなり、撤退の横に一言出る',
   assert.deepEqual(errors,[]);await ctx.close();
 });
 
+test('375pxでは水晶の一言が語の途中で折れず、稼ぎは別の行に出る',async()=>{
+  const {ctx,page,errors}=await open();
+  await page.locator('#sp0').click();
+  const prep=await page.evaluate(()=>{
+    const p=Object.values(S.parties).find(x=>x.tav==='ours');
+    p.state='explore';p.floor=4;p.enemies=[{hp:3}];p.plan='normal';p.pushWhy=null;p.loot=299;
+    const ms=p.members.map(id=>S.adv[id]);
+    ms.forEach(a=>{a.status='party';a.hp=a.mhp=100;a.poison=0;a.mp=5;});
+    S.adv[p.leader].pers='普通';
+    const hurt=ms.find(a=>a.id!==p.leader);
+    hurt.mhp=12;hurt.hp=1;
+    S.taverns.ours.gold=1000;
+    S.watch[0]=p.id;S.sel=0;
+    render();
+    return p.id;
+  });
+  const measure=async()=>{
+    await page.evaluate(()=>document.fonts.ready);
+    return page.evaluate(()=>{
+      const bad=[];
+      const warn=document.querySelector('.c-warn');
+      const fight=warn&&warn.querySelector('.fight');
+      const loot=document.querySelector('.c-loot');
+      const foot=document.querySelector('.c-foot');
+      if(!warn||!fight||!fight.textContent.includes('たたかいの さいちゅう。いま めいじても にげきれるとは かぎらない'))bad.push('戦いの一言がない '+(warn&&warn.textContent));
+      if(!loot||loot.textContent!=='稼ぎ 299G')bad.push('稼ぎがない '+(loot&&loot.textContent));
+      const runs=(el)=>{
+        const walker=document.createTreeWalker(el,NodeFilter.SHOW_TEXT);
+        const re=/[0-9A-Za-zぁ-んァ-ヶ一-龥ー]+/g;
+        let node;
+        while((node=walker.nextNode())){
+          const text=node.textContent;
+          let m;
+          while((m=re.exec(text))){
+            const range=document.createRange();
+            range.setStart(node,m.index);range.setEnd(node,m.index+m[0].length);
+            const rects=[...range.getClientRects()].filter(r=>r.width>.5);
+            const tops=new Set(rects.map(r=>Math.round(r.top)));
+            const width=rects.reduce((s,r)=>s+r.width,0);
+            const box=node.parentElement.getBoundingClientRect().width;
+            if(tops.size>1&&width<=box+1)bad.push('語の途中で折れている '+m[0]);
+          }
+        }
+      };
+      if(warn)runs(warn);
+      if(loot&&warn&&foot){
+        const range=document.createRange();range.selectNodeContents(loot);
+        const lr=range.getBoundingClientRect(),wr=warn.getBoundingClientRect(),fr=foot.getBoundingClientRect();
+        const narrow=innerWidth<=640;
+        if(narrow){
+          if(lr.top<wr.bottom-1)bad.push('稼ぎが一言と同じ行');
+          if(fr.right-lr.right>20)bad.push('稼ぎが右端にない '+Math.round(fr.right-lr.right));
+        }else{
+          const btn=foot.querySelector('.btn').getBoundingClientRect();
+          if(!(lr.bottom>btn.top+1&&lr.top<btn.bottom-1))bad.push('広い画面で稼ぎがボタンの行にない');
+          if(fr.right-lr.right>20)bad.push('稼ぎが右端にない '+Math.round(fr.right-lr.right));
+        }
+      }
+      if(document.documentElement.scrollWidth>innerWidth+1)bad.push('ページが横にはみ出す');
+      return bad;
+    });
+  };
+  for(const [width,height] of [[375,740],[1280,800]]){
+    await page.setViewportSize({width,height});
+    assert.deepEqual(await measure(),[],`${width}px`);
+  }
+  assert.equal(prep>0,true);
+  assert.deepEqual(errors,[]);await ctx.close();
+});
+
 test('全滅と依頼の失敗には理由が一文つき、まだ戻らないは札で読める',async()=>{
   const {ctx,page,errors}=await open();
   await page.locator('#sp0').click();

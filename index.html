@@ -81,10 +81,11 @@ button:focus-visible,[tabindex]:focus-visible{outline:2px solid var(--amber);out
 .c-foot{display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:8px 12px;border-top:1px solid #1d2546;font-size:12px;color:var(--crystal-dim)}
 .c-foot .btn{background:#151c36;border-color:#2a3666;color:var(--crystal-fg)}
 .c-foot .btn:hover{border-color:var(--glow)}
-.c-warn{flex:1 1 12em;min-width:min(100%,12em);font-family:var(--f-log);font-size:12px;line-height:1.45;color:var(--blood)}
+.c-warn{flex:1 1 12em;min-width:min(100%,12em);font-family:var(--f-log);font-size:12px;line-height:1.45;color:var(--blood);word-break:keep-all;line-break:strict;overflow-wrap:anywhere}
 .c-warn .thought,.c-warn .fight{display:block}
 .c-warn .thought{color:#ffe2a8}
 .c-warn .fight{color:var(--crystal-dim);font-size:11px}
+.c-loot{margin-left:auto}
 
 /* party strip. Facts stay in the same order on every card so parties can be compared by eye. */
 .parties{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:10px;align-items:start}
@@ -285,6 +286,8 @@ button:focus-visible,[tabindex]:focus-visible{outline:2px solid var(--amber);out
   .c-members{gap:0 10px}
   .c-members .m{min-height:44px;align-items:center}
   .c-members .nm-link{display:inline-flex;align-items:center;min-width:44px;min-height:44px;padding:0 4px;margin-left:-4px}
+  /* 一言があるとき、稼ぎは一言の下の行。右端に寄せる */
+  .c-foot:has(.c-warn) .c-loot{flex:1 0 100%;margin-left:0;text-align:right}
   .desk .row{align-items:flex-start}
   .desk .row>.who{flex:1 0 100%;width:100%;min-width:100%}
   .tblwrap:has(.mapfloors){overflow-x:visible}
@@ -3695,7 +3698,7 @@ function renderCrystals(){
       <div class="c-head" data-act="selc" data-i="${i}" tabindex="0"><span class="orb"></span><span class="nm">${partyHtml(p.name)}${p.tav==='rival'?'（銀の杯亭）':''}</span><span class="fl">${esc(stateText(p)[0])}${p.floor>0&&p.state!=='town'?'・'+zoneOf(p.floor)+(p.state!=='wiped'?(hasMap(p)?'・地図あり':'・地図なし'):''):''}</span></div>
       <div class="c-members">${mem}</div>
       <div class="c-log" data-pid="${p.id}">${lines}${lost?'<div class="move">　\n水晶は もう なにも うつさない</div>':''}</div>
-      <div class="c-foot">${canRecall?`<button class="btn sm" data-act="recall" data-p="${p.id}" ${T().gold<50?'disabled':''}>伝書鳩で撤退を命じる（50G）</button>`:`<span>${p.state==='return'?'帰路についている':p.state==='town'?'酒場に戻っている':p.tav==='rival'?'すれ違いの間だけ見えている':''}</span>`}${warn}<span style="margin-left:auto">${p.loot?'稼ぎ '+p.loot+'G':''}</span></div>
+      <div class="c-foot">${canRecall?`<button class="btn sm" data-act="recall" data-p="${p.id}" ${T().gold<50?'disabled':''}>伝書鳩で撤退を命じる（50G）</button>`:`<span>${p.state==='return'?'帰路についている':p.state==='town'?'酒場に戻っている':p.tav==='rival'?'すれ違いの間だけ見えている':''}</span>`}${warn}${p.loot?`<span class="c-loot">稼ぎ ${p.loot}G</span>`:''}</div>
     </div>`;
   }).join('');
   box.querySelectorAll('.c-log').forEach(el=>{if(keep[el.dataset.pid]!==false)el.scrollTop=el.scrollHeight;});
