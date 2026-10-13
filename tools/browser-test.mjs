@@ -1038,7 +1038,8 @@ test('900px以下では返済の帯とタブが初めから見え、ページ自
   const tops=[];
   for(const [width,height] of [[375,740],[390,844],[640,900],[641,900],[768,1024],[844,390],[900,700],[901,800],[1280,800]]){
     await page.setViewportSize({width,height});
-    await page.evaluate(()=>{document.querySelector('.wrap').scrollTo(0,0);window.scrollTo(0,0);});
+    // 幅を変えた直後は、返済の帯の位置を直す処理がまだ走っていないことがある。ここで一度直してから測る
+    await page.evaluate(()=>{document.querySelector('.wrap').scrollTo(0,0);window.scrollTo(0,0);window.dispatchEvent(new Event('resize'));});
     await page.evaluate(()=>document.fonts.ready);
     const first=await look();
     assert.deepEqual(first.bad,[],`${width}×${height} を開いた直後`);
