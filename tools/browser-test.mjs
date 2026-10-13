@@ -1175,6 +1175,25 @@ test('帳場の設備と席に、いまの段が出る',async()=>{
     const seats=document.querySelector('[data-seats]');
     return {dojo:fac('dojo'),info:fac('info'),inn:fac('inn'),seats:seats?flat(seats.innerText):'',wide:document.documentElement.scrollWidth>innerWidth+1};
   });
+  const lvUnderName=async width=>{
+    const place=await page.evaluate(()=>{
+      const one=sel=>{
+        const row=document.querySelector(sel);
+        const name=row.querySelector('b').getBoundingClientRect();
+        const lv=row.querySelector('.meta.lv').getBoundingClientRect();
+        return {nt:name.top,nb:name.bottom,nl:name.left,lt:lv.top,ll:lv.left};
+      };
+      return {dojo:one('[data-fac="dojo"]'),info:one('[data-fac="info"]'),inn:one('[data-fac="inn"]'),seats:one('[data-seats]')};
+    });
+    const bad=[];
+    for(const [k,p] of Object.entries(place)){
+      if(p.lt<p.nb-1)bad.push(`${k} の段が名前の下にない`);
+      if(Math.abs(p.ll-p.nl)>2)bad.push(`${k} の段の左が名前と揃わない`);
+    }
+    const lefts=Object.values(place).map(p=>p.ll);
+    if(Math.max(...lefts)-Math.min(...lefts)>2)bad.push('設備と席で段の左端が揃わない');
+    assert.deepEqual(bad,[],`${width}px の段の位置 ${JSON.stringify(place)}`);
+  };
   for(const [width,height] of [[375,740],[1280,800]]){
     await page.setViewportSize({width,height});
     await page.evaluate(()=>document.fonts.ready.then(()=>new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)))));
@@ -1192,6 +1211,7 @@ test('帳場の設備と席に、いまの段が出る',async()=>{
     assert.doesNotMatch(fresh.seats,/支店/);
     assert.equal(fresh.wide,false,width+' でページが横にはみ出す');
     for(const sel of ['[data-fac="dojo"]','[data-fac="info"]','[data-fac="inn"]','[data-seats]'])assert.deepEqual(await phrases(sel),[],`${width}px の ${sel}`);
+    await lvUnderName(width);
   }
   await page.setViewportSize({width:375,height:740});
   await page.evaluate(()=>{S.taverns.ours.gold=20000;render();});
@@ -1229,6 +1249,7 @@ test('帳場の設備と席に、いまの段が出る',async()=>{
     await page.evaluate(()=>document.fonts.ready.then(()=>new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)))));
     const view=await read();
     assert.equal(view.wide,false,width+' でページが横にはみ出す');
+    await lvUnderName(width);
     if(width<=640)for(const sel of ['[data-fac="dojo"]','[data-fac="info"]','[data-fac="inn"]','[data-seats]'])assert.deepEqual(await phrases(sel),[],`${width}px の段 ${sel}`);
     if(width>640){
       const beside=await page.evaluate(()=>{
