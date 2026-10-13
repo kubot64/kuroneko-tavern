@@ -32,7 +32,7 @@ const html=readFileSync(new URL('../index.html',import.meta.url),'utf8');
 const ENGINE=html.match(/\/\*ENGINE START\*\/([\s\S]*?)\/\*ENGINE END\*\//)[1];
 const EXPORTS=['newState','tick','rivalTemple','seatCap','seatsUsed','nextSeats','newcomerLvl','buyPrice','investPrice','FACILITIES',
   'RARES','MAXF','DRAGON_F','TICKS_PER_DAY','awayPlan','smallOf','debtTick','DEBT0','encounter','rareSlain','rareMonOf','arrive',
-  'repay','errandsOf','assignErrand','errandBlock','designateBlock','MAXF','MINE_TOP','MINE_BOT','MINE_N','FN','mineOpen','conquest','mineConquest','title','alive','markAdv','markedOf','BOARD_MAX','MARK_MAX','errandStage','boardMax','markMax','ARCS','reachFloor','GATE_F','fac','nextFac','buildFac','migrate','partyShown','crestJa','glossText','PT_A','PT_B','takeCrest','pickCrest','newPartyName','combat','MON','elemMul','elemNote','sleepMul','sleepReach','MINE_RARES','supplyTeam','potionPrice','lendRival','reviveChance','reviveHint','reviveResultText','temple','checkMemo','memoState','nextDue','rankRows','MEMO','setQuietLog','DREAMS','rollAge','AGE2','ORIGINS','careerLine','originBg','SPELL_LIST'];
+  'repay','errandsOf','assignErrand','errandBlock','designateBlock','MAXF','MINE_TOP','MINE_BOT','MINE_N','FN','mineOpen','conquest','mineConquest','title','alive','markAdv','markedOf','BOARD_MAX','MARK_MAX','errandStage','boardMax','markMax','ARCS','reachFloor','GATE_F','fac','nextFac','buildFac','migrate','partyShown','crestJa','glossText','PT_A','PT_B','takeCrest','pickCrest','newPartyName','combat','MON','elemMul','elemNote','sleepMul','sleepReach','MINE_RARES','supplyTeam','potionPrice','lendRival','reviveChance','reviveHint','reviveResultText','temple','checkMemo','memoState','nextDue','rankRows','MEMO','setQuietLog','DREAMS','rollAge','AGE2','ORIGINS','careerLine','originBg','SPELL_LIST','foePool','dz','victory'];
 
 // 乱数の種を固定したゲームの中身を1つ作る。中身の Math.random だけを差し替える
 function load(seed,fixed){
@@ -935,9 +935,78 @@ function checkAge(){
   check('年齢：年長枠は枠の若い側に寄り、55歳以上は多くない',ages.length>500&&med>=34&&med<=42&&elder>.04&&elder<.18,'人間・レベル21',`中央${med}歳・55歳以上${(elder*100).toFixed(1)}%（${ages.length}人）`);
 }
 
+// 出る魔物。窓・重み・息を吐かない魔物の攻撃と経験。古い記録の戦い相手はそのまま
+function checkFoes(){
+  const E=load(1);
+  const breath=['キメラ','墓所の番犬','盲目の洞窟竜','炉の番人ゴーレム'];
+  const maze={
+    'レイス':8,'ミノタウロス':13,'溺れた衛兵':12,'水路の大蛇':14,'堕ちた騎士':16,'石の巨像':20,
+    '亡霊騎士':20,'宮廷魔術師の亡霊':16,'屍喰らい':22,'吸魂の司祭':20,'塔の番兵ゴーレム':24,
+    '狂った見習い魔術師':21,'近衛騎士長':28,'澱の落とし子':26,
+  };
+  const mine={
+    '崩落蜘蛛':26,'鉄喰いトロール':28,'坑道ゴーレム':29,'澱の坑夫':33,'坑道都市の衛兵':34,
+    '鉱脈の大蛇':38,'晶石の亡霊':39,'地底の巨人':42,
+  };
+  for(const m of E.MON){
+    if(breath.includes(m.n))check('出る魔物：息の四体の出やすさは0.6で、経験の埋め合わせはない',m.w===.6&&!m.xb&&m.sp==='breath',m.n,`w${m.w} 経験${m.xb||1}`);
+    else if(maze[m.n]!=null)check('出る魔物：迷宮の埋め合わせは攻撃を上げず、経験が1.13倍',m.atk===maze[m.n]&&m.xb===1.13&&!m.w,m.n,`攻${m.atk} 経験${m.xb||1} 出やすさ${m.w||1}`);
+    else if(mine[m.n]!=null)check('出る魔物：坑道の埋め合わせは攻撃を上げず、経験が1.15倍',m.atk===mine[m.n]&&m.xb===1.15&&!m.w,m.n,`攻${m.atk} 経験${m.xb||1} 出やすさ${m.w||1}`);
+    else check('出る魔物：それ以外の出やすさと経験は変えない',!m.w&&!m.xb,m.n,`出やすさ${m.w||1} 経験${m.xb||1}`);
+  }
+  const rare=new Set(E.RARES.concat(E.MINE_RARES||[]).map(r=>r.n));
+  for(let f=1;f<=E.MINE_BOT;f++)for(const fr of [0,1]){
+    const pool=E.foePool(f,!!fr),mine=f>E.MAXF,fs=E.dz(f)+(fr?1.8:0),span=2;
+    const here=E.MON.filter(m=>!m.boss&&!m.gate&&!!m.mine===mine);
+    const win=here.filter(m=>m.f<=fs+.4&&m.f>=fs-span);
+    const want=(win.length?win:here.filter(m=>m.f<=fs+.4).slice(-3));
+    const exp=(want.length?want:here.slice(0,3)).map(m=>m.n).join('、');
+    const got=pool.map(m=>m.n).join('、');
+    const bad=pool.some(m=>m.boss||m.gate||rare.has(m.n)||!!m.mine!==mine);
+    check('出る魔物：候補は窓の中の、同じダンジョンの普通の魔物',got===exp&&!bad,`${E.FN(f)}${fr?'・前人未踏':''}`,bad?'主か名のある魔物が入った':`${got}（決まりは${exp}）`);
+  }
+  const pin=(f,fr,want)=>check('出る魔物：階ごとの顔ぶれが決まりどおり',E.foePool(f,fr).map(m=>m.n).join('、')===want,`${E.FN(f)}${fr?'・前人未踏':''}`,E.foePool(f,fr).map(m=>m.n).join('、'));
+  pin(14,false,'溺れた衛兵、キメラ、水路の大蛇、堕ちた騎士');
+  pin(14,true,'石の巨像、亡霊騎士');
+  pin(37,false,'鉄喰いトロール、坑道ゴーレム、盲目の洞窟竜');
+  pin(38,false,'坑道ゴーレム、盲目の洞窟竜');
+  pin(42,false,'澱の坑夫、坑道都市の衛兵、炉の番人ゴーレム');
+  pin(43,false,'坑道都市の衛兵、炉の番人ゴーレム');
+  pin(45,false,'炉の番人ゴーレム、鉱脈の大蛇、晶石の亡霊');
+  const boss=()=>{const S=E.newState();const p=Object.values(S.parties).find(x=>x.tav==='ours');p.floor=E.MAXF;p.state='explore';E.encounter(S,p);return p.etype&&p.etype.n;};
+  check('出る魔物：まだ討っていないB30Fの相手は沈んだ王',boss()==='沈んだ王','B30F',boss());
+  // 坑道B12F。顔ぶれは坑夫1・衛兵1・ゴーレム0.6。種を固定して、ゴーレムが衛兵より少ないことを見る
+  {const E2=load(7),S=E2.newState();const p=Object.values(S.parties).find(x=>x.tav==='ours');
+    p.floor=42;p.state='explore';S.floors=S.floors||{};S.floors[42]={through:1};S.rares=S.rares||{};S.rares[42]={killed:1};
+    const c={};for(let i=0;i<800;i++){E2.encounter(S,p);const n=(p.etype.base||p.etype.n);c[n]=(c[n]||0)+1;p.enemies=null;}
+    const g=c['炉の番人ゴーレム']||0,w=c['坑道都市の衛兵']||0,d=c['盲目の洞窟竜']||0,k=c['澱の坑夫']||0;
+    check('出る魔物：息の魔物は、同じ階の息を吐かない魔物より出にくい',g<w&&g<k&&d===0&&g+w+k===800,'坑道B12Fを800回',`ゴーレム${g} 洞窟竜${d} 衛兵${w} 坑夫${k}`);}
+  const xpOf=mon=>{const E2=load(1,.99),S=E2.newState();const p=Object.values(S.parties).find(x=>x.tav==='ours');const a=S.adv[p.leader];
+    a.race='エルフ';a.tal='並';a.traits=[];a.xp=0;a.lvl=10;a.hp=a.mhp=100;p.members=[a.id];p.floor=43;p.state='explore';p.maps={43:1};p.loot=0;p.trip=p.trip||{kills:{},deep:43};
+    p.etype=Object.assign({},E2.MON.find(m=>m.n===mon));p.enemies=[{hp:0,sleep:0}];E2.victory(S,p);return {xp:a.xp,gold:p.loot};};
+  const raw=f=>(6*Math.pow(f,1.6)+3)*3;
+  const golem=xpOf('坑道ゴーレム'),dragon=xpOf('盲目の洞窟竜');
+  check('出る魔物：坑道の埋め合わせの経験は1.15倍で、金にはかからない',golem.xp===Math.round(raw(16)*1.15)&&golem.gold===Math.round(12*16*3),'坑道ゴーレム',`経験${golem.xp}（1.15倍は${Math.round(raw(16)*1.15)}） 金${golem.gold}`);
+  check('出る魔物：息の魔物の経験と金は強さのまま',dragon.xp===Math.round(raw(17))&&dragon.gold===Math.round(12*17*3),'盲目の洞窟竜',`経験${dragon.xp} 金${dragon.gold}`);
+  const knight=xpOf('堕ちた騎士');
+  const knightRaw=(6*Math.pow(9,1.6)+3);
+  check('出る魔物：迷宮の埋め合わせの経験は1.13倍で、金にはかからない',knight.xp===Math.round(knightRaw*1.13)&&knight.gold===Math.round(12*9),'堕ちた騎士',`経験${knight.xp}（1.13倍は${Math.round(knightRaw*1.13)}） 金${knight.gold}`);
+  {const E2=load(1,.99),S=E2.newState();const p=Object.values(S.parties).find(x=>x.tav==='ours');const a=S.adv[p.leader];
+    a.race='エルフ';a.tal='並';a.traits=[];a.xp=0;a.lvl=10;a.hp=a.mhp=100;p.members=[a.id];p.floor=43;p.state='explore';p.maps={43:1};p.loot=0;p.trip=p.trip||{kills:{},deep:43};
+    const t=E2.MON.find(m=>m.n==='坑道都市の衛兵');
+    p.etype=Object.assign({},t,{n:'飢えた'+t.n,base:t.n,xpm:1.1});p.enemies=[{hp:0,sleep:0}];E2.victory(S,p);
+    check('出る魔物：変異の倍率は、埋め合わせのあとにもかかる',a.xp===Math.round(raw(t.f)*1.15*1.1),'飢えた坑道都市の衛兵',`経験${a.xp}（決まりは${Math.round(raw(t.f)*1.15*1.1)}）`);}
+  {const E2=load(3),S=E2.newState();const p=Object.values(S.parties).find(x=>x.tav==='ours'&&x.members.length);
+    p.floor=43;p.state='explore';p.fought=true;p.enemies=[{hp:99999,sleep:0}];
+    p.members.forEach(id=>{const a=S.adv[id];a.hp=a.mhp;});
+    p.etype={n:'坑道都市の衛兵',u:'ずんぐりした よろいの ひとかげ',f:19,hp:215,atk:99,mine:true};
+    S.v=23;E2.migrate(S);const t0=S.tick;E2.tick(S);
+    check('古い記録：戦いの途中の魔物は今の強さに読み替えず、開いたあとにも進む',p.etype&&p.etype.atk===99&&p.etype.n==='坑道都市の衛兵'&&p.enemies&&p.enemies[0].hp>0&&S.v===25&&S.tick>t0,'版23',`攻${p.etype&&p.etype.atk} 版${S.v} 刻${S.tick}`);}
+}
+
 if(!isMainThread){const line=runSeed(workerData.seed);parentPort.postMessage({line,res:[...results]});}
 else{
-  checkTables();checkScenes();checkErrands();checkCrest();checkRowFallback();checkMine();checkAffinity();checkRevive();checkMemoNotes();checkOpening();checkCareer();checkAge();
+  checkTables();checkScenes();checkErrands();checkCrest();checkRowFallback();checkMine();checkAffinity();checkRevive();checkMemoNotes();checkOpening();checkCareer();checkAge();checkFoes();
   // 種ごとの結果は、種の順に重ねる。反例は、いちばん若い種の最初のものを残す。進捗の行も種の順に出す
   const out=new Array(SEEDS.length);let next=0,printed=0;
   const flush=()=>{while(printed<out.length&&out[printed]){if(out[printed].line)console.log(out[printed].line);printed++;}};

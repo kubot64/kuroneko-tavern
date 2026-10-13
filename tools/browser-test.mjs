@@ -1194,6 +1194,48 @@ test('帳場の説明、資料のヨミガエリ、地図屋のとどめ、踏�
   assert.deepEqual(errors,[]);await ctx.close();
 });
 
+test('坑道B13Fの水晶には、息を吐かない坑道都市の衛兵が出る',async()=>{
+  const {ctx,page,errors}=await open();
+  const text=await page.evaluate(()=>{
+    const p=Object.values(S.parties).find(x=>x.tav==='ours'&&x.members.length);
+    S.watch=[p.id];S.sel=0;
+    p.floor=MINE_TOP+12;p.state='explore';p.maps=Object.assign({},p.maps,{[p.floor]:1});
+    S.floors=S.floors||{};S.floors[p.floor]={through:1};
+    S.mine={open:0};S.rares=S.rares||{};S.rares[p.floor]={killed:1};
+    p.members.forEach(id=>{const a=S.adv[id];a.traits=[...new Set([...(a.traits||[]),'博識'])];a.lvl=40;a.hp=a.mhp=500;a.mp=20;a.status='party';});
+    p.log=[];p.enemies=null;p.etype=null;
+    let seen=false;
+    for(let i=0;i<80&&!seen;i++){
+      encounter(S,p);
+      seen=!!(p.etype&&(p.etype.base||p.etype.n)==='坑道都市の衛兵');
+      if(!seen){p.enemies=null;p.etype=null;p.log=[];}
+    }
+    if(!seen)return '衛兵が出なかった';
+    p.ident=true;p.fought=true;p.ambush=false;p.potions=0;p.guard=0;p.buff=0;
+    // 呪文と一撃は出さない。衛兵が生き残って、息ではなく斬りかかるところを見る
+    p.members.forEach(id=>{const a=S.adv[id];a.cls='僧侶';a.lvl=3;a.mp=0;a.hp=a.mhp=80;a.eq={};a.traits=['博識'];});
+    const said=[];const orig=plog;
+    plog=function(p2,t,k){said.push(t);return orig(p2,t,k);};
+    let swung=false;
+    for(let i=0;i<8&&!swung;i++){
+      p.state='explore';p.ambush=false;
+      p.enemies.forEach(e=>{e.hp=99999;e.sleep=0;});
+      p.members.forEach(id=>{const a=S.adv[id];a.hp=a.mhp;a.mp=0;a.status='party';});
+      const n0=said.length;
+      combat(S,p);
+      swung=said.slice(n0).some(t=>/おそいかかった|こうげきを/.test(t));
+    }
+    plog=orig;render();
+    const crystal=document.querySelector('.crystal');
+    return {head:crystal.querySelector('.c-head').textContent,log:crystal.querySelector('.c-log').textContent,said,swung};
+  });
+  assert.match(text.head,/坑道B13F 戦闘中|坑道B13F 帰還中|坑道B13F 探索中/);
+  assert.match(text.log,/坑道都市の衛兵/);
+  assert.ok(text.said.some(t=>/おそいかかった|かわした/.test(t)),text.said.join('\n'));
+  assert.ok(text.said.every(t=>!t.includes('ほのおを はいた')),text.said.join('\n'));
+  assert.deepEqual(errors,[]);await ctx.close();
+});
+
 test('酒場の掲示は段ごとに開き、見込みの人数も段で変わる',async()=>{
   const {ctx,page,errors}=await open();
   await page.locator('#sp0').click();
