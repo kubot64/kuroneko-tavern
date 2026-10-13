@@ -287,9 +287,9 @@ test('広い画面ではタブが右の列に収まり、帳場と地図の表�
     const row=[...document.querySelectorAll('#tbody .row')].find(el=>el.innerText.includes('借金の残り'));
     const label=row.querySelector('b').getBoundingClientRect();
     const btn=row.querySelector('button').getBoundingClientRect();
-    return btn.top<label.bottom;
+    return btn.top>=label.bottom-1;
   });
-  assert.equal(desk,true,'広い画面では返済ボタンが見出しの横にある');
+  assert.equal(desk,true,'広い画面の右の列では返済ボタンが見出しの下にある');
   await page.locator('button[data-v="maps"]').click();
   const table=await page.evaluate(()=>{
     const tr=document.querySelector('.mapfloors tr.flr');
@@ -855,7 +855,7 @@ test('スマホ幅では帳場と名簿と留守のあいだの押し場所が44
     const br=btn.getBoundingClientRect();
     if(br.height>=40)bad.push(`広い画面のボタンが高い ${Math.round(br.height)}`);
     const who=btn.closest('.row').querySelector('.who').getBoundingClientRect();
-    if(!(br.top<who.bottom&&br.left>who.left))bad.push('広い画面で返済ボタンが見出しの横にない');
+    if(!(br.top>=who.bottom-1))bad.push('狭い右の列で返済ボタンが見出しの横にある');
     toast('エリンは蘇生に失敗し、ロストした');
     const t=document.querySelector('.toast').getBoundingClientRect();
     if(t.width>innerWidth-80)bad.push('広い画面の知らせが幅いっぱい');
@@ -984,7 +984,8 @@ test('900px以下では返済の帯とタブが初めから見え、ページ自
       const btn=row.querySelector('button').getBoundingClientRect();
       const stacked=btn.top>=label.bottom-1;
       if(innerWidth<=640&&!stacked)bad.push('帳場のボタンが見出しの横にある');
-      if(innerWidth>640&&stacked)bad.push('帳場のボタンが見出しの下にある');
+      if(innerWidth>640&&innerWidth<=900&&stacked)bad.push('帳場のボタンが見出しの下にある');
+      if(innerWidth>900&&!stacked)bad.push('狭い右の列で返済のボタンが見出しの横にある');
       const port=document.querySelector('.wrap').getBoundingClientRect();
       for(const b of document.querySelectorAll('#tbody .btn')){
         const r=b.getBoundingClientRect();
@@ -1436,5 +1437,115 @@ test('便りは青く出て、記念碑と手帳に残る',async()=>{
   const parent=await page.locator('#advbox').innerText();
   assert.match(parent,new RegExp(`${info.kname}（.+）が黒猫亭に来た`));
   assert.match(parent,/ロスト/);
+  assert.deepEqual(errors,[]);await ctx.close();
+});
+
+test('375pxと1280pxでは所属の札が行に収まり、名簿と日報と地図は語の途中で折れない',async()=>{
+  const {ctx,page,errors}=await open();
+  await page.locator('#sp0').click();
+  const cast=await page.evaluate(()=>{
+    const p=Object.values(S.parties).find(x=>x.tav==='ours'&&x.members&&x.members.length);
+    if(!p)return null;
+    p.name='ナジュム・ドラコ';
+    const leader=S.adv[p.leader];
+    const other=Object.values(S.adv).find(a=>a.tav==='ours'&&a.id!==leader.id&&a.status!=='lost');
+    other.race='ドワーフ';other.cls='聖騎士';other.sex='女';other.age=90;other.status='idle';other.party=null;
+    p.members=p.members.filter(id=>id!==other.id);
+    S.farewells=S.farewells||[];
+    S.farewells.push({id:other.id,name:other.name,cls:'聖騎士',lvl:21,race:'ドワーフ',sex:'女',age:90,hage:23,tav:'ours',tk:S.tick,why:'夢を果たした'});
+    const F=floorsInit(S);F[1].map=true;F[1].sold=12;
+    render();
+    const opening=Object.values(S.adv).filter(a=>a.opening);
+    return {names:opening.map(a=>a.name),origins:[...new Set(opening.map(a=>a.origin))]};
+  });
+  assert.ok(cast,'黒猫亭の一行がない');
+  const measure=info=>page.evaluate(info=>{
+    const bad=[];
+    const lines=node=>{
+      const range=document.createRange();range.selectNodeContents(node);
+      return new Set([...range.getClientRects()].filter(r=>r.width>1).map(r=>Math.round(r.top))).size;
+    };
+    const tags=[...document.querySelectorAll('#tbody .ptag')];
+    if(info.part==='roster'){
+      if(!tags.length)bad.push('所属の札がない');
+      const side=document.querySelector('.side').getBoundingClientRect();
+      for(const tag of tags){
+        const row=tag.closest('.row')||tag.parentElement;
+        const tr=tag.getBoundingClientRect(),rr=row.getBoundingClientRect();
+        if(tr.width<8||tr.height<8)bad.push('札が潰れている '+tag.textContent);
+        if(tr.right>rr.right+1||tr.left<rr.left-1)bad.push('札が行からはみ出す '+tag.textContent);
+        if(tr.right>side.right+1)bad.push('札が右の列からはみ出す '+tag.textContent);
+        if(lines(tag)!==1)bad.push('札が折れている '+tag.textContent);
+        if(tag.title!==tag.textContent)bad.push('札の全文が違う '+tag.title+' / '+tag.textContent);
+      }
+      const lead=tags.find(t=>t.textContent.includes('ナジュム・ドラコ'));
+      if(!lead||!lead.textContent.includes('明星の竜')||!lead.textContent.includes('のリーダー'))bad.push('長い所属の札がない '+(lead&&lead.textContent));
+      for(const nw of document.querySelectorAll('#tbody .meta .nw')){
+        if(lines(nw)!==1)bad.push(nw.textContent+' が折れている');
+      }
+      if(![...document.querySelectorAll('#tbody .meta')].some(el=>el.textContent.includes('歳相当')&&el.textContent.includes('聖騎士')))bad.push('名簿に歳相当と聖騎士がない');
+    }
+    if(info.part==='news'){
+      const li=[...document.querySelectorAll('.news li')].find(el=>el.textContent.includes('最初の客たち'));
+      if(!li)bad.push('最初の客たちがない');
+      else{
+        if(li.querySelector('.nm-link,.nm-head,button'))bad.push('名前がボタンになっている');
+        const span=[...li.children].find(n=>!n.classList.contains('d'));
+        const nws=[...span.querySelectorAll('.nw')];
+        for(const name of info.names){
+          const el=nws.find(n=>n.textContent===name);
+          if(!el)bad.push(name+' がまとまっていない');
+          else if(lines(el)!==1)bad.push(name+' が折れている');
+        }
+        for(const origin of info.origins){
+          const el=nws.find(n=>n.textContent===origin);
+          if(!el)bad.push(origin+' がまとまっていない');
+          else if(lines(el)!==1)bad.push(origin+' が折れている');
+        }
+        const shop=nws.find(n=>n.textContent==='黒猫亭');
+        if(!shop)bad.push('黒猫亭がまとまっていない');
+        else if(lines(shop)!==1)bad.push('黒猫亭が折れている');
+      }
+    }
+    if(info.part==='stone'){
+      const s=[...document.querySelectorAll('.stone')].find(el=>el.textContent.includes('23歳相当'));
+      if(!s)bad.push('記念碑に23歳相当がない');
+      else{
+        for(const nw of s.querySelectorAll('.nw'))if(lines(nw)!==1)bad.push(nw.textContent+' が折れている');
+        if(!s.textContent.includes('ドワーフの聖騎士'))bad.push('記念碑の職業が欠けている');
+      }
+    }
+    if(info.part==='maps'){
+      const sold=[...document.querySelectorAll('.nw')].find(el=>el.textContent==='・12部');
+      if(!sold)bad.push('12部がない');
+      else if(lines(sold)!==1)bad.push('12部が折れている');
+      const cell=sold&&(sold.closest('td')||sold.parentElement);
+      if(sold&&cell&&sold.getBoundingClientRect().right>cell.getBoundingClientRect().right+1)bad.push('部がマスからはみ出す');
+    }
+    if(info.part==='desk'){
+      const row=document.querySelector('.row.debt');
+      if(!row)bad.push('借金の行がない');
+      else{
+        const label=row.querySelector('b'),rep=row.querySelector('.does'),btn=row.querySelector('button');
+        if(lines(label)!==1)bad.push('借金の残りが折れている');
+        if(lines(rep)!==1)bad.push('これまでに返した額が折れている');
+        const stacked=btn.getBoundingClientRect().top>=label.getBoundingClientRect().bottom-1;
+        if((innerWidth<=640||innerWidth>900)&&!stacked)bad.push('返済ボタンが見出しの横にある');
+        if(innerWidth>640&&innerWidth<=900&&stacked)bad.push('返済ボタンが見出しの下にある');
+        const side=document.querySelector('.side').getBoundingClientRect();
+        if(btn.getBoundingClientRect().right>side.right+1)bad.push('返済ボタンが右の列からはみ出す');
+      }
+    }
+    if(document.documentElement.scrollWidth>innerWidth+1)bad.push('ページが横にはみ出す');
+    return bad;
+  },info);
+  for(const width of [375,390,768,1280]){
+    await page.setViewportSize({width,height:width>=768?900:812});
+    await page.evaluate(()=>document.fonts.ready);
+    for(const part of ['roster','news','stone','maps','desk']){
+      await page.locator(`button[data-v="${part}"]`).click();
+      assert.deepEqual(await measure({...cast,part}),[],`${width}px の ${part}`);
+    }
+  }
   assert.deepEqual(errors,[]);await ctx.close();
 });
