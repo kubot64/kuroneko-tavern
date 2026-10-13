@@ -635,11 +635,12 @@ test('開店の顔ぶれは、知らせと手帳と記念碑に出る',async()=>
     const guests=S.news.find(n=>n.t.startsWith('最初の客たち'));
     const holders=cast.filter(a=>a.dream&&a.dream.k==='stele');
     const h=holders[0];
-    return {n:cast.length,names:cast.map(a=>a.name),origins:cast.map(a=>a.origin),guests:guests&&guests.t,id:h.id,bg:h.bg,dream:dreamText(h.dream),texts:holders.map(a=>dreamText(a.dream)).sort(),prog:DREAMS.stele.prog(h)};
+    const prog=DREAMS.stele.prog(h);
+    return {n:cast.length,names:cast.map(a=>a.name),origins:cast.map(a=>a.origin),guests:guests&&guests.t,id:h.id,bg:h.bg,dream:dreamText(h.dream),texts:holders.map(a=>dreamText(a.dream)).sort(),prog,want:(h.deepest||0)?`これまでの最深 ${FN(h.deepest)}`:'まだ迷宮に潜っていない'};
   });
   assert.equal(info.n,7);
   assert.deepEqual(info.texts,['B6Fの転移の石碑に、一度触れてみたい','B6Fまで潜って、地上の店に戻ってみたい'].sort());
-  assert.equal(info.prog,'まだ迷宮に潜っていない');
+  assert.equal(info.prog,info.want);
   const news=await page.locator('.news li',{hasText:'最初の客たち'}).innerText();
   assert.match(news,/最初の客たち/);
   for(const name of info.names)assert.match(news,new RegExp(name));
@@ -648,7 +649,7 @@ test('開店の顔ぶれは、知らせと手帳と記念碑に出る',async()=>
   const book=await page.locator('#advbox').innerText();
   assert.match(book,/開店からの常連/);
   assert.match(book,new RegExp(info.dream.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')));
-  assert.match(book,/まだ迷宮に潜っていない/);
+  assert.match(book,new RegExp(info.prog.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')));
   assert.match(book,new RegExp(info.bg.replace(/[.*+?^${}()|[\]\\]/g,'\\$&').slice(-12)));
   await page.locator('#advbox [data-act="closeadv"]').click();
   await page.evaluate(()=>{
@@ -1962,7 +1963,7 @@ test('倒れた者の札、番付の数、出資の買い取り、記念碑の�
     const miss=Object.values(S.adv).find(a=>a.tav==='ours'&&a.id!==down.id&&a.id!==up.id);
     miss.hp=0;miss.status='missing';miss.party=null;
     tab='roster';render();
-    const row=name=>[...document.querySelectorAll('#tbody .row')].find(el=>el.textContent.includes(name));
+    const row=name=>[...document.querySelectorAll('#tbody .row')].find(el=>el.querySelector('.nm-link')?.textContent===name);
     const chip=name=>row(name).querySelector('.chip').textContent;
     const card=[...document.querySelectorAll('.pcard')].find(el=>el.dataset.p==p.id);
     const mark=name=>{
