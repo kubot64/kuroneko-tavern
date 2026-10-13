@@ -144,6 +144,7 @@ button:focus-visible,[tabindex]:focus-visible{outline:2px solid var(--amber);out
 .news .lore{color:#c8b6ff}
 .news .edict{color:var(--fg);font-weight:700}
 .news .errand{color:#e6c590}
+.news .letter{color:#8fb4c9}
 .markmark{color:var(--amber);font-size:11px;margin-left:4px}
 .quote.board{border-left:3px solid var(--amber-dim)}
 .quote.board .pick{margin-top:6px;border-top:1px dashed var(--line);padding-top:4px}
@@ -719,7 +720,7 @@ function assignOpeningDreams(S){
 function newState(){
   const S={tick:0,nid:1,adv:{},parties:{},news:[],tales:[],memorial:[],
     taverns:{ours:{name:'黒猫亭',gold:400,rep:0,crystals:1,earned:0,debt:DEBT0,seats:12,nextPay:30*TICKS_PER_DAY,late:0},rival:{name:'銀の杯亭',gold:99999,rep:60,owner:RIVAL_OWNER}},
-    bounties:{},deepest:{ours:1,rival:GATE_F},usedNames:{[RIVAL_OWNER]:1},usedParty:{'鉄の誓い':1,'黄金の剣':1,'七つ星':1,'夜鷹':1,'鉄の誓い傭兵団':1,'黄金の剣団':1},usedItems:{},uniqFound:{},farewells:[],edicts:[],v:25,loreFound:{},shop:{tiers:{1:true},mats:{},serial:0,log:[]},watch:[null,null],sel:0,stats:{dreams:{ours:0,rival:0}},small:SMALL_TAV.slice(0,5)};
+    bounties:{},deepest:{ours:1,rival:GATE_F},usedNames:{[RIVAL_OWNER]:1},usedParty:{'鉄の誓い':1,'黄金の剣':1,'七つ星':1,'夜鷹':1,'鉄の誓い傭兵団':1,'黄金の剣団':1},usedItems:{},uniqFound:{},farewells:[],edicts:[],v:26,loreFound:{},shop:{tiers:{1:true},mats:{},serial:0,log:[]},watch:[null,null],sel:0,stats:{dreams:{ours:0,rival:0}},small:SMALL_TAV.slice(0,5)};
   const cast=[];
   for(const cls of ['戦士','僧侶','盗賊','魔術師'])cast.push(makeAdv(S,'ours',{lvl:OPENING_LVL(),cls,race:raceForCls(cls),opening:true}));
   for(let i=0;i<3;i++)cast.push(makeAdv(S,'ours',{lvl:OPENING_LVL(),opening:true}));
@@ -1012,7 +1013,16 @@ const DREAMS={
     ok:(S,a,d)=>a.gold>=d.amt,pay:d=>d.amt,msg:(a,d)=>`${a.name}が、${d.to}行きの船の切符を手に入れた。`,ret:d=>`海を渡って${d.to}へ向かう`,prog:(a,d)=>`貯金 ${a.gold} / ${d.amt}G`},
   // 開店の顔ぶれだけに持たせる。重み0なので、あとから来る客の夢には入らない
   stele:{w:0,mk:()=>({f:6}),txt:()=>'B6Fの転移の石碑に、一度触れてみたい',
-    ok:(S,a)=>(a.deepest||0)>=6,msg:(a,d)=>d.vi===1?`${a.name}が、B6Fから地上の店に戻った。`:`${a.name}が、B6Fの転移の石碑に触れた。`,prog:a=>(a.deepest||0)?`これまでの最深 ${FN(a.deepest)}`:'まだ迷宮に潜っていない'}
+    ok:(S,a)=>(a.deepest||0)>=6,msg:(a,d)=>d.vi===1?`${a.name}が、B6Fから地上の店に戻った。`:`${a.name}が、B6Fの転移の石碑に触れた。`,prog:a=>(a.deepest||0)?`これまでの最深 ${FN(a.deepest)}`:'まだ迷宮に潜っていない'},
+  // 続柄で来た者だけが持つ。重み0なので、ほかの客の夢には入らない
+  kinvenge:{w:0,txt:d=>`${d.elder||'兄'}を殺した${d.m||'魔物'}を討ちたい`,
+    ok:(S,a,d)=>!!(a.slain||{})[d.m]||kinVengeOther(S,a,d.m),
+    msg:(a,d,S)=>kinVengeOther(S,a,d.m)?`${a.name}は、${d.elder||'兄'}を殺した${d.m}が、すでに別の者に討たれていたと知った。`:`${a.name}が、${d.elder||'兄'}を殺した${d.m}を討った。`,
+    prog:(a,d,S)=>kinVengeOther(S,a,d&&d.m)?'仇は別の者に討たれた':(a.deepest||0)?`これまでの最深 ${FN(a.deepest)}`:'まだ迷宮に潜っていない'},
+  kinflower:{w:0,txt:d=>`${d.elder||'兄'}の名が刻まれた記念碑に、花を手向けたい`,
+    ok:(S,a)=> (a.trips||0)>=1,msg:(a,d)=>`${a.name}が、記念碑に刻まれた${d.who||'家族'}の前に花を供えた。`,prog:()=>'一度、迷宮から戻ってから花を供える'},
+  kinname:{w:0,txt:d=>`${d.uncle||'叔父'}のように、黒猫亭で名を上げたい`,
+    ok:(S,a)=>!!a.title||a.lvl>=16,msg:(a,d)=>`${a.name}が、${d.who||'身内'}のように黒猫亭で名を上げた。`,prog:a=>a.title?`「${a.title}」と呼ばれている`:`いまレベル${a.lvl}`}
 
 };
 
@@ -1057,7 +1067,10 @@ function makeDream(S,a){
 }
 function dreamText(d){return d&&DREAMS[d.k]?(DV[d.k]&&d.vi!=null?dvText(d):DREAMS[d.k].txt(d)):''}
 function fulfill(S,a,note){
-  const d=a.dream;S.stats=S.stats||{dreams:{ours:0,rival:0}};S.stats.dreams[a.tav]=(S.stats.dreams[a.tav]||0)+1;a.pastDreams=a.pastDreams||[];a.pastDreams.push({k:d.k,t:dreamText(d),tk:S.tick,note:note||''});
+  const d=a.dream;S.stats=S.stats||{dreams:{ours:0,rival:0}};S.stats.dreams[a.tav]=(S.stats.dreams[a.tav]||0)+1;a.pastDreams=a.pastDreams||[];
+  const rec={k:d.k,t:dreamText(d),tk:S.tick,note:note||''};
+  if(d.who)rec.who=d.who;if(d.what)rec.what=d.what;if(d.place)rec.place=d.place;if(d.to)rec.to=d.to;if(d.pupil)rec.pupil=d.pupil;
+  a.pastDreams.push(rec);
   a.dream=null;a.nextDreamAt=S.tick+ri(150,400);
 }
 // 店の評判を聞いて、常連と肩を並べられる者が来る。評判が高いほどその割合が増え、残りはこれまでどおりの散らばりで来る
@@ -1092,7 +1105,7 @@ function makeAdv(S,tav,o){
   if(o.opening)a.opening=true;
   a.age=o.age?Math.max((AGE[race]||AGE['人間'])[0]-2,o.age):rollAge(race,a.lvl);
   personalize(a);assignTraits(S,a);
-  a.dream=makeDream(S,a);
+  a.dream=o.dream||makeDream(S,a);
   if(tav==='rival'&&!o.noLoan){const it=makeItem(S,Math.min(10,PL(a)+2),cls);if(giveBest(S,[a],it,null)){a.debt=r100(incomeAt(depthOf(a))*ri(3,6));a.loanItem=it.n;}}
   if(odd)chron(S,a,`${ODD_PERK[race]}`);
   if(c.rare)chron(S,a,`めったに見ない${cls}。${c.desc}`);
@@ -1151,17 +1164,187 @@ function retire(S,a,why){
   S.farewells=S.farewells||[];S.farewells.push({id:a.id,name:full(a),tav:a.tav,tk:S.tick,why,lvl:a.lvl,cls:a.cls,race:a.race,sex:a.sex,age:a.age,hage:humanAge(a),race2:a.race});
   if(a.tav==='ours'&&(a.favor||0)>=2)news(S,gift>0?`黒猫亭の${full(a)}が、${why}ため店を去った。「店主には世話になった。この恩は忘れない」と、${gift}Gを置いていった。`:`黒猫亭の${full(a)}が、${why}ため店を去った。「店主には世話になった。いつか必ず、この恩は返す」と言い残して。`,'record');
   else news(S,`${S.taverns[a.tav].name}の${full(a)}が、${why}ため店を去った。`,'record');
+  afterRetire(S,a,why);
 }
 function farewellGift(a){if(a.tav!=='ours'||(a.favor||0)<2)return 0;
   const repaid=(a.pastDreams||[]).some(d=>d.k==='payback');
   let g=Math.min(a.gold*.6,incomeAt(depthOf(a)+2)*Math.min(10,2+a.favor))*(repaid?.5:1);
   g=Math.round(g/100)*100;return g>=300?g:0;}
+// 人間換算の年齢を、その種族の若い側の実年齢に戻す。15歳が若い側の始まり、30歳が若い側の終わり
+function ageForHuman(race,h){h=clamp(h,15,30);if(!race||race==='人間'||!AGE2[race])return h;const r=AGE2[race];const t=(h-15)/15;return Math.round(r.n[0]+(r.n[1]-r.n[0])*t);}
+// 子が店に来うるいちばん早い刻。人間は15年、長命な種族は若い側の始まりまで延ばす。乱数は使わない
+function childAtOf(a,from){const years=a.race==='エルフ'?30:a.race==='ドワーフ'?25:a.race==='ホビット'?18:15;const span=a.race==='エルフ'?20:a.race==='ドワーフ'?10:a.race==='ホビット'?4:3;
+  return from+(years*365+((a.id*17)%(span*365)))*TICKS_PER_DAY;}
+function afterRetire(S,a,why){
+  a.leftWhy=why;
+  if(a.tav==='ours'&&(a.trips||0)>=3){a.letters=[];const fav=(a.favor||0)>=2;a.nextLetter=S.tick+ri(20,fav?40:60)*TICKS_PER_DAY;}
+  else a.letterDone=1;
+  const ment=(a.pastDreams||[]).find(d=>d.k==='mentor'&&d.pupil);
+  if(ment&&a.catch){const pupil=Object.values(S.adv).find(b=>b!==a&&b.name===ment.pupil&&b.tav===a.tav&&b.status!=='lost'&&b.status!=='retired');
+    if(pupil&&pupil.catch!==a.catch)changeOf(S,pupil,`${a.name}の口癖『${a.catch}』が、いつのまにか移っていた`,x=>{x.catch=a.catch;});}
+  // 所帯を持って去った者。1〜2年後に甥姪か歳の離れた弟妹が40%。子本人は暦どおりで、ここでは予定の刻だけ置く
+  if(a.tav!=='ours'||!String(why).includes('所帯を持つ'))return;
+  a.childAt=childAtOf(a,S.tick);
+  if(chance(.4))a.kinDue={tk:S.tick+ri(365,730)*TICKS_PER_DAY,kind:chance(.5)?'ysib':'nibling'};
+}
+// 古い記録で去った者には、便りの予定がない。開いた日から一度だけ置く。乱数は引かず、ほかの出来事の乱数をずらさない
+function schedulePendingLetters(S){
+  Object.values(S.adv).forEach(a=>{
+    if(a.letterDone||a.letters||a.nextLetter!=null)return;
+    if(a.status!=='retired')return;
+    if(a.tav!=='ours'||(a.trips||0)<3){a.letterDone=1;return;}
+    a.letters=[];const fav=(a.favor||0)>=2;const span=fav?21:41;
+    a.nextLetter=S.tick+(20+(a.id*13)%span)*TICKS_PER_DAY;
+  });
+}
+function leftWhy(S,a){if(a.leftWhy)return a.leftWhy;const f=(S.farewells||[]).find(x=>x.id===a.id);return f&&f.why||'';}
+const LETTER_PLACE={'ラウレンツ王国':'王都','グラウ帝国':'帝都','セーレ自由都市同盟':'セーレの港町','聖オルド教国':'聖都','カルセ王国':'カルセ','リンデ公国':'リンデの森','ベルクラント鉱山諸侯領':'ベルクラントの鉱山町','ハザン草原':'ハザンの草原','灰の荒野':'灰の荒野','ロウエン':'ロウエン','霧の森':'霧の森','鉄の山脈':'鉄の山脈','麦穂の丘':'麦穂の丘','東方の島国アズマ':'アズマの港','砂の大陸ザハル':'ザハルの港','北の氷海ノルデン':'ノルデンの港'};
+const LETTER_GOODS={'ラウレンツ王国':['焼き菓子','古い騎士の徽章'],'グラウ帝国':['黒麦酒','鉄の小さな駒'],'セーレ自由都市同盟':['干し葡萄','船の形の木片'],'聖オルド教国':['香草','小さな聖印'],'カルセ王国':['麦の束','粉屋のクッキー'],'リンデ公国':['干し茸','木彫りの小鳥'],'ベルクラント鉱山諸侯領':['鉱石の標本','坑夫のランプの芯'],'ハザン草原':['馬の毛の房','干しチーズ'],'灰の荒野':['荒野の種','古い紋の欠片'],'ロウエン':['黒猫に似た木彫り','街の干し林檎'],'霧の森':['葉のしおり','木の実の数珠'],'鉄の山脈':['小さな金床','山の塩'],'麦穂の丘':['干し林檎の袋','麦穂の束'],'東方の島国アズマ':['干し柿','小さな扇'],'砂の大陸ザハル':['香料の小瓶','ガラスの玉'],'北の氷海ノルデン':['干し魚','骨の針']};
+const LETTER_TOUR=['ベルクラントの鉱山町','セーレの港','王都の裏通り','カルセの街道','リンデの森の入口'];
+const KIN_KEEPS=['ペンダント','折れた剣','日記','指輪','革の帽子','手紙'];
+function letterPlace(a){return LETTER_PLACE[a.origin]||'故郷';}
+// 1通目は先頭の土地。2通目と3通目は通数でずらし、3通とも別の土地にする。先頭とは重ねない
+function tourPlace(a,n){if((n||1)<=1)return LETTER_TOUR[0];return LETTER_TOUR[1+((a.id+(n-2))%(LETTER_TOUR.length-1))];}
+function marryWho(a){const d=(a.pastDreams||[]).slice().reverse().find(x=>x.k==='marry');if(d&&d.who)return d.who;if(d&&d.t){const m=String(d.t).match(/^(.+?)と所帯を/);if(m)return m[1];}return '連れ合い';}
+function letterQuote(S,a,n){
+  const why=leftWhy(S,a),place=letterPlace(a),me=a.sex==='女'?'私':'俺';
+  if(n>=2){
+    if(n===2&&why.includes('所帯を持つ'))return {place,quote:'子が生まれた。名前は、まだこちらで呼んでいる。元気な泣き声だ',line:'子が生まれた',child:true};
+    if(n>=3&&why.includes('所帯を持つ'))return {place,quote:'こちらは変わりない。子は、もう歩いている。そっちは、まだあの穴に潜っているのか',line:'子は、もう歩いている'};
+    if(why.includes('大陸をめぐる'))return {place:tourPlace(a,n),line:'差出地は、前の便りと違う',tour:true};
+    return {place,quote:'こちらは変わりない。そっちは、まだあの穴に潜っているのか',line:'こちらは変わりない'};
+  }
+  // 「に」より前は店の名に入れない。屋敷は店ではない
+  const shop=why.match(/に([^に]+)を構える/);
+  if(shop&&/(?:屋|酒場|道場)$/.test(shop[1]))return {place,quote:`${shop[1]}はどうにか回っている。黒猫亭の名を書いた札を、勝手に掛けさせてもらった`,line:`${shop[1]}はどうにか回っている`};
+  if(why.includes('騎士'))return {place:why.includes('辺境')?place:'王都',quote:'鎧が重い。迷宮の方が、まだ気楽だった',line:'鎧が重い'};
+  if(why.includes('所帯を持つ')){const who=marryWho(a);return {place,quote:`${who}は元気だ。${me}が迷宮の話をすると、黙って皿を片づける`,line:`${who}は元気だ`};}
+  const built=why.match(/建てた(.+?)を守る/);
+  if(built){const what=built[1];const line=what==='井戸と水車'?'水車が回った':`${what}ができた`;return {place,quote:`${line}。村の子どもが、黒猫の絵を彫った`,line};}
+  if(why.includes('大陸をめぐる'))return {place:tourPlace(a,n),line:'差出地は、前の便りと違う',tour:true};
+  // 「引退」だけでは老いにしない。「思い残すことなく引退する」は膝の便りにしない
+  if(why.includes('老い')||why.includes('隠居')||why.includes('身を引く'))return {place,quote:'膝が痛む日は、迷宮の階段を思い出す',line:'膝が痛む日は、迷宮の階段を思い出す',short:true};
+  if(why.includes('弔い'))return {place,quote:'形見は、故郷の墓に納めた。もう、探さなくていい',line:'形見は、故郷の墓に納めた',bare:true};
+  if(why.includes('海を渡って')||why.includes('海に出る'))return {place:'セーレの港',line:'潮で字が半分にじんでいる',tide:true};
+  const kin=why.match(/見つけ出した(.+)と故郷へ帰る/);
+  if(kin)return {place,quote:`${kin[1]}は元気だ。もう、迷宮の話はしない`,line:`${kin[1]}は元気だ`,bare:true};
+  if(why.includes('故郷'))return {place,quote:'故郷の空は、迷宮より広い。黒猫亭の酒が、ときどき恋しい',line:'故郷の空は、迷宮より広い'};
+  return {place,quote:`こちらは変わりない。黒猫亭の黒猫は、まだいるか`,line:'こちらは変わりない',bare:true};
+}
+function letterNews(a,q,n){
+  if(q.tide)return `【便り】セーレの港の荷に紛れて、${a.name}の便りが届いた。潮で字が半分にじんでいる。`;
+  if(q.tour)return `【便り】${q.place}から、${a.name}の便りが届いた。差出地は、前の便りと違う。`;
+  if(n>=2&&!q.child)return `【便り】しばらくぶりに、${a.name}から便りが届いた。「${q.quote}」`;
+  if(q.short)return `【便り】${a.name}から短い便りが届いた。「${q.quote}」`;
+  if(q.bare)return `【便り】${a.name}から便りが届いた。「${q.quote}」`;
+  return `【便り】${q.place}から、${a.name}の便りが届いた。「${q.quote}」`;
+}
+function letterGoods(a){const g=LETTER_GOODS[a.origin]||['干し菓子'];const place=LETTER_PLACE[a.origin]||'故郷';return `${place}の${g[a.id%g.length]}`;}
+function letterFriend(S,a){
+  let best=null,bn=-1,be=-1;
+  Object.values(S.adv).forEach(b=>{
+    if(b===a||b.tav!=='ours'||b.status!=='idle')return;
+    const bd=bondOf(S,a,b);if(!bd||!(bd.n>=1))return;
+    const ev=(bd.ev||[]).length;
+    if(bd.n>bn||bd.n===bn&&ev>be||bd.n===bn&&ev===be&&(!best||b.id<best.id)){best=b;bn=bd.n;be=ev;}
+  });
+  return best;
+}
+function giveLetterGift(S,from,to){
+  // すでに装飾品を持っている者には渡さない。今の装備を外して捨てることのないようにする
+  if(!to||to.status!=='idle'||(to.eq&&to.eq.acc))return null;
+  const n=letterGoods(from);
+  to.eq=to.eq||{};
+  to.eq.acc={n,slot:'acc',for:['戦士','侍','盗賊','僧侶','魔術師'],ac:1,f:1,lore:`${from.name}が故郷から送った品`};
+  chron(S,to,`${from.name}の便りに添えられた${n}を受け取る`);
+  return n;
+}
+function deliverLetter(S,a){
+  const n=(a.letters||[]).length+1;const q=letterQuote(S,a,n);let t=letterNews(a,q,n);
+  const who=letterFriend(S,a);
+  if(who&&chance(.25)){const item=giveLetterGift(S,a,who);if(item)t+=`便りには${item}が添えてあった。${who.name}に、と書いてある。`;}
+  a.letters=a.letters||[];a.letters.push({tk:S.tick,n,line:q.line});
+  chron(S,a,'黒猫亭に便りを寄越す');
+  a.nextLetter=a.letters.length>=3?null:S.tick+ri(120,240)*TICKS_PER_DAY;
+  if(a.letters.length>=3)a.letterDone=1;
+  news(S,t,'letter');S.lastLetter=S.tick;
+}
+// 日が変わる刻だけ。店全体で5日に1通。誰も届ける刻でなければ、乱数は引かない
+function letterTick(S){
+  if(S.tick%TICKS_PER_DAY)return;
+  schedulePendingLetters(S);
+  if(S.lastLetter!=null&&S.tick-S.lastLetter<5*TICKS_PER_DAY)return;
+  const due=Object.values(S.adv).filter(a=>a.status==='retired'&&a.tav==='ours'&&a.nextLetter!=null&&S.tick>=a.nextLetter&&(a.letters||[]).length<3);
+  if(!due.length)return;
+  due.sort((a,b)=>a.nextLetter-b.nextLetter||a.id-b.id);
+  deliverLetter(S,due[0]);
+}
+function knownFoe(name){if(!name||name==='不明')return false;return MON.some(m=>m.n===name)||RARES.some(r=>r.n===name)||MINE_RARES.some(r=>r.n===name);}
+function rareByName(name){return RARES.find(r=>r.n===name)||MINE_RARES.find(r=>r.n===name)||null;}
+// 名のある魔物を、この者でもこの者の一行でもなく、ほかの一行がすでに討っている
+function kinVengeOther(S,a,m){
+  const R0=rareByName(m);if(!R0||!S)return false;
+  const k=S.rares&&S.rares[R0.f]&&S.rares[R0.f].killed;if(!k)return false;
+  if(a&&((a.slain||{})[m]||k.by===a.name||(k.names&&k.names.includes(a.name))))return false;
+  return true;
+}
+function kinWords(parent,kind){
+  if(kind==='lost'||kind==='ysib'){const sex=pick(['男','女']);const rel=sex==='女'?'妹':'弟';return {sex,rel,elder:parent.sex==='女'?'姉':'兄'};}
+  if(kind==='nibling'){const sex=pick(['男','女']);return {sex,rel:sex==='女'?'姪':'甥',uncle:parent.sex==='女'?'叔母':'叔父'};}
+  const sex=pick(['男','女']);return {sex,rel:sex==='女'?'娘':'息子',uncle:parent.sex==='女'?'母':'父'};
+}
+function kinLabel(parent,kind){
+  if(kind==='lost'||kind==='ysib')return kind==='ysib'?'歳の離れた弟妹':(parent.sex==='女'?'妹か弟':'弟か妹');
+  if(kind==='nibling')return parent.sex==='女'?'姪か甥':'甥か姪';
+  return parent.sex==='女'?'娘':'息子';
+}
+function arriveKin(S,parent,due){
+  if(!parent||parent.tav!=='ours')return;
+  const label=kinLabel(parent,due.kind);
+  if(seatsUsed(S,'ours')>=seatCap(S,'ours')){news(S,`${parent.name}の${label}が黒猫亭を訪ねたが、席がなかったので故郷へ帰った。`,'info');return;}
+  const kr=kinWords(parent,due.kind);
+  const younger=due.kind==='lost'?Math.max(15,Math.min(ri(16,22),humanAge(parent)-ri(3,8))):ri(15,20);
+  const keep=due.kind==='lost'?pick(KIN_KEEPS):null;
+  let bg;
+  if(due.kind==='lost')bg=`記念碑に名のある${parent.name}の${kr.rel}。${parent.name}の形見の${keep}を受け継いだ`;
+  else if(due.kind==='nibling')bg=`${parent.name}の${kr.rel}。${kr.uncle}の話を聞いて黒猫亭に来た`;
+  else if(due.kind==='ysib')bg=`${parent.name}の歳の離れた${kr.rel}`;
+  else bg=`${parent.name}の${kr.rel}。便りで生まれたと知らされた子`;
+  let dream;
+  if(due.kind==='lost'&&knownFoe(parent.lastBy))dream={k:'kinvenge',m:parent.lastBy,elder:kr.elder,who:parent.name};
+  else if(due.kind==='lost')dream={k:'kinflower',elder:kr.elder,who:parent.name};
+  else dream={k:'kinname',uncle:due.kind==='ysib'?kr.elder:kr.uncle,who:parent.name};
+  const k=makeAdv(S,'ours',{sex:kr.sex,race:parent.race,origin:parent.origin,age:ageForHuman(parent.race,younger),lvl:ri(1,5),bg,dream});
+  k.kin={id:parent.id,rel:kr.rel,name:parent.name};
+  parent.kinOf=parent.kinOf||[];parent.kinOf.push({id:k.id,name:k.name,rel:kr.rel,tk:S.tick});
+  chron(S,parent,`${k.name}（${kr.rel}）が黒猫亭に来た`);
+  let msg;
+  if(due.kind==='lost')msg=`${k.name}が黒猫亭の扉をくぐった。記念碑に名のある${parent.name}の${kr.rel}だという。${kr.elder}の形見の${keep}を受け継いだ。「${kr.elder}さんが最後に飲んだ店は、ここですか」`;
+  else if(due.kind==='nibling')msg=`${k.name}が黒猫亭に来た。${parent.name}の${kr.rel}だという。「${kr.uncle}の話は、耳にたこができるほど聞かされた」`;
+  else if(due.kind==='ysib')msg=`${k.name}が黒猫亭に来た。${parent.name}の歳の離れた${kr.rel}だという。「${kr.elder}は、黒猫亭の話ばかりしていた」`;
+  else msg=`${k.name}が黒猫亭に来た。${parent.name}の${kr.rel}だという。便りで生まれたと知らされていた子だ。「${kr.uncle}のいた店は、ここですか」`;
+  const rare=k.odd||CLS[k.cls].rare||ORIGINS[k.origin].far||k.blessed||k.cursed;
+  news(S,msg+(rare?` ${k.race}の${k.cls}、レベル${k.lvl}。`:''),rare?'record':'info');
+}
+// 来る予定の刻だけを見る。予定がなければ乱数は引かない。席が埋まっていれば、その回は来ない
+function kinTick(S){
+  if(S.tick%TICKS_PER_DAY)return;
+  const list=Object.values(S.adv).sort((a,b)=>a.id-b.id);
+  for(const a of list){
+    if(!a.kinDue||a.kinDue.tk==null||S.tick<a.kinDue.tk)continue;
+    const due=a.kinDue;a.kinDue={done:1};arriveKin(S,a,due);
+  }
+  for(const a of Object.values(S.adv).sort((a,b)=>a.id-b.id)){
+    if(!a.childAt||a.childDone||S.tick<a.childAt||a.status!=='retired'||a.tav!=='ours')continue;
+    a.childDone=1;if(chance(.4))arriveKin(S,a,{kind:'child'});
+  }
+}
 function checkDream(S,a){
   if(a.status!=='idle')return;
   if(!a.dream){if(S.tick>=(a.nextDreamAt||0)){a.dream=makeDream(S,a);chron(S,a,`新たな夢を抱く――${dreamText(a.dream)}`);}return;}
   const d=a.dream,D=DREAMS[d.k];if(!D||d.done||!D.ok(S,a,d))return;
   if(D.pay)a.gold-=D.pay(d);if(D.act)D.act(S,a,d);
-  const msg=D.msg(a,d);const ret=D.ret?D.ret(d):null;
+  const msg=D.msg(a,d,S);const ret=D.ret?D.ret(d):null;
   chron(S,a,`夢がかなう――${dreamText(d)}`);news(S,(a.tav==='rival'?'銀の杯亭の':'')+msg,'record');
   fulfill(S,a);
   if(ret)retire(S,a,ret);
@@ -1514,6 +1697,7 @@ function bondTopics(S,A,B,topics,say2){
   const gone=Object.entries(S.bonds||{}).filter(([k,v])=>v.n>=3&&k.split('-').includes(String(A.id))).map(([k,v])=>{const oid=+k.split('-').find(x=>x!==String(A.id));return [S.adv[oid],v];}).filter(([o])=>o&&o!==B&&(o.status==='lost'||o.status==='retired'||o.tav!==A.tav));
   gone.forEach(([o,v])=>{
     if(o.status==='lost')topics.push([2.5,()=>{say2(A,fillT(`${o.name}がいなくなってから、[この席は広すぎる|酒がまずい|${FN(o.lastFloor||'?')}には行く気がしない|${v.n}回も一緒に潜ったのにな]`,{}));say2(B,fillT('[……ああ|あいつの分まで潜るさ|俺も、あいつには借りがあった|記念碑に名前を見に行ったよ]',{}));}]);
+    else if(o.status==='retired'&&(o.letters||[]).length)topics.push([2.2,()=>{say2(A,`${o.name}から便りが来たってな`);say2(B,pick(['元気そうだった','字が下手になってた','自慢話ばかりだ']));}]);
     else if(o.status==='retired')topics.push([1.5,()=>{say2(A,fillT(`${o.name}は今ごろ、[故郷で|どこかで]どうしてるかな`,{}));say2(B,fillT('[元気でやってるさ|手紙くらい寄こせばいいのにな|あいつは幸せ者だ]',{}));}]);
     else if(o.tav!==A.tav)topics.push([1.5,()=>{say2(A,fillT(`${o.name}のやつ、${S.taverns[o.tav].name}で[うまくやってるかな|借金まみれらしい|すれ違っても目を合わせない]`,{}));say2(B,fillT('[自分で決めたことだ|金に負けたのさ|戻ってくるなら席はあるさ]',{}));}]);});
 }
@@ -1693,7 +1877,7 @@ function tick(S){
   for(const p of Object.values(S.parties)){
     if(p.state==='wiped'&&!p.retrieved&&S.tick-p.wipedAt>1000){
       p.members.forEach(id=>{const a=A(S,id);if(a.status!=='missing')return;a.status='lost';a.party=null;chron(S,a,`${FN(p.floor)}から戻ることなく、迷宮に呑まれる`);
-        S.memorial.push({id:a.id,name:full(a),cls:a.cls,lvl:a.lvl,race:a.race,tav:a.tav,tk:S.tick,by:a.lastBy||p.killer||'不明',floor:p.floor,kills:a.kills,marked:a.tav==='ours'&&!!a.marked||undefined});onLostFriend(S,a);});
+        memorialize(S,a,{by:a.lastBy||p.killer||'不明',floor:p.floor});});
       news(S,`${S.taverns[p.tav].name}の${p.name}は、ついに見つからなかった。${FN(p.floor)}に消えた${p.members.length}人の名が記念碑に刻まれる。`,'lost');
       if(S.bounties[p.id]){S.taverns.ours.gold+=S.bounties[p.id];news(S,`${p.name}の死体回収の依頼を取り下げ、預けていた${S.bounties[p.id]}Gが戻った。`,'info');}
       delete S.bounties[p.id];delete S.parties[p.id];
@@ -1711,6 +1895,7 @@ function tick(S){
   releaseRetrieved(S);
   errandTick(S);mineTick(S);
   checkMemo(S);
+  letterTick(S);kinTick(S);
 }
 
 function stepParty(S,p){
@@ -2102,10 +2287,20 @@ const MINE_LORE=[
 const RW_N={gold:'大金',xp:'経験',mat:'大量の素材',item:'伝説の品'};
 function rareMonOf(rf){const R0=rareDef(rf);const f=dz(rf);const top=MON.filter(m=>!m.boss&&!m.gate&&!!m.mine===inMine(rf)&&m.f<=Math.max(1,f)).pop();
   return {n:R0.n,u:R0.u,f,rf,hp:Math.round(top.hp*5+30+f*10),atk:Math.round(top.atk*1.5)+3,sp:R0.sp,rare:true,acts:f>=8?2:1};}
+function rareNamesOf(S,a){const names=[];Object.entries(S.rares||{}).forEach(([f,v])=>{const k=v&&v.killed;if(!k||k.by!==a.name)return;const n=(rareDef(+f)||{}).n;if(n&&!names.includes(n))names.push(n);});return names;}
+function lostRareLine(m){const r=m&&m.rares||[];return r.length?`名のある魔物${r.map(n=>`「${n}」`).join('、')}を討った者。`:'';}
+function memorialize(S,a,extra){
+  const rares=rareNamesOf(S,a);
+  const m={id:a.id,name:full(a),cls:a.cls,lvl:a.lvl,race:a.race,tav:a.tav,tk:S.tick,by:extra&&extra.by||a.lastBy||'不明',floor:extra&&extra.floor!=null?extra.floor:(a.lastFloor!=null?a.lastFloor:'?'),kills:a.kills,marked:a.tav==='ours'&&!!a.marked||undefined};
+  if(rares.length)m.rares=rares;
+  S.memorial.push(m);onLostFriend(S,a);scheduleLostKin(S,a);
+}
+// 黒猫亭で3回以上探索した常連がロストしたときだけ。30%で、30〜120日後に弟妹が来る
+function scheduleLostKin(S,a){if(a.tav!=='ours'||(a.trips||0)<3||a.kinDue)return;if(chance(.3))a.kinDue={tk:S.tick+ri(30,120)*TICKS_PER_DAY,kind:'lost'};}
 function rareSlain(S,p,t){
-  S.rares=S.rares||{};if(S.rares[t.rf]&&S.rares[t.rf].killed){p.rareBy=null;plog(p,`${t.n}は ちりと なって きえた`,'sys');return;}const R0=rareDef(t.rf);const al=alive(S,p);const tn=S.taverns[p.tav].name;
-  // とどめは最後の一撃。呪文・息吹・爆薬・相棒の獣なら、その使い手（獣なら獣使い）
-  const slayer=al.find(a=>a.id===p.rareBy)||null;p.rareBy=null;
+  S.rares=S.rares||{};if(S.rares[t.rf]&&S.rares[t.rf].killed){p.rareBy=null;plog(p,`${t.n}は ちりと なって きえた`,'sys');return;}const R0=rareDef(t.rf);const al=alive(S,p);const members=(p.members||[]).map(id=>A(S,id)).filter(Boolean);const tn=S.taverns[p.tav].name;
+  // とどめは最後の一撃。呪文・息吹・爆薬・相棒の獣なら、その使い手（獣なら獣使い）。倒れていても、その者の手柄
+  const slayer=members.find(a=>a.id===p.rareBy)||al.find(a=>a.id===p.rareBy)||null;p.rareBy=null;
   S.rares[t.rf]=Object.assign(S.rares[t.rf]||{},{killed:{party:p.name,tav:p.tav,names:al.map(a=>a.name),by:slayer?slayer.name:null,tk:S.tick}});
   let what='';
   if(R0.rw==='gold'){const g=r100(incomeAt(t.f)*ri(10,14));p.loot+=g;what=`${g}Gの財宝`;}
@@ -2115,6 +2310,8 @@ function rareSlain(S,p,t){
     const tgt=giveBest(S,al,it,p);what=it.n+(tgt?`（${tgt.name}が手にした）`:'（使える者がおらず、売られた）');if(!tgt)p.loot+=3000;else chron(S,tgt,`名のある魔物「${t.n}」から${it.n}を得る`);}
   plog(p,`${t.n}を たおした！ ${what}を てにいれた`,'loot');
   al.forEach(a=>{const fin=!!(slayer&&a===slayer);chron(S,a,fin?`${FN(t.rf)}で名のある魔物「${t.n}」を討つ`:`${FN(t.rf)}で${t.n}討伐に加わった`);if(fin){a.rareKills=(a.rareKills||0)+1;title(S,a);}if(['臆病','慎重'].includes(a.pers)&&chance(.4))changeOf(S,a,`「${t.n}」を討って、自信がついた`,x=>x.pers=x.pers==='臆病'?'慎重':'普通');});
+  // とどめの者がその戦いで倒れていても、手柄はその者のもの。二つ名は付けるが、知らせは出さない
+  if(slayer&&!al.includes(slayer)){chron(S,slayer,`${FN(t.rf)}で名のある魔物「${t.n}」を討つ`);slayer.rareKills=(slayer.rareKills||0)+1;title(S,slayer,true);}
   // ほかの仲間の絆に、討伐に加わったことを残す
   if(slayer)al.forEach(a=>{if(a!==slayer)bondEv(S,slayer,a,{k:'rare',m:t.n,f:t.rf,by:slayer.id,t:`${t.n}討伐に加わった`});});
   news(S,`${tn}の${p.name}が、${FN(t.rf)}の名のある魔物「${t.n}」を討ち取った。手に入れたのは${what}。`,'record');
@@ -2636,7 +2833,7 @@ function temple(S,a,paidByTavern){
   }
   if(a.status==='ash'){
     if(chance(reviveChance(S,a))){a.status='idle';a.hp=a.mhp;a.mp=mmpOf(a);a.revived++;chron(S,a,'灰の中からよみがえる');title(S,a);if(chance(.25))changeOf(S,a,'灰から戻ってから、人が変わったように静かになった',x=>{x.tone='無口';x.catch='……生きてるって、いいな';});news(S,`灰の中から${a.name}がよみがえった。`,'loot');return 'ok';}
-    a.status='lost';a.party=null;chron(S,a,'ロスト。その名は記念碑に刻まれる');S.memorial.push({id:a.id,name:full(a),cls:a.cls,lvl:a.lvl,race:a.race,tav:a.tav,tk:S.tick,by:a.lastBy||'不明',floor:a.lastFloor||'?',kills:a.kills,marked:a.tav==='ours'&&!!a.marked||undefined});onLostFriend(S,a);
+    a.status='lost';a.party=null;chron(S,a,'ロスト。その名は記念碑に刻まれる');memorialize(S,a,{by:a.lastBy||'不明',floor:a.lastFloor||'?'});
     news(S,`${S.taverns[a.tav].name}の${full(a)}、ロスト。その名は記念碑に刻まれる。`,'lost');return 'lost';
   }
 }
@@ -3133,6 +3330,9 @@ function migrate(S){
     else E.stage=0;
     S.v=25;
   }
+  if(!(S.v>=26)){// 便り。去った常連に、開いた日から1通目の予定を付ける。乱数は引かない。話の段は触らない。弟妹や子の予定は遡らない
+    schedulePendingLetters(S);S.v=26;
+  }
   Object.values(S.adv).forEach(a=>{if(!a.tone)personalize(a);if(!a.traits)assignTraits(S,a,true);});
   smallOf(S);
   Object.values(S.adv).filter(a=>a.title&&!a.titleKind&&a.status!=='lost'&&a.status!=='retired').forEach(a=>{a.title='';title(S,a,true);});
@@ -3530,11 +3730,19 @@ function sideShop(){
   <div class="sect"><h3>最近の買い物</h3>${log||'<p class="note">まだ誰も買っていない。</p>'}</div>`;
 }
 function openingEp(id){const a=id&&S.adv[id];return a&&a.opening?'開店からの常連。':''}
+function letterEp(f){const a=f&&S.adv[f.id];const L=a&&(a.letters||[]).slice(-1)[0];return L?`<div class="ep">${Math.floor(L.tk/TICKS_PER_DAY)+1}日目の便り：「${esc(L.line)}」</div>`:'';}
+function rareEp(m){const r=(m.rares&&m.rares.length)?m.rares:(m.id&&S.adv[m.id]?rareNamesOf(S,S.adv[m.id]):[]);return r.length?`名のある魔物${r.map(n=>`「${esc(n)}」`).join('、')}を討った者。`:'';}
 function sideStone(){
   const fw=(S.farewells||[]).slice().reverse();
   const ln=(id,name)=>id&&S.adv[id]?`<button class="nm-link" data-act="adv" data-a="${id}">${esc(name)}</button>`:`<b>${esc(name)}</b>`;
-  return `<div class="sect"><h3>店を去った者　${fw.length}人</h3>${fw.map(f=>`<div class="stone">${ln(f.id,f.name)} <span class="meta">${f.age?f.sex+'・'+(f.hage||f.age)+'歳'+(f.race&&f.race!=='人間'?'相当':'')+' ':''}Lv${f.lvl} ${f.race}の${f.cls}</span><div class="ep">${openingEp(f.id)}${f.tav==='ours'?'黒猫亭':'銀の杯亭'}の客。${Math.floor(f.tk/TICKS_PER_DAY)+1}日目、${esc(f.why)}ため旅立った。</div></div>`).join('')||'<p class="note">まだ誰も去っていない。</p>'}</div>
-  <div class="sect"><h3>ロストした者　${S.memorial.length}人</h3>`+(S.memorial.slice().reverse().map(m=>`<div class="stone">${ln(m.id,m.name)} <span class="meta">Lv${m.lvl} ${m.race}の${m.cls}</span><div class="ep">${openingEp(m.id)}${m.marked?'店主が見込んだ者。':''}${m.tav==='ours'?'黒猫亭':'銀の杯亭'}の客。${FN(m.floor)}にて${esc(m.by)}に倒れ、蘇ることなく${Math.floor(m.tk/TICKS_PER_DAY)+1}日目に眠る。討伐${m.kills}。</div></div>`).join('')||'<p class="note">まだ誰の名も刻まれていない。</p>')+'</div>';
+  return `<div class="sect"><h3>店を去った者　${fw.length}人</h3>${fw.map(f=>`<div class="stone">${ln(f.id,f.name)} <span class="meta">${f.age?f.sex+'・'+(f.hage||f.age)+'歳'+(f.race&&f.race!=='人間'?'相当':'')+' ':''}Lv${f.lvl} ${f.race}の${f.cls}</span><div class="ep">${openingEp(f.id)}${f.tav==='ours'?'黒猫亭':'銀の杯亭'}の客。${Math.floor(f.tk/TICKS_PER_DAY)+1}日目、${esc(f.why)}ため旅立った。</div>${letterEp(f)}</div>`).join('')||'<p class="note">まだ誰も去っていない。</p>'}</div>
+  <div class="sect"><h3>ロストした者　${S.memorial.length}人</h3>`+(S.memorial.slice().reverse().map(m=>`<div class="stone">${ln(m.id,m.name)} <span class="meta">Lv${m.lvl} ${m.race}の${m.cls}</span><div class="ep">${openingEp(m.id)}${m.marked?'店主が見込んだ者。':''}${m.tav==='ours'?'黒猫亭':'銀の杯亭'}の客。${FN(m.floor)}にて${esc(m.by)}に倒れ、蘇ることなく${Math.floor(m.tk/TICKS_PER_DAY)+1}日目に眠る。${rareEp(m)}討伐${m.kills}。</div></div>`).join('')||'<p class="note">まだ誰の名も刻まれていない。</p>')+'</div>';
+}
+function kinNote(a){
+  const bits=[];
+  if(a.kin&&a.kin.id&&S.adv[a.kin.id])bits.push(`続柄は${esc(a.kin.name)}の${esc(a.kin.rel)}。<button class="nm-link" data-act="adv" data-a="${a.kin.id}">${esc(a.kin.name)}の手帳</button>`);
+  (a.kinOf||[]).forEach(k=>{const btn=S.adv[k.id]?`<button class="nm-link" data-act="adv" data-a="${k.id}">${esc(k.name)}</button>`:esc(k.name);bits.push(`${btn}（${esc(k.rel)}）が黒猫亭に来た`);});
+  return bits.length?`<div class="note">${bits.join('<br>')}</div>`:'';
 }
 function nmLink(a,head){return `<button class="nm-link${head?' nm-head':''}" data-act="adv" data-a="${a.id}">${esc(a.name)}</button>`}
 function teamOf(a){const p=a.party&&S.parties[a.party];return p&&p.tav===a.tav?p:null}
@@ -3562,7 +3770,7 @@ function doing(a){
 }
 function dreamProgress(a){
   const d=a.dream;if(!d||!DREAMS[d.k])return '';
-  return DREAMS[d.k].prog?DREAMS[d.k].prog(a,d):'';
+  return DREAMS[d.k].prog?DREAMS[d.k].prog(a,d,S):'';
 }
 let advOpen=null;
 function renderAdv(){
@@ -3576,6 +3784,7 @@ function renderAdv(){
   ${he?`<div class="dream"><small>引き受けている話</small>「${esc(he.n)}」${FN(he.f)}・あと${Math.max(1,Math.ceil((he.until-S.tick)/TICKS_PER_DAY))}日</div>`:''}
   ${pe?`<div class="dream"><small>回すつもりの話（次に酒場で会えたら伝える）</small>「${esc(pe.n)}」${FN(pe.f)}・掲示はあと${Math.max(1,Math.ceil((pe.until-S.tick)/TICKS_PER_DAY))}日</div>`:''}
   <div class="adv-sub">${S.taverns[a.tav].name}の客・出身：${esc(originOf(a))}${a.origin&&ORIGINS[a.origin].far?'（大陸の外）':''}・${sexAge(a)}${a.race!=='人間'?'（実年齢'+a.age+'歳）':''}・レベル${a.lvl}（${rankOf(a.lvl)}） ${a.race}の${a.cls}・${a.pers}・${esc(a.quirk)}・素質「${a.tal}」<br>${esc(a.bg)}<br>口調：${esc(a.tone||'普通')}・口癖「${esc(a.catch||'')}」・好物：${esc(a.food||'')}${a.fear?'・怖いもの：'+esc(a.fear):''}</div>
+  ${kinNote(a)}
   ${(a.traits||[]).length?`<div class="dream${a.blessed?' odd':''}"><small>${a.blessed?'天に愛された者・':a.cursed?'星回りの悪い者・':''}得意と不得意</small>${trGood(a).map(t=>`<b>${t}</b>　${esc(TRAITS[t].d)}`).join('<br>')}${trGood(a).length&&trBad(a).length?'<br>':''}${trBad(a).map(t=>`<span style="opacity:.75">${t}</span>　${esc(TRAITS[t].d)}`).join('<br>')}</div>`:''}
   ${(a.changes||[]).length?`<div class="dream"><small>変わったこと</small>${a.changes.map(c=>`${Math.floor(c.tk/TICKS_PER_DAY)+1}日目　${esc(c.t)}`).join('<br>')}</div>`:''}
   ${a.odd?`<div class="dream odd"><small>異例の冒険者</small>${esc(ODD_PERK[a.race]||'')}</div>`:''}
