@@ -1453,6 +1453,85 @@ test('深手の者は水晶と札で赤くなり、撤退の横に一言出る',
   assert.deepEqual(errors,[]);await ctx.close();
 });
 
+test('全滅と依頼の失敗には理由が一文つき、まだ戻らないは札で読める',async()=>{
+  const {ctx,page,errors}=await open();
+  await page.locator('#sp0').click();
+  const info=await page.evaluate(()=>{
+    const p=Object.values(S.parties).find(x=>x.tav==='ours');
+    p.state='explore';p.floor=4;p.enemies=null;p.plan='normal';p.pushWhy=null;p.steps=400;
+    p.trip=p.trip||{};p.trip.deep=1;p.maps={};p.announced=false;p.knownWiped=false;
+    const ms=p.members.map(id=>S.adv[id]);
+    ms.forEach(a=>{a.status='party';a.hp=a.mhp=100;a.poison=0;a.mp=5;a.pers='普通';a.quirk='無口';a.fear=null;a.traits=[];a.cls='戦士';});
+    render();
+    const card=()=>[...document.querySelectorAll('.pcard')].find(el=>el.dataset.p==String(p.id));
+    const st=card().querySelector('.st');
+    const out=[];
+    if(!st||!st.classList.contains('bad')||!st.textContent.includes('探索中')||!st.textContent.includes('まだ戻らない'))out.push('遅れの札 '+(st&&st.textContent));
+    const a=S.adv[p.leader];
+    const rnd=Math.random;Math.random=()=>0.99;
+    errandEvent(S,p,{id:1,k:'kitten',n:'迷い込んだ子猫',f:2,hero:a.id});
+    Math.random=rnd;
+    ms.forEach(m=>{m.hp=0;m.mp=0;m.cls='戦士';});
+    const h=ms[0];h.cls='僧侶';h.mp=0;
+    S.watch=[null,null];
+    wipe(S,p,'オーク');
+    render();
+    const st2=card().querySelector('.st');
+    if(!st2||!st2.classList.contains('bad')||st2.textContent!=='B4F まだ戻らない')out.push('全滅直後の札 '+(st2&&st2.textContent));
+    tab='news';render();
+    const news=document.querySelector('#tbody').innerText;
+    if(!news.includes('向かなかった'))out.push('日報に失敗の理由がない');
+    if(news.includes('癒し手の呪文が尽きていた'))out.push('見ていない全滅の理由が先に出た');
+    advOpen=h.id;document.querySelector('#advm').hidden=false;renderAdv();
+    const book=document.querySelector('#advbox').innerText;
+    if(!book.includes('全滅した。癒し手の呪文が尽きていた'))out.push('手帳に原因がない');
+    return {out,pid:p.id,aid:h.id};
+  });
+  assert.deepEqual(info.out,[]);
+  for(const [width,height] of [[375,740],[1280,800]]){
+    await page.setViewportSize({width,height});
+    await page.evaluate(()=>document.fonts.ready);
+    const bad=await page.evaluate(({pid,aid})=>{
+      tab='news';advOpen=aid;document.querySelector('#advm').hidden=false;render();renderAdv();
+      const out=[];
+      const card=[...document.querySelectorAll('.pcard')].find(el=>el.dataset.p==String(pid));
+      const st=card&&card.querySelector('.st');
+      const cr=card.getBoundingClientRect(),sr=st.getBoundingClientRect();
+      if(sr.height<1||sr.right>cr.right+1||sr.left<cr.left-1)out.push('札の様子が札の外');
+      if(st.scrollWidth>st.clientWidth+1)out.push('札の様子が折れていない');
+      const li=[...document.querySelectorAll('.news li')].find(el=>el.textContent.includes('向かなかった'));
+      const span=li&&[...li.children].find(n=>!n.classList.contains('d'));
+      const side=document.querySelector('.side').getBoundingClientRect();
+      if(!span)out.push('失敗の知らせがない');
+      else{
+        const r=span.getBoundingClientRect();
+        if(r.height<1||r.right>side.right+1||r.left<side.left-1)out.push('知らせが右の列の外');
+        if(span.scrollWidth>span.clientWidth+1)out.push('知らせが折れていない');
+      }
+      const row=[...document.querySelectorAll('#advbox .tl li')].find(el=>el.textContent.includes('全滅した。癒し手の呪文が尽きていた'));
+      const modal=document.querySelector('#advbox').getBoundingClientRect();
+      if(!row)out.push('手帳の行がない');
+      else{
+        const r=row.getBoundingClientRect();
+        if(r.height<1||r.right>modal.right+1||r.left<modal.left-1)out.push('手帳が窓の外');
+        if(row.scrollWidth>row.clientWidth+1)out.push('手帳が折れていない');
+      }
+      if(document.documentElement.scrollWidth>innerWidth+1)out.push('ページが横にはみ出す');
+      return out;
+    },info);
+    assert.deepEqual(bad,[],`${width}px`);
+  }
+  const later=await page.evaluate(()=>{
+    const p=Object.values(S.parties).find(x=>x.state==='wiped'&&x.tav==='ours'&&x.cause);
+    Object.values(S.parties).forEach(q=>{if(q!==p){q.state='town';q.rest=99;}});
+    p.wipedAt=S.tick-14;tick(S);tab='news';document.querySelector('#advm').hidden=true;advOpen=null;render();
+    const news=document.querySelector('#tbody').innerText;
+    return news.includes('予定を過ぎても戻らない')&&news.includes('癒し手の呪文が尽きていた');
+  });
+  assert.equal(later,true);
+  assert.deepEqual(errors,[]);await ctx.close();
+});
+
 test('便りは青く出て、記念碑と手帳に残る',async()=>{
   const {ctx,page,errors}=await open();
   await page.locator('#sp0').click();
