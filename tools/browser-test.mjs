@@ -635,11 +635,12 @@ test('開店の顔ぶれは、知らせと手帳と記念碑に出る',async()=>
     const guests=S.news.find(n=>n.t.startsWith('最初の客たち'));
     const holders=cast.filter(a=>a.dream&&a.dream.k==='stele');
     const h=holders[0];
-    return {n:cast.length,names:cast.map(a=>a.name),origins:cast.map(a=>a.origin),guests:guests&&guests.t,id:h.id,bg:h.bg,dream:dreamText(h.dream),texts:holders.map(a=>dreamText(a.dream)).sort(),prog:DREAMS.stele.prog(h)};
+    const prog=DREAMS.stele.prog(h);
+    return {n:cast.length,names:cast.map(a=>a.name),origins:cast.map(a=>a.origin),guests:guests&&guests.t,id:h.id,bg:h.bg,dream:dreamText(h.dream),texts:holders.map(a=>dreamText(a.dream)).sort(),prog,want:(h.deepest||0)?`これまでの最深 ${FN(h.deepest)}`:'まだ迷宮に潜っていない'};
   });
   assert.equal(info.n,7);
   assert.deepEqual(info.texts,['B6Fの転移の石碑に、一度触れてみたい','B6Fまで潜って、地上の店に戻ってみたい'].sort());
-  assert.equal(info.prog,'まだ迷宮に潜っていない');
+  assert.equal(info.prog,info.want);
   const news=await page.locator('.news li',{hasText:'最初の客たち'}).innerText();
   assert.match(news,/最初の客たち/);
   for(const name of info.names)assert.match(news,new RegExp(name));
@@ -648,7 +649,7 @@ test('開店の顔ぶれは、知らせと手帳と記念碑に出る',async()=>
   const book=await page.locator('#advbox').innerText();
   assert.match(book,/開店からの常連/);
   assert.match(book,new RegExp(info.dream.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')));
-  assert.match(book,/まだ迷宮に潜っていない/);
+  assert.match(book,new RegExp(info.prog.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')));
   assert.match(book,new RegExp(info.bg.replace(/[.*+?^${}()|[\]\\]/g,'\\$&').slice(-12)));
   await page.locator('#advbox [data-act="closeadv"]').click();
   await page.evaluate(()=>{
@@ -1377,6 +1378,7 @@ test('酒場の掲示は段ごとに開き、見込みの人数も段で変わ�
   assert.match(empty,/最初の返済の日を迎えていない店に、頼みごとを持ち込む者はいない/);
   assert.doesNotMatch(empty,/見込んだ者/);
   assert.doesNotMatch(empty,/浅い頼みごと/);
+  assert.equal(await page.locator('button[data-act="boardhelp"]').count(),0);
   await page.locator('button[data-v="rank"]').click();
   assert.doesNotMatch(await page.locator('#tbody').innerText(),/地上の話の筋/);
   await page.locator('button[data-v="roster"]').click();
@@ -1393,6 +1395,8 @@ test('酒場の掲示は段ごとに開き、見込みの人数も段で変わ�
   assert.match(s1,/いまは浅い頼みごとだけ。名が上がれば、もっと持ち込まれる。/);
   assert.match(s1,/迷い込んだ子猫/);
   assert.doesNotMatch(s1,/見込んだ者/);
+  assert.equal(await page.locator('button[data-act="boardhelp"]').getAttribute('aria-expanded'),'false');
+  assert.doesNotMatch(s1,/店主が決めるのは/);
   await page.locator('button[data-v="roster"]').click();
   await page.locator('#tbody .nm-link').first().click();
   assert.equal(await page.locator('#advbox button[data-act="mark"]').count(),0);
@@ -1423,6 +1427,7 @@ test('酒場の掲示は段ごとに開き、見込みの人数も段で変わ�
   const btn2=page.locator('#advbox button[data-act="mark"]');
   assert.equal(await btn2.innerText(),'見込む');
   assert.equal(await btn2.isDisabled(),true);
+  assert.equal(await page.locator('#advbox .markwhy').innerText(),'見込みは満員（1/1）。誰かの見込みを外すと見込める。');
   await page.locator('#advbox button[data-act="closeadv"]').click();
   await page.evaluate(()=>{
     errandsOf(S).stage=3;S.taverns.ours.debt=0;S.taverns.ours.debtFree=S.tick;
@@ -1434,6 +1439,131 @@ test('酒場の掲示は段ごとに開き、見込みの人数も段で変わ�
   assert.doesNotMatch(s3,/見込めるのは、いまは一人だけ/);
   await page.locator('button[data-v="rank"]').click();
   assert.match(await page.locator('#tbody').innerText(),/地上の話の筋　封じの門の抜け穴/);
+  assert.deepEqual(errors,[]);await ctx.close();
+});
+
+test('見込みが満員のときは理由が読め、見込むボタンはどの幅でも44px以上',async()=>{
+  const {ctx,page,errors}=await open();
+  await page.locator('#sp0').click();
+  const ids=await page.evaluate(()=>{
+    errandsOf(S).stage=2;
+    const ours=Object.values(S.adv).filter(x=>x.tav==='ours'&&x.status!=='lost'&&x.status!=='retired');
+    tab='bar';render();
+    return ours.map(a=>a.id);
+  });
+  assert.ok(ids.length>=4,'常連が4人未満');
+  const help=page.locator('button[data-act="boardhelp"]');
+  assert.equal(await help.getAttribute('aria-expanded'),'false');
+  assert.doesNotMatch(await page.locator('#tbody').innerText(),/店主が決めるのは/);
+  await help.click();
+  assert.equal(await help.getAttribute('aria-expanded'),'true');
+  assert.match(await page.locator('#tbody .note').filter({hasText:'店主が決めるのは'}).innerText(),/店主が決めるのは、話を誰に回すかだけ。向き不向きは話の文面ににじむ。手帳を開いて、怖いものや得意不得意、出身と照らし合わせること。話が伝わるのは、主役が酒場にいて、一行が街で休んでいるとき。迷宮に出ている者を選んでおけば、戻ったときに伝える。/);
+  await page.evaluate(()=>render());
+  assert.equal(await page.locator('button[data-act="boardhelp"]').getAttribute('aria-expanded'),'true');
+  assert.match(await page.locator('#tbody').innerText(),/戻ったときに伝える/);
+  const saved=await page.evaluate(()=>{save();return JSON.parse(localStorage.getItem('kuroneko-tavern-v1'));});
+  assert.equal(saved.boardHelpOpen,undefined);
+  assert.equal(saved.S.boardHelpOpen,undefined);
+  assert.equal(saved.S.v,26);
+  await page.reload();
+  await page.locator('#sp0').click();
+  await page.locator('button[data-v="bar"]').click();
+  assert.equal(await page.locator('button[data-act="boardhelp"]').getAttribute('aria-expanded'),'false');
+  assert.doesNotMatch(await page.locator('#tbody').innerText(),/店主が決めるのは/);
+  const look=async width=>{
+    await page.setViewportSize({width,height:width===375?740:800});
+    await page.evaluate(()=>document.fonts.ready);
+    return page.evaluate(()=>{
+      const bad=[];
+      const line=document.querySelector('.markline');
+      const note=document.querySelector('#tbody .note');
+      if(!line)bad.push('見込みの行がない');
+      else{
+        const lc=getComputedStyle(line),nc=getComputedStyle(note),bc=getComputedStyle(document.body);
+        if(lc.color!==bc.color)bad.push('見込みの行が地の色でない '+lc.color);
+        if(note&&lc.color===nc.color)bad.push('見込みの行が注釈と同じ色');
+        if(note&&parseFloat(lc.fontSize)<=parseFloat(nc.fontSize))bad.push('見込みの行が注釈より大きくない');
+        if(!line.textContent.includes('見込んだ者　0 / 1'))bad.push('見込みの行 '+line.textContent);
+        const lr=line.getBoundingClientRect();
+        if(lr.right>innerWidth+1||lr.left<0)bad.push('見込みの行がはみ出す');
+      }
+      const btn=document.querySelector('button[data-act="boardhelp"]');
+      const br=btn.getBoundingClientRect();
+      if(innerWidth<=640&&(br.width<44||br.height<44))bad.push(`話の回し方 ${Math.round(br.width)}×${Math.round(br.height)}`);
+      const box=btn.parentElement.getBoundingClientRect().height;
+      if(box>72)bad.push('閉じた説明が高い '+Math.round(box));
+      return bad;
+    });
+  };
+  assert.deepEqual(await look(1280),[],'1280 の掲示');
+  assert.deepEqual(await look(375),[],'375 の掲示');
+  const book=async(width,id)=>{
+    if(await page.locator('#advm').isVisible())await page.locator('#advbox button[data-act="closeadv"]').click();
+    await page.setViewportSize({width,height:width===375?740:800});
+    await page.locator('button[data-v="roster"]').click();
+    await page.locator(`#tbody button[data-act="adv"][data-a="${id}"]`).first().click();
+    await page.evaluate(()=>document.fonts.ready);
+    const got=await page.evaluate(()=>{
+      const bad=[];
+      const b=document.querySelector('#advbox button[data-act="mark"]');
+      const why=document.querySelector('#advbox .markwhy');
+      if(!b)bad.push('見込むボタンがない');
+      else{
+        const r=b.getBoundingClientRect();
+        if(r.width<44||r.height<44)bad.push(`${b.innerText} ${Math.round(r.width)}×${Math.round(r.height)}`);
+        const box=document.querySelector('#advbox').getBoundingClientRect();
+        if(r.top<box.top-1||r.bottom>box.bottom+1||r.left<0||r.right>innerWidth+1)bad.push('ボタンが画面の外');
+      }
+      if(why){
+        const wc=getComputedStyle(why),bc=getComputedStyle(document.body);
+        if(wc.color!==bc.color)bad.push('理由の色 '+wc.color);
+        if(parseFloat(wc.opacity)<1)bad.push('理由が薄い');
+        if(parseFloat(wc.fontSize)<13)bad.push('理由が小さい');
+        const wr=why.getBoundingClientRect();
+        const box=document.querySelector('#advbox').getBoundingClientRect();
+        if(wr.height<16)bad.push('理由の高さ');
+        if(wr.top<box.top-1||wr.bottom>Math.min(box.bottom,innerHeight)+1)bad.push('理由が読める範囲の外');
+        if(wr.left<0||wr.right>innerWidth+1)bad.push('理由が横にはみ出す');
+      }
+      return {bad,text:b?b.innerText:'',disabled:!!(b&&b.disabled),why:why?why.textContent:''};
+    });
+    return got;
+  };
+  let got=await book(1280,ids[0]);
+  assert.deepEqual(got.bad,[],'1280 で見込める');
+  assert.equal(got.text,'見込む');
+  assert.equal(got.disabled,false);
+  assert.equal(got.why,'');
+  await page.locator('#advbox button[data-act="mark"]').click();
+  assert.equal(await page.locator('#advbox button[data-act="mark"]').innerText(),'見込みを外す');
+  assert.equal(await page.locator('#advbox .markwhy').count(),0);
+  const unmark=await book(1280,ids[0]);
+  assert.equal(unmark.text,'見込みを外す');
+  assert.equal(unmark.disabled,false);
+  assert.deepEqual(unmark.bad,[],'1280 で外す');
+  await page.locator('#advbox button[data-act="closeadv"]').click();
+  for(const width of [1280,375]){
+    got=await book(width,ids[1]);
+    assert.deepEqual(got.bad,[],width+' で満員');
+    assert.equal(got.text,'見込む');
+    assert.equal(got.disabled,true);
+    assert.equal(got.why,'見込みは満員（1/1）。誰かの見込みを外すと見込める。');
+    await page.locator('#advbox button[data-act="closeadv"]').click();
+  }
+  await page.evaluate(list=>{
+    errandsOf(S).stage=3;
+    list.slice(1,3).forEach(id=>markAdv(S,S.adv[id],true));
+    render();
+  },ids);
+  got=await book(375,ids[3]);
+  assert.deepEqual(got.bad,[],'375 で段3が満員');
+  assert.equal(got.disabled,true);
+  assert.equal(got.why,'見込みは満員（3/3）。誰かの見込みを外すと見込める。');
+  await page.locator('#advbox button[data-act="closeadv"]').click();
+  got=await book(1280,ids[0]);
+  assert.equal(got.text,'見込みを外す');
+  assert.equal(got.why,'');
+  assert.deepEqual(got.bad,[],'1280 で見込んだ者');
   assert.deepEqual(errors,[]);await ctx.close();
 });
 
@@ -1833,7 +1963,7 @@ test('倒れた者の札、番付の数、出資の買い取り、記念碑の�
     const miss=Object.values(S.adv).find(a=>a.tav==='ours'&&a.id!==down.id&&a.id!==up.id);
     miss.hp=0;miss.status='missing';miss.party=null;
     tab='roster';render();
-    const row=name=>[...document.querySelectorAll('#tbody .row')].find(el=>el.textContent.includes(name));
+    const row=name=>[...document.querySelectorAll('#tbody .row')].find(el=>el.querySelector('.nm-link')?.textContent===name);
     const chip=name=>row(name).querySelector('.chip').textContent;
     const card=[...document.querySelectorAll('.pcard')].find(el=>el.dataset.p==p.id);
     const mark=name=>{
