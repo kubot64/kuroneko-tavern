@@ -65,7 +65,8 @@ button:focus-visible,[tabindex]:focus-visible{outline:2px solid var(--amber);out
 .c-members{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:2px 10px;padding:8px 12px;font-family:var(--f-log);font-size:12px;color:var(--crystal-fg);border-bottom:1px solid #1d2546;font-variant-numeric:tabular-nums}
 .c-members .m{display:flex;justify-content:space-between;gap:4px;white-space:nowrap;overflow:hidden}
 .c-members .m.low{color:var(--amber)}
-.c-members .m.dead{color:var(--blood)}
+.c-members .m.crit,.c-members .m.dead{color:var(--blood)}
+.c-members .wound{margin-left:.35em}
 .c-log{font-family:var(--f-log);font-size:13px;line-height:1.55;color:var(--crystal-fg);padding:10px 12px;height:380px;overflow-y:auto;white-space:pre-wrap;word-break:break-all}
 .c-log .sys{color:#fff;text-align:center}
 .c-log .say{color:#ffe2a8}
@@ -77,9 +78,13 @@ button:focus-visible,[tabindex]:focus-visible{outline:2px solid var(--amber);out
 @keyframes lineIn{from{opacity:0;transform:translateY(3px)}}
 @media (prefers-reduced-motion:reduce){.c-log .nw{animation:none}}
 .c-empty{display:flex;align-items:center;justify-content:center;text-align:center;color:var(--crystal-dim);font-family:var(--f-log);height:100%;min-height:200px;padding:20px}
-.c-foot{display:flex;gap:8px;align-items:center;padding:8px 12px;border-top:1px solid #1d2546;font-size:12px;color:var(--crystal-dim)}
+.c-foot{display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:8px 12px;border-top:1px solid #1d2546;font-size:12px;color:var(--crystal-dim)}
 .c-foot .btn{background:#151c36;border-color:#2a3666;color:var(--crystal-fg)}
 .c-foot .btn:hover{border-color:var(--glow)}
+.c-warn{flex:1 1 12em;min-width:min(100%,12em);font-family:var(--f-log);font-size:12px;line-height:1.45;color:var(--blood)}
+.c-warn .thought,.c-warn .fight{display:block}
+.c-warn .thought{color:#ffe2a8}
+.c-warn .fight{color:var(--crystal-dim);font-size:11px}
 
 /* party strip. Facts stay in the same order on every card so parties can be compared by eye. */
 .parties{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:10px;align-items:start}
@@ -1321,6 +1326,40 @@ function quarrelCheck(S,p,al){const L=A(S,p.leader);if(!L||!al.includes(L))retur
     break;}}
 function hpRatio(S,p){const m=alive(S,p);if(!m.length)return 0;return m.reduce((s,a)=>s+a.hp,0)/m.reduce((s,a)=>s+a.mhp,0)}
 function avgLvl(S,p){const m=alive(S,p);return m.reduce((s,a)=>s+PL(a),0)/Math.max(1,m.length)}
+// 引き返す体力の線。性格の目安に、平均が低いときの早めの帰り、借金、深みを目指す理由を足す
+function retreatLine(S,p){
+  const al=alive(S,p),lp=leader(S,p);if(!lp)return 1;
+  const owe=p.tav==='rival'&&al.some(a=>(a.debt||0)>0);
+  return PERS[lp.pers].th+(avgLvl(S,p)<3?.12:0)-(owe?.06:0)-(p.pushWhy?.06:0);
+}
+// 水晶の名前と左の札の帯。2割未満は深手、35%未満は少ない。ちょうど2割、ちょうど35%は次の段
+function hpBand(a){
+  if(!a||a.hp<=0)return 'dead';
+  if(a.mhp>0&&a.hp<a.mhp*.2)return 'crit';
+  if(a.hp/a.mhp<.35)return 'low';
+  return '';
+}
+// 探索中に水晶へ出す危険の一言と、札へ出す短い理由。日報にも記録にも残さない。上から最初の一つ
+function partyDanger(S,p){
+  const al=alive(S,p);if(!al.length)return null;
+  const lp=leader(S,p);if(!lp)return null;
+  const wounded=al.filter(a=>a.mhp>0&&a.hp<a.mhp*.2);
+  const worst=wounded.reduce((m,a)=>a.hp/a.mhp<m.hp/m.mhp?a:m,wounded[0]||null);
+  const poisoned=al.filter(a=>a.poison);
+  const healers=al.filter(a=>C(a).heal);
+  const healMp=healers.reduce((s,a)=>s+(a.mp||0),0);
+  const r=hpRatio(S,p),th=retreatLine(S,p);
+  const breath=r<th+.1,spells=healers.length>0&&healMp<=0;
+  const near=(!breath&&r<th+.2)||(!spells&&healers.length>0&&healMp>0&&healMp<=1);
+  let key=null,line=null,card=null;
+  if(worst){key='wound';line=`${worst.name}が ふかでを おっている`;card='深手の者がいる';}
+  else if(poisoned.length&&(!healers.length||healMp<=0)){key='poison';line=`${poisoned[0].name}の どくが ぬけない`;card='毒が抜けない';}
+  else if(breath){key='breath';line='いっこうの いきが あがっている';card='息が上がっている';}
+  else if(spells){key='spells';line='いやしての じゅもんが つきた';}
+  else if(!hasMap(p)&&isFrontier(S,p.floor)&&near){key='front';line='ちずの ない さいぜんせんに いる';}
+  if(!key)return null;
+  return {key,line,card,thought:worst&&lp.pers==='無謀'?'リーダーは ひきかえす きが ない':null,fight:p.enemies?'たたかいの さいちゅう。いま めいじても にげきれるとは かぎらない':null};
+}
 function say(S,p,lines){const l=leader(S,p);plog(p,`${l.name}「${pick(lines)}」`,'say')}
 
 const QUIRK_MORE={
@@ -1735,7 +1774,7 @@ function stepParty(S,p){
   const casters=al.filter(a=>C(a).heal);
   const healLeft=casters.reduce((s,a)=>s+a.mp,0);
   const owe=p.tav==='rival'&&al.some(a=>(a.debt||0)>0);
-  const th=pers.th+(avgLvl(S,p)<3?.12:0)-(owe?.06:0)-(p.pushWhy?.06:0);
+  const th=retreatLine(S,p);
   const lostOne=(al.length<p.members.length||al.some(a=>a.hp<a.mhp*.2))&&leader(S,p).pers!=='無謀';
   let goHome = r<th || lostOne || al.length<=Math.ceil(p.members.length/2) || p.steps>(p.plan==='grind'?220:160) || (healLeft===0&&r<th+.2&&casters.length>0);
   if((p.carried||[]).length&&!goHome) goHome=true;
@@ -2333,6 +2372,8 @@ function chest(S,p){
   const rf=Math.max(1,p.floor),f=dz(rf);const al=alive(S,p);const lp=leader(S,p);
   const th=al.find(a=>C(a).thief);
   plog(p,'たからばこが ある','sys');
+  // 勝った直後は引き返す判定がまだ来ない。2割を切った者がいるときは、無謀と強欲以外はここで箱を見送る
+  if(al.some(a=>a.mhp>0&&a.hp<a.mhp*.2)&&lp.pers!=='無謀'&&lp.pers!=='強欲'){plog(p,`${lp.name}「けがにんが いる。はこは あきらめろ」`,'say');return;}
   if(!th&&(lp.pers==='慎重'||lp.pers==='臆病')){plog(p,`${lp.name}「わなが こわい。あけずに すすむ」`,'say');return;}
   const opener=th||pick(al);
   const tm=hasMap(p);const tdm=tm?.7:isFrontier(S,rf)?1.9:1.4;const ok=chance((tm?.15:-.1)+(p.tav==='ours'&&fac(S,'info')>=2?.1:0)+(th?clamp(.62+PL(th)*.04-f*.03+trTrap(th)+rc(th).trap+eqSum(th,'trap'),.3,.97):.3+rc(opener).trap+eqSum(opener,'trap')));
@@ -3239,6 +3280,13 @@ function stateText(p){
   if(p.state==='return') return [`${FN(p.floor)} 帰還中`,false];
   return [`${FN(p.floor)} ${p.plan==='grind'?'腕を磨いている':p.plan==='push'?'深く攻めている':'探索中'}`,false];
 }
+function partyStatus(p){
+  const [st,bad]=stateText(p);
+  if(p.tav!=='ours'||p.state==='wiped'||p.state==='town')return [st,bad];
+  const d=partyDanger(S,p);
+  if(!d||!d.card)return [st,bad];
+  return [st+'・'+d.card,true];
+}
 function renderCrystals(){
   const box=$('crystals');
   // keep scroll positions
@@ -3248,16 +3296,18 @@ function renderCrystals(){
     if(!p) return `<div class="crystal${sel}"><div class="c-head" data-act="selc" data-i="${i}" tabindex="0"><span class="orb"></span><span class="nm">水晶 ${i+1}</span></div><div class="c-empty">水晶は くもっている<br>下から 一行を えらぶと ここに うつる</div></div>`;
     const ms=p.members.concat(p.carried||[]).map(id=>S.adv[id]).filter(Boolean);
     const lost=p.state==='wiped';
-    const mem=ms.slice(0,6).map(a=>{const dead=a.hp<=0;const low=!dead&&a.hp/a.mhp<.35;return `<div class="m${dead?' dead':low?' low':''}"><span>${p.leader===a.id?'<span class="lead" title="リーダー">★</span>':''}${nmLink(a)}</span><span>${dead?'しぼう':a.hp+'/'+a.mhp}${a.poison&&!dead?'毒':''}</span></div>`}).join('');
+    const mem=ms.slice(0,6).map(a=>{const band=hpBand(a);return `<div class="m${band==='dead'?' dead':band==='crit'?' crit':band==='low'?' low':''}"><span>${p.leader===a.id?'<span class="lead" title="リーダー">★</span>':''}${nmLink(a)}${band==='crit'?'<span class="wound">深手</span>':''}</span><span>${band==='dead'?'しぼう':a.hp+'/'+a.mhp}${a.poison&&band!=='dead'?'毒':''}</span></div>`}).join('');
     let last=shown[p.id]||0;let fresh=last?p.log.filter(l=>l.n>last).length:0;if(fresh>14){last=0;fresh=0;}const stepD=fresh?Math.min(.35,(TICK_SEC/speedNow()-.3)/fresh):0;let fi=0;
     const lines=p.log.slice(-60).map(l=>{const nw=last&&l.n>last;const st=nw?` style="animation-delay:${(fi++*stepD).toFixed(2)}s"`:'';return `<div class="${l.k}${nw?' nw':''}"${st}>${esc(l.t)}</div>`}).join('');
     shown[p.id]=p.lc||0;
     const canRecall=p.tav==='ours'&&p.state==='explore';
+    const danger=canRecall?partyDanger(S,p):null;
+    const warn=danger?`<span class="c-warn" data-k="${danger.key}">${esc(danger.line)}${danger.thought?`<span class="thought">${esc(danger.thought)}</span>`:''}${danger.fight?`<span class="fight">${esc(danger.fight)}</span>`:''}</span>`:'';
     return `<div class="crystal${sel}">
       <div class="c-head" data-act="selc" data-i="${i}" tabindex="0"><span class="orb"></span><span class="nm">${partyHtml(p.name)}${p.tav==='rival'?'（銀の杯亭）':''}</span><span class="fl">${esc(stateText(p)[0])}${p.floor>0&&p.state!=='town'?'・'+zoneOf(p.floor)+(p.state!=='wiped'?(hasMap(p)?'・地図あり':'・地図なし'):''):''}</span></div>
       <div class="c-members">${mem}</div>
       <div class="c-log" data-pid="${p.id}">${lines}${lost?'<div class="move">　\n水晶は もう なにも うつさない</div>':''}</div>
-      <div class="c-foot">${canRecall?`<button class="btn sm" data-act="recall" data-p="${p.id}" ${T().gold<50?'disabled':''}>伝書鳩で撤退を命じる（50G）</button>`:`<span>${p.state==='return'?'帰路についている':p.state==='town'?'酒場に戻っている':p.tav==='rival'?'すれ違いの間だけ見えている':''}</span>`}<span style="margin-left:auto">${p.loot?'稼ぎ '+p.loot+'G':''}</span></div>
+      <div class="c-foot">${canRecall?`<button class="btn sm" data-act="recall" data-p="${p.id}" ${T().gold<50?'disabled':''}>伝書鳩で撤退を命じる（50G）</button>`:`<span>${p.state==='return'?'帰路についている':p.state==='town'?'酒場に戻っている':p.tav==='rival'?'すれ違いの間だけ見えている':''}</span>`}${warn}<span style="margin-left:auto">${p.loot?'稼ぎ '+p.loot+'G':''}</span></div>
     </div>`;
   }).join('');
   box.querySelectorAll('.c-log').forEach(el=>{if(keep[el.dataset.pid]!==false)el.scrollTop=el.scrollHeight;});
@@ -3284,12 +3334,12 @@ function renderParties(){
     return a.name<b.name?-1:a.name>b.name?1:0;
   });
   $('parties').innerHTML=ps.map(p=>{
-    const [st,bad]=stateText(p);const vis=visible(p);
+    const [st,bad]=partyStatus(p);const vis=visible(p);
     const ms=partyMembers(p).slice().sort((a,b)=>((b.id===p.leader)-(a.id===p.leader))||(b.lvl-a.lvl)||(a.name<b.name?-1:a.name>b.name?1:0));
     const avg=ms.length?Math.round(ms.reduce((t,x)=>t+x.lvl,0)/ms.length):0;
     const max=ms.length?Math.max(...ms.map(x=>x.lvl)):0;
     const showHp=p.tav==='ours'&&!(p.state==='wiped'&&!p.knownWiped)&&ms.length;
-    const hp=showHp?`<div class="hpstrip">${ms.map(a=>{const r=a.mhp?a.hp/a.mhp:0;return `<i style="--w:${Math.round(Math.max(0,r)*100)}%;--c:${r<=0?'var(--ash)':r<.35?'var(--blood)':r<.65?'var(--amber)':'var(--heal)'}"></i>`}).join('')}</div>`:'';
+    const hp=showHp?`<div class="hpstrip">${ms.map(a=>{const r=a.mhp?a.hp/a.mhp:0;const b=hpBand(a);return `<i style="--w:${Math.round(Math.max(0,r)*100)}%;--c:${b==='dead'?'var(--ash)':b==='crit'?'var(--blood)':b==='low'?'var(--amber)':'var(--heal)'}"></i>`}).join('')}</div>`:'';
     const roster=ms.length?`<div class="roster">${ms.map(a=>{const mark=rosterMark(a);return `<span class="who${a.id===p.leader?' lead':''}${mark?' down':''}"><span class="nm">${a.id===p.leader?'★':''}${esc(a.name)}</span><span class="cls">${esc(a.cls)} ${a.lvl}${mark?' '+mark:''}</span></span>`}).join('')}</div>`:'';
     return `<button class="pcard${p.tav==='rival'?' rival':''}${S.watch.includes(p.id)?' watching':''}" data-act="watch" data-p="${p.id}" ${vis?'':'aria-disabled="true"'}>
       <div class="top"><span class="pn">${partyHtml(p.name)}</span><span class="tag ${p.tav}">${S.taverns[p.tav].name}${p.ace?'の看板':''}</span></div>

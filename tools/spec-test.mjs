@@ -32,7 +32,7 @@ const html=readFileSync(new URL('../index.html',import.meta.url),'utf8');
 const ENGINE=html.match(/\/\*ENGINE START\*\/([\s\S]*?)\/\*ENGINE END\*\//)[1];
 const EXPORTS=['newState','tick','rivalTemple','seatCap','seatsUsed','nextSeats','newcomerLvl','buyPrice','investPrice','FACILITIES',
   'RARES','MAXF','DRAGON_F','TICKS_PER_DAY','awayPlan','smallOf','debtTick','DEBT0','encounter','rareSlain','rareMonOf','arrive',
-  'repay','errandsOf','assignErrand','errandBlock','designateBlock','MAXF','MINE_TOP','MINE_BOT','MINE_N','FN','mineOpen','conquest','mineConquest','title','alive','markAdv','markedOf','BOARD_MAX','MARK_MAX','errandStage','boardMax','markMax','ARCS','reachFloor','GATE_F','fac','nextFac','buildFac','migrate','partyShown','crestJa','glossText','PT_A','PT_B','takeCrest','pickCrest','newPartyName','combat','MON','elemMul','elemNote','sleepMul','sleepReach','MINE_RARES','supplyTeam','potionPrice','lendRival','reviveChance','reviveHint','reviveResultText','temple','checkMemo','memoState','nextDue','rankRows','MEMO','setQuietLog','DREAMS','rollAge','AGE2','ORIGINS','careerLine','originBg','SPELL_LIST','foePool','dz','victory'];
+  'repay','errandsOf','assignErrand','errandBlock','designateBlock','MAXF','MINE_TOP','MINE_BOT','MINE_N','FN','mineOpen','conquest','mineConquest','title','alive','markAdv','markedOf','BOARD_MAX','MARK_MAX','errandStage','boardMax','markMax','ARCS','reachFloor','GATE_F','fac','nextFac','buildFac','migrate','partyShown','crestJa','glossText','PT_A','PT_B','takeCrest','pickCrest','newPartyName','combat','MON','elemMul','elemNote','sleepMul','sleepReach','MINE_RARES','supplyTeam','potionPrice','lendRival','reviveChance','reviveHint','reviveResultText','temple','checkMemo','memoState','nextDue','rankRows','MEMO','setQuietLog','DREAMS','rollAge','AGE2','ORIGINS','careerLine','originBg','SPELL_LIST','foePool','dz','chest','victory','partyDanger','hpBand','retreatLine'];
 
 // 乱数の種を固定したゲームの中身を1つ作る。中身の Math.random だけを差し替える
 function load(seed,fixed){
@@ -581,6 +581,97 @@ function checkAffinity(){
     if(a.log.includes('ほのおを はいた')){breathHit=true;check('属性の相性：ふつうの炎の息は炎の耐性で軽くなる',b.dmg<a.dmg,`キメラ・種${seed}`,`なし${a.dmg} 耐性${b.dmg}`);}
     else check('属性の相性：炎の息を吐かなければ耐性では変わらない',a.dmg===b.dmg,`キメラ・種${seed}`,`なし${a.dmg} 耐性${b.dmg}`);}
   check('属性の相性：黒い炎と炎の息の両方を試し打ちした',black&&breathHit,'40種',`黒い炎${black} 炎の息${breathHit}`);
+  // 「罠と宝箱」：2割を切った者がいるときは、無謀と強欲以外は開けない。判定は手当てよりあと
+  const trip0=()=>({mats:{},kills:{},items:[],found:[],deep:4,chests:0,crits:[],traps:[],close:[],deaths:[],met:[],poison:[],fled:0,slept:0,heals:0,big:null,rec:false,lv:[],empty:0});
+  const chestScene=(pers,hp,{thief=false,dead=false,mhp=100}={})=>{
+    const E=load(1,1e-9),S=E.newState();const p=Object.values(S.parties).find(x=>x.tav==='ours');
+    p.floor=4;p.state='explore';p.enemies=null;p.log=[];p.loot=0;p.trip=trip0();p.maps={};p.tmap={};p.potions=0;
+    p.members.forEach(id=>{const a=S.adv[id];a.status='party';a.hp=a.mhp=100;a.mp=0;a.poison=0;a.cls='戦士';a.traits=[];a.lvl=8;});
+    const L=S.adv[p.leader];L.pers=pers;L.cls=thief?'盗賊':'戦士';L.hp=L.mhp=100;
+    const hurt=S.adv[p.members.find(id=>id!==p.leader)];hurt.mhp=mhp;hurt.hp=hp;
+    if(dead){const id=p.members.find(x=>x!==p.leader&&x!==hurt.id);if(id)S.adv[id].hp=0;}
+    const n0=S.news.length;E.chest(S,p);
+    return {log:p.log.map(l=>l.t).join('\n'),chests:p.trip.chests,loot:p.loot,hp:hurt.hp,name:L.name,news:S.news.length-n0};
+  };
+  {const w=chestScene('普通',19);
+    check('罠と宝箱：体力が2割を切った者がいると、普通のリーダーは宝箱を開けない',w.chests===0&&w.loot===0&&w.hp===19&&w.log.includes(`${w.name}「けがにんが いる。はこは あきらめろ」`)&&w.log.includes('たからばこが ある')&&!w.log.includes('わな')&&w.news===0,'HP19/100',w.log);}
+  {const w=chestScene('普通',1,{mhp:12});
+    check('罠と宝箱：HP1/12でも見送りの一言が出て、罠も金も出ない',w.chests===0&&w.loot===0&&w.hp===1&&w.log.includes('けがにんが いる'),'HP1/12',w.log);}
+  for(const pers of ['慎重','臆病']){const w=chestScene(pers,19);
+    check('罠と宝箱：けが人がいるときは、慎重や臆病でも罠を怖がる一言より見送りが先',w.chests===0&&w.log.includes('けがにんが いる')&&!w.log.includes('わなが こわい'),pers,w.log);}
+  {const w=chestScene('慎重',100);
+    check('罠と宝箱：けが人がいなければ、盗賊のいない慎重なリーダーはこれまでどおり開けない',w.chests===0&&w.loot===0&&w.log.includes('わなが こわい')&&!w.log.includes('けがにん'),'HP満タン',w.log);}
+  {const w=chestScene('普通',19,{thief:true});
+    check('罠と宝箱：盗賊がいても、2割を切った者がいれば普通のリーダーは開けない',w.chests===0&&w.log.includes('けがにんが いる')&&!w.log.includes('わなを はずした'),'盗賊あり',w.log);}
+  for(const pers of ['無謀','強欲']){const w=chestScene(pers,19,{thief:pers==='強欲'});
+    check('罠と宝箱：無謀と強欲のリーダーは、2割を切っていても宝箱を開ける',w.chests===1&&w.loot>0&&!w.log.includes('けがにん'),pers,w.log);}
+  {const w=chestScene('普通',20);
+    check('罠と宝箱：体力がちょうど2割のときは見送りに当たらず、箱を開ける',w.chests===1&&!w.log.includes('けがにん'),'HP20/100',w.log);}
+  {const w=chestScene('普通',2,{mhp:10});
+    check('罠と宝箱：最大体力10で2のときはちょうど2割で、箱を開ける',w.chests===1&&!w.log.includes('けがにん'),'HP2/10',w.log);}
+  {const w=chestScene('普通',100,{dead:true});
+    check('罠と宝箱：倒れて担がれているだけでは、2割未満の見送りには当たらない',w.chests===1&&!w.log.includes('けがにん'),'死者1人・ほかは満タン',w.log);}
+  {const win=(hp,cls,mp)=>{const E=load(1,1e-9),S=E.newState();const p=Object.values(S.parties).find(x=>x.tav==='ours');
+      p.floor=4;p.state='explore';p.log=[];p.loot=0;p.trip=trip0();p.maps={};p.tmap={};p.potions=0;p.buff=0;p.guard=0;
+      p.members.forEach(id=>{const a=S.adv[id];a.status='party';a.hp=a.mhp=100;a.mp=0;a.poison=0;a.cls='戦士';a.traits=[];a.lvl=8;a.pers='普通';});
+      const L=S.adv[p.leader];L.pers='普通';const heal=S.adv[p.members.find(id=>id!==L.id)];heal.cls=cls;heal.mp=mp;
+      const hurt=S.adv[p.members.find(id=>id!==L.id&&id!==heal.id)];hurt.hp=hp;
+      p.etype={n:'スライム',f:1};p.enemies=[{hp:1}];
+      E.victory(S,p);return {log:p.log.map(l=>l.t).join('\n'),chests:p.trip.chests,hp:hurt.hp};};
+    const still=win(1,'錬金術師',3),over=win(15,'錬金術師',3),plain=win(19,'戦士',0);
+    check('罠と宝箱：勝ったあとの手当てでも2割を切っていれば、その箱は開けない',still.chests===0&&still.hp<20&&still.log.includes('ひやく')&&still.log.includes('けがにんが いる'),'HP1が秘薬のあと',`${still.hp} ${still.log}`);
+    check('罠と宝箱：手当てで2割以上に戻っていれば、その箱は開ける',over.chests===1&&over.hp>=20&&over.log.includes('ひやく')&&!over.log.includes('けがにん'),'HP15が秘薬のあと',`${over.hp} ${over.log}`);
+    check('罠と宝箱：手当てがなければ、勝った直後の体力のまま見送る',plain.chests===0&&plain.hp===19&&plain.log.includes('けがにんが いる')&&!plain.log.includes('ひやく'),'戦士だけ',plain.log);}
+  // 「画面と語り」：水晶の一言と札の理由。表示だけで、知らせは増えない
+  const dangerScene=mut=>{const E=load(2),S=E.newState();const p=Object.values(S.parties).find(x=>x.tav==='ours');
+    p.state='explore';p.floor=4;p.enemies=null;p.pushWhy=null;p.maps={[4]:1};p.tmap={};p.potions=0;
+    p.members.forEach(id=>{const a=S.adv[id];a.status='party';a.hp=a.mhp=100;a.mp=5;a.poison=0;a.cls='戦士';a.lvl=8;a.traits=[];});
+    const L=S.adv[p.leader];L.pers='普通';L.cls='戦士';L.mp=0;L.hp=L.mhp=100;
+    const n0=S.news.length;mut(S,p,L);const d=E.partyDanger(S,p);
+    return {d,p,S,E,L,news:S.news.length-n0,band:id=>E.hpBand(S.adv[id])};};
+  {const hurtId=(p,L)=>p.members.find(id=>id!==L.id);
+    const w=dangerScene((S,p,L)=>{const a=S.adv[hurtId(p,L)];a.mhp=12;a.hp=1;});
+    const name=w.S.adv[hurtId(w.p,w.L)].name;
+    check('危険の知らせ：2割を切った者の名前で深手の一言が出て、札は深手と出る',w.d&&w.d.key==='wound'&&w.d.line===`${name}が ふかでを おっている`&&w.d.card==='深手の者がいる'&&!w.d.thought&&!w.d.fight&&w.news===0&&w.band(hurtId(w.p,w.L))==='crit','HP1/12',JSON.stringify(w.d));
+    const tie=dangerScene((S,p,L)=>{const ids=p.members.filter(id=>id!==L.id);S.adv[ids[0]].hp=10;S.adv[ids[1]].hp=10;S.adv[ids[0]].mhp=S.adv[ids[1]].mhp=100;});
+    check('危険の知らせ：深手が同じ割合なら、並びの先の名前を出す',tie.d&&tie.d.line.startsWith(tie.S.adv[tie.p.members.find(id=>id!==tie.L.id)].name),'二人とも1割',tie.d&&tie.d.line);
+    const exact=dangerScene((S,p,L)=>{const a=S.adv[hurtId(p,L)];a.hp=20;});
+    check('危険の知らせ：ちょうど2割は深手にせず、帯は少ない側になる',!exact.d&&exact.band(hurtId(exact.p,exact.L))==='low','HP20/100',JSON.stringify(exact.d));
+    const mid=dangerScene((S,p,L)=>{const a=S.adv[hurtId(p,L)];a.hp=30;});
+    check('危険の知らせ：35%未満でも2割以上なら、深手の一言は出さず帯は少ない側',!mid.d&&mid.band(hurtId(mid.p,mid.L))==='low','HP30/100',JSON.stringify(mid.d));
+    const ok=dangerScene((S,p,L)=>{S.adv[hurtId(p,L)].hp=50;});
+    check('危険の知らせ：35%以上は一言も出さず、帯はふつうの色',!ok.d&&ok.band(hurtId(ok.p,ok.L))==='','HP50/100','');
+    const dead=dangerScene((S,p,L)=>{S.adv[hurtId(p,L)].hp=0;});
+    check('危険の知らせ：倒れた者は深手ではなく死んだ色で、それだけでは一言が出ない',!dead.d&&dead.band(hurtId(dead.p,dead.L))==='dead','HP0',JSON.stringify(dead.d));}
+  {const poison=dangerScene((S,p,L)=>{const a=S.adv[p.members.find(id=>id!==L.id)];a.poison=1;a.cls='戦士';p.potions=10;});
+    const name=poison.S.adv[poison.p.members.find(id=>id!==poison.L.id)].name;
+    check('危険の知らせ：ドクケシを唱える者がいない毒は、回復薬があっても抜けない',poison.d&&poison.d.key==='poison'&&poison.d.line===`${name}の どくが ぬけない`&&poison.d.card==='毒が抜けない'&&poison.news===0,'僧侶なし・回復薬10',JSON.stringify(poison.d));
+    const cured=dangerScene((S,p,L)=>{const ids=p.members.filter(id=>id!==L.id);S.adv[ids[0]].poison=1;S.adv[ids[1]].cls='僧侶';S.adv[ids[1]].mp=3;});
+    check('危険の知らせ：呪文の残った癒し手がいれば、毒の一言は出ない',!cured.d,'僧侶MP3',JSON.stringify(cured.d));
+    const dry=dangerScene((S,p,L)=>{const ids=p.members.filter(id=>id!==L.id);S.adv[ids[0]].poison=1;S.adv[ids[1]].cls='僧侶';S.adv[ids[1]].mp=0;p.potions=8;});
+    check('危険の知らせ：癒し手の呪文が尽きていれば、毒の一言が呪文切れより先',dry.d&&dry.d.key==='poison'&&dry.d.card==='毒が抜けない','僧侶MP0・回復薬8',JSON.stringify(dry.d));
+    const spells=dangerScene((S,p,L)=>{const a=S.adv[p.members.find(id=>id!==L.id)];a.cls='僧侶';a.mp=0;p.potions=8;});
+    check('危険の知らせ：毒が無く呪文だけ尽きたときは、癒し手の一言で札には出さない',spells.d&&spells.d.key==='spells'&&spells.d.line==='いやしての じゅもんが つきた'&&!spells.d.card,'僧侶MP0',JSON.stringify(spells.d));}
+  {const low=dangerScene((S,p)=>{p.members.forEach(id=>{S.adv[id].hp=50;});});
+    check('危険の知らせ：体力の合計が引き返す目安より1割低いと、息が上がっている',low.d&&low.d.key==='breath'&&low.d.line==='いっこうの いきが あがっている'&&low.d.card==='息が上がっている'&&Math.abs(low.E.retreatLine(low.S,low.p)-.42)<1e-9,'普通・HP50%',JSON.stringify(low.d));
+    const young=dangerScene((S,p)=>{p.members.forEach(id=>{const a=S.adv[id];a.lvl=1;a.hp=60;});});
+    check('危険の知らせ：平均が低い一行は、引き返す線が上がったところで息が上がる',young.d&&young.d.key==='breath'&&young.E.retreatLine(young.S,young.p)>.5,'Lv1・HP60%',`線${young.E.retreatLine(young.S,young.p)}`);
+    const push=dangerScene((S,p)=>{p.pushWhy='race';p.members.forEach(id=>{S.adv[id].hp=40;});});
+    check('危険の知らせ：深みを目指す理由があると、息の線もその分下がる',push.d&&push.d.key==='breath'&&Math.abs(push.E.retreatLine(push.S,push.p)-.36)<1e-9,'目安0.36・HP40%',`線${push.E.retreatLine(push.S,push.p)}`);}
+  {const front=dangerScene((S,p,L)=>{p.floor=12;p.maps={};const a=S.adv[p.members.find(id=>id!==L.id)];a.cls='僧侶';a.mp=1;p.members.forEach(id=>{if(id!==a.id)S.adv[id].mp=0;S.adv[id].hp=55;});});
+    check('危険の知らせ：地図のない最前線で、息か呪文に近いときだけその一言が出る',front.d&&front.d.key==='front'&&front.d.line==='ちずの ない さいぜんせんに いる'&&!front.d.card,'B12F・HP55%・僧侶MP1',JSON.stringify(front.d));
+    const deep=dangerScene((S,p,L)=>{p.floor=20;p.maps={};const a=S.adv[p.members.find(id=>id!==L.id)];a.cls='僧侶';a.mp=5;});
+    check('危険の知らせ：安全な深さより下なだけでは一言を出さない',!deep.d,'B20F・体力も呪文も足りている',JSON.stringify(deep.d));
+    const mapped=dangerScene((S,p,L)=>{p.floor=12;p.maps={12:1};p.members.forEach(id=>{S.adv[id].hp=55;});});
+    check('危険の知らせ：地図があれば、最前線でもその一言は出ない',!mapped.d,'B12F・地図あり・HP55%',JSON.stringify(mapped.d));
+    const far=dangerScene((S,p,L)=>{p.floor=12;p.maps={};const a=S.adv[p.members.find(id=>id!==L.id)];a.cls='僧侶';a.mp=2;});
+    check('危険の知らせ：呪文が2残っていて体力にも余裕があれば、最前線だけでは出ない',!far.d,'B12F・僧侶MP2',JSON.stringify(far.d));}
+  {const wild=dangerScene((S,p,L)=>{S.adv[p.leader].pers='無謀';const a=S.adv[p.members.find(id=>id!==L.id)];a.hp=10;p.enemies=[{hp:5}];});
+    check('危険の知らせ：無謀なリーダーは深手でも引き返さず、戦いの最中はその注が付く',wild.d&&wild.d.key==='wound'&&wild.d.thought==='リーダーは ひきかえす きが ない'&&wild.d.fight==='たたかいの さいちゅう。いま めいじても にげきれるとは かぎらない','無謀・戦闘中',JSON.stringify(wild.d));
+    const greed=dangerScene((S,p,L)=>{S.adv[p.leader].pers='強欲';S.adv[p.members.find(id=>id!==L.id)].hp=10;});
+    check('危険の知らせ：強欲のリーダーには、引き返さない一言は出さない',greed.d&&greed.d.key==='wound'&&!greed.d.thought&&!greed.d.fight,'強欲',JSON.stringify(greed.d));
+    const calm=dangerScene((S,p,L)=>{S.adv[p.leader].pers='無謀';});
+    check('危険の知らせ：無謀でも深手がなければ、リーダーの考えは出さない',!calm.d,'無謀・満タン',JSON.stringify(calm.d));}
 }
 
 // ---- 何百日も回しながら、毎刻成り立つはずの性質 ----
