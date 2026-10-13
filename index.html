@@ -150,6 +150,8 @@ button:focus-visible,[tabindex]:focus-visible{outline:2px solid var(--amber);out
 .quote.board .pick{margin-top:6px;border-top:1px dashed var(--line);padding-top:4px}
 .quote.edict{border-left:3px solid var(--amber)}
 .note{color:var(--muted);font-size:12px;margin:0 0 10px}
+.boardhelp{margin:0 0 10px}
+.markline{color:var(--fg);font-size:13px;line-height:1.55;margin:0 0 10px;word-break:keep-all;line-break:strict;overflow-wrap:anywhere}
 .sect{margin-bottom:16px}
 .sect h3{font-size:12px;color:var(--muted);letter-spacing:.15em;margin:0 0 6px;font-weight:400}
 .row{display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px dashed var(--line);font-size:13px;flex-wrap:wrap}
@@ -189,8 +191,10 @@ button:focus-visible,[tabindex]:focus-visible{outline:2px solid var(--amber);out
 .nm-link:hover{color:var(--amber)}
 .c-members .nm-link{font-weight:400;text-decoration-color:#3a4677}
 .c-members .nm-link:hover{color:#fff}
-.adv-h{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;margin-bottom:2px}
+.adv-h{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:2px}
 .adv-h h2{margin:0}
+.adv-h .markbtn{display:inline-flex;align-items:center;justify-content:center;box-sizing:border-box;min-width:44px;min-height:44px}
+.markwhy{color:var(--fg);font-size:13px;line-height:1.55;margin:4px 0 10px;word-break:keep-all;line-break:strict;overflow-wrap:anywhere}
 .adv-sub{color:var(--muted);font-size:13px;margin-bottom:12px}
 .dream{border-left:3px solid var(--amber);padding:6px 10px;background:var(--panel2);margin:10px 0;font-size:13px}
 .dream.done{border-left-color:var(--heal)}
@@ -3489,7 +3493,7 @@ function migrateV2(S){
 /* ---------- UI ---------- */
 const KEY='kuroneko-tavern-v1';
 const shown={};
-let S,speed=1,tab='news',timer=null,toastT=null,ff=null,hiddenAt=null,pickErr=null,reviveNote=null;
+let S,speed=1,tab='news',timer=null,toastT=null,ff=null,hiddenAt=null,pickErr=null,reviveNote=null,boardHelpOpen=false;
 const $=id=>document.getElementById(id);
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 
@@ -3778,9 +3782,10 @@ function sideBoard(){
     return `<div class="quote board"><b>${esc(e.n)}</b>${e.arc?`<span class="markmark">続きもの・${esc(ARCS[e.arc].n)}　${e.stage}/${ARCS[e.arc].stages.length}</span>`:''}<span class="by">${esc(e.from)}から・${h?'引き受け済み':`掲示はあと${dd(e.until)}日`}</span>「${esc(e.t)}」${foot}</div>`;};
   const log=E.log.slice(-5).reverse().map(l=>`<div class="row"><span class="who">${l.ok?'<span class="chip">果たした</span>':'<span class="chip ash">果たせず</span>'} ${esc(l.n)}${l.who?`・${l.id&&S.adv[l.id]?nmLink(S.adv[l.id]):esc(l.who)}`:''}<span class="does">${esc(l.t)}</span></span><span class="meta">${dayMark(l.tk)}</span></div>`).join('');
   const shallow=st===1?'<p class="note">いまは浅い頼みごとだけ。名が上がれば、もっと持ち込まれる。</p>':'';
-  const marks=markCap?`<p class="note">見込んだ者　${mk.length} / ${markCap}${mk.length?'：'+mk.map(a=>nmLink(a)).join('・'):''}。${st===2?'見込めるのは、いまは一人だけ。':''}手帳から見込める。見込んだ者に噛み合う話が来やすくなる。</p>`:'';
+  const marks=markCap?`<p class="markline">見込んだ者　${mk.length} / ${markCap}${mk.length?'：'+mk.map(a=>nmLink(a)).join('・'):''}。${st===2?'見込めるのは、いまは一人だけ。':''}手帳から見込める。見込んだ者に噛み合う話が来やすくなる。</p>`:'';
+  const help=`<p class="boardhelp"><button class="btn sm" data-act="boardhelp" aria-expanded="${boardHelpOpen?'true':'false'}">話の回し方</button></p>${boardHelpOpen?'<p class="note">店主が決めるのは、話を誰に回すかだけ。向き不向きは話の文面ににじむ。手帳を開いて、怖いものや得意不得意、出身と照らし合わせること。話が伝わるのは、主役が酒場にいて、一行が街で休んでいるとき。迷宮に出ている者を選んでおけば、戻ったときに伝える。</p>':''}`;
   return `<div class="sect"><h3>掲示　持ち込まれた話　${E.board.length} / ${cap}</h3>
-  <p class="note">店主が決めるのは、話を誰に回すかだけ。向き不向きは話の文面ににじむ。手帳を開いて、怖いものや得意不得意、出身と照らし合わせること。話が伝わるのは、主役が酒場にいて、一行が街で休んでいるとき。迷宮に出ている者を選んでおけば、戻ったときに伝える。</p>
+  ${help}
   ${shallow}
   ${E.board.map(card).join('')||'<p class="note">いまは、持ち込まれた話はない。</p>'}
   ${marks}
@@ -3971,14 +3976,16 @@ function dreamProgress(a){
   return DREAMS[d.k].prog?DREAMS[d.k].prog(a,d,S):'';
 }
 let advOpen=null;
+function markFullLine(){return `見込みは満員（${markedOf(S).length}/${markMax(S)}）。誰かの見込みを外すと見込める。`;}
 function renderAdv(){
   if(advOpen==null)return;const a=S.adv[advOpen];if(!a)return;
   const box=$('advbox');const st=box.scrollTop;
   const status={idle:'酒場にいる',party:'探索中',missing:'行方不明',dead:'寺院で眠る（死）',ash:'寺院で眠る（灰）',lost:'ロスト',retired:'店を去った'}[a.status];
   const team=a.party&&S.parties[a.party]?partyShown(S.parties[a.party].name):'なし';
   const d=a.dream;
-  const canMark=markMax(S)>0&&a.tav==='ours'&&a.status!=='lost'&&a.status!=='retired';const he=a.tav==='ours'&&heroErrand(S,a),pe=a.tav==='ours'&&boardOpen(S)&&errandsOf(S).board.find(e=>e.pend===a.id);
-  box.innerHTML=`<div class="adv-h"><h2>${a.title?`<span class="ttl">「${esc(a.title)}」</span>`:''}${esc(a.name)}</h2><span class="chip ${a.status}">${status}</span>${teamTag(a)}${markTag(a)}${a.opening?'<span class="markmark">開店からの常連</span>':''}${canMark?`<button class="btn sm" data-act="mark" data-a="${a.id}" ${!a.marked&&markedOf(S).length>=markMax(S)?'disabled':''}>${a.marked?'見込みを外す':'見込む'}</button>`:''}</div>
+  const canMark=markMax(S)>0&&a.tav==='ours'&&a.status!=='lost'&&a.status!=='retired';const markFull=canMark&&!a.marked&&markedOf(S).length>=markMax(S);const he=a.tav==='ours'&&heroErrand(S,a),pe=a.tav==='ours'&&boardOpen(S)&&errandsOf(S).board.find(e=>e.pend===a.id);
+  box.innerHTML=`<div class="adv-h"><h2>${a.title?`<span class="ttl">「${esc(a.title)}」</span>`:''}${esc(a.name)}</h2><span class="chip ${a.status}">${status}</span>${teamTag(a)}${markTag(a)}${a.opening?'<span class="markmark">開店からの常連</span>':''}${canMark?`<button class="btn sm markbtn" data-act="mark" data-a="${a.id}" ${markFull?'disabled':''}>${a.marked?'見込みを外す':'見込む'}</button>`:''}</div>
+  ${markFull?`<p class="markwhy">${markFullLine()}</p>`:''}
   ${he?`<div class="dream"><small>引き受けている話</small>「${esc(he.n)}」${FN(he.f)}・あと${Math.max(1,Math.ceil((he.until-S.tick)/TICKS_PER_DAY))}日</div>`:''}
   ${pe?`<div class="dream"><small>回すつもりの話（次に酒場で会えたら伝える）</small>「${esc(pe.n)}」${FN(pe.f)}・掲示はあと${Math.max(1,Math.ceil((pe.until-S.tick)/TICKS_PER_DAY))}日</div>`:''}
   <div class="adv-sub">${S.taverns[a.tav].name}の客・出身：${esc(originOf(a))}${a.origin&&ORIGINS[a.origin].far?'（大陸の外）':''}・${sexAgeHtml(a)}${a.race!=='人間'?nw('（実年齢'+a.age+'歳）'):''}・${nw('レベル'+a.lvl)}（${rankOf(a.lvl)}） ${nw(a.race+'の'+a.cls)}・${a.pers}・${esc(a.quirk)}・素質「${a.tal}」<br>${esc(a.bg)}<br>口調：${esc(a.tone||'普通')}・口癖「${esc(a.catch||'')}」・好物：${esc(a.food||'')}${a.fear?'・怖いもの：'+esc(a.fear):''}</div>
@@ -4056,6 +4063,7 @@ document.addEventListener('click',e=>{
   if(act==='invest'||act==='buysmall'){const t=smallOf(S).find(x=>x.n===b.dataset.n);if(t&&(act==='invest'?invest(S,t):buySmall(S,t)))toast(act==='invest'?`${t.n}に出資した`:`${t.n}を買い取った`);render();save();return;}
   if(act==='revive'){const a=S.adv[b.dataset.a];const c=a&&templeCost(S,a);if(a&&(a.status==='dead'||a.status==='ash')&&T().gold>=c){T().gold-=c;flowAdd(S,'v',c);const r=temple(S,a,true);const t=reviveResultText(a.name,r);reviveNote=t?{id:a.id,t,kind:r,status:a.status}:null;if(t)toast(t);render();save();}return;}
   if(act==='pickerr'){pickErr=b.dataset.e?+b.dataset.e:null;renderSide();return;}
+  if(act==='boardhelp'){boardHelpOpen=!boardHelpOpen;renderSide();return;}
   if(act==='assign'){const e=errandsOf(S).board.find(x=>x.id===+b.dataset.e),a=S.adv[b.dataset.a];const r=e&&a&&assignErrand(S,e,a);
     if(r==='ok'){pickErr=null;toast(`「${e.n}」を${a.name}に回した`);}else if(r==='pending'){pickErr=null;toast(`「${e.n}」は、次に酒場で会えたら${a.name}に伝える`);}else if(r==='refused')toast(`${a.name}は「${e.n}」を断った`);render();save();return;}
   if(act==='unpend'){const e=errandsOf(S).board.find(x=>x.id===+b.dataset.e);if(e&&e.pend){e.pend=null;toast(`「${e.n}」の主役の指定を取り消した`);}render();save();return;}
