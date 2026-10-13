@@ -1114,6 +1114,40 @@ test('900px以下では返済の帯とタブが初めから見え、ページ自
   assert.deepEqual(errors,[]);await ctx.close();
 });
 
+test('900px以下で中身の短いタブは、下まで送ったところで止まり、中身は帯の上にすべて見える',async()=>{
+  const {ctx,page,errors}=await open();
+  await page.locator('#sp0').click();
+  // 開き立て。帳場は長く先頭が上に来る。記念碑は短い。迷宮日報は375では上まで届き、768では届かない。
+  const expect={375:{desk:'top',news:'top',stone:'short'},768:{desk:'top',news:'short',stone:'short'}};
+  const place=()=>page.evaluate(()=>{
+    const wrap=document.querySelector('.wrap');
+    const side=document.querySelector('.side').getBoundingClientRect();
+    const wr=wrap.getBoundingClientRect();
+    const tb=document.querySelector('#tbody').getBoundingClientRect();
+    const pay=document.querySelector('#payw'),tabs=document.querySelector('.tabs');
+    const anchor=(pay&&!pay.hidden?pay:tabs).getBoundingClientRect().top;
+    return {sideTop:side.top,wrapTop:wr.top,tbTop:tb.top,tbBot:tb.bottom,anchor,remain:wrap.scrollHeight-wrap.scrollTop-wrap.clientHeight,pageTop:document.scrollingElement.scrollTop};
+  });
+  for(const [width,height] of [[375,740],[768,1024]]){
+    await page.setViewportSize({width,height});
+    await page.evaluate(()=>document.fonts.ready);
+    for(const name of ['desk','news','stone']){
+      await page.evaluate(()=>{document.querySelector('.wrap').scrollTo(0,0);window.scrollTo(0,0);});
+      await page.locator(`button[data-v="${name}"]`).click();
+      const m=await place();
+      const atTop=m.sideTop<=m.wrapTop+8;
+      const where=`${width}×${height} の${name}（先頭 ${Math.round(m.sideTop)}、上端 ${Math.round(m.wrapTop)}、残り ${Math.round(m.remain)}）`;
+      assert.equal(m.pageTop,0,`${where} でページ自体が動いている`);
+      assert.equal(atTop?'top':'short',expect[width][name],where);
+      if(!atTop){
+        assert.ok(m.remain<=1,`${where} は下まで送っていない`);
+        assert.ok(m.tbTop>=m.wrapTop-1&&m.tbBot<=m.anchor+1,`${where} の中身が帯の上に見えない ${Math.round(m.tbTop)}..${Math.round(m.tbBot)} 帯 ${Math.round(m.anchor)}`);
+      }
+    }
+  }
+  assert.deepEqual(errors,[]);await ctx.close();
+});
+
 test('帳場の設備と席に、いまの段が出る',async()=>{
   const {ctx,page,errors}=await open();
   await page.locator('#sp0').click();
@@ -1142,6 +1176,25 @@ test('帳場の設備と席に、いまの段が出る',async()=>{
     const seats=document.querySelector('[data-seats]');
     return {dojo:fac('dojo'),info:fac('info'),inn:fac('inn'),seats:seats?flat(seats.innerText):'',wide:document.documentElement.scrollWidth>innerWidth+1};
   });
+  const lvUnderName=async width=>{
+    const place=await page.evaluate(()=>{
+      const one=sel=>{
+        const row=document.querySelector(sel);
+        const name=row.querySelector('b').getBoundingClientRect();
+        const lv=row.querySelector('.meta.lv').getBoundingClientRect();
+        return {nt:name.top,nb:name.bottom,nl:name.left,lt:lv.top,ll:lv.left};
+      };
+      return {dojo:one('[data-fac="dojo"]'),info:one('[data-fac="info"]'),inn:one('[data-fac="inn"]'),seats:one('[data-seats]')};
+    });
+    const bad=[];
+    for(const [k,p] of Object.entries(place)){
+      if(p.lt<p.nb-1)bad.push(`${k} の段が名前の下にない`);
+      if(Math.abs(p.ll-p.nl)>2)bad.push(`${k} の段の左が名前と揃わない`);
+    }
+    const lefts=Object.values(place).map(p=>p.ll);
+    if(Math.max(...lefts)-Math.min(...lefts)>2)bad.push('設備と席で段の左端が揃わない');
+    assert.deepEqual(bad,[],`${width}px の段の位置 ${JSON.stringify(place)}`);
+  };
   for(const [width,height] of [[375,740],[1280,800]]){
     await page.setViewportSize({width,height});
     await page.evaluate(()=>document.fonts.ready.then(()=>new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)))));
@@ -1159,6 +1212,7 @@ test('帳場の設備と席に、いまの段が出る',async()=>{
     assert.doesNotMatch(fresh.seats,/支店/);
     assert.equal(fresh.wide,false,width+' でページが横にはみ出す');
     for(const sel of ['[data-fac="dojo"]','[data-fac="info"]','[data-fac="inn"]','[data-seats]'])assert.deepEqual(await phrases(sel),[],`${width}px の ${sel}`);
+    await lvUnderName(width);
   }
   await page.setViewportSize({width:375,height:740});
   await page.evaluate(()=>{S.taverns.ours.gold=20000;render();});
@@ -1196,6 +1250,7 @@ test('帳場の設備と席に、いまの段が出る',async()=>{
     await page.evaluate(()=>document.fonts.ready.then(()=>new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)))));
     const view=await read();
     assert.equal(view.wide,false,width+' でページが横にはみ出す');
+    await lvUnderName(width);
     if(width<=640)for(const sel of ['[data-fac="dojo"]','[data-fac="info"]','[data-fac="inn"]','[data-seats]'])assert.deepEqual(await phrases(sel),[],`${width}px の段 ${sel}`);
     if(width>640){
       const beside=await page.evaluate(()=>{
