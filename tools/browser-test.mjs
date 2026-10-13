@@ -1765,3 +1765,87 @@ test('帳場のきょうの出入りは前日と直近7日で、375pxでも短�
   assert.deepEqual(await layout(),[]);
   assert.deepEqual(errors,[]);await ctx.close();
 });
+
+test('倒れた者の札、番付の数、出資の買い取り、記念碑の印が状態と合う',async()=>{
+  const {ctx,page,errors}=await open();
+  await page.locator('#sp0').click();
+  const roster=await page.evaluate(()=>{
+    const p=Object.values(S.parties).find(x=>x.tav==='ours'&&x.members.length>=2);
+    const down=S.adv[p.members.find(id=>id!==p.leader)];
+    const up=S.adv[p.leader];
+    down.hp=0;down.status='party';
+    up.hp=up.mhp;up.status='party';
+    const miss=Object.values(S.adv).find(a=>a.tav==='ours'&&a.id!==down.id&&a.id!==up.id);
+    miss.hp=0;miss.status='missing';miss.party=null;
+    tab='roster';render();
+    const row=name=>[...document.querySelectorAll('#tbody .row')].find(el=>el.textContent.includes(name));
+    const chip=name=>row(name).querySelector('.chip').textContent;
+    const card=[...document.querySelectorAll('.pcard')].find(el=>el.dataset.p==p.id);
+    const mark=name=>{
+      const who=[...card.querySelectorAll('.who')].find(el=>el.querySelector('.nm').textContent.replace('★','')===name);
+      return who.querySelector('.cls').textContent;
+    };
+    const sect=name=>row(name).closest('.sect').querySelector('h3').textContent;
+    return {down:down.name,up:up.name,miss:miss.name,chipDown:chip(down.name),chipUp:chip(up.name),chipMiss:chip(miss.name),markDown:mark(down.name),markUp:mark(up.name),sectDown:sect(down.name),sectMiss:sect(miss.name)};
+  });
+  assert.equal(roster.chipDown,'倒れている');
+  assert.match(roster.markDown,/倒$/);
+  assert.match(roster.sectDown,/探索中/);
+  assert.equal(roster.chipUp,'探索中');
+  assert.doesNotMatch(roster.markUp,/倒/);
+  assert.equal(roster.chipMiss,'行方不明');
+  assert.match(roster.sectMiss,/行方不明/);
+  const rankOf=()=>page.evaluate(()=>{
+    tab='rank';render();
+    const rows=rankRows(S),won=rows.filter(r=>r.lead>0).length;
+    const note=document.querySelector('#tbody .sect .note').textContent;
+    return {n:rows.length,won,note};
+  });
+  const quiet=await rankOf();
+  assert.equal(quiet.n,8);
+  assert.match(quiet.note,new RegExp(`（${quiet.n}項目のうち${quiet.won}項目で上回る）`));
+  if(quiet.won<=3)assert.match(quiet.note,/まだ追いかける側だ/);
+  const ahead=await page.evaluate(()=>{
+    S.taverns.ours.rep=824;S.taverns.rival.rep=601;
+    S.mine={open:0};
+    tab='rank';render();
+    const rows=rankRows(S),won=rows.filter(r=>r.lead>0).length;
+    const rep=rows.find(r=>r.name==='評判');
+    const note=document.querySelector('#tbody .sect .note').textContent;
+    return {n:rows.length,won,lead:rep.lead,note};
+  });
+  assert.equal(ahead.n,9);
+  assert.ok(ahead.lead>0);
+  assert.match(ahead.note,new RegExp(`（${ahead.n}項目のうち${ahead.won}項目で上回る）`));
+  if(ahead.won<=3)assert.match(ahead.note,/まだ追いかける側だ。/);
+  if(ahead.won>=6)assert.match(ahead.note,/新参と呼ぶ者はいない。/);
+  const before=await page.evaluate(()=>{
+    const t=smallOf(S).find(x=>!x.owned&&x.score<3);
+    S.taverns.ours.gold=1e9;
+    tab='rank';render();
+    return {n:t.n,price:buyPrice(S,t),note:document.querySelector('#tbody').innerText};
+  });
+  assert.match(before.note,/景気が上がると、買い取りの値も上がる/);
+  assert.match(before.note,new RegExp('買い取る '+before.price+'G'));
+  await page.locator(`button[data-act="invest"][data-n="${before.n}"]`).click();
+  const after=await page.evaluate(n=>{
+    const t=smallOf(S).find(x=>x.n===n);
+    return {price:buyPrice(S,t),score:t.score,note:document.querySelector('#tbody').innerText};
+  },before.n);
+  assert.ok(after.price>before.price,`${before.price}→${after.price}`);
+  assert.ok(after.score>0);
+  assert.match(after.note,/景気が上がると、買い取りの値も上がる/);
+  assert.match(after.note,new RegExp('買い取る '+after.price+'G'));
+  const badge=await page.evaluate(()=>{
+    S.memorial.push({id:1,name:'消えた者',cls:'戦士',lvl:1,race:'人間',tav:'rival',tk:1,by:'オーク',floor:2,kills:0});
+    tab='news';render();
+    const btn=[...document.querySelectorAll('#tabs button')].find(b=>b.dataset.v==='stone');
+    return btn.querySelector('.cnt').textContent;
+  });
+  assert.equal(badge,'ロスト1');
+  await page.locator('button[data-v="stone"]').click();
+  const still=await page.locator('button[data-v="stone"] .cnt').innerText();
+  assert.equal(still,'ロスト1');
+  assert.match(await page.locator('#tbody').innerText(),/消えた者/);
+  assert.deepEqual(errors,[]);await ctx.close();
+});
