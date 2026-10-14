@@ -32,7 +32,7 @@ const html=readFileSync(new URL('../index.html',import.meta.url),'utf8');
 const ENGINE=html.match(/\/\*ENGINE START\*\/([\s\S]*?)\/\*ENGINE END\*\//)[1];
 const EXPORTS=['newState','tick','rivalTemple','seatCap','seatsUsed','nextSeats','newcomerLvl','buyPrice','investPrice','FACILITIES',
   'RARES','MAXF','DRAGON_F','TICKS_PER_DAY','awayPlan','smallOf','debtTick','DEBT0','encounter','rareSlain','rareMonOf','arrive',
-  'repay','flowAdd','flowView','flowRoll','policyCost','goldSign','errandsOf','assignErrand','errandBlock','designateBlock','MAXF','MINE_TOP','MINE_BOT','MINE_N','FN','deepNow','G','groupMoney','floorsInit','mineOpen','conquest','mineConquest','title','alive','markAdv','markedOf','BOARD_MAX','MARK_MAX','errandStage','boardMax','markMax','ARCS','reachFloor','GATE_F','fac','nextFac','buildFac','migrate','partyShown','crestJa','glossText','PT_A','PT_B','takeCrest','pickCrest','newPartyName','combat','MON','elemMul','elemNote','sleepMul','sleepReach','MINE_RARES','supplyTeam','potionPrice','lendRival','reviveChance','reviveHint','reviveResultText','temple','checkMemo','memoState','nextDue','rankRows','MEMO','setQuietLog','DREAMS','rollAge','AGE2','ORIGINS','careerLine','originBg','BGS','originIntro','newcomerClause','doorLine','ourNewcomerNews','SPELL_LIST','foePool','dz','SAVE_V','chest','victory','partyDanger','hpBand','retreatLine','retire','letterTick','kinTick','schedulePendingLetters','scheduleLostKin','memorialize','lostRareLine','dreamText','letterQuote','checkDream','wipe','wipeCause','errandEvent','errandFailLine','partyOverdue','fitOf','ERRANDS'];
+  'repay','flowAdd','flowView','flowRoll','policyCost','goldSign','errandsOf','assignErrand','errandBlock','designateBlock','MAXF','MINE_TOP','MINE_BOT','MINE_N','FN','deepNow','G','groupMoney','floorsInit','mineOpen','conquest','mineConquest','title','alive','markAdv','markedOf','BOARD_MAX','MARK_MAX','errandStage','boardMax','markMax','ARCS','reachFloor','GATE_F','fac','nextFac','buildFac','migrate','partyShown','crestJa','glossText','PT_A','PT_B','takeCrest','pickCrest','newPartyName','combat','MON','elemMul','elemNote','sleepMul','sleepReach','MINE_RARES','supplyTeam','potionPrice','lendRival','reviveChance','reviveHint','reviveResultText','temple','checkMemo','memoState','nextDue','rankRows','MEMO','setQuietLog','DREAMS','rollAge','AGE2','ORIGINS','careerLine','originBg','BGS','originIntro','newcomerClause','doorLine','ourNewcomerNews','SPELL_LIST','foePool','dz','chest','victory','partyDanger','hpBand','retreatLine','retire','letterTick','kinTick','schedulePendingLetters','scheduleLostKin','memorialize','lostRareLine','dreamText','letterQuote','checkDream','wipe','wipeCause','errandEvent','errandFailLine','partyOverdue','returnPeril','SAVE_V','fitOf','ERRANDS'];
 
 // 乱数の種を固定したゲームの中身を1つ作る。中身の Math.random だけを差し替える
 function load(seed,fixed){
@@ -79,6 +79,8 @@ function checkTables(){
   // 「借金と返済」：最初の借金と所持金
   check('借金と返済：80000Gの借金と400Gで始まる',S.taverns.ours.debt===80000&&S.taverns.ours.gold===400,'開店',`借金${S.taverns.ours.debt} 所持金${S.taverns.ours.gold}`);
   check('金額：画面に出すときは3桁ごとに区切る',E.G(600000)==='600,000G'&&E.G(5600)==='5,600G'&&E.G(50)==='50G'&&E.G(0)==='0G'&&E.G(-1540)==='-1,540G'&&E.groupMoney('返済5600Gと罰金1600G。残りは600000G。')==='返済5,600Gと罰金1,600G。残りは600,000G。'&&E.groupMoney(E.groupMoney('600000G'))==='600,000G','G',E.G(600000));
+  {const src='<div class="g" data-n="5600G" id="x1234Gb"><b>1234</b>Gold 12GB 3 Gold v1234G 1.2345G 返済5600G</div>',out=E.groupMoney(src);
+  check('金額：金額でない数字＋G（タグの属性、12GB、3 Gold、v1234G、1.2345G）は区切らない',out==='<div class="g" data-n="5600G" id="x1234Gb"><b>1234</b>Gold 12GB 3 Gold v1234G 1.2345G 返済5,600G</div>'&&E.groupMoney('1234 Gの残り')==='1,234 Gの残り'&&E.groupMoney('-1540G')==='-1,540G','G',out);}
   check('最深：着いていないときは―',E.deepNow(0)==='―'&&E.deepNow(1)==='B1F'&&E.FN(0)==='B0F','deepNow',E.deepNow(0));
   {const rare=E.MEMO.find(m=>m.id==='rare');
     check('覚え書き：名のある魔物は一体',!!rare&&rare.t==='名のある魔物を、一体仕留める','MEMO',rare&&rare.t);}
@@ -706,6 +708,15 @@ function checkAffinity(){
     check('危険の知らせ：35%以上は一言も出さず、帯はふつうの色',!ok.d&&ok.band(hurtId(ok.p,ok.L))==='','HP50/100','');
     const dead=dangerScene((S,p,L)=>{S.adv[hurtId(p,L)].hp=0;});
     check('危険の知らせ：倒れた者は深手ではなく死んだ色で、それだけでは一言が出ない',!dead.d&&dead.band(hurtId(dead.p,dead.L))==='dead','HP0',JSON.stringify(dead.d));}
+  {const hurtId=(p,L)=>p.members.find(id=>id!==L.id);
+    const near=dangerScene((S,p,L)=>{p.state='return';p.members.forEach(id=>{S.adv[id].hp=10;});S.adv[hurtId(p,L)].mhp=12;S.adv[hurtId(p,L)].hp=1;});
+    check('帰還中の札：深手の者がいて体力の合計が引き返す目安の半分を下回れば、全滅が近いとみる',near.E.returnPeril(near.S,near.p)===true,'普通・HP1割',near.E.retreatLine(near.S,near.p));
+    const calm=dangerScene((S,p,L)=>{p.state='return';S.adv[hurtId(p,L)].mhp=12;S.adv[hurtId(p,L)].hp=1;});
+    check('帰還中の札：深手の者がいても体力の合計が多ければ、全滅が近いとはみない',calm.E.returnPeril(calm.S,calm.p)===false,'ほかは満タン','');
+    const breath=dangerScene((S,p)=>{p.state='return';p.members.forEach(id=>{S.adv[id].hp=21;});});
+    check('帰還中の札：深手の者がいなければ、体力が少なくても全滅が近いとはみない',breath.d&&breath.d.key==='breath'&&breath.E.returnPeril(breath.S,breath.p)===false,'全員HP21%',JSON.stringify(breath.d));
+    const half=dangerScene((S,p,L)=>{p.state='return';p.members.forEach(id=>{S.adv[id].hp=21;});S.adv[hurtId(p,L)].hp=10;L.hp=32;});
+    check('帰還中の札：体力の合計がちょうど目安の半分なら、全滅が近いとはみない',half.E.returnPeril(half.S,half.p)===false,'合計21%・線42%','');}
   {const poison=dangerScene((S,p,L)=>{const a=S.adv[p.members.find(id=>id!==L.id)];a.poison=1;a.cls='戦士';p.potions=10;});
     const name=poison.S.adv[poison.p.members.find(id=>id!==poison.L.id)].name;
     check('危険の知らせ：ドクケシを唱える者がいない毒は、回復薬があっても抜けない',poison.d&&poison.d.key==='poison'&&poison.d.line===`${name}の どくが ぬけない`&&poison.d.card==='毒が抜けない'&&poison.news===0,'僧侶なし・回復薬10',JSON.stringify(poison.d));
