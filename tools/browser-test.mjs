@@ -78,6 +78,82 @@ test('1時間裏にいて戻ると、「留守のあいだに」が出て10日�
   assert.deepEqual(errors,[]);await ctx.close();
 });
 
+test('留守のあいだの減りは売上と書かず、帳場は返した額と利息を分ける',async()=>{
+  const {ctx,page,errors}=await open();
+  await page.locator('#sp0').click();
+  const shown=await page.evaluate(()=>{
+    const T=S.taverns.ours;
+    // 売上 +923、返済 5580、支援 0 で、所持金は -4657
+    T.gold=5343;T.earned=923;T.support=0;T.repaid=5580;T.interestPaid=1580;T.debt=75000;
+    drawDigest({i:50,n:50,awaySec:3600,startTick:0,g0:10000,e0:0,s0:0,r0:0,lost0:S.memorial.length,returns:1,wipes:0});
+    document.querySelector('#digest').hidden=false;
+    return {sum:document.querySelector('#dg-sum').innerText,brk:document.querySelector('#dg-brk').innerText};
+  });
+  assert.match(shown.sum,/-4657G/);
+  assert.match(shown.sum,/所持金/);
+  assert.doesNotMatch(shown.sum,/売上/);
+  assert.match(shown.brk,/売上 \+923G/);
+  assert.match(shown.brk,/支援 0G/);
+  assert.match(shown.brk,/返済 5580G/);
+  await page.setViewportSize({width:375,height:740});
+  await page.evaluate(()=>document.fonts.ready);
+  const digestWrap=await page.evaluate(()=>{
+    const bad=[];
+    for(const s of document.querySelectorAll('#dg-brk .nw')){
+      const range=document.createRange();range.selectNodeContents(s);
+      const n=new Set([...range.getClientRects()].filter(r=>r.width>2).map(r=>Math.round(r.top))).size;
+      if(n!==1)bad.push(s.textContent);
+    }
+    if(document.documentElement.scrollWidth>innerWidth+1)bad.push('はみ出す');
+    return bad;
+  });
+  assert.deepEqual(digestWrap,[]);
+  await page.evaluate(()=>{document.querySelector('#digest').hidden=true;});
+  await page.setViewportSize({width:1280,height:800});
+  const live=await page.evaluate(()=>{
+    const T=S.taverns.ours;
+    T.gold=20000;T.earned=100;T.support=40;T.repaid=1000;T.interestPaid=0;T.debt=79000;T.late=0;T.nextPay=S.tick;
+    S.policy=Object.assign({},S.policy,{potion:3,mapPay:1,revive:1,rookie:1});
+    return {gold:T.gold,earned:T.earned,support:T.support,repaid:T.repaid};
+  });
+  await page.locator('[data-act="skip"]').click();
+  await page.clock.runFor(5000);
+  const after=await page.evaluate(()=>{
+    const T=S.taverns.ours;
+    return {gold:T.gold,earned:T.earned,support:T.support||0,repaid:T.repaid||0,interest:T.interestPaid||0,v:S.v,
+      sum:document.querySelector('#dg-sum').innerText,brk:document.querySelector('#dg-brk').innerText};
+  });
+  assert.equal(after.v,26);
+  assert.doesNotMatch(after.sum,/売上/);
+  assert.match(after.sum,/所持金/);
+  const gd=after.gold-live.gold,esign=gd>=0?`+${gd}`:String(gd);
+  assert.match(after.sum,new RegExp(esign.replace(/[+-]/g,'\\$&')+'G'));
+  assert.match(after.brk,new RegExp('売上 \\+'+(after.earned-live.earned)+'G'));
+  assert.match(after.brk,new RegExp('支援 '+(after.support-live.support)+'G'));
+  assert.match(after.brk,new RegExp('返済 '+(after.repaid-live.repaid)+'G'));
+  assert.equal(after.repaid-live.repaid,5580);
+  assert.equal(after.interest,1580);
+  await page.locator('[data-act="closedigest"]').click();
+  await page.locator('button[data-v="desk"]').click();
+  const desk=await page.locator('#tbody').innerText();
+  assert.match(desk,/これまでに返した額 6580G（うち利息 1580G）/);
+  assert.doesNotMatch(desk,/売上 -/);
+  await page.setViewportSize({width:375,height:740});
+  await page.evaluate(()=>document.fonts.ready);
+  const deskWrap=await page.evaluate(()=>{
+    const bad=[];
+    for(const s of document.querySelectorAll('.row.debt .nw')){
+      const range=document.createRange();range.selectNodeContents(s);
+      const n=new Set([...range.getClientRects()].filter(r=>r.width>2).map(r=>Math.round(r.top))).size;
+      if(n!==1)bad.push(s.textContent+' が折れている');
+    }
+    if(document.documentElement.scrollWidth>innerWidth+1)bad.push('はみ出す');
+    return bad;
+  });
+  assert.deepEqual(deskWrap,[]);
+  assert.deepEqual(errors,[]);await ctx.close();
+});
+
 test('30刻に満たない留守は、画面を出さずにその分だけ進め、そのあとも時間が流れる',async()=>{
   const {ctx,page,errors}=await open();
   const t0=await tick(page);
@@ -184,7 +260,7 @@ test('金額・階・席の知らせは、画面どうしで同じ書き方に�
     const maps=document.querySelector('#tbody').innerText;
     advOpen=idle.id;document.getElementById('advm').hidden=false;renderAdv();
     const idleBook=document.querySelector('#advbox .kv').innerText;
-    advOpen=diver.id;renderAdv();
+    diver.deepest=3;advOpen=diver.id;renderAdv();
     const diveBook=document.querySelector('#advbox .kv').innerText;
     const diveHead=document.querySelector('#advbox .adv-sub').innerText;
     document.getElementById('advm').hidden=true;advOpen=null;
@@ -201,7 +277,7 @@ test('金額・階・席の知らせは、画面どうしで同じ書き方に�
   assert.match(shown.idleBook,/―/);
   assert.match(shown.idleBook,/最深到達/);
   assert.doesNotMatch(shown.idleBook,/B0F/);
-  assert.match(shown.diveBook,/B1F/);
+  assert.match(shown.diveBook,/B3F/);
   assert.match(shown.diveHead,/Lv\d/);
   assert.doesNotMatch(shown.diveBook,/B0F/);
   assert.equal(shown.rare,'名のある魔物を、一体仕留める');
@@ -612,11 +688,12 @@ test('開店の顔ぶれは、知らせと手帳と記念碑に出る',async()=>
     const guests=S.news.find(n=>n.t.startsWith('最初の客たち'));
     const holders=cast.filter(a=>a.dream&&a.dream.k==='stele');
     const h=holders[0];
-    return {n:cast.length,names:cast.map(a=>a.name),origins:cast.map(a=>a.origin),guests:guests&&guests.t,id:h.id,bg:h.bg,dream:dreamText(h.dream),texts:holders.map(a=>dreamText(a.dream)).sort(),prog:DREAMS.stele.prog(h)};
+    const prog=DREAMS.stele.prog(h);
+    return {n:cast.length,names:cast.map(a=>a.name),origins:cast.map(a=>a.origin),guests:guests&&guests.t,id:h.id,bg:h.bg,dream:dreamText(h.dream),texts:holders.map(a=>dreamText(a.dream)).sort(),prog,want:(h.deepest||0)?`これまでの最深 ${FN(h.deepest)}`:'まだ迷宮に潜っていない'};
   });
   assert.equal(info.n,7);
   assert.deepEqual(info.texts,['B6Fの転移の石碑に、一度触れてみたい','B6Fまで潜って、地上の店に戻ってみたい'].sort());
-  assert.equal(info.prog,'これまでの最深 B1F');
+  assert.equal(info.prog,'まだ迷宮に潜っていない');
   const news=await page.locator('.news li',{hasText:'最初の客たち'}).innerText();
   assert.match(news,/最初の客たち/);
   for(const name of info.names)assert.match(news,new RegExp(name));
@@ -625,7 +702,7 @@ test('開店の顔ぶれは、知らせと手帳と記念碑に出る',async()=>
   const book=await page.locator('#advbox').innerText();
   assert.match(book,/開店からの常連/);
   assert.match(book,new RegExp(info.dream.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')));
-  assert.match(book,/これまでの最深 B1F/);
+  assert.match(book,new RegExp(info.prog.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')));
   assert.match(book,/Lv\d/);
   assert.doesNotMatch(book,/B0F/);
   assert.match(book,new RegExp(info.bg.replace(/[.*+?^${}()|[\]\\]/g,'\\$&').slice(-12)));
@@ -1017,7 +1094,8 @@ test('900px以下では返済の帯とタブが初めから見え、ページ自
   const tops=[];
   for(const [width,height] of [[375,740],[390,844],[640,900],[641,900],[768,1024],[844,390],[900,700],[901,800],[1280,800]]){
     await page.setViewportSize({width,height});
-    await page.evaluate(()=>{document.querySelector('.wrap').scrollTo(0,0);window.scrollTo(0,0);});
+    // 幅を変えた直後は、返済の帯の位置を直す処理がまだ走っていないことがある。ここで一度直してから測る
+    await page.evaluate(()=>{document.querySelector('.wrap').scrollTo(0,0);window.scrollTo(0,0);window.dispatchEvent(new Event('resize'));});
     await page.evaluate(()=>document.fonts.ready);
     const first=await look();
     assert.deepEqual(first.bad,[],`${width}×${height} を開いた直後`);
@@ -1092,6 +1170,40 @@ test('900px以下では返済の帯とタブが初めから見え、ページ自
   assert.deepEqual(errors,[]);await ctx.close();
 });
 
+test('900px以下で中身の短いタブは、下まで送ったところで止まり、中身は帯の上にすべて見える',async()=>{
+  const {ctx,page,errors}=await open();
+  await page.locator('#sp0').click();
+  // 開き立て。帳場は長く先頭が上に来る。記念碑は短い。迷宮日報は375では上まで届き、768では届かない。
+  const expect={375:{desk:'top',news:'top',stone:'short'},768:{desk:'top',news:'short',stone:'short'}};
+  const place=()=>page.evaluate(()=>{
+    const wrap=document.querySelector('.wrap');
+    const side=document.querySelector('.side').getBoundingClientRect();
+    const wr=wrap.getBoundingClientRect();
+    const tb=document.querySelector('#tbody').getBoundingClientRect();
+    const pay=document.querySelector('#payw'),tabs=document.querySelector('.tabs');
+    const anchor=(pay&&!pay.hidden?pay:tabs).getBoundingClientRect().top;
+    return {sideTop:side.top,wrapTop:wr.top,tbTop:tb.top,tbBot:tb.bottom,anchor,remain:wrap.scrollHeight-wrap.scrollTop-wrap.clientHeight,pageTop:document.scrollingElement.scrollTop};
+  });
+  for(const [width,height] of [[375,740],[768,1024]]){
+    await page.setViewportSize({width,height});
+    await page.evaluate(()=>document.fonts.ready);
+    for(const name of ['desk','news','stone']){
+      await page.evaluate(()=>{document.querySelector('.wrap').scrollTo(0,0);window.scrollTo(0,0);});
+      await page.locator(`button[data-v="${name}"]`).click();
+      const m=await place();
+      const atTop=m.sideTop<=m.wrapTop+8;
+      const where=`${width}×${height} の${name}（先頭 ${Math.round(m.sideTop)}、上端 ${Math.round(m.wrapTop)}、残り ${Math.round(m.remain)}）`;
+      assert.equal(m.pageTop,0,`${where} でページ自体が動いている`);
+      assert.equal(atTop?'top':'short',expect[width][name],where);
+      if(!atTop){
+        assert.ok(m.remain<=1,`${where} は下まで送っていない`);
+        assert.ok(m.tbTop>=m.wrapTop-1&&m.tbBot<=m.anchor+1,`${where} の中身が帯の上に見えない ${Math.round(m.tbTop)}..${Math.round(m.tbBot)} 帯 ${Math.round(m.anchor)}`);
+      }
+    }
+  }
+  assert.deepEqual(errors,[]);await ctx.close();
+});
+
 test('帳場の設備と席に、いまの段が出る',async()=>{
   const {ctx,page,errors}=await open();
   await page.locator('#sp0').click();
@@ -1120,6 +1232,25 @@ test('帳場の設備と席に、いまの段が出る',async()=>{
     const seats=document.querySelector('[data-seats]');
     return {dojo:fac('dojo'),info:fac('info'),inn:fac('inn'),seats:seats?flat(seats.innerText):'',wide:document.documentElement.scrollWidth>innerWidth+1};
   });
+  const lvUnderName=async width=>{
+    const place=await page.evaluate(()=>{
+      const one=sel=>{
+        const row=document.querySelector(sel);
+        const name=row.querySelector('b').getBoundingClientRect();
+        const lv=row.querySelector('.meta.lv').getBoundingClientRect();
+        return {nt:name.top,nb:name.bottom,nl:name.left,lt:lv.top,ll:lv.left};
+      };
+      return {dojo:one('[data-fac="dojo"]'),info:one('[data-fac="info"]'),inn:one('[data-fac="inn"]'),seats:one('[data-seats]')};
+    });
+    const bad=[];
+    for(const [k,p] of Object.entries(place)){
+      if(p.lt<p.nb-1)bad.push(`${k} の段が名前の下にない`);
+      if(Math.abs(p.ll-p.nl)>2)bad.push(`${k} の段の左が名前と揃わない`);
+    }
+    const lefts=Object.values(place).map(p=>p.ll);
+    if(Math.max(...lefts)-Math.min(...lefts)>2)bad.push('設備と席で段の左端が揃わない');
+    assert.deepEqual(bad,[],`${width}px の段の位置 ${JSON.stringify(place)}`);
+  };
   for(const [width,height] of [[375,740],[1280,800]]){
     await page.setViewportSize({width,height});
     await page.evaluate(()=>document.fonts.ready.then(()=>new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)))));
@@ -1137,6 +1268,7 @@ test('帳場の設備と席に、いまの段が出る',async()=>{
     assert.doesNotMatch(fresh.seats,/支店/);
     assert.equal(fresh.wide,false,width+' でページが横にはみ出す');
     for(const sel of ['[data-fac="dojo"]','[data-fac="info"]','[data-fac="inn"]','[data-seats]'])assert.deepEqual(await phrases(sel),[],`${width}px の ${sel}`);
+    await lvUnderName(width);
   }
   await page.setViewportSize({width:375,height:740});
   await page.evaluate(()=>{S.taverns.ours.gold=20000;render();});
@@ -1174,6 +1306,7 @@ test('帳場の設備と席に、いまの段が出る',async()=>{
     await page.evaluate(()=>document.fonts.ready.then(()=>new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)))));
     const view=await read();
     assert.equal(view.wide,false,width+' でページが横にはみ出す');
+    await lvUnderName(width);
     if(width<=640)for(const sel of ['[data-fac="dojo"]','[data-fac="info"]','[data-fac="inn"]','[data-seats]'])assert.deepEqual(await phrases(sel),[],`${width}px の段 ${sel}`);
     if(width>640){
       const beside=await page.evaluate(()=>{
@@ -1301,6 +1434,7 @@ test('酒場の掲示は段ごとに開き、見込みの人数も段で変わ�
   assert.match(empty,/最初の返済の日を迎えていない店に、頼みごとを持ち込む者はいない/);
   assert.doesNotMatch(empty,/見込んだ者/);
   assert.doesNotMatch(empty,/浅い頼みごと/);
+  assert.equal(await page.locator('button[data-act="boardhelp"]').count(),0);
   await page.locator('button[data-v="rank"]').click();
   assert.doesNotMatch(await page.locator('#tbody').innerText(),/地上の話の筋/);
   await page.locator('button[data-v="roster"]').click();
@@ -1317,6 +1451,8 @@ test('酒場の掲示は段ごとに開き、見込みの人数も段で変わ�
   assert.match(s1,/いまは浅い頼みごとだけ。名が上がれば、もっと持ち込まれる。/);
   assert.match(s1,/迷い込んだ子猫/);
   assert.doesNotMatch(s1,/見込んだ者/);
+  assert.equal(await page.locator('button[data-act="boardhelp"]').getAttribute('aria-expanded'),'false');
+  assert.doesNotMatch(s1,/店主が決めるのは/);
   await page.locator('button[data-v="roster"]').click();
   await page.locator('#tbody .nm-link').first().click();
   assert.equal(await page.locator('#advbox button[data-act="mark"]').count(),0);
@@ -1347,6 +1483,7 @@ test('酒場の掲示は段ごとに開き、見込みの人数も段で変わ�
   const btn2=page.locator('#advbox button[data-act="mark"]');
   assert.equal(await btn2.innerText(),'見込む');
   assert.equal(await btn2.isDisabled(),true);
+  assert.equal(await page.locator('#advbox .markwhy').innerText(),'見込みは満員（1/1）。誰かの見込みを外すと見込める。');
   await page.locator('#advbox button[data-act="closeadv"]').click();
   await page.evaluate(()=>{
     errandsOf(S).stage=3;S.taverns.ours.debt=0;S.taverns.ours.debtFree=S.tick;
@@ -1358,6 +1495,131 @@ test('酒場の掲示は段ごとに開き、見込みの人数も段で変わ�
   assert.doesNotMatch(s3,/見込めるのは、いまは一人だけ/);
   await page.locator('button[data-v="rank"]').click();
   assert.match(await page.locator('#tbody').innerText(),/地上の話の筋　封じの門の抜け穴/);
+  assert.deepEqual(errors,[]);await ctx.close();
+});
+
+test('見込みが満員のときは理由が読め、見込むボタンはどの幅でも44px以上',async()=>{
+  const {ctx,page,errors}=await open();
+  await page.locator('#sp0').click();
+  const ids=await page.evaluate(()=>{
+    errandsOf(S).stage=2;
+    const ours=Object.values(S.adv).filter(x=>x.tav==='ours'&&x.status!=='lost'&&x.status!=='retired');
+    tab='bar';render();
+    return ours.map(a=>a.id);
+  });
+  assert.ok(ids.length>=4,'常連が4人未満');
+  const help=page.locator('button[data-act="boardhelp"]');
+  assert.equal(await help.getAttribute('aria-expanded'),'false');
+  assert.doesNotMatch(await page.locator('#tbody').innerText(),/店主が決めるのは/);
+  await help.click();
+  assert.equal(await help.getAttribute('aria-expanded'),'true');
+  assert.match(await page.locator('#tbody .note').filter({hasText:'店主が決めるのは'}).innerText(),/店主が決めるのは、話を誰に回すかだけ。向き不向きは話の文面ににじむ。手帳を開いて、怖いものや得意不得意、出身と照らし合わせること。話が伝わるのは、主役が酒場にいて、一行が街で休んでいるとき。迷宮に出ている者を選んでおけば、戻ったときに伝える。/);
+  await page.evaluate(()=>render());
+  assert.equal(await page.locator('button[data-act="boardhelp"]').getAttribute('aria-expanded'),'true');
+  assert.match(await page.locator('#tbody').innerText(),/戻ったときに伝える/);
+  const saved=await page.evaluate(()=>{save();return JSON.parse(localStorage.getItem('kuroneko-tavern-v1'));});
+  assert.equal(saved.boardHelpOpen,undefined);
+  assert.equal(saved.S.boardHelpOpen,undefined);
+  assert.equal(saved.S.v,26);
+  await page.reload();
+  await page.locator('#sp0').click();
+  await page.locator('button[data-v="bar"]').click();
+  assert.equal(await page.locator('button[data-act="boardhelp"]').getAttribute('aria-expanded'),'false');
+  assert.doesNotMatch(await page.locator('#tbody').innerText(),/店主が決めるのは/);
+  const look=async width=>{
+    await page.setViewportSize({width,height:width===375?740:800});
+    await page.evaluate(()=>document.fonts.ready);
+    return page.evaluate(()=>{
+      const bad=[];
+      const line=document.querySelector('.markline');
+      const note=document.querySelector('#tbody .note');
+      if(!line)bad.push('見込みの行がない');
+      else{
+        const lc=getComputedStyle(line),nc=getComputedStyle(note),bc=getComputedStyle(document.body);
+        if(lc.color!==bc.color)bad.push('見込みの行が地の色でない '+lc.color);
+        if(note&&lc.color===nc.color)bad.push('見込みの行が注釈と同じ色');
+        if(note&&parseFloat(lc.fontSize)<=parseFloat(nc.fontSize))bad.push('見込みの行が注釈より大きくない');
+        if(!line.textContent.includes('見込んだ者　0 / 1'))bad.push('見込みの行 '+line.textContent);
+        const lr=line.getBoundingClientRect();
+        if(lr.right>innerWidth+1||lr.left<0)bad.push('見込みの行がはみ出す');
+      }
+      const btn=document.querySelector('button[data-act="boardhelp"]');
+      const br=btn.getBoundingClientRect();
+      if(innerWidth<=640&&(br.width<44||br.height<44))bad.push(`話の回し方 ${Math.round(br.width)}×${Math.round(br.height)}`);
+      const box=btn.parentElement.getBoundingClientRect().height;
+      if(box>72)bad.push('閉じた説明が高い '+Math.round(box));
+      return bad;
+    });
+  };
+  assert.deepEqual(await look(1280),[],'1280 の掲示');
+  assert.deepEqual(await look(375),[],'375 の掲示');
+  const book=async(width,id)=>{
+    if(await page.locator('#advm').isVisible())await page.locator('#advbox button[data-act="closeadv"]').click();
+    await page.setViewportSize({width,height:width===375?740:800});
+    await page.locator('button[data-v="roster"]').click();
+    await page.locator(`#tbody button[data-act="adv"][data-a="${id}"]`).first().click();
+    await page.evaluate(()=>document.fonts.ready);
+    const got=await page.evaluate(()=>{
+      const bad=[];
+      const b=document.querySelector('#advbox button[data-act="mark"]');
+      const why=document.querySelector('#advbox .markwhy');
+      if(!b)bad.push('見込むボタンがない');
+      else{
+        const r=b.getBoundingClientRect();
+        if(r.width<44||r.height<44)bad.push(`${b.innerText} ${Math.round(r.width)}×${Math.round(r.height)}`);
+        const box=document.querySelector('#advbox').getBoundingClientRect();
+        if(r.top<box.top-1||r.bottom>box.bottom+1||r.left<0||r.right>innerWidth+1)bad.push('ボタンが画面の外');
+      }
+      if(why){
+        const wc=getComputedStyle(why),bc=getComputedStyle(document.body);
+        if(wc.color!==bc.color)bad.push('理由の色 '+wc.color);
+        if(parseFloat(wc.opacity)<1)bad.push('理由が薄い');
+        if(parseFloat(wc.fontSize)<13)bad.push('理由が小さい');
+        const wr=why.getBoundingClientRect();
+        const box=document.querySelector('#advbox').getBoundingClientRect();
+        if(wr.height<16)bad.push('理由の高さ');
+        if(wr.top<box.top-1||wr.bottom>Math.min(box.bottom,innerHeight)+1)bad.push('理由が読める範囲の外');
+        if(wr.left<0||wr.right>innerWidth+1)bad.push('理由が横にはみ出す');
+      }
+      return {bad,text:b?b.innerText:'',disabled:!!(b&&b.disabled),why:why?why.textContent:''};
+    });
+    return got;
+  };
+  let got=await book(1280,ids[0]);
+  assert.deepEqual(got.bad,[],'1280 で見込める');
+  assert.equal(got.text,'見込む');
+  assert.equal(got.disabled,false);
+  assert.equal(got.why,'');
+  await page.locator('#advbox button[data-act="mark"]').click();
+  assert.equal(await page.locator('#advbox button[data-act="mark"]').innerText(),'見込みを外す');
+  assert.equal(await page.locator('#advbox .markwhy').count(),0);
+  const unmark=await book(1280,ids[0]);
+  assert.equal(unmark.text,'見込みを外す');
+  assert.equal(unmark.disabled,false);
+  assert.deepEqual(unmark.bad,[],'1280 で外す');
+  await page.locator('#advbox button[data-act="closeadv"]').click();
+  for(const width of [1280,375]){
+    got=await book(width,ids[1]);
+    assert.deepEqual(got.bad,[],width+' で満員');
+    assert.equal(got.text,'見込む');
+    assert.equal(got.disabled,true);
+    assert.equal(got.why,'見込みは満員（1/1）。誰かの見込みを外すと見込める。');
+    await page.locator('#advbox button[data-act="closeadv"]').click();
+  }
+  await page.evaluate(list=>{
+    errandsOf(S).stage=3;
+    list.slice(1,3).forEach(id=>markAdv(S,S.adv[id],true));
+    render();
+  },ids);
+  got=await book(375,ids[3]);
+  assert.deepEqual(got.bad,[],'375 で段3が満員');
+  assert.equal(got.disabled,true);
+  assert.equal(got.why,'見込みは満員（3/3）。誰かの見込みを外すと見込める。');
+  await page.locator('#advbox button[data-act="closeadv"]').click();
+  got=await book(1280,ids[0]);
+  assert.equal(got.text,'見込みを外す');
+  assert.equal(got.why,'');
+  assert.deepEqual(got.bad,[],'1280 で見込んだ者');
   assert.deepEqual(errors,[]);await ctx.close();
 });
 
@@ -1429,6 +1691,155 @@ test('深手の者は水晶と札で赤くなり、撤退の横に一言出る',
     return out;
   });
   assert.deepEqual(narrow,[]);
+  assert.deepEqual(errors,[]);await ctx.close();
+});
+
+test('375pxでは水晶の一言が語の途中で折れず、稼ぎは別の行に出る',async()=>{
+  const {ctx,page,errors}=await open();
+  await page.locator('#sp0').click();
+  const prep=await page.evaluate(()=>{
+    const p=Object.values(S.parties).find(x=>x.tav==='ours');
+    p.state='explore';p.floor=4;p.enemies=[{hp:3}];p.plan='normal';p.pushWhy=null;p.loot=299;
+    const ms=p.members.map(id=>S.adv[id]);
+    ms.forEach(a=>{a.status='party';a.hp=a.mhp=100;a.poison=0;a.mp=5;});
+    S.adv[p.leader].pers='普通';
+    const hurt=ms.find(a=>a.id!==p.leader);
+    hurt.mhp=12;hurt.hp=1;
+    S.taverns.ours.gold=1000;
+    S.watch[0]=p.id;S.sel=0;
+    render();
+    return p.id;
+  });
+  const measure=async()=>{
+    await page.evaluate(()=>document.fonts.ready);
+    return page.evaluate(()=>{
+      const bad=[];
+      const warn=document.querySelector('.c-warn');
+      const fight=warn&&warn.querySelector('.fight');
+      const loot=document.querySelector('.c-loot');
+      const foot=document.querySelector('.c-foot');
+      if(!warn||!fight||!fight.textContent.includes('たたかいの さいちゅう。いま めいじても にげきれるとは かぎらない'))bad.push('戦いの一言がない '+(warn&&warn.textContent));
+      if(!loot||loot.textContent!=='稼ぎ 299G')bad.push('稼ぎがない '+(loot&&loot.textContent));
+      const runs=(el)=>{
+        const walker=document.createTreeWalker(el,NodeFilter.SHOW_TEXT);
+        const re=/[0-9A-Za-zぁ-んァ-ヶ一-龥ー]+/g;
+        let node;
+        while((node=walker.nextNode())){
+          const text=node.textContent;
+          let m;
+          while((m=re.exec(text))){
+            const range=document.createRange();
+            range.setStart(node,m.index);range.setEnd(node,m.index+m[0].length);
+            const rects=[...range.getClientRects()].filter(r=>r.width>.5);
+            const tops=new Set(rects.map(r=>Math.round(r.top)));
+            const width=rects.reduce((s,r)=>s+r.width,0);
+            const box=node.parentElement.getBoundingClientRect().width;
+            if(tops.size>1&&width<=box+1)bad.push('語の途中で折れている '+m[0]);
+          }
+        }
+      };
+      if(warn)runs(warn);
+      if(loot&&warn&&foot){
+        const range=document.createRange();range.selectNodeContents(loot);
+        const lr=range.getBoundingClientRect(),wr=warn.getBoundingClientRect(),fr=foot.getBoundingClientRect();
+        const narrow=innerWidth<=640;
+        if(narrow){
+          if(lr.top<wr.bottom-1)bad.push('稼ぎが一言と同じ行');
+          if(fr.right-lr.right>20)bad.push('稼ぎが右端にない '+Math.round(fr.right-lr.right));
+        }else{
+          const btn=foot.querySelector('.btn').getBoundingClientRect();
+          if(!(lr.bottom>btn.top+1&&lr.top<btn.bottom-1))bad.push('広い画面で稼ぎがボタンの行にない');
+          if(fr.right-lr.right>20)bad.push('稼ぎが右端にない '+Math.round(fr.right-lr.right));
+        }
+      }
+      if(document.documentElement.scrollWidth>innerWidth+1)bad.push('ページが横にはみ出す');
+      return bad;
+    });
+  };
+  for(const [width,height] of [[375,740],[1280,800]]){
+    await page.setViewportSize({width,height});
+    assert.deepEqual(await measure(),[],`${width}px`);
+  }
+  assert.equal(prep>0,true);
+  assert.deepEqual(errors,[]);await ctx.close();
+});
+
+test('全滅と依頼の失敗には理由が一文つき、まだ戻らないは札で読める',async()=>{
+  const {ctx,page,errors}=await open();
+  await page.locator('#sp0').click();
+  const info=await page.evaluate(()=>{
+    const p=Object.values(S.parties).find(x=>x.tav==='ours');
+    p.state='explore';p.floor=4;p.enemies=null;p.plan='normal';p.pushWhy=null;p.steps=400;
+    p.trip=p.trip||{};p.trip.deep=1;p.maps={};p.announced=false;p.knownWiped=false;
+    const ms=p.members.map(id=>S.adv[id]);
+    ms.forEach(a=>{a.status='party';a.hp=a.mhp=100;a.poison=0;a.mp=5;a.pers='普通';a.quirk='無口';a.fear=null;a.traits=[];a.cls='戦士';});
+    render();
+    const card=()=>[...document.querySelectorAll('.pcard')].find(el=>el.dataset.p==String(p.id));
+    const st=card().querySelector('.st');
+    const out=[];
+    if(!st||!st.classList.contains('bad')||!st.textContent.includes('探索中')||!st.textContent.includes('まだ戻らない'))out.push('遅れの札 '+(st&&st.textContent));
+    const a=S.adv[p.leader];
+    const rnd=Math.random;Math.random=()=>0.99;
+    errandEvent(S,p,{id:1,k:'kitten',n:'迷い込んだ子猫',f:2,hero:a.id});
+    Math.random=rnd;
+    ms.forEach(m=>{m.hp=0;m.mp=0;m.cls='戦士';});
+    const h=ms[0];h.cls='僧侶';h.mp=0;
+    S.watch=[null,null];
+    wipe(S,p,'オーク');
+    render();
+    const st2=card().querySelector('.st');
+    if(!st2||!st2.classList.contains('bad')||st2.textContent!=='B4F まだ戻らない')out.push('全滅直後の札 '+(st2&&st2.textContent));
+    tab='news';render();
+    const news=document.querySelector('#tbody').innerText;
+    if(!news.includes('向かなかった'))out.push('日報に失敗の理由がない');
+    if(news.includes('癒し手の呪文が尽きていた'))out.push('見ていない全滅の理由が先に出た');
+    advOpen=h.id;document.querySelector('#advm').hidden=false;renderAdv();
+    const book=document.querySelector('#advbox').innerText;
+    if(!book.includes('全滅した。癒し手の呪文が尽きていた'))out.push('手帳に原因がない');
+    return {out,pid:p.id,aid:h.id};
+  });
+  assert.deepEqual(info.out,[]);
+  for(const [width,height] of [[375,740],[1280,800]]){
+    await page.setViewportSize({width,height});
+    await page.evaluate(()=>document.fonts.ready);
+    const bad=await page.evaluate(({pid,aid})=>{
+      tab='news';advOpen=aid;document.querySelector('#advm').hidden=false;render();renderAdv();
+      const out=[];
+      const card=[...document.querySelectorAll('.pcard')].find(el=>el.dataset.p==String(pid));
+      const st=card&&card.querySelector('.st');
+      const cr=card.getBoundingClientRect(),sr=st.getBoundingClientRect();
+      if(sr.height<1||sr.right>cr.right+1||sr.left<cr.left-1)out.push('札の様子が札の外');
+      if(st.scrollWidth>st.clientWidth+1)out.push('札の様子が折れていない');
+      const li=[...document.querySelectorAll('.news li')].find(el=>el.textContent.includes('向かなかった'));
+      const span=li&&[...li.children].find(n=>!n.classList.contains('d'));
+      const side=document.querySelector('.side').getBoundingClientRect();
+      if(!span)out.push('失敗の知らせがない');
+      else{
+        const r=span.getBoundingClientRect();
+        if(r.height<1||r.right>side.right+1||r.left<side.left-1)out.push('知らせが右の列の外');
+        if(span.scrollWidth>span.clientWidth+1)out.push('知らせが折れていない');
+      }
+      const row=[...document.querySelectorAll('#advbox .tl li')].find(el=>el.textContent.includes('全滅した。癒し手の呪文が尽きていた'));
+      const modal=document.querySelector('#advbox').getBoundingClientRect();
+      if(!row)out.push('手帳の行がない');
+      else{
+        const r=row.getBoundingClientRect();
+        if(r.height<1||r.right>modal.right+1||r.left<modal.left-1)out.push('手帳が窓の外');
+        if(row.scrollWidth>row.clientWidth+1)out.push('手帳が折れていない');
+      }
+      if(document.documentElement.scrollWidth>innerWidth+1)out.push('ページが横にはみ出す');
+      return out;
+    },info);
+    assert.deepEqual(bad,[],`${width}px`);
+  }
+  const later=await page.evaluate(()=>{
+    const p=Object.values(S.parties).find(x=>x.state==='wiped'&&x.tav==='ours'&&x.cause);
+    Object.values(S.parties).forEach(q=>{if(q!==p){q.state='town';q.rest=99;}});
+    p.wipedAt=S.tick-14;tick(S);tab='news';document.querySelector('#advm').hidden=true;advOpen=null;render();
+    const news=document.querySelector('#tbody').innerText;
+    return news.includes('予定を過ぎても戻らない')&&news.includes('癒し手の呪文が尽きていた');
+  });
+  assert.equal(later,true);
   assert.deepEqual(errors,[]);await ctx.close();
 });
 
@@ -1603,5 +2014,236 @@ test('375pxと1280pxでは所属の札が行に収まり、名簿と日報と地
       assert.deepEqual(await measure({...cast,part}),[],`${width}px の ${part}`);
     }
   }
+  assert.deepEqual(errors,[]);await ctx.close();
+});
+
+test('帳場のきょうの出入りは前日と直近7日で、375pxでも短く、方針に1日あたりが出る',async()=>{
+  const {ctx,page,errors}=await open();
+  await page.setViewportSize({width:375,height:740});
+  await page.locator('#sp0').click();
+  await page.locator('button[data-v="desk"]').click();
+  await page.evaluate(()=>document.fonts.ready);
+  const flow=page.locator('#flow');
+  const text=await flow.innerText();
+  assert.match(text,/前日/);
+  assert.match(text,/直近7日/);
+  for(const name of ['売上','支援','蘇生代','返済','施設'])assert.match(text,new RegExp(name));
+  const zeros=await page.locator('#flow .num').allInnerTexts();
+  assert.deepEqual(zeros,Array(10).fill('0G'));
+  assert.match(await page.locator('[data-cost="potion"]').innerText(),/2本にすると、いまの深さだと 1日あたり約\d+G/);
+  for(const k of ['mapPay','revive','rookie'])assert.match(await page.locator(`[data-cost="${k}"]`).innerText(),/^いまの深さだと 1日あたり約\d+G$/);
+  const layout=async()=>page.evaluate(()=>{
+    const bad=[];
+    const lines=el=>el.getClientRects().length;
+    const box=document.querySelector('#flow').getBoundingClientRect();
+    if(box.height>200)bad.push(`出入りが長い ${Math.round(box.height)}px`);
+    if(box.right>innerWidth+1||box.left<-1)bad.push('出入りが横にはみ出す');
+    for(const n of document.querySelectorAll('#flow .num'))if(lines(n)!==1)bad.push(n.textContent+' が折れている');
+    for(const c of document.querySelectorAll('[data-cost]')){
+      if(c.getBoundingClientRect().height>52)bad.push(`${c.dataset.cost} の見積もりが長い ${Math.round(c.getBoundingClientRect().height)}px`);
+      if(c.getBoundingClientRect().right>innerWidth+1)bad.push(c.dataset.cost+' が横にはみ出す');
+    }
+    if(document.documentElement.scrollWidth>innerWidth+1)bad.push('ページが横にはみ出す');
+    return bad;
+  });
+  assert.deepEqual(await layout(),[]);
+  await page.evaluate(()=>{S.taverns.ours.gold=5000;render();});
+  await page.locator('button[data-act="repay"][data-v="1000"]').click();
+  assert.match(await flow.innerText(),/-1000G/);
+  const rev=await page.evaluate(()=>{
+    const a=Object.values(S.adv).find(x=>x.tav==='ours'&&x.status==='idle');
+    a.status='dead';a.hp=0;a.party=null;
+    S.taverns.ours.gold=100000;S.taverns.ours.support=0;
+    const c=templeCost(S,a);render();return {c,id:a.id};
+  });
+  await page.locator(`button[data-act="revive"][data-a="${rev.id}"]`).click();
+  assert.match(await flow.innerText(),new RegExp('-'+rev.c+'G'));
+  assert.equal(await page.evaluate(()=>S.taverns.ours.support||0),0);
+  await page.evaluate(()=>{
+    S.flow=null;S.tick=0;
+    flowAdd(S,'e',923);flowAdd(S,'s',180);flowAdd(S,'v',470);flowAdd(S,'r',5580);flowAdd(S,'f',15000);
+    render();
+  });
+  const shown=await flow.innerText();
+  assert.match(shown,/\+923G/);
+  assert.match(shown,/-180G/);
+  assert.match(shown,/-470G/);
+  assert.match(shown,/-5580G/);
+  assert.match(shown,/-15000G/);
+  assert.deepEqual(await layout(),[]);
+  const want=await page.evaluate(()=>policyCost(S).potion[1]);
+  await page.locator('button[data-act="pol"][data-k="potion"][data-v="1"]').click();
+  assert.equal(await page.locator('[data-cost="potion"]').innerText(),`いまの深さだと 1日あたり約${want}G`);
+  assert.deepEqual(await layout(),[]);
+  assert.deepEqual(errors,[]);await ctx.close();
+});
+
+test('倒れた者の札、番付の数、出資の買い取り、記念碑の印が状態と合う',async()=>{
+  const {ctx,page,errors}=await open();
+  await page.locator('#sp0').click();
+  const roster=await page.evaluate(()=>{
+    const p=Object.values(S.parties).find(x=>x.tav==='ours'&&x.members.length>=2);
+    const down=S.adv[p.members.find(id=>id!==p.leader)];
+    const up=S.adv[p.leader];
+    down.hp=0;down.status='party';
+    up.hp=up.mhp;up.status='party';
+    const miss=Object.values(S.adv).find(a=>a.tav==='ours'&&a.id!==down.id&&a.id!==up.id);
+    miss.hp=0;miss.status='missing';miss.party=null;
+    tab='roster';render();
+    const row=name=>[...document.querySelectorAll('#tbody .row')].find(el=>el.querySelector('.nm-link')?.textContent===name);
+    const chip=name=>row(name).querySelector('.chip').textContent;
+    const card=[...document.querySelectorAll('.pcard')].find(el=>el.dataset.p==p.id);
+    const mark=name=>{
+      const who=[...card.querySelectorAll('.who')].find(el=>el.querySelector('.nm').textContent.replace('★','')===name);
+      return who.querySelector('.cls').textContent;
+    };
+    const sect=name=>row(name).closest('.sect').querySelector('h3').textContent;
+    return {down:down.name,up:up.name,miss:miss.name,chipDown:chip(down.name),chipUp:chip(up.name),chipMiss:chip(miss.name),markDown:mark(down.name),markUp:mark(up.name),sectDown:sect(down.name),sectMiss:sect(miss.name)};
+  });
+  assert.equal(roster.chipDown,'倒れている');
+  assert.match(roster.markDown,/倒$/);
+  assert.match(roster.sectDown,/探索中/);
+  assert.equal(roster.chipUp,'探索中');
+  assert.doesNotMatch(roster.markUp,/倒/);
+  assert.equal(roster.chipMiss,'行方不明');
+  assert.match(roster.sectMiss,/行方不明/);
+  const rankOf=()=>page.evaluate(()=>{
+    tab='rank';render();
+    const rows=rankRows(S),won=rows.filter(r=>r.lead>0).length;
+    const note=document.querySelector('#tbody .sect .note').textContent;
+    return {n:rows.length,won,note};
+  });
+  const quiet=await rankOf();
+  assert.equal(quiet.n,8);
+  assert.match(quiet.note,new RegExp(`（${quiet.n}項目のうち${quiet.won}項目で上回る）`));
+  if(quiet.won<=3)assert.match(quiet.note,/まだ追いかける側だ/);
+  const ahead=await page.evaluate(()=>{
+    S.taverns.ours.rep=824;S.taverns.rival.rep=601;
+    S.mine={open:0};
+    tab='rank';render();
+    const rows=rankRows(S),won=rows.filter(r=>r.lead>0).length;
+    const rep=rows.find(r=>r.name==='評判');
+    const note=document.querySelector('#tbody .sect .note').textContent;
+    return {n:rows.length,won,lead:rep.lead,note};
+  });
+  assert.equal(ahead.n,9);
+  assert.ok(ahead.lead>0);
+  assert.match(ahead.note,new RegExp(`（${ahead.n}項目のうち${ahead.won}項目で上回る）`));
+  if(ahead.won<=3)assert.match(ahead.note,/まだ追いかける側だ。/);
+  if(ahead.won>=6)assert.match(ahead.note,/新参と呼ぶ者はいない。/);
+  const before=await page.evaluate(()=>{
+    const t=smallOf(S).find(x=>!x.owned&&x.score<3);
+    S.taverns.ours.gold=1e9;
+    tab='rank';render();
+    return {n:t.n,price:buyPrice(S,t),note:document.querySelector('#tbody').innerText};
+  });
+  assert.match(before.note,/景気が上がると、買い取りの値も上がる/);
+  assert.match(before.note,new RegExp('買い取る '+before.price+'G'));
+  await page.locator(`button[data-act="invest"][data-n="${before.n}"]`).click();
+  const after=await page.evaluate(n=>{
+    const t=smallOf(S).find(x=>x.n===n);
+    return {price:buyPrice(S,t),score:t.score,note:document.querySelector('#tbody').innerText};
+  },before.n);
+  assert.ok(after.price>before.price,`${before.price}→${after.price}`);
+  assert.ok(after.score>0);
+  assert.match(after.note,/景気が上がると、買い取りの値も上がる/);
+  assert.match(after.note,new RegExp('買い取る '+after.price+'G'));
+  const badge=await page.evaluate(()=>{
+    S.memorial.push({id:1,name:'消えた者',cls:'戦士',lvl:1,race:'人間',tav:'rival',tk:1,by:'オーク',floor:2,kills:0});
+    tab='news';render();
+    const btn=[...document.querySelectorAll('#tabs button')].find(b=>b.dataset.v==='stone');
+    return btn.querySelector('.cnt').textContent;
+  });
+  assert.equal(badge,'ロスト1');
+  await page.locator('button[data-v="stone"]').click();
+  const still=await page.locator('button[data-v="stone"] .cnt').innerText();
+  assert.equal(still,'ロスト1');
+  assert.match(await page.locator('#tbody').innerText(),/消えた者/);
+  assert.deepEqual(errors,[]);await ctx.close();
+});
+
+test('札の印は右上に揃い、方針ボタンの幅は変わらず、狭い画面ではログとタブの位置が収まる',async()=>{
+  const {ctx,page,errors}=await open();
+  await page.locator('#sp0').click();
+  await page.evaluate(()=>document.fonts.ready);
+  const tags=()=>page.evaluate(()=>{
+    const bad=[];
+    for(const el of document.querySelectorAll('.pcard')){
+      const top=el.querySelector('.top'),pn=el.querySelector('.pn'),tag=el.querySelector('.tag');
+      if(!top||!pn||!tag){bad.push('札の頭がない');continue;}
+      const tr=top.getBoundingClientRect(),pr=pn.getBoundingClientRect(),gr=tag.getBoundingClientRect();
+      if(gr.top>pr.bottom-1)bad.push('印が次の行に落ちた');
+      if(Math.abs(gr.right-tr.right)>2)bad.push(`印が右上にない ${Math.round(gr.right-tr.right)}`);
+      if(gr.left<pr.right-2)bad.push('印が名前に重なる');
+      const cs=getComputedStyle(pn);
+      if(cs.textOverflow!=='ellipsis'||cs.overflowX!=='hidden'&&cs.overflow!=='hidden')bad.push('名前が省略されない');
+      if(el.scrollWidth>el.clientWidth+1)bad.push('札が横にはみ出す');
+    }
+    return bad;
+  });
+  assert.deepEqual(await tags(),[]);
+  await page.setViewportSize({width:375,height:740});
+  await page.evaluate(()=>document.fonts.ready);
+  await page.evaluate(()=>{
+    const p=Object.values(S.parties).find(x=>x.tav==='ours');
+    p.name='ナハト・ラーベ・とても長い一行の名前が札の端で省略される';
+    render();
+  });
+  const long=await page.evaluate(()=>{
+    const el=[...document.querySelectorAll('.pcard')].find(x=>x.textContent.includes('ナハト・ラーベ・とても長い'));
+    const pn=el.querySelector('.pn');
+    const range=document.createRange();range.selectNodeContents(pn);
+    const lines=new Set([...range.getClientRects()].map(r=>Math.round(r.top))).size;
+    return {clipped:pn.scrollWidth>pn.clientWidth+1,lines};
+  });
+  assert.equal(long.clipped,true,'長い名前が省略されていない');
+  assert.equal(long.lines,1);
+  assert.deepEqual(await tags(),[]);
+  const phone=await page.evaluate(()=>{
+    const bad=[];
+    const log=document.querySelector('.c-log');
+    if(!log)bad.push('ログがない');
+    else{
+      const h=log.getBoundingClientRect().height;
+      if(h>innerHeight/2+1)bad.push(`ログが高い ${Math.round(h)} / 半分 ${Math.round(innerHeight/2)}`);
+      if(h>380)bad.push(`ログが380pxを超える ${Math.round(h)}`);
+    }
+    for(const b of document.querySelectorAll('.ctrl .btn')){
+      const r=b.getBoundingClientRect();
+      if(r.right>innerWidth-15)bad.push(b.textContent.trim()+' が右端 '+Math.round(innerWidth-r.right));
+      if(r.left<15)bad.push(b.textContent.trim()+' が左端');
+    }
+    return bad;
+  });
+  assert.deepEqual(phone,[]);
+  await page.locator('button[data-v="desk"]').click();
+  const widths=()=>page.evaluate(()=>{
+    const bs=[...document.querySelectorAll('#tbody button.pol')];
+    return bs.map(b=>({k:b.dataset.k,t:b.textContent,w:Math.round(b.getBoundingClientRect().width)}));
+  });
+  const before=await widths();
+  assert.equal(before.length,3);
+  assert.equal(new Set(before.map(b=>b.w)).size,1,`方針の幅が違う ${before.map(b=>b.k+b.w).join(' ')}`);
+  await page.locator('button.pol').first().click();
+  const after=await widths();
+  assert.deepEqual(after.map(b=>b.w),before.map(b=>b.w),`切り替えると幅が変わる ${before.map(b=>b.t+b.w).join(' ')} → ${after.map(b=>b.t+b.w).join(' ')}`);
+  await page.setViewportSize({width:390,height:844});
+  await page.locator('button[data-v="news"]').click();
+  await page.evaluate(()=>{const w=document.querySelector('.wrap');w.scrollTop=w.scrollHeight;});
+  await page.locator('button[data-v="ref"]').click();
+  const dy=await page.evaluate(()=>{
+    const side=document.querySelector('.side').getBoundingClientRect();
+    const wrap=document.querySelector('.wrap').getBoundingClientRect();
+    return side.top-wrap.top;
+  });
+  assert.ok(Math.abs(dy)<=8,`タブを切り替えても先頭に来ない ${dy}`);
+  const close=await page.evaluate(()=>{
+    const a=Object.values(S.adv).find(x=>x.tav==='ours');
+    advOpen=a.id;document.getElementById('advm').hidden=false;renderAdv();
+    const b=[...document.querySelectorAll('#advbox button')].find(x=>x.textContent==='閉じる');
+    return {on:b.classList.contains('on'),bg:getComputedStyle(b).backgroundColor};
+  });
+  assert.equal(close.on,true);
+  assert.equal(close.bg,'rgb(227, 166, 73)');
   assert.deepEqual(errors,[]);await ctx.close();
 });
