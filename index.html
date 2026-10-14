@@ -750,7 +750,7 @@ function assignOpeningDreams(S){
 function newState(){
   const S={tick:0,nid:1,adv:{},parties:{},news:[],tales:[],memorial:[],
     taverns:{ours:{name:'黒猫亭',gold:400,rep:0,crystals:1,earned:0,debt:DEBT0,seats:12,nextPay:30*TICKS_PER_DAY,late:0},rival:{name:'銀の杯亭',gold:99999,rep:60,owner:RIVAL_OWNER}},
-    bounties:{},deepest:{ours:1,rival:GATE_F},usedNames:{[RIVAL_OWNER]:1},usedParty:{'鉄の誓い':1,'黄金の剣':1,'七つ星':1,'夜鷹':1,'鉄の誓い傭兵団':1,'黄金の剣団':1},usedItems:{},uniqFound:{},farewells:[],edicts:[],v:26,loreFound:{},shop:{tiers:{1:true},mats:{},serial:0,log:[]},watch:[null,null],sel:0,stats:{dreams:{ours:0,rival:0}},small:SMALL_TAV.slice(0,5)};
+    bounties:{},deepest:{ours:1,rival:GATE_F},usedNames:{[RIVAL_OWNER]:1},usedParty:{'鉄の誓い':1,'黄金の剣':1,'七つ星':1,'夜鷹':1,'鉄の誓い傭兵団':1,'黄金の剣団':1},usedItems:{},uniqFound:{},farewells:[],edicts:[],v:27,loreFound:{},shop:{tiers:{1:true},mats:{},serial:0,log:[]},watch:[null,null],sel:0,stats:{dreams:{ours:0,rival:0}},small:SMALL_TAV.slice(0,5)};
   const cast=[];
   for(const cls of ['戦士','僧侶','盗賊','魔術師'])cast.push(makeAdv(S,'ours',{lvl:OPENING_LVL(),cls,race:raceForCls(cls),opening:true}));
   for(let i=0;i<3;i++)cast.push(makeAdv(S,'ours',{lvl:OPENING_LVL(),opening:true}));
@@ -1225,9 +1225,17 @@ function farewellGift(a){if(a.tav!=='ours'||(a.favor||0)<2)return 0;
   g=Math.round(g/100)*100;return g>=300?g:0;}
 // 人間換算の年齢を、その種族の若い側の実年齢に戻す。15歳が若い側の始まり、30歳が若い側の終わり
 function ageForHuman(race,h){h=clamp(h,15,30);if(!race||race==='人間'||!AGE2[race])return h;const r=AGE2[race];const t=(h-15)/15;return Math.round(r.n[0]+(r.n[1]-r.n[0])*t);}
-// 子が店に来うるいちばん早い刻。人間は15年、長命な種族は若い側の始まりまで延ばす。乱数は使わない
+// 子が店に来うるいちばん早い刻。from は子が生まれた刻。人間は15年、長命な種族は若い側の始まりまで延ばす。乱数は使わない
 function childAtOf(a,from){const years=a.race==='エルフ'?30:a.race==='ドワーフ'?25:a.race==='ホビット'?18:15;const span=a.race==='エルフ'?20:a.race==='ドワーフ'?10:a.race==='ホビット'?4:3;
   return from+(years*365+((a.id*17)%(span*365)))*TICKS_PER_DAY;}
+// 子が生まれた刻。2通目の便り（子が生まれた）を出した刻。記録がなければその便りの刻、便りがまだなら去った刻（暦の日から戻す）
+function childBornOf(a){
+  if(a.childBorn!=null)return a.childBorn;
+  const L=(a.letters||[]).find(x=>x.n===2&&String(x.line).includes('子が生まれた'));if(L)return L.tk;
+  return a.childAt!=null?a.childAt-childAtOf(a,0):null;
+}
+// 子が来たときの実年齢。生まれてからの年数で、乱数は使わない
+function childAgeAt(S,a){const b=childBornOf(a);return b==null?null:Math.max(0,Math.floor((S.tick-b)/(365*TICKS_PER_DAY)));}
 function afterRetire(S,a,why){
   a.leftWhy=why;
   if(a.tav==='ours'&&(a.trips||0)>=3){a.letters=[];const fav=(a.favor||0)>=2;a.nextLetter=S.tick+ri(20,fav?40:60)*TICKS_PER_DAY;}
@@ -1237,7 +1245,7 @@ function afterRetire(S,a,why){
     if(pupil&&pupil.catch!==a.catch)changeOf(S,pupil,`${a.name}の口癖『${a.catch}』が、いつのまにか移っていた`,x=>{x.catch=a.catch;});}
   // 所帯を持って去った者。1〜2年後に甥姪か歳の離れた弟妹が40%。子本人は暦どおりで、ここでは予定の刻だけ置く
   if(a.tav!=='ours'||!String(why).includes('所帯を持つ'))return;
-  a.childAt=childAtOf(a,S.tick);
+  a.childBorn=S.tick;a.childAt=childAtOf(a,S.tick);
   if(chance(.4))a.kinDue={tk:S.tick+ri(365,730)*TICKS_PER_DAY,kind:chance(.5)?'ysib':'nibling'};
 }
 // 古い記録で去った者には、便りの予定がない。開いた日から一度だけ置く。乱数は引かず、ほかの出来事の乱数をずらさない
@@ -1318,6 +1326,8 @@ function deliverLetter(S,a){
   const who=letterFriend(S,a);
   if(who&&chance(.25)){const item=giveLetterGift(S,a,who);if(item)t+=`便りには${item}が添えてあった。${who.name}に、と書いてある。`;}
   a.letters=a.letters||[];a.letters.push(Object.assign({tk:S.tick,n,line:q.line},q.narr?{place:q.place,narr:1}:{}));
+  // 子が生まれたと知らせた刻を、子の生まれた刻にする。来うる日もそこから数え直す
+  if(q.child&&a.childAt!=null&&!a.childDone){a.childBorn=S.tick;a.childAt=childAtOf(a,S.tick);}
   chron(S,a,'黒猫亭に便りを寄越す');
   a.nextLetter=a.letters.length>=3?null:S.tick+ri(120,240)*TICKS_PER_DAY;
   if(a.letters.length>=3)a.letterDone=1;
@@ -1357,7 +1367,9 @@ function arriveKin(S,parent,due){
   const label=kinLabel(parent,due.kind);
   if(seatsUsed(S,'ours')>=seatCap(S,'ours')){news(S,`${parent.name}の${label}が黒猫亭を訪ねたが、席がなかったので故郷へ帰った。`,'info');return;}
   const kr=kinWords(parent,due.kind);
-  const younger=due.kind==='lost'?Math.max(15,Math.min(ri(16,22),humanAge(parent)-ri(3,8))):ri(15,20);
+  // 子は生まれてからの年数。ほかは人間換算の年齢を種族の実年齢に戻す
+  const cage=due.kind==='child'?childAgeAt(S,parent):null;
+  const younger=cage!=null?null:due.kind==='lost'?Math.max(15,Math.min(ri(16,22),humanAge(parent)-ri(3,8))):ri(15,20);
   const keep=due.kind==='lost'?pick(KIN_KEEPS):null;
   let bg;
   if(due.kind==='lost')bg=`記念碑に名のある${parent.name}の${kr.rel}。${parent.name}の形見の${keep}を受け継いだ`;
@@ -1368,7 +1380,7 @@ function arriveKin(S,parent,due){
   if(due.kind==='lost'&&knownFoe(parent.lastBy))dream={k:'kinvenge',m:parent.lastBy,elder:kr.elder,who:parent.name};
   else if(due.kind==='lost')dream={k:'kinflower',elder:kr.elder,who:parent.name};
   else dream={k:'kinname',uncle:due.kind==='ysib'?kr.elder:kr.uncle,who:parent.name};
-  const k=makeAdv(S,'ours',{sex:kr.sex,race:parent.race,origin:parent.origin,age:ageForHuman(parent.race,younger),lvl:ri(1,5),bg,dream});
+  const k=makeAdv(S,'ours',{sex:kr.sex,race:parent.race,origin:parent.origin,age:cage!=null?cage:ageForHuman(parent.race,younger),lvl:ri(1,5),bg,dream});
   k.kin={id:parent.id,rel:kr.rel,name:parent.name};
   parent.kinOf=parent.kinOf||[];parent.kinOf.push({id:k.id,name:k.name,rel:kr.rel,tk:S.tick});
   chron(S,parent,`${k.name}（${kr.rel}）が黒猫亭に来た`);
@@ -3490,6 +3502,10 @@ function migrate(S){
   }
   if(!(S.v>=26)){// 便り。去った常連に、開いた日から1通目の予定を付ける。乱数は引かない。話の段は触らない。弟妹や子の予定は遡らない
     schedulePendingLetters(S);S.v=26;
+  }
+  if(!(S.v>=27)){// 子の生まれた刻。2通目の便りの刻、まだ届いていなければ去った刻。来うる日もそこから数え直す。乱数は引かない
+    Object.values(S.adv).forEach(a=>{if(a.childAt==null||a.childDone||a.childBorn!=null)return;const b=childBornOf(a);a.childBorn=b;a.childAt=childAtOf(a,b);});
+    S.v=27;
   }
   if(typeof S.taverns.ours.interestPaid!=='number')S.taverns.ours.interestPaid=inferInterestPaid(S);
   Object.values(S.adv).forEach(a=>{if(!a.tone)personalize(a);if(!a.traits)assignTraits(S,a,true);});
