@@ -288,6 +288,44 @@ test('金額・階・席の知らせは、画面どうしで同じ書き方に�
   assert.deepEqual(errors,[]);await ctx.close();
 });
 
+test('夢の貯金は両方を区切ってGを付け、地図屋の調査隊は括弧で人数を出し、店の分からない記録は「不明」と出し、帳場の「+」は半角の幅で出す',async()=>{
+  const {ctx,page,errors}=await open();
+  await page.locator('#sp0').click();
+  const shown=await page.evaluate(async()=>{
+    await document.fonts.ready;
+    const a=Object.values(S.adv).find(x=>x.tav==='ours');
+    a.dream=Object.assign({k:'wealth'},DREAMS.wealth.mk(a,S),{amt:94700});a.gold=5461;
+    advOpen=a.id;document.getElementById('advm').hidden=false;renderAdv();
+    const book=document.querySelector('#advbox').innerText;
+    document.getElementById('advm').hidden=true;advOpen=null;
+    floorsInit(S);
+    S.floors[10].through.party='王国の調査隊200人';
+    S.floors[11].arrive.party='王国の調査隊200人（全滅）';
+    S.floors[2]={arrive:{party:'迷子の一行',tav:'gone',tk:0},map:false};
+    S.rares[1]={killed:{party:'名無しの一行',tav:'gone',names:['某'],tk:0},seen:{party:'名無しの一行',tav:'gone',tk:0}};
+    S.rares[3]={seen:{party:'見ただけの一行',tav:'gone',tk:0}};
+    tab='maps';render();
+    const maps=document.querySelector('#tbody').innerText;
+    S.flow.hist.push(Object.assign(flowBlank(),{e:923}));
+    tab='desk';render();
+    const flow=document.querySelector('#flow');
+    const cell=[...flow.querySelectorAll('.num')].find(x=>x.textContent.startsWith('+'));
+    const w=t=>{const s=document.createElement('span');s.textContent=t;cell.append(s);const x=s.getBoundingClientRect().width;s.remove();return x;};
+    return {book,maps,flowText:flow.innerText,plus:w('+'),kana:w('あ')};
+  });
+  assert.match(shown.book,/貯金 5,461G \/ 94,700G/);
+  assert.match(shown.maps,/王国の調査隊（200人）/);
+  assert.match(shown.maps,/王国の調査隊（200人・全滅）/);
+  assert.doesNotMatch(shown.maps,/調査隊200人/);
+  assert.match(shown.maps,/不明の迷子の一行/);
+  assert.match(shown.maps,/不明の名無しの一行/);
+  assert.match(shown.maps,/不明の見ただけの一行が目撃/);
+  assert.match(shown.flowText,/\+923G/);
+  assert.doesNotMatch(shown.flowText,/＋/);
+  assert.ok(shown.plus<shown.kana*.7,`+ の幅 ${shown.plus} / あ の幅 ${shown.kana}`);
+  assert.deepEqual(errors,[]);await ctx.close();
+});
+
 test('黒猫亭の出発は日報に出て、同じ日の迷宮と坑道は一つにまとまる。銀の杯亭は出ない',async()=>{
   const {ctx,page,errors}=await open();
   const lines=await page.evaluate(()=>{
