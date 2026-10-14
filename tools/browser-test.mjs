@@ -1039,7 +1039,8 @@ test('900px以下では返済の帯とタブが初めから見え、ページ自
   const tops=[];
   for(const [width,height] of [[375,740],[390,844],[640,900],[641,900],[768,1024],[844,390],[900,700],[901,800],[1280,800]]){
     await page.setViewportSize({width,height});
-    await page.evaluate(()=>{document.querySelector('.wrap').scrollTo(0,0);window.scrollTo(0,0);});
+    // 幅を変えた直後は、返済の帯の位置を直す処理がまだ走っていないことがある。ここで一度直してから測る
+    await page.evaluate(()=>{document.querySelector('.wrap').scrollTo(0,0);window.scrollTo(0,0);window.dispatchEvent(new Event('resize'));});
     await page.evaluate(()=>document.fonts.ready);
     const first=await look();
     assert.deepEqual(first.bad,[],`${width}×${height} を開いた直後`);
@@ -2032,5 +2033,91 @@ test('倒れた者の札、番付の数、出資の買い取り、記念碑の�
   const still=await page.locator('button[data-v="stone"] .cnt').innerText();
   assert.equal(still,'ロスト1');
   assert.match(await page.locator('#tbody').innerText(),/消えた者/);
+  assert.deepEqual(errors,[]);await ctx.close();
+});
+
+test('札の印は右上に揃い、方針ボタンの幅は変わらず、狭い画面ではログとタブの位置が収まる',async()=>{
+  const {ctx,page,errors}=await open();
+  await page.locator('#sp0').click();
+  await page.evaluate(()=>document.fonts.ready);
+  const tags=()=>page.evaluate(()=>{
+    const bad=[];
+    for(const el of document.querySelectorAll('.pcard')){
+      const top=el.querySelector('.top'),pn=el.querySelector('.pn'),tag=el.querySelector('.tag');
+      if(!top||!pn||!tag){bad.push('札の頭がない');continue;}
+      const tr=top.getBoundingClientRect(),pr=pn.getBoundingClientRect(),gr=tag.getBoundingClientRect();
+      if(gr.top>pr.bottom-1)bad.push('印が次の行に落ちた');
+      if(Math.abs(gr.right-tr.right)>2)bad.push(`印が右上にない ${Math.round(gr.right-tr.right)}`);
+      if(gr.left<pr.right-2)bad.push('印が名前に重なる');
+      const cs=getComputedStyle(pn);
+      if(cs.textOverflow!=='ellipsis'||cs.overflowX!=='hidden'&&cs.overflow!=='hidden')bad.push('名前が省略されない');
+      if(el.scrollWidth>el.clientWidth+1)bad.push('札が横にはみ出す');
+    }
+    return bad;
+  });
+  assert.deepEqual(await tags(),[]);
+  await page.setViewportSize({width:375,height:740});
+  await page.evaluate(()=>document.fonts.ready);
+  await page.evaluate(()=>{
+    const p=Object.values(S.parties).find(x=>x.tav==='ours');
+    p.name='ナハト・ラーベ・とても長い一行の名前が札の端で省略される';
+    render();
+  });
+  const long=await page.evaluate(()=>{
+    const el=[...document.querySelectorAll('.pcard')].find(x=>x.textContent.includes('ナハト・ラーベ・とても長い'));
+    const pn=el.querySelector('.pn');
+    const range=document.createRange();range.selectNodeContents(pn);
+    const lines=new Set([...range.getClientRects()].map(r=>Math.round(r.top))).size;
+    return {clipped:pn.scrollWidth>pn.clientWidth+1,lines};
+  });
+  assert.equal(long.clipped,true,'長い名前が省略されていない');
+  assert.equal(long.lines,1);
+  assert.deepEqual(await tags(),[]);
+  const phone=await page.evaluate(()=>{
+    const bad=[];
+    const log=document.querySelector('.c-log');
+    if(!log)bad.push('ログがない');
+    else{
+      const h=log.getBoundingClientRect().height;
+      if(h>innerHeight/2+1)bad.push(`ログが高い ${Math.round(h)} / 半分 ${Math.round(innerHeight/2)}`);
+      if(h>380)bad.push(`ログが380pxを超える ${Math.round(h)}`);
+    }
+    for(const b of document.querySelectorAll('.ctrl .btn')){
+      const r=b.getBoundingClientRect();
+      if(r.right>innerWidth-15)bad.push(b.textContent.trim()+' が右端 '+Math.round(innerWidth-r.right));
+      if(r.left<15)bad.push(b.textContent.trim()+' が左端');
+    }
+    return bad;
+  });
+  assert.deepEqual(phone,[]);
+  await page.locator('button[data-v="desk"]').click();
+  const widths=()=>page.evaluate(()=>{
+    const bs=[...document.querySelectorAll('#tbody button.pol')];
+    return bs.map(b=>({k:b.dataset.k,t:b.textContent,w:Math.round(b.getBoundingClientRect().width)}));
+  });
+  const before=await widths();
+  assert.equal(before.length,3);
+  assert.equal(new Set(before.map(b=>b.w)).size,1,`方針の幅が違う ${before.map(b=>b.k+b.w).join(' ')}`);
+  await page.locator('button.pol').first().click();
+  const after=await widths();
+  assert.deepEqual(after.map(b=>b.w),before.map(b=>b.w),`切り替えると幅が変わる ${before.map(b=>b.t+b.w).join(' ')} → ${after.map(b=>b.t+b.w).join(' ')}`);
+  await page.setViewportSize({width:390,height:844});
+  await page.locator('button[data-v="news"]').click();
+  await page.evaluate(()=>{const w=document.querySelector('.wrap');w.scrollTop=w.scrollHeight;});
+  await page.locator('button[data-v="ref"]').click();
+  const dy=await page.evaluate(()=>{
+    const side=document.querySelector('.side').getBoundingClientRect();
+    const wrap=document.querySelector('.wrap').getBoundingClientRect();
+    return side.top-wrap.top;
+  });
+  assert.ok(Math.abs(dy)<=8,`タブを切り替えても先頭に来ない ${dy}`);
+  const close=await page.evaluate(()=>{
+    const a=Object.values(S.adv).find(x=>x.tav==='ours');
+    advOpen=a.id;document.getElementById('advm').hidden=false;renderAdv();
+    const b=[...document.querySelectorAll('#advbox button')].find(x=>x.textContent==='閉じる');
+    return {on:b.classList.contains('on'),bg:getComputedStyle(b).backgroundColor};
+  });
+  assert.equal(close.on,true);
+  assert.equal(close.bg,'rgb(227, 166, 73)');
   assert.deepEqual(errors,[]);await ctx.close();
 });

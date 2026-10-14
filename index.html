@@ -44,6 +44,7 @@ button:focus-visible,[tabindex]:focus-visible{outline:2px solid var(--amber);out
 .btn.on{background:var(--amber);color:#1b1309;border-color:var(--amber)}
 .btn:disabled{opacity:.45;cursor:not-allowed}
 .btn.sm{padding:2px 8px;font-size:12px}
+.btn.pol{min-width:8em;text-align:center}
 
 /* main grid */
 .grid{display:grid;grid-template-columns:minmax(0,1fr) 370px;gap:16px;align-items:start}
@@ -92,8 +93,8 @@ button:focus-visible,[tabindex]:focus-visible{outline:2px solid var(--amber);out
 .pcard:hover{border-color:var(--amber-dim)}
 .pcard.watching{border-color:var(--glow)}
 .pcard.rival{background:#1b1a1c}
-.pcard .top{display:flex;align-items:baseline;gap:6px;min-width:0;flex-wrap:wrap}
-.pcard .pn{font-weight:700;min-width:0;line-height:1.35}
+.pcard .top{display:flex;align-items:center;gap:6px;min-width:0;flex-wrap:nowrap}
+.pcard .pn{flex:1;font-weight:700;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;line-height:1.35}
 .pn .ja,.nm .ja{font-weight:400}
 .pcard .pn .ja{color:var(--muted)}
 .tag{font-size:10px;padding:0 6px;border-radius:9px;border:1px solid var(--line);color:var(--muted);white-space:nowrap;flex:none}
@@ -267,6 +268,8 @@ button:focus-visible,[tabindex]:focus-visible{outline:2px solid var(--amber);out
   .wrap{flex:1;min-height:0;overflow-x:clip;overflow-y:auto;padding-bottom:12px;scroll-behavior:auto}
   .toast{left:16px;right:16px;width:auto;transform:none;text-align:center;word-break:keep-all;line-break:strict;overflow-wrap:anywhere;bottom:calc(var(--tabbar-h, 140px) + var(--paybar-h, 0px) + 12px)}
   .side{position:static;max-height:none}
+  /* ログの固定高さと、ページの中身のスクロールが重なって棒が二重に出るのを避ける */
+  .c-log{height:min(380px,50dvh);max-height:50dvh}
   .payline:not([hidden]){position:fixed;left:0;right:0;top:auto;bottom:var(--tabbar-h, 140px);z-index:9;border-bottom:0;border-top:1px solid var(--line);box-shadow:0 -4px 12px #0006}
   .tabs{position:fixed;left:0;right:0;bottom:0;z-index:8;background:var(--panel);border-top:1px solid var(--line);border-bottom:0;padding:2px 4px 6px;box-shadow:0 -8px 20px #0008}
   .tbody{max-height:none;min-height:0;flex:none;overflow:visible;padding-bottom:0}
@@ -277,6 +280,7 @@ button:focus-visible,[tabindex]:focus-visible{outline:2px solid var(--amber);out
   .tabs button,.ctrl .btn{display:inline-flex;align-items:center;justify-content:center;min-width:44px;min-height:44px}
   /* 帳場など右の列と、留守のあいだに。お金のボタンと、行の頭の名前は44px。横の間隔は .row の 8px */
   .tbody .btn,.modal .btn,.c-foot .btn{display:inline-flex;align-items:center;justify-content:center;min-width:44px;min-height:44px}
+  .tbody .btn.pol{min-width:8em}
   .tbody .nm-head{display:inline-flex;align-items:center;justify-content:center;box-sizing:border-box;min-width:44px;min-height:44px;padding:0 4px}
   /* 文の途中の名前。行の高さは変えず、上下の押し幅だけ広げる */
   .tbody .nm-link:not(.nm-head){display:inline;padding-block:12px;margin-block:-12px;vertical-align:baseline}
@@ -2532,7 +2536,7 @@ function combat(S,p){
       const d=ri(1,t.atk)+Math.floor(f/3);a.hp-=d;
       plog(p,`${foeName(p)} は ${a.name} に おそいかかった\n　${d} の ダメージ`);
       if(a.hp>0&&t.sp==='poison'&&chance(.25)){if(chance(rc(a).pois+eqSum(a,'pois')+(has(a,'毒に強い')?.4:0)-(has(a,'病弱')?.25:0)))plog(p,`　${a.name} に どくは きかなかった`,'move');else{a.poison=1;a.poisonN=(a.poisonN||0)+1;plog(p,`　${a.name} は どくを うけた`,'death');(p.trip.poison=p.trip.poison||[]).push(a.name);}}
-      if(a.hp>0&&(t.sp==='drain'||t.boss)&&chance(.25)&&a.lvl>2){a.lvl-=2;a.xp=Math.min(a.xp,xpNeed(a.lvl-1));a.mhp=Math.max(4,a.mhp-ri(2,5));a.hp=Math.min(a.hp,a.mhp);plog(p,`　${a.name} は レベルを すいとられた！`,'death');}
+      if(a.hp>0&&(t.sp==='drain'||t.boss)&&chance(.25)&&a.lvl>2){a.lvl-=2;a.xp=Math.min(a.xp,xpNeed(a.lvl-1));a.mhp=Math.max(4,a.mhp-ri(2,5));a.hp=Math.min(a.hp,a.mhp);plog(p,`　${a.name} は レベルを すいとられた！`,'death');chron(S,a,`${t.n}でレベルを吸い取られ、レベル${a.lvl}になる`);}
       if(a.hp<=0){a.hp=0;die(S,p,a,t.n);}
       else if(a.hp<=a.mhp*.15&&p.trip.close&&!p.trip.close.includes(a.name))p.trip.close.push(a.name);
     } else plog(p,`${foeName(p)} の こうげきを ${a.name} は かわした`,'move');
@@ -3760,8 +3764,11 @@ function placeTabs(){
 }
 function focusSide(){
   if(!window.matchMedia('(max-width:900px)').matches)return;
-  const side=document.querySelector('.side');
-  if(side)side.scrollIntoView({block:'start',behavior:'instant'});
+  const wrap=document.querySelector('.wrap'),side=document.querySelector('.side');
+  if(!wrap||!side)return;
+  // スマホ幅で動くのは右の列ではなく、ページの中身。前の位置のまま残さない
+  const dy=side.getBoundingClientRect().top-wrap.getBoundingClientRect().top;
+  if(Math.abs(dy)>1)wrap.scrollTop+=dy;
 }
 function sideNews(){const ed=(S.edicts||[]).filter(e=>e.until>S.tick);return `${ed.length?`<div class="sect"><h3>いま出ているお触れ</h3>${ed.map(e=>`<div class="quote edict">【${esc(e.from)}】${esc(e.t)}<span class="by">あと${Math.max(1,Math.ceil((e.until-S.tick)/TICKS_PER_DAY))}日</span></div>`).join('')}</div>`:''}<p class="note">黒猫亭にも、銀の杯亭にも、迷宮の出来事は届く。</p><ul class="news">${S.news.slice(-60).reverse().map(newsLi).join('')}</ul>`}
 function markTag(a){return a.marked&&a.tav==='ours'&&a.status!=='lost'&&a.status!=='retired'?'<span class="markmark" title="店主が見込んだ者">◆見込み</span>':''}
@@ -3849,7 +3856,7 @@ function sideDesk(){
   return `<div class="desk">${memoHtml()}${debtSect}${flowHtml()}<div class="sect"><h3>店の方針　冒険者への支援</h3>
   <p class="note">店の金で常連を支える。生きて帰る者が増え、恩を感じた者は店でよく飲む。これまでの支援 ${T().support||0}G・売上 ${T().earned}G。</p>
   <div class="row"><span class="who"><b>回復薬の差し入れ</b><span class="does">出発する一行に持たせる。1本 ${potionPrice(S,{members:Object.values(S.adv).filter(a=>a.tav==='ours'&&a.status!=='lost'&&a.status!=='retired').map(a=>a.id)})}G前後（深さで変わる）</span>${costLine('potion')}</span>${[['なし',0],['2本',1],['5本',2],['10本',3]].map(([l,v])=>`<button class="btn sm${policy(S).potion===v?' on':''}" data-act="pol" data-k="potion" data-v="${v}">${l}</button>`).join('')}</div>
-  ${[['mapPay','地図を店のもちで買う','常連の一行が地図を買うとき、店が払う'],['revive','蘇生代を肩代わりする','常連が寺院に運ばれたら、すぐ店が払って蘇生を頼む'],['rookie','新人に支度の品を贈る','レベル10未満の新顔が来たら、武具屋の品を2つまで贈る']].map(([k,l,d])=>`<div class="row"><span class="who"><b>${l}</b><span class="does">${d}</span>${costLine(k)}</span><button class="btn sm${policy(S)[k]?' on':''}" data-act="pol" data-k="${k}" data-v="${policy(S)[k]?0:1}">${policy(S)[k]?'している':'していない'}</button></div>`).join('')}
+  ${[['mapPay','地図を店のもちで買う','常連の一行が地図を買うとき、店が払う'],['revive','蘇生代を肩代わりする','常連が寺院に運ばれたら、すぐ店が払って蘇生を頼む'],['rookie','新人に支度の品を贈る','レベル10未満の新顔が来たら、武具屋の品を2つまで贈る']].map(([k,l,d])=>`<div class="row"><span class="who"><b>${l}</b><span class="does">${d}</span>${costLine(k)}</span><button class="btn sm pol${policy(S)[k]?' on':''}" data-act="pol" data-k="${k}" data-v="${policy(S)[k]?0:1}">${policy(S)[k]?'している':'していない'}</button></div>`).join('')}
   </div>
 <div class="sect"><h3>常連への手当て</h3>
   ${(()=>{const dead=Object.values(S.adv).filter(a=>a.tav==='ours'&&(a.status==='dead'||a.status==='ash'));const idle=Object.values(S.adv).filter(a=>a.tav==='ours'&&a.status==='idle');
