@@ -89,12 +89,12 @@ test('留守のあいだの減りは売上と書かず、帳場は返した額�
     document.querySelector('#digest').hidden=false;
     return {sum:document.querySelector('#dg-sum').innerText,brk:document.querySelector('#dg-brk').innerText};
   });
-  assert.match(shown.sum,/-4657G/);
+  assert.match(shown.sum,/-4,657G/);
   assert.match(shown.sum,/所持金/);
   assert.doesNotMatch(shown.sum,/売上/);
   assert.match(shown.brk,/売上 \+923G/);
   assert.match(shown.brk,/支援 0G/);
-  assert.match(shown.brk,/返済 5580G/);
+  assert.match(shown.brk,/返済 5,580G/);
   await page.setViewportSize({width:375,height:740});
   await page.evaluate(()=>document.fonts.ready);
   const digestWrap=await page.evaluate(()=>{
@@ -126,17 +126,17 @@ test('留守のあいだの減りは売上と書かず、帳場は返した額�
   assert.equal(after.v,26);
   assert.doesNotMatch(after.sum,/売上/);
   assert.match(after.sum,/所持金/);
-  const gd=after.gold-live.gold,esign=gd>=0?`+${gd}`:String(gd);
+  const gd=after.gold-live.gold,yen=n=>n.toLocaleString('ja-JP'),esign=gd>=0?`+${yen(gd)}`:yen(gd);
   assert.match(after.sum,new RegExp(esign.replace(/[+-]/g,'\\$&')+'G'));
-  assert.match(after.brk,new RegExp('売上 \\+'+(after.earned-live.earned)+'G'));
-  assert.match(after.brk,new RegExp('支援 '+(after.support-live.support)+'G'));
-  assert.match(after.brk,new RegExp('返済 '+(after.repaid-live.repaid)+'G'));
+  assert.match(after.brk,new RegExp('売上 \\+'+yen(after.earned-live.earned)+'G'));
+  assert.match(after.brk,new RegExp('支援 '+yen(after.support-live.support)+'G'));
+  assert.match(after.brk,new RegExp('返済 '+yen(after.repaid-live.repaid)+'G'));
   assert.equal(after.repaid-live.repaid,5580);
   assert.equal(after.interest,1580);
   await page.locator('[data-act="closedigest"]').click();
   await page.locator('button[data-v="desk"]').click();
   const desk=await page.locator('#tbody').innerText();
-  assert.match(desk,/これまでに返した額 6580G（うち利息 1580G）/);
+  assert.match(desk,/これまでに返した額 6,580G（うち利息 1,580G）/);
   assert.doesNotMatch(desk,/売上 -/);
   await page.setViewportSize({width:375,height:740});
   await page.evaluate(()=>document.fonts.ready);
@@ -2049,7 +2049,7 @@ test('帳場のきょうの出入りは前日と直近7日で、375pxでも短�
   assert.deepEqual(await layout(),[]);
   await page.evaluate(()=>{S.taverns.ours.gold=5000;render();});
   await page.locator('button[data-act="repay"][data-v="1000"]').click();
-  assert.match(await flow.innerText(),/-1000G/);
+  assert.match(await flow.innerText(),/-1,000G/);
   const rev=await page.evaluate(()=>{
     const a=Object.values(S.adv).find(x=>x.tav==='ours'&&x.status==='idle');
     a.status='dead';a.hp=0;a.party=null;
@@ -2068,8 +2068,8 @@ test('帳場のきょうの出入りは前日と直近7日で、375pxでも短�
   assert.match(shown,/\+923G/);
   assert.match(shown,/-180G/);
   assert.match(shown,/-470G/);
-  assert.match(shown,/-5580G/);
-  assert.match(shown,/-15000G/);
+  assert.match(shown,/-5,580G/);
+  assert.match(shown,/-15,000G/);
   assert.deepEqual(await layout(),[]);
   const want=await page.evaluate(()=>policyCost(S).potion[1]);
   await page.locator('button[data-act="pol"][data-k="potion"][data-v="1"]').click();
@@ -2138,7 +2138,7 @@ test('倒れた者の札、番付の数、出資の買い取り、記念碑の�
     return {n:t.n,price:buyPrice(S,t),note:document.querySelector('#tbody').innerText};
   });
   assert.match(before.note,/景気が上がると、買い取りの値も上がる/);
-  assert.match(before.note,new RegExp('買い取る '+before.price+'G'));
+  assert.match(before.note,new RegExp('買い取る '+before.price.toLocaleString('ja-JP')+'G'));
   await page.locator(`button[data-act="invest"][data-n="${before.n}"]`).click();
   const after=await page.evaluate(n=>{
     const t=smallOf(S).find(x=>x.n===n);
@@ -2147,7 +2147,7 @@ test('倒れた者の札、番付の数、出資の買い取り、記念碑の�
   assert.ok(after.price>before.price,`${before.price}→${after.price}`);
   assert.ok(after.score>0);
   assert.match(after.note,/景気が上がると、買い取りの値も上がる/);
-  assert.match(after.note,new RegExp('買い取る '+after.price+'G'));
+  assert.match(after.note,new RegExp('買い取る '+after.price.toLocaleString('ja-JP')+'G'));
   const badge=await page.evaluate(()=>{
     S.memorial.push({id:1,name:'消えた者',cls:'戦士',lvl:1,race:'人間',tav:'rival',tk:1,by:'オーク',floor:2,kills:0});
     tab='news';render();

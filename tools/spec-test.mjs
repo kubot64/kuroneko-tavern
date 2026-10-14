@@ -1490,7 +1490,7 @@ function checkIntro(){
   const news=E.ourNewcomerNews(Object.assign({origin:'ロウエン',bg:'ロウエン生まれの冒険者の二世'},who));
   const far=E.ourNewcomerNews(Object.assign({origin:'東方の島国アズマ',bg:'海を渡ってきた若い剣士'},who));
   check('知らせ：新顔の文は、省いた出身のあとに年齢と名前が続く',
-    news.k==='info'&&news.t==='新顔がやってきた。ロウエン生まれの冒険者の二世だという18歳の人間の戦士、アルト（レベル11）。'
+    news.k==='info'&&news.t==='新顔がやってきた。ロウエン生まれの冒険者の二世だという18歳の人間の戦士、アルト（Lv11）。'
     &&far.k==='record'&&far.t.startsWith('新顔がやってきた。海の向こう、東方の島国アズマから来た海を渡ってきた若い剣士だという18歳の'),
     '新顔の文',news.t+' / '+far.t);
   const S0={taverns:{ours:{name:'黒猫亭'}}};
