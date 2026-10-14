@@ -77,6 +77,8 @@ function checkTables(){
   // 「借金と返済」：最初の借金と所持金
   check('借金と返済：80000Gの借金と400Gで始まる',S.taverns.ours.debt===80000&&S.taverns.ours.gold===400,'開店',`借金${S.taverns.ours.debt} 所持金${S.taverns.ours.gold}`);
   check('金額：画面に出すときは3桁ごとに区切る',E.G(600000)==='600,000G'&&E.G(5600)==='5,600G'&&E.G(50)==='50G'&&E.G(0)==='0G'&&E.G(-1540)==='-1,540G'&&E.groupMoney('返済5600Gと罰金1600G。残りは600000G。')==='返済5,600Gと罰金1,600G。残りは600,000G。'&&E.groupMoney(E.groupMoney('600000G'))==='600,000G','G',E.G(600000));
+  {const src='<div class="g" data-n="5600G" id="x1234Gb"><b>1234</b>Gold 12GB 3 Gold v1234G 1.2345G 返済5600G</div>',out=E.groupMoney(src);
+  check('金額：金額でない数字＋G（タグの属性、12GB、3 Gold、v1234G、1.2345G）は区切らない',out==='<div class="g" data-n="5600G" id="x1234Gb"><b>1234</b>Gold 12GB 3 Gold v1234G 1.2345G 返済5,600G</div>'&&E.groupMoney('1234 Gの残り')==='1,234 Gの残り'&&E.groupMoney('-1540G')==='-1,540G','G',out);}
   check('最深：着いていないときは―',E.deepNow(0)==='―'&&E.deepNow(1)==='B1F'&&E.FN(0)==='B0F','deepNow',E.deepNow(0));
   {const rare=E.MEMO.find(m=>m.id==='rare');
     check('覚え書き：名のある魔物は一体',!!rare&&rare.t==='名のある魔物を、一体仕留める','MEMO',rare&&rare.t);}

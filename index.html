@@ -785,7 +785,8 @@ function FN(f){return typeof f==='number'&&f>MAXF?`坑道B${f-MAXF}F`:`B${f}F`}
 function deepNow(n){return n>0?FN(n):'―'}
 // 画面に出す金額。3桁ごとに区切る（600,000G）
 function G(n){return Math.trunc(Number(n)||0).toLocaleString('ja-JP')+'G'}
-function groupMoney(s){return String(s??'').replace(/-?(?:\d{1,3}(?:,\d{3})+|\d+)(?=\s*G)/g,m=>{const n=Math.trunc(Number(String(m).replace(/,/g,'')));return Number.isFinite(n)?n.toLocaleString('ja-JP'):m;})}
+// 文や HTML の中の金額（数字＋G）だけを区切る。タグ（名前と属性）は飛ばす。数字の前が英数字・小数点・カンマの続きのときと、G の後ろに英字が続くとき（12GB、3 Gold など）は金額ではないので区切らない
+function groupMoney(s){return String(s??'').replace(/<[^>]*>|(?<![A-Za-z0-9_.,])-?(?:\d{1,3}(?:,\d{3})+|\d+)(?=\s*G(?![A-Za-z]))/g,m=>{if(m[0]==='<')return m;const n=Math.trunc(Number(String(m).replace(/,/g,'')));return Number.isFinite(n)?n.toLocaleString('ja-JP'):m;})}
 function dz(f){return Math.max(.67,fx(f)*2/3)}
 function incomeAt(f){return Math.round(70*Math.pow(Math.max(1,f),1.45))}
 function depthOf(a){const pl=PL(a);return clamp(Math.round(pl<=10?1+pl/1.5:1+10/1.5+(pl-10)*1.3),1,32)}
@@ -3507,7 +3508,7 @@ const KEY='kuroneko-tavern-v1';
 const shown={};
 let S,speed=1,tab='news',timer=null,toastT=null,ff=null,hiddenAt=null,pickErr=null,reviveNote=null,boardHelpOpen=false;
 const $=id=>document.getElementById(id);
-const esc=s=>groupMoney(String(s)).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const esc=s=>groupMoney(String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])));
 
 function save(){try{localStorage.setItem(KEY,JSON.stringify({S,at:Date.now(),pend:ff?ff.n-ff.i:0}))}catch(e){}}
 function boot(){
