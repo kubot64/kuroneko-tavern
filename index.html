@@ -107,6 +107,7 @@ button:focus-visible,[tabindex]:focus-visible{outline:2px solid var(--amber);out
 .pcard .facts b{color:var(--fg);font-weight:700;margin-inline-start:3px}
 .pcard .st{font-size:12px;color:var(--muted);word-break:keep-all;line-break:strict;overflow-wrap:anywhere}
 .pcard .st.bad{color:var(--blood)}
+.pcard .st.ret{color:var(--amber)}
 .pcard .roster{display:grid;grid-template-columns:repeat(auto-fill,minmax(11em,1fr));gap:1px 10px;font-size:12px;line-height:1.45}
 .pcard .who{display:flex;align-items:baseline;gap:4px;min-width:0}
 .pcard .who .nm{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -1592,6 +1593,12 @@ function partyDanger(S,p){
   else if(!hasMap(p)&&isFrontier(S,p.floor)&&near){key='front';line='ちずの ない さいぜんせんに いる';}
   if(!key)return null;
   return {key,line,card,thought:worst&&lp.pers==='無謀'?'リーダーは ひきかえす きが ない':null,fight:p.enemies?'たたかいの さいちゅう。いま めいじても にげきれるとは かぎらない':null};
+}
+// 帰り道でも全滅が近い：深手の者がいて、体力の合計が引き返す目安の半分を下回る。札の色だけに使う
+function returnPeril(S,p){
+  const al=alive(S,p);if(!al.length)return false;
+  if(!al.some(a=>a.mhp>0&&a.hp<a.mhp*.2))return false;
+  return hpRatio(S,p)<retreatLine(S,p)/2;
 }
 function say(S,p,lines){const l=leader(S,p);plog(p,`${l.name}「${pick(lines)}」`,'say')}
 
@@ -3681,14 +3688,17 @@ function stateText(p){
   if(p.state==='return') return [`${FN(p.floor)} 帰還中`,false];
   return [`${FN(p.floor)} ${p.plan==='grind'?'腕を磨いている':p.plan==='push'?'深く攻めている':'探索中'}`,false];
 }
+// 札の様子と色。'bad' は赤、'ret' は琥珀。帰り道を歩く一行は、全滅が近いときだけ赤にする
 function partyStatus(p){
   const [st,bad]=stateText(p);
-  if(p.tav!=='ours'||p.state==='wiped'||p.state==='town')return [st,bad];
+  if(p.tav!=='ours'||p.state==='wiped'||p.state==='town')return [st,bad?'bad':''];
   const d=partyDanger(S,p);
   let text=st,mark=bad;
   if(d&&d.card){text+='・'+d.card;mark=true;}
   if(partyOverdue(S,p)){text+='・まだ戻らない';mark=true;}
-  return [text,mark];
+  if(!mark)return [text,''];
+  if(p.state!=='return'||p.enemies)return [text,'bad'];
+  return [text,returnPeril(S,p)?'bad':'ret'];
 }
 function renderCrystals(){
   const box=$('crystals');
@@ -3737,7 +3747,7 @@ function renderParties(){
     return a.name<b.name?-1:a.name>b.name?1:0;
   });
   $('parties').innerHTML=ps.map(p=>{
-    const [st,bad]=partyStatus(p);const vis=visible(p);
+    const [st,tone]=partyStatus(p);const vis=visible(p);
     const ms=partyMembers(p).slice().sort((a,b)=>((b.id===p.leader)-(a.id===p.leader))||(b.lvl-a.lvl)||(a.name<b.name?-1:a.name>b.name?1:0));
     const avg=ms.length?Math.round(ms.reduce((t,x)=>t+x.lvl,0)/ms.length):0;
     const max=ms.length?Math.max(...ms.map(x=>x.lvl)):0;
@@ -3747,7 +3757,7 @@ function renderParties(){
     return `<button class="pcard${p.tav==='rival'?' rival':''}${S.watch.includes(p.id)?' watching':''}" data-act="watch" data-p="${p.id}" ${vis?'':'aria-disabled="true"'}>
       <div class="top"><span class="pn">${partyHtml(p.name)}</span><span class="tag ${p.tav}">${S.taverns[p.tav].name}${p.ace?'の看板':''}</span></div>
       <div class="facts">${ms.length?`<span>平均<b>Lv${avg}</b></span><span>最高<b>Lv${max}</b></span><span><b>${ms.length}</b>人</span>`:''}<span>到達<b>${esc(reachText(p))}</b></span></div>
-      <div class="st${bad?' bad':''}">${esc(st)}</div>
+      <div class="st${tone?' '+tone:''}">${esc(st)}</div>
       ${roster}${hp}
     </button>`;
   }).join('')||'<p class="note">いま迷宮に潜っている一行はいない。</p>';
