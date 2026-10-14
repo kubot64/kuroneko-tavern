@@ -32,7 +32,7 @@ const html=readFileSync(new URL('../index.html',import.meta.url),'utf8');
 const ENGINE=html.match(/\/\*ENGINE START\*\/([\s\S]*?)\/\*ENGINE END\*\//)[1];
 const EXPORTS=['newState','tick','rivalTemple','seatCap','seatsUsed','nextSeats','newcomerLvl','buyPrice','investPrice','FACILITIES',
   'RARES','MAXF','DRAGON_F','TICKS_PER_DAY','awayPlan','smallOf','debtTick','DEBT0','encounter','rareSlain','rareMonOf','arrive',
-  'repay','flowAdd','flowView','flowRoll','policyCost','goldSign','errandsOf','assignErrand','errandBlock','designateBlock','MAXF','MINE_TOP','MINE_BOT','MINE_N','FN','mineOpen','conquest','mineConquest','title','alive','markAdv','markedOf','BOARD_MAX','MARK_MAX','errandStage','boardMax','markMax','ARCS','reachFloor','GATE_F','fac','nextFac','buildFac','migrate','partyShown','crestJa','glossText','PT_A','PT_B','takeCrest','pickCrest','newPartyName','combat','MON','elemMul','elemNote','sleepMul','sleepReach','MINE_RARES','supplyTeam','potionPrice','lendRival','reviveChance','reviveHint','reviveResultText','temple','checkMemo','memoState','nextDue','rankRows','MEMO','setQuietLog','DREAMS','rollAge','AGE2','ORIGINS','careerLine','originBg','BGS','originIntro','newcomerClause','doorLine','ourNewcomerNews','SPELL_LIST','foePool','dz','chest','victory','partyDanger','hpBand','retreatLine','retire','letterTick','kinTick','schedulePendingLetters','scheduleLostKin','memorialize','lostRareLine','dreamText','letterQuote','checkDream','wipe','wipeCause','errandEvent','errandFailLine','partyOverdue','fitOf','ERRANDS'];
+  'repay','flowAdd','flowView','flowRoll','policyCost','goldSign','errandsOf','assignErrand','errandBlock','designateBlock','MAXF','MINE_TOP','MINE_BOT','MINE_N','FN','deepNow','G','groupMoney','floorsInit','mineOpen','conquest','mineConquest','title','alive','markAdv','markedOf','BOARD_MAX','MARK_MAX','errandStage','boardMax','markMax','ARCS','reachFloor','GATE_F','fac','nextFac','buildFac','migrate','partyShown','crestJa','glossText','PT_A','PT_B','takeCrest','pickCrest','newPartyName','combat','MON','elemMul','elemNote','sleepMul','sleepReach','MINE_RARES','supplyTeam','potionPrice','lendRival','reviveChance','reviveHint','reviveResultText','temple','checkMemo','memoState','nextDue','rankRows','MEMO','setQuietLog','DREAMS','rollAge','AGE2','ORIGINS','careerLine','originBg','BGS','originIntro','newcomerClause','doorLine','ourNewcomerNews','SPELL_LIST','foePool','dz','chest','victory','partyDanger','hpBand','retreatLine','retire','letterTick','kinTick','schedulePendingLetters','scheduleLostKin','memorialize','lostRareLine','dreamText','letterQuote','checkDream','wipe','wipeCause','errandEvent','errandFailLine','partyOverdue','fitOf','ERRANDS'];
 
 // 乱数の種を固定したゲームの中身を1つ作る。中身の Math.random だけを差し替える
 function load(seed,fixed){
@@ -76,6 +76,12 @@ function checkTables(){
     check('店の設備：できた知らせに段を添える',lines[0].includes('稽古場ができた（Lv1）')&&lines[1].includes('道場ができた（Lv2）')&&lines[2].includes('修練場ができた（Lv3）')&&lines[3].includes('情報屋ができた（Lv1）')&&lines[4].includes('療養所ができた（Lv1）')&&S4.v===26,'知らせ',lines.join(' / ')+` 版${S4.v}`);}
   // 「借金と返済」：最初の借金と所持金
   check('借金と返済：80000Gの借金と400Gで始まる',S.taverns.ours.debt===80000&&S.taverns.ours.gold===400,'開店',`借金${S.taverns.ours.debt} 所持金${S.taverns.ours.gold}`);
+  check('金額：画面に出すときは3桁ごとに区切る',E.G(600000)==='600,000G'&&E.G(5600)==='5,600G'&&E.G(50)==='50G'&&E.G(0)==='0G'&&E.G(-1540)==='-1,540G'&&E.groupMoney('返済5600Gと罰金1600G。残りは600000G。')==='返済5,600Gと罰金1,600G。残りは600,000G。'&&E.groupMoney(E.groupMoney('600000G'))==='600,000G','G',E.G(600000));
+  check('最深：着いていないときは―',E.deepNow(0)==='―'&&E.deepNow(1)==='B1F'&&E.FN(0)==='B0F','deepNow',E.deepNow(0));
+  {const rare=E.MEMO.find(m=>m.id==='rare');
+    check('覚え書き：名のある魔物は一体',!!rare&&rare.t==='名のある魔物を、一体仕留める','MEMO',rare&&rare.t);}
+  {const F=E.floorsInit(E.newState());const blob=JSON.stringify(F);
+    check('地図の昔の人数は算用数字',F[4].arrive.party.includes('40人')&&F[11].arrive.party.includes('200人')&&!blob.includes('四十')&&!blob.includes('三十')&&!blob.includes('二十')&&!blob.includes('五十')&&!blob.includes('百人')&&!blob.includes('二百'),'階の記録',blob);}
   // 「借金と返済」：返済日には利息2%を足し、4000G＋利息を払う。足りれば借金は4000G減る
   {const T0=S.taverns.ours;T0.gold=999999;T0.debt=50000;T0.nextPay=S.tick;const d0=T0.debt,g0=T0.gold;E.debtTick(S);
     check('借金と返済：返済日に4000G＋利息2%を払う',T0.debt===d0-4000&&g0-T0.gold===4000+Math.round(d0*.02),'返済日',`借金${d0}→${T0.debt} 支払い${g0-T0.gold}`);}
@@ -1224,6 +1230,7 @@ function checkOpening(){
     check('開店の顔ぶれ：手帳の来店の記録に、生い立ちと夢が残る',cast.every(a=>{const door=(a.chron||[]).find(c=>c.t&&c.t.includes('扉をくぐる'));return !!(door&&door.t.includes(tieOf(a))&&door.t.includes('夢は「'+dreamLine(a)+'」'));}),`種${seed}`,()=>cast.filter(a=>{const door=(a.chron||[]).find(c=>c.t&&c.t.includes('扉をくぐる'));return !(door&&door.t.includes(tieOf(a))&&door.t.includes('夢は「'+dreamLine(a)+'」'));}).map(a=>`${a.name}：${(a.chron.find(c=>c.t&&c.t.includes('扉をくぐる'))||{}).t||'記録なし'}`).join(' / '));
     check('開店の顔ぶれ：まだ潜っていない短い夢の進みはB0Fと出ない',holders.every(a=>(a.deepest||0)===0&&E.DREAMS.stele.prog(a)==='まだ迷宮に潜っていない'),`種${seed}`,holders.map(a=>E.DREAMS.stele.prog(a)).join(' / '));
     check('開店の直後：階段を降りる前なので、個人の最深到達は0',Object.values(S.adv).every(a=>(a.deepest||0)===0),`種${seed}`,Object.values(S.adv).filter(a=>a.deepest).map(a=>`${a.name}${a.deepest}`).slice(0,4).join(' / '));
+    check('開店の直後：まだ最深のない客の手帳の最深は―',holders.every(a=>E.deepNow(a.deepest)==='―'),`種${seed}`,holders.map(a=>E.deepNow(a.deepest)).join(' / '));
     names.push(cast.map(a=>a.name).join(','));
     if(i===0){
       Object.values(S.adv).forEach(a=>{delete a.opening;if(a.dream&&a.dream.k==='stele')a.dream={k:'fame',vi:0};});
@@ -1483,7 +1490,7 @@ function checkIntro(){
   const news=E.ourNewcomerNews(Object.assign({origin:'ロウエン',bg:'ロウエン生まれの冒険者の二世'},who));
   const far=E.ourNewcomerNews(Object.assign({origin:'東方の島国アズマ',bg:'海を渡ってきた若い剣士'},who));
   check('知らせ：新顔の文は、省いた出身のあとに年齢と名前が続く',
-    news.k==='info'&&news.t==='新顔がやってきた。ロウエン生まれの冒険者の二世だという18歳の人間の戦士、アルト（レベル11）。'
+    news.k==='info'&&news.t==='新顔がやってきた。ロウエン生まれの冒険者の二世だという18歳の人間の戦士、アルト（Lv11）。'
     &&far.k==='record'&&far.t.startsWith('新顔がやってきた。海の向こう、東方の島国アズマから来た海を渡ってきた若い剣士だという18歳の'),
     '新顔の文',news.t+' / '+far.t);
   const S0={taverns:{ours:{name:'黒猫亭'}}};
