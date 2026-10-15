@@ -32,7 +32,7 @@ const html=readFileSync(new URL('../index.html',import.meta.url),'utf8');
 const ENGINE=html.match(/\/\*ENGINE START\*\/([\s\S]*?)\/\*ENGINE END\*\//)[1];
 const EXPORTS=['newState','tick','rivalTemple','seatCap','seatsUsed','nextSeats','newcomerLvl','buyPrice','investPrice','FACILITIES',
   'RARES','MAXF','DRAGON_F','TICKS_PER_DAY','awayPlan','smallOf','debtTick','DEBT0','encounter','rareSlain','rareMonOf','arrive',
-  'repay','flowAdd','flowView','flowRoll','policyCost','goldSign','errandsOf','assignErrand','errandBlock','designateBlock','MAXF','MINE_TOP','MINE_BOT','MINE_N','FN','deepNow','G','groupMoney','floorsInit','mineOpen','conquest','mineConquest','title','alive','markAdv','markedOf','BOARD_MAX','MARK_MAX','errandStage','boardMax','markMax','ARCS','reachFloor','GATE_F','fac','nextFac','buildFac','migrate','partyShown','crestJa','glossText','PT_A','PT_B','takeCrest','pickCrest','newPartyName','combat','MON','elemMul','elemNote','sleepMul','sleepReach','MINE_RARES','supplyTeam','potionPrice','lendRival','reviveChance','reviveHint','reviveResultText','temple','checkMemo','memoState','nextDue','rankRows','MEMO','setQuietLog','DREAMS','rollAge','AGE2','ORIGINS','careerLine','originBg','BGS','originIntro','newcomerClause','doorLine','ourNewcomerNews','SPELL_LIST','foePool','dz','chest','victory','partyDanger','hpBand','retreatLine','retire','letterTick','kinTick','schedulePendingLetters','scheduleLostKin','memorialize','lostRareLine','dreamText','letterQuote','checkDream','wipe','wipeCause','errandEvent','errandFailLine','partyOverdue','returnPeril','SAVE_V','letterNews','fitOf','ERRANDS'];
+  'repay','flowAdd','flowView','flowRoll','policyCost','goldSign','errandsOf','assignErrand','errandBlock','designateBlock','MAXF','MINE_TOP','MINE_BOT','MINE_N','FN','deepNow','G','groupMoney','floorsInit','mineOpen','conquest','mineConquest','title','alive','markAdv','markedOf','BOARD_MAX','MARK_MAX','errandStage','boardMax','markMax','ARCS','reachFloor','GATE_F','fac','nextFac','buildFac','migrate','partyShown','crestJa','glossText','PT_A','PT_B','takeCrest','pickCrest','newPartyName','combat','MON','elemMul','elemNote','sleepMul','sleepReach','MINE_RARES','supplyTeam','potionPrice','lendRival','reviveChance','reviveHint','reviveResultText','temple','checkMemo','memoState','nextDue','rankRows','MEMO','setQuietLog','DREAMS','rollAge','AGE2','ORIGINS','careerLine','originBg','BGS','originIntro','newcomerClause','doorLine','ourNewcomerNews','SPELL_LIST','foePool','dz','chest','victory','partyDanger','hpBand','retreatLine','retire','letterTick','kinTick','schedulePendingLetters','scheduleLostKin','memorialize','lostRareLine','dreamText','letterQuote','checkDream','wipe','wipeCause','errandEvent','errandFailLine','partyOverdue','returnPeril','SAVE_V','letterNews','fitOf','ERRANDS','CAN','HI_SPELLS','tryYomi','learnHi'];
 
 // 乱数の種を固定したゲームの中身を1つ作る。中身の Math.random だけを差し替える
 function load(seed,fixed){
@@ -1417,6 +1417,74 @@ function checkFoes(){
     check('古い記録：新しい記録の版と、移行を終えた記録の版はどちらも今の版',E.newState().v===SAVE_V&&S.v===SAVE_V,`版${SAVE_V-1}`,`新しい記録${E.newState().v} 移行後${S.v} 今の版${SAVE_V}`);}
 }
 
+// 「呪文」：レベル30〜60で覚える呪文。資料の一覧と覚えるレベルが一致し、それぞれの効き目が決まりどおり
+function checkHighSpells(){
+  const E=load(1);
+  const keys={キヨメ:'kiyome',ゴウエン:'goen',タマヨビ:'tamayobi',オリハライ:'orihara',ホシオトシ:'hoshi'};
+  for(const [n,k] of Object.entries(keys)){
+    const row=E.SPELL_LIST.find(s=>s[0]===n);
+    check('呪文：高い呪文は資料の一覧に載る',!!row&&E.HI_SPELLS.some(([kk,nn])=>kk===k&&nn===n),n,row&&row.join(' / '));
+    if(!row)continue;
+    const who=row[2].split('・').map(x=>x.match(/^(.+?)Lv(\d+)〜$/)).filter(Boolean);
+    check('呪文：高い呪文は職業ごとに覚えるレベルが決まっている',who.length===row[2].split('・').length,n,row[2]);
+    for(const [,cls,lv] of who){const L=Number(lv);
+      check('呪文：一覧のレベルで覚え、その手前では覚えない',E.CAN[k]({cls,lvl:L})&&!E.CAN[k]({cls,lvl:L-1})&&E.CAN[k]({cls,lvl:60}),`${n} ${cls}`,`Lv${L}:${E.CAN[k]({cls,lvl:L})} Lv${L-1}:${E.CAN[k]({cls,lvl:L-1})}`);}
+    for(const cls of ['戦士','盗賊','侍','忍者','吟遊詩人'])check('呪文：一覧にない職業は覚えない',!E.CAN[k]({cls,lvl:99}),`${n} ${cls}`,'覚えた');
+  }
+  // 戦いの場を作る。一人目が術者。ほかの仲間はいない
+  const scene=(rnd,cls,lvl,mp,mon,nFoes,prep)=>{const E2=load(1,rnd),S=E2.newState();const p=Object.values(S.parties).find(x=>x.tav==='ours');const a=S.adv[p.leader];
+    a.cls=cls;a.lvl=lvl;a.hp=a.mhp=9999;a.mp=mp;a.pers='普通';a.poison=0;a.eq={};a.traits=[];a.tal='並';
+    p.members=[a.id];p.leader=a.id;p.floor=1;p.state='explore';p.fought=true;p.ident=true;p.ambush=false;p.potions=0;p.guard=0;p.buff=0;p.ward=0;p.star=0;p.log=[];
+    const t=E2.MON.find(m=>m.n===mon||(mon==='吸精'&&m.sp==='drain'&&!m.boss&&!m.rare));
+    p.etype=Object.assign({},t);p.enemies=Array.from({length:nFoes},()=>({hp:99999,sleep:0}));
+    if(prep)prep(E2,S,p,a);return {E:E2,S,p,a,log:()=>p.log.map(x=>x.t).join('\n')};};
+  // キヨメ：二人以上が毒なら、全員の毒をまとめて消す
+  {const r=scene(.5,'僧侶',33,10,'オーク',1,(E2,S,p,a)=>{const others=Object.values(S.adv).filter(x=>x.id!==a.id&&x.tav==='ours').slice(0,2);
+      others.forEach(x=>{x.status='party';x.party=a.party;x.hp=x.mhp=9999;x.poison=1;x.cls='戦士';p.members.push(x.id);});});
+    const mp0=r.a.mp;r.E.combat(r.S,r.p);const pois=r.p.members.map(id=>r.S.adv[id].poison).filter(Boolean).length;
+    check('呪文：キヨメは仲間全員の毒を消し、MPを2使う',r.log().includes('キヨメ を となえた')&&r.log().includes('2にんの どくが きえた')&&pois===0&&r.a.mp===mp0-2,'僧侶Lv33・毒2人',r.log().split('\n')[0]);}
+  // ゴウエン：覚えた魔術師は、ゴウカより強いのでゴウエンを選ぶ。MPを2使う。覚える手前ではゴウカ
+  {const r=scene(.5,'魔術師',37,10,'オーク',3);r.E.combat(r.S,r.p);
+    check('呪文：ゴウエンを覚えた魔術師は群れにゴウエンを唱え、MPを1使う',r.log().includes('ゴウエン を となえた')&&r.log().includes('ごうえんに のみこまれた')&&r.a.mp===9,'魔術師Lv37・オーク3体',r.log().split('\n').slice(0,2).join(' / '));
+    const q=scene(.5,'魔術師',35,10,'オーク',3);q.E.combat(q.S,q.p);
+    check('呪文：ゴウエンの手前ではゴウカ',q.log().includes('ゴウカ を となえた')&&!q.log().includes('ゴウエン'),'魔術師Lv35・オーク3体',q.log().split('\n')[0]);}
+  // タマヨビ：失敗しても灰にならない。ヨミガエリは失敗すると灰になる
+  for(const [lvl,nm,ash] of [[41,'タマヨビ',false],[39,'ヨミガエリ',true]]){
+    const r=scene(.99,'僧侶',lvl,20,'オーク',1,(E2,S,p,a)=>{const d=Object.values(S.adv).find(x=>x.id!==a.id&&x.tav==='ours');d.status='party';d.party=a.party;d.hp=0;d.mhp=40;d.dungeonAsh=false;p.members.push(d.id);p.floor=20;p.trip=p.trip||{};});
+    const d=r.S.adv[r.p.members[1]];r.E.tryYomi(r.S,r.p);
+    check('呪文：タマヨビは失敗しても灰にならず、ヨミガエリは灰になる',r.log().includes(`${nm} を となえた`)&&!!d.dungeonAsh===ash&&d.hp===0&&r.a.mp===20-(ash?4:6),`僧侶Lv${lvl}・失敗`,`${r.log()} 灰${!!d.dungeonAsh} MP${r.a.mp}`);}
+  {const r=scene(1e-9,'僧侶',41,20,'オーク',1,(E2,S,p,a)=>{const d=Object.values(S.adv).find(x=>x.id!==a.id&&x.tav==='ours');d.status='party';d.party=a.party;d.hp=0;d.mhp=41;d.dungeonAsh=false;p.members.push(d.id);p.floor=20;p.trip=p.trip||{};});
+    const d=r.S.adv[r.p.members[1]];r.E.tryYomi(r.S,r.p);
+    check('呪文：タマヨビで息を吹き返すと、体力は半分',d.hp===21&&!d.dungeonAsh&&r.p.trip.yomi&&r.p.trip.yomi.s==='タマヨビ','僧侶Lv41・成功',`体力${d.hp}`);}
+  {const r=scene(.99,'僧侶',41,20,'オーク',1,(E2,S,p,a)=>{const d=Object.values(S.adv).find(x=>x.id!==a.id&&x.tav==='ours');d.status='party';d.party=a.party;d.hp=0;d.mhp=40;p.members.push(d.id);p.floor=15;});
+    r.E.tryYomi(r.S,r.p);check('呪文：タマヨビもB16Fより浅いところでは唱えない',!r.log().includes('タマヨビ')&&r.a.mp===20,'B15F',r.log());}
+  // オリハライ：レベルを吸う相手には先に唱え、その戦いのあいだは吸い取られない。一人だとダッシュツで逃げるので、頑丈な戦士を後ろに付ける
+  const guard=(E2,S,p,a)=>{const x=Object.values(S.adv).find(y=>y.id!==a.id&&y.tav==='ours');x.status='party';x.party=a.party;x.cls='戦士';x.hp=x.mhp=9999;x.poison=0;p.members.push(x.id);};
+  {const r=scene(1e-9,'僧侶',45,20,'吸精',1,guard);r.E.combat(r.S,r.p);
+    check('呪文：オリハライのあいだはレベルを吸い取られない',r.log().includes('オリハライ を となえた')&&r.log().includes('まもった')&&r.a.lvl===45&&r.p.ward===1&&r.a.mp===17,`僧侶Lv45・${r.p.etype.n}`,r.log());
+    const q=scene(1e-9,'僧侶',43,20,'吸精',1,guard);q.E.combat(q.S,q.p);
+    check('呪文：オリハライを覚える手前では、これまでどおり吸い取られる',!q.log().includes('オリハライ')&&q.a.lvl===41,`僧侶Lv43・${q.p.etype.n}`,`Lv${q.a.lvl}`);
+    const u=scene(1e-9,'僧侶',45,20,'吸精',1,(E2,S,p,a)=>{guard(E2,S,p,a);p.ident=false;});u.E.combat(u.S,u.p);
+    check('呪文：正体のわからない相手には、オリハライを唱えない',!u.log().includes('オリハライ'),'正体不明',u.log().split('\n')[0]);}
+  {const r=scene(.5,'僧侶',45,20,'澱呑みの坑道王',1,(E2,S,p)=>{p.guard=5;p.floor=E2.MINE_BOT;});r.E.combat(r.S,r.p);
+    check('呪文：坑道王にはオリハライを唱える',r.log().includes('オリハライ を となえた'),'坑道王',r.log().split('\n')[0]);}
+  // ホシオトシ：一戦に一度。主にも効き、相性はかからない。MPを8使う
+  {const r=scene(.5,'魔導士',49,30,'澱呑みの坑道王',1,(E2,S,p)=>{p.floor=E2.MINE_BOT;});
+    r.E.combat(r.S,r.p);const hp1=r.p.enemies[0].hp,mp1=r.a.mp;r.E.combat(r.S,r.p);
+    const n=(r.log().match(/ホシオトシ を となえた/g)||[]).length;
+    check('呪文：ホシオトシは主にも効き、一戦に一度だけ',n===1&&hp1<=99999-175&&mp1===22&&r.p.star===1,'魔導士Lv49・坑道王',`唱えた${n}回 傷${99999-hp1} MP${mp1}`);
+    const dr=scene(.5,'魔導士',49,30,'黒竜',1);dr.E.combat(dr.S,dr.p);
+    check('呪文：ホシオトシには炎・氷・雷の相性がかからない',99999-dr.p.enemies[0].hp===99999-hp1&&!dr.log().includes('きかない'),'黒竜',`黒竜${99999-dr.p.enemies[0].hp} 坑道王${99999-hp1}`);
+    const o=scene(.5,'魔導士',49,30,'オーク',1);o.E.combat(o.S,o.p);
+    check('呪文：ふつうの敵一体にはホシオトシを使わない',!o.log().includes('ホシオトシ'),'オーク1体',o.log().split('\n')[0]);
+    const lo=scene(.5,'魔導士',47,30,'澱呑みの坑道王',1);lo.E.combat(lo.S,lo.p);
+    check('呪文：ホシオトシを覚える手前では唱えない',!lo.log().includes('ホシオトシ'),'魔導士Lv47',lo.log().split('\n')[0]);}
+  // 覚えたときの一言は、はじめての一度だけ
+  {const r=scene(.5,'司教',57,30,'オーク',1);r.a.chron=[];r.E.learnHi(r.S,r.p,r.a);r.a.lvl=55;r.E.learnHi(r.S,r.p,r.a);r.a.lvl=57;r.E.learnHi(r.S,r.p,r.a);
+    const got=r.a.chron.map(c=>c.t).join('、');
+    check('呪文：高い呪文を覚えたら、一度だけ手帳に残す',got==='新しい呪文キヨメを覚える、新しい呪文ゴウエンを覚える、新しい呪文タマヨビを覚える、新しい呪文オリハライを覚える、新しい呪文ホシオトシを覚える','司教Lv57',got);}
+}
+
 function checkFlow(){
   const E=load(1),S=E.newState();
   const z=E.flowView(S);
@@ -1539,7 +1607,7 @@ function checkIntro(){
 
 if(!isMainThread){const line=runSeed(workerData.seed);parentPort.postMessage({line,res:[...results]});}
 else{
-  checkTables();checkScenes();checkLetters();checkErrands();checkCrest();checkRowFallback();checkMine();checkAffinity();checkRevive();checkMemoNotes();checkOpening();checkCareer();checkIntro();checkAge();checkFoes();checkFlow();
+  checkTables();checkScenes();checkLetters();checkErrands();checkCrest();checkRowFallback();checkMine();checkAffinity();checkRevive();checkMemoNotes();checkOpening();checkCareer();checkIntro();checkAge();checkFoes();checkFlow();checkHighSpells();
   // 種ごとの結果は、種の順に重ねる。反例は、いちばん若い種の最初のものを残す。進捗の行も種の順に出す
   const out=new Array(SEEDS.length);let next=0,printed=0;
   const flush=()=>{while(printed<out.length&&out[printed]){if(out[printed].line)console.log(out[printed].line);printed++;}};

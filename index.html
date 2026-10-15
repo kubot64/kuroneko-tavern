@@ -1997,7 +1997,7 @@ function stepParty(S,p){
     if(ms.length>=3&&(allIn||(!full&&(p.wait||0)>150))&&(ms.includes(L)||(p.wait||0)>300)){
       p.wait=0;
       p.members=ms.map(a=>a.id); ms.forEach(a=>{a.status='party'});
-      Object.assign(p,{floor:1,state:'explore',steps:0,fsteps:0,loot:0,carried:[],trip:newTrip(),rescue:[],tmap:{},guard:0,announced:false,knownWiped:false,retrieved:false,cause:''});
+      Object.assign(p,{floor:1,state:'explore',steps:0,fsteps:0,loot:0,carried:[],trip:newTrip(),rescue:[],tmap:{},guard:0,ward:0,star:0,announced:false,knownWiped:false,retrieved:false,cause:''});
       p.mineTrip=wantsMine(S,p);
       plog(p,'――――――――――','move'); plog(p,`${p.mineTrip?'こうどう':'めいきゅう'}へ しゅっぱつした`,'sys');supplyTeam(S,p);setPlan(S,p);
       if(p.mineTrip){const lim=Math.min(Math.floor(safeFloor(S,p)),p.cap||99);const st=MINE_STONES.filter(x=>x<=(p.mineReach||0)&&fx(x)<=lim).pop()||MINE_TOP;
@@ -2462,7 +2462,17 @@ const CAN={
   mitooshi:a=>(a.cls==='魔術師'&&PL(a)>=8)||a.cls==='魔導士'||(a.cls==='司教'&&PL(a)>=10),
   koori:a=>(a.cls==='魔術師'&&PL(a)>=3)||a.cls==='魔導士'||(a.cls==='司教'&&PL(a)>=5),
   ikazuchi:a=>(a.cls==='魔術師'&&PL(a)>=5)||a.cls==='魔導士'||(a.cls==='司教'&&PL(a)>=7),
+  // 坑道で育った者のための、レベル30〜60の呪文。上級職のほうが早く覚える
+  kiyome:a=>(a.cls==='僧侶'&&PL(a)>=17)||(a.cls==='司教'&&PL(a)>=15)||(a.cls==='聖騎士'&&PL(a)>=20),
+  goen:a=>(a.cls==='魔術師'&&PL(a)>=19)||(a.cls==='魔導士'&&PL(a)>=17)||(a.cls==='司教'&&PL(a)>=22),
+  tamayobi:a=>(a.cls==='僧侶'&&PL(a)>=21)||(a.cls==='司教'&&PL(a)>=19),
+  orihara:a=>(a.cls==='僧侶'&&PL(a)>=23)||(a.cls==='司教'&&PL(a)>=21)||(a.cls==='聖騎士'&&PL(a)>=25),
+  hoshi:a=>(a.cls==='魔術師'&&PL(a)>=27)||(a.cls==='魔導士'&&PL(a)>=25)||(a.cls==='司教'&&PL(a)>=29),
 };
+// レベルの高い呪文の名。はじめて覚えたときに、水晶のログと手帳へ残す。吸い取られて覚え直しても、二度は残さない
+const HI_SPELLS=[['kiyome','キヨメ'],['goen','ゴウエン'],['tamayobi','タマヨビ'],['orihara','オリハライ'],['hoshi','ホシオトシ']];
+function learnHi(S,p,a){for(const [k,n] of HI_SPELLS){if(!CAN[k](a)||(a.hiSp||[]).includes(k))continue;(a.hiSp=a.hiSp||[]).push(k);
+  plog(p,`${a.name} は あたらしい じゅもん ${n} を おぼえた`,'lvl');chron(S,a,`新しい呪文${n}を覚える`);}}
 const SPELL_LIST=[
   ['イヤシ','仲間ひとりの傷を癒やす','僧侶・司教・聖騎士'],['ゼンカイ','仲間全員の傷をまとめて癒やす','僧侶Lv17〜・司教Lv15〜'],
   ['ドクケシ','仲間ひとりの毒を消す','僧侶・司教・聖騎士'],['マモリ','その戦闘のあいだ、全員の守りを上げる','僧侶・司教・聖騎士（Lv7〜）'],
@@ -2471,15 +2481,24 @@ const SPELL_LIST=[
   ['コオリ','敵の群れを凍らせる。威力は控えめだが、しばらく動きを止めることがある。竜や溶岩、澱の魔物によく効く','魔術師Lv5〜・司教Lv9〜・魔導士'],
   ['イカズチ','敵一体に雷を落とす大技。石や鉄の魔物、鎧を着た者によく効く','魔術師Lv9〜・司教Lv13〜・魔導士'],
   ['ネムリ','敵の群れを眠らせる。届く深さは術者のレベルで伸びる。作り物と不死は眠らない','魔術師・魔導士'],['ミトオシ','地図のない階でも、その探索のあいだ道筋を見通す','魔術師Lv15〜・司教Lv19〜・魔導士'],
+  ['キヨメ','仲間全員の毒をまとめて消す','僧侶Lv33〜・司教Lv29〜・聖騎士Lv39〜'],
+  ['ゴウエン','ゴウカをしのぐ炎で敵の群れを焼く。炎の相性はホノオと同じ','魔術師Lv37〜・魔導士Lv33〜・司教Lv43〜'],
+  ['タマヨビ','ヨミガエリの上位。B16Fから先で、倒れた仲間を高い見込みで蘇らせる。失敗しても灰にはならない','僧侶Lv41〜・司教Lv37〜'],
+  ['オリハライ','その戦闘のあいだ、レベルを吸い取る攻撃から一行を守る。沈んだ王や坑道王にも効く','僧侶Lv45〜・司教Lv41〜・聖騎士Lv49〜'],
+  ['ホシオトシ','一戦に一度だけの大呪文。敵すべてに、相性のない大きな傷を負わせる。主や名のある魔物にも効く','魔術師Lv53〜・魔導士Lv49〜・司教Lv57〜'],
 ];
-function escape(S,p,a){a.mp-=3;plog(p,`${a.name} は ダッシュツ を となえた！\n　いっこうは ひかりに つつまれ ちじょうへ`,'loot');p.trip.escaped=a.name;p.enemies=null;p.buff=0;p.guard=0;
+function escape(S,p,a){a.mp-=3;plog(p,`${a.name} は ダッシュツ を となえた！\n　いっこうは ひかりに つつまれ ちじょうへ`,'loot');p.trip.escaped=a.name;p.enemies=null;p.buff=0;p.guard=0;p.ward=0;p.star=0;
   chron(S,a,`${FN(p.floor)}でダッシュツを唱え、一行を地上へ逃がす`);p.floor=0;arrive(S,p);}
-function tryYomi(S,p){if(p.floor<YOMI_F)return;const c=alive(S,p).find(a=>CAN.yomi(a)&&a.mp>=4);if(!c)return;
+// タマヨビを唱えられる者がいれば、ヨミガエリより先にそちらを使う。タマヨビは失敗しても灰にならない
+function tryYomi(S,p){if(p.floor<YOMI_F)return;
+  const al=alive(S,p),ct=al.find(a=>CAN.tamayobi(a)&&a.mp>=6),c=ct||al.find(a=>CAN.yomi(a)&&a.mp>=4);if(!c)return;
   const d=p.members.map(id=>A(S,id)).find(a=>a.hp<=0&&!a.dungeonAsh);if(!d)return;
-  c.mp-=4;plog(p,`${c.name} は ヨミガエリ を となえた……`,'sys');
-  if(chance(Math.min(.85,.45+PL(c)*.015))){d.hp=Math.ceil(d.mhp/3);d.status='party';d.poison=0;d.lastBy=null;
-    plog(p,`　${d.name} は いきを ふきかえした！`,'loot');chron(S,d,`${FN(p.floor)}で${c.name}のヨミガエリにより息を吹き返す`);chron(S,c,`${FN(p.floor)}でヨミガエリを唱え、${d.name}を蘇らせる`);c.yomiN=(c.yomiN||0)+1;
-    if(p.trip.deaths)p.trip.deaths=p.trip.deaths.filter(x=>x.n!==d.name);p.trip.yomi={c:c.name,d:d.name};}
+  const nm=ct?'タマヨビ':'ヨミガエリ';
+  c.mp-=ct?6:4;plog(p,`${c.name} は ${nm} を となえた……`,'sys');
+  if(chance(ct?Math.min(.95,.7+PL(c)*.008):Math.min(.85,.45+PL(c)*.015))){d.hp=Math.ceil(d.mhp/(ct?2:3));d.status='party';d.poison=0;d.lastBy=null;
+    plog(p,`　${d.name} は いきを ふきかえした！`,'loot');chron(S,d,`${FN(p.floor)}で${c.name}の${nm}により息を吹き返す`);chron(S,c,`${FN(p.floor)}で${nm}を唱え、${d.name}を蘇らせる`);c.yomiN=(c.yomiN||0)+1;
+    if(p.trip.deaths)p.trip.deaths=p.trip.deaths.filter(x=>x.n!==d.name);p.trip.yomi={c:c.name,d:d.name,s:nm};}
+  else if(ct){plog(p,`　しかし ${d.name} の たましいは もどらなかった`,'death');}
   else{d.dungeonAsh=true;plog(p,`　しかし ${d.name} は はいに なってしまった……`,'death');chron(S,d,`${FN(p.floor)}でヨミガエリに失敗し、灰になる`);}}
 const VARIANTS=[
   {k:'wound',n:'手負いの',hp:.6,atk:.85,xp:.8,w:3},
@@ -2538,10 +2557,10 @@ function combat(S,p){
   const t=p.etype,f=dz(Math.max(1,p.floor))+(isFrontier(S,p.floor)?1.3:0);
   const lp=leader(S,p);const r=hpRatio(S,p);
   if(!t.boss&&!hasMap(p)&&p.state==='explore'&&!p.fought&&chance(lp.pers==='無謀'?.15:.45)){
-    p.fought=true;if(chance(.65)){p.buff=0;plog(p,'いっこうは たたかいを さけて みを ひそめた','sys');p.enemies=null;p.ambush=false;return;}
+    p.fought=true;if(chance(.65)){p.buff=0;p.ward=0;p.star=0;plog(p,'いっこうは たたかいを さけて みを ひそめた','sys');p.enemies=null;p.ambush=false;return;}
   }
   if((p.state==='return'&&chance(.45))||(r<PERS[lp.pers].th-0.05&&(lp.pers==='臆病'||lp.pers==='慎重')&&chance(.6))){
-    const al0f=alive(S,p);if(chance(.6+(al0f.some(a=>has(a,'俊足'))?.1:0)-(al0f.some(a=>has(a,'鈍足'))?.12:0))){p.buff=0;p.guard=0;plog(p,'いっこうは にげだした！','sys');p.trip.fled=(p.trip.fled||0)+1;p.trip.fledFrom=foeName(p).replace(/ /g,'');p.enemies=null;return;}
+    const al0f=alive(S,p);if(chance(.6+(al0f.some(a=>has(a,'俊足'))?.1:0)-(al0f.some(a=>has(a,'鈍足'))?.12:0))){p.buff=0;p.guard=0;p.ward=0;p.star=0;plog(p,'いっこうは にげだした！','sys');p.trip.fled=(p.trip.fled||0)+1;p.trip.fledFrom=foeName(p).replace(/ /g,'');p.enemies=null;return;}
     plog(p,'にげられない！','sys');
   }
   const living=()=>p.enemies.filter(e=>e.hp>0);
@@ -2573,7 +2592,9 @@ function combat(S,p){
       const d=ri(1,t.atk)+Math.floor(f/3);a.hp-=d;
       plog(p,`${foeName(p)} は ${a.name} に おそいかかった\n　${d} の ダメージ`);
       if(a.hp>0&&t.sp==='poison'&&chance(.25)){if(chance(rc(a).pois+eqSum(a,'pois')+(has(a,'毒に強い')?.4:0)-(has(a,'病弱')?.25:0)))plog(p,`　${a.name} に どくは きかなかった`,'move');else{a.poison=1;a.poisonN=(a.poisonN||0)+1;plog(p,`　${a.name} は どくを うけた`,'death');(p.trip.poison=p.trip.poison||[]).push(a.name);}}
-      if(a.hp>0&&(t.sp==='drain'||t.boss)&&chance(.25)&&a.lvl>2){a.lvl-=2;a.xp=Math.min(a.xp,xpNeed(a.lvl-1));a.mhp=Math.max(4,a.mhp-ri(2,5));a.hp=Math.min(a.hp,a.mhp);plog(p,`　${a.name} は レベルを すいとられた！`,'death');chron(S,a,`${t.n}でレベルを吸い取られ、レベル${a.lvl}になる`);}
+      const drn=a.hp>0&&(t.sp==='drain'||t.boss)&&chance(.25)&&a.lvl>2;
+      if(drn&&p.ward){plog(p,`　きよらかな ひかりが ${a.name} を まもった`,'move');p.trip.warded=(p.trip.warded||0)+1;}
+      else if(drn){a.lvl-=2;a.xp=Math.min(a.xp,xpNeed(a.lvl-1));a.mhp=Math.max(4,a.mhp-ri(2,5));a.hp=Math.min(a.hp,a.mhp);plog(p,`　${a.name} は レベルを すいとられた！`,'death');chron(S,a,`${t.n}でレベルを吸い取られ、レベル${a.lvl}になる`);}
       if(a.hp<=0){a.hp=0;die(S,p,a,t.n);}
       else if(a.hp<=a.mhp*.15&&p.trip.close&&!p.trip.close.includes(a.name))p.trip.close.push(a.name);
     } else plog(p,`${foeName(p)} の こうげきを ${a.name} は かわした`,'move');
@@ -2592,12 +2613,16 @@ function combat(S,p){
       plog(p,`${a.name} は ゼンカイ を となえた\n　いっこうの きずが ${h} ずつ かいふくした`);continue;}
     if(CAN.mamori(a)&&!p.guard&&a.mp>=2&&(t.rare||t.gate||t.boss||(t.xpm||1)>=1.4||(foes.length>=3&&f>=12))){
       a.mp--;p.guard=2+Math.floor(PL(a)/4);plog(p,`${a.name} は マモリ を となえた\n　いっこうの まもりが ${p.guard} あがった`);continue;}
+    if(CAN.orihara(a)&&!p.ward&&a.mp>=3&&(t.boss||(p.ident&&t.sp==='drain'))){
+      a.mp-=3;p.ward=1;p.trip.wardBy=a.name;plog(p,`${a.name} は オリハライ を となえた\n　きよらかな ひかりが いっこうを つつむ`);continue;}
     if(p.potions>0&&low.hp/low.mhp<.3&&!(c.heal&&a.mp>0)){p.potions--;const h=Math.round(low.mhp*.4);low.hp=Math.min(low.mhp,low.hp+h);if(p.tav==='ours')favor(low,.3);
       plog(p,`${a.name} は ${low===a?'':low.name+'に '}かいふくやくを つかった\n　${h} かいふくした（のこり ${p.potions}ほん）`);p.trip.potion=(p.trip.potion||0)+1;continue;}
     if(c.heal&&a.mp>0&&low.hp/low.mhp<(c.healTh||.45)){
       a.mp--;const h=Math.round((ri(4,8)+PL(a)*2)*(1+eqSum(a,'heal')+(has(a,'信心深い')?.2:0)));low.hp=Math.min(low.mhp,low.hp+h);p.trip.heals=(p.trip.heals||0)+1;p.trip.healer=a.name;
       plog(p,`${a.name} は イヤシ を となえた\n　${low.name} の きずが ${h} かいふくした`);continue;
     }
+    if(CAN.kiyome(a)&&a.mp>=2&&allies.filter(x=>x.poison).length>=2){
+      a.mp-=2;const n=allies.filter(x=>x.poison).length;allies.forEach(x=>x.poison=0);plog(p,`${a.name} は キヨメ を となえた\n　${n}にんの どくが きえた`);continue;}
     if(c.heal&&a.mp>0&&allies.some(x=>x.poison)&&chance(.5)){
       a.mp--;const x=allies.find(x=>x.poison);x.poison=0;plog(p,`${a.name} は ドクケシ を となえた`);continue;
     }
@@ -2621,10 +2646,17 @@ function combat(S,p){
       a.mp--;const sm=sleepMul(t);let n=0;foes.forEach(e=>{if(chance(.6*sm)){e.sleep=2;n++}});
       plog(p,`${a.name} は ネムリ を となえた\n　${n?n+' たいが ねむってしまった':foeName(p)+' は ねむらなかった'}`);p.trip.slept=(p.trip.slept||0)+n;p.trip.sleeper=a.name;continue;
     }
+    // ホシオトシは一戦に一度。主・黒竜・名のある魔物・強い変異種か、深い階の群れに使う。相性はなく、主にも効く
+    if(caster&&CAN.hoshi(a)&&!p.star&&a.mp>=8&&(t.boss||t.gate||t.rare||(t.xpm||1)>=1.4||(foes.length>=3&&f>=20))){
+      a.mp-=8;p.star=1;const bonus=rc(a).spell+(c.spell||0)+eqSum(a,'spell')+(has(a,'博識')?2:0);let dead=0,tot=0;
+      foes.forEach(e=>{const d=ri(40,60)+PL(a)*5+bonus*2;e.hp-=d;tot+=d;if(e.hp<=0){dead++;kill(p,a)}});
+      plog(p,`${a.name} は ホシオトシ を となえた！\n　ほしが ふりそそぎ ${foeName(p)} を うちくだく　${foes.length>1?'あわせて ':''}${tot} の ダメージ${dead?'\n　'+dead+' たいが しんだ':''}`,'loot');
+      p.trip.star=a.name;if(!a.hoshiN)chron(S,a,`${FN(p.floor)}で${t.n}を相手に、はじめてホシオトシを唱える`);a.hoshiN=(a.hoshiN||0)+1;continue;}
     if(caster&&(foes.length>=2||chance(.5))){
       const big=c.big&&PL(a)>=c.big,bonus=rc(a).spell+(c.spell||0)+eqSum(a,'spell')+(has(a,'博識')?2:0);
       const mu=el=>p.ident?elemMul(t,el):1;
       const opts=[{k:'fire',name:big?'ゴウカ':'ホノオ',ev:foes.length*((big?11+PL(a)*2:4.5+PL(a))+bonus)*mu('fire')}];
+      if(CAN.goen(a))opts.push({k:'fire',name:'ゴウエン',goen:true,ev:foes.length*(16+PL(a)*3+bonus)*mu('fire')});
       if(CAN.koori(a))opts.push({k:'ice',name:'コオリ',ev:foes.length*(4+PL(a)+bonus)*mu('ice')*1.15});
       if(CAN.ikazuchi(a))opts.push({k:'bolt',name:'イカズチ',ev:Math.min(Math.max(...foes.map(e=>e.hp)),(13+PL(a)*3+bonus)*mu('bolt'))});
       const sp=opts.reduce((m,o)=>o.ev>m.ev?o:m,opts[0]);a.mp--;
@@ -2632,8 +2664,8 @@ function combat(S,p){
       if(sp.k==='bolt'){const e=foes.reduce((m,x)=>x.hp>m.hp?x:m,foes[0]);const bm=elemMul(t,'bolt');const d=Math.round((ri(8,18)+PL(a)*3+bonus)*bm);e.hp-=d;if(e.hp<=0){dead++;kill(p,a)}
         plog(p,`　いかずちが ${foeName(p)}を うった　${d} の ダメージ${elemTag(bm)}${dead?'　'+foeName(p)+' は しんだ':''}`);continue;}
       const m=elemMul(t,sp.k);let fr=0;
-      foes.forEach(e=>{const d=Math.round(((sp.k==='ice'?ri(2,6)+PL(a):big?ri(6,16)+PL(a)*2:ri(2,7)+PL(a))+bonus)*m);e.hp-=d;if(e.hp<=0){dead++;kill(p,a)}else if(sp.k==='ice'&&!t.boss&&!t.gate&&chance(.3)){e.sleep=1;fr++;}});
-      plog(p,`　${foeName(p)} は ${sp.k==='ice'?'こおりに とざされた':'ほのおに つつまれた'}${elemTag(m)}${fr?'\n　'+fr+' たいが うごけなくなった':''}${dead?'\n　'+dead+' たいが しんだ':''}`);continue;
+      foes.forEach(e=>{const d=Math.round(((sp.k==='ice'?ri(2,6)+PL(a):sp.goen?ri(10,22)+PL(a)*3:big?ri(6,16)+PL(a)*2:ri(2,7)+PL(a))+bonus)*m);e.hp-=d;if(e.hp<=0){dead++;kill(p,a)}else if(sp.k==='ice'&&!t.boss&&!t.gate&&chance(.3)){e.sleep=1;fr++;}});
+      plog(p,`　${foeName(p)} は ${sp.k==='ice'?'こおりに とざされた':sp.goen?'ごうえんに のみこまれた':'ほのおに つつまれた'}${elemTag(m)}${fr?'\n　'+fr+' たいが うごけなくなった':''}${dead?'\n　'+dead+' たいが しんだ':''}`);continue;
     }
     const swings=c.berserk&&chance(.35)?2:1;
     for(let sw=0;sw<swings;sw++){
@@ -2679,7 +2711,7 @@ function victory(S,p){
   if(!p.trip.big||t.f>p.trip.big.f)p.trip.big={n:t.n,f:t.f,c:n};
   const mt=matTier(Math.max(1,p.floor));if(mt&&chance(.3)){const m=SHOP_TIERS[mt].mat,q=ri(1,2);p.trip.mats=p.trip.mats||{};p.trip.mats[m]=(p.trip.mats[m]||0)+q;plog(p,`${m}を ${q}こ ひろった`,'loot');}
   plog(p,`${t.n}を たおした。けいけんち ${xp}、${g} G を てにいれた`,'loot');
-  p.enemies=null;p.buff=0;p.guard=0;
+  p.enemies=null;p.buff=0;p.guard=0;p.ward=0;p.star=0;
   for(const a of al){if(!C(a).bomb||a.mp<=0)continue;const lw=al.reduce((m,x)=>x.hp/x.mhp<m.hp/m.mhp?x:m,al[0]);
     if(lw.hp/lw.mhp<.6){a.mp--;const h=ri(6,12)+PL(a);lw.hp=Math.min(lw.mhp,lw.hp+h);plog(p,`${a.name} は ${lw.name}に ひやくを のませた
 　${h} かいふくした`);}break;}
@@ -2788,6 +2820,7 @@ function arrive(S,p){
     const l0=a.lvl;
     while(a.xp>=xpNeed(a.lvl)){lvlUp(a);lvls.push(a);plog(p,`${a.name} は レベル ${a.lvl} に あがった`,'lvl');}
     if(a.lvl>l0)chron(S,a,`レベル${a.lvl}に上がる`);
+    learnHi(S,p,a);
     a.hp=a.mhp;a.mp=mmpOf(a);
     if(a.loan&&p.tav==='ours'){const tip=Math.round(a.loan*.5);tav.gold+=Math.round(a.loan*1.5);tav.earned+=tip;flowAdd(S,'e',tip);plog(p,`${a.name} は ツケを はらった`,'move');chron(S,a,'店主へのツケを返す');a.loan=0;}
     title(S,a);
@@ -2890,7 +2923,9 @@ function tale(S,p,al,second){
   // exploration
   if(tr.potion)add('20',2,p.tav==='ours'?`黒猫亭の差し入れの回復薬がなかったら、危なかった`:`銀の杯亭で借りた回復薬がなかったら、危なかった。借金は増えたがな`);
   if(tr.escaped)add('21',5,`${tr.escaped===sp.name?'俺の':tr.escaped+'の'}ダッシュツがなかったら、全員${FN(deep)}の土になってた`);
-  if(tr.yomi)add('22',5,`${tr.yomi.c}のヨミガエリで、${tr.yomi.d}が息を吹き返した。……奇跡だよ`);
+  if(tr.yomi)add('22',5,`${tr.yomi.c}の${tr.yomi.s||'ヨミガエリ'}で、${tr.yomi.d}が息を吹き返した。……奇跡だよ`);
+  if(tr.star)add('41',4,`${tr.star===sp.name?'俺の':tr.star+'の'}ホシオトシで、${FN(deep)}に星が降った。あれは一生忘れない`);
+  if(tr.warded)add('42',3,`${tr.wardBy===sp.name?'俺の':tr.wardBy+'の'}オリハライがなけりゃ、レベルをごっそり吸われてた`);
   if((tr.vars||[]).length){const v=pick(tr.vars);add('23',2.5,pick([`${v}に出くわした。ふつうのとは比べものにならない`,`${v}ってのがいてな。名前だけで嫌な予感がしたよ`,`${v}の相手は、もうごめんだ`]));}
   if((tr.rareSeen||[]).length)add('24',4,`${tr.rareSeen[0]}を見た。あれは格が違う`);
   if(tr.rec)add('25',5,`誰も行ったことのない${FN(deep)}に足を踏み入れた。最初の足跡は俺たちのだ`);
