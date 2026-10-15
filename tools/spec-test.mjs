@@ -255,6 +255,19 @@ function checkScenes(){
     slayer.trips=4;slayer.tav='ours';slayer.status='lost';E.memorialize(S,slayer,{by:'ドブ王',floor:1});
     const m=S.memorial.at(-1);
     check('記念碑：倒れた者の添え書きに、討った名のある魔物が残る',m&&m.id===slayer.id&&m.rares&&m.rares.includes('ドブ王')&&E.lostRareLine(m).includes('名のある魔物「ドブ王」を討った者'),'ロスト',E.lostRareLine(m));}
+  // 「記念碑」「知らせ」：20日見つからなかった一行の知らせには、消えた者の名が二つ名つきで全員ぶん並ぶ。銀の杯亭も同じ文
+  for(const tav of ['ours','rival']){const E=load(2),S=E.newState();const p=Object.values(S.parties).find(x=>x.tav===tav&&x.members.length>=2);
+    if(!p){check('記念碑：見つからなかった一行の知らせに、消えた者の名が二つ名つきで全員ぶん並ぶ',false,tav,'一行がない');continue;}
+    const ms=p.members.map(id=>S.adv[id]);ms[0].title='牙折り';ms[0].titleKind='kills';ms[0].titleTier=1;ms[0].titleStem='kills';
+    ms.forEach(a=>{a.status='missing';a.hp=0;a.party=p.id;});
+    p.state='wiped';p.retrieved=false;p.wipedAt=S.tick-1001;p.floor=3;p.killer='オーク';
+    Object.values(S.parties).forEach(q=>{if(q!==p){q.state='town';q.rest=99;}});
+    const n0=S.news.length,m0=S.memorial.length;E.tick(S);
+    const n=S.news.slice(n0).find(x=>x.t.includes('ついに見つからなかった'));
+    const want=ms.map(a=>a.title?`「${a.title}」${a.name}`:a.name);
+    const exp=`${S.taverns[tav].name}の${p.name}は、ついに見つからなかった。B3Fに消えた${want.join('、')}の${want.length>1?want.length+'人の':''}名が記念碑に刻まれる。`;
+    const carved=S.memorial.slice(m0).map(x=>x.name);
+    check('記念碑：見つからなかった一行の知らせに、消えた者の名が二つ名つきで全員ぶん並ぶ',!!n&&n.t===exp&&n.k==='lost'&&ms.every(a=>a.status==='lost')&&want.every(x=>carved.includes(x)),S.taverns[tav].name,n?`${n.t}（期待：${exp}）`:'知らせなし');}
   // 「身内探し」「席と拡張」：席が埋まっているときは、救い出された身内は客にならない。見つけた本人と故郷へ帰る
   {const E=load(1),S=E.newState();const p=Object.values(S.parties).find(x=>x.tav==='ours');
     const finder=S.adv[p.leader];const kin='席のない身内';
@@ -1079,6 +1092,9 @@ function runSeed(seed){
           check('次の世代：種族と出身を継ぎ、続柄が性別と合い、手帳が互いにつながる',!!(p&&p.race===a.race&&p.origin===a.origin&&back&&relOk&&a.lvl0>=1&&a.lvl0<=5&&had),at,()=>`${a.name}（${a.sex}・${a.kin.rel}）←${p&&p.name}`);}
         if(a.dream&&['kinvenge','kinflower','kinname'].includes(a.dream.k))
           check('次の世代：その夢は続柄で来た者だけが持つ',!!a.kin,at,a.name);}
+      for(const n of S.news||[]){const mm=/ついに見つからなかった。B\d+Fに消えた(.+?)の(?:(\d+)人の)?名が記念碑に刻まれる。$/.exec(String(n.t));if(!mm)continue;
+        const names=mm[1].split('、');const carved=(S.memorial||[]).filter(m=>m.tk===n.tk).map(m=>m.name);
+        check('記念碑：見つからなかった知らせの名は、同じ刻に記念碑に刻まれた名で、人数と合う',names.every(x=>carved.includes(x))&&(mm[2]?+mm[2]===names.length:names.length===1),at,()=>n.t);}
       for(const m of S.memorial||[])if(m.rares&&m.rares.length){const a=S.adv[m.id];
         const by=a?Object.entries(S.rares||{}).filter(([,v])=>v.killed&&v.killed.by===a.name).map(([f])=>{const r=[...E.RARES,...E.MINE_RARES].find(x=>x.f===+f);return r&&r.n;}).filter(Boolean):[];
         check('記念碑：討った名のある魔物の名だけが刻まれる',m.rares.every(n=>rareN.has(n)&&(!a||by.includes(n))),at,()=>`${m.name}：${(m.rares||[]).join('、')}`);}}

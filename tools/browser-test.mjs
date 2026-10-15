@@ -1892,6 +1892,40 @@ test('全滅と依頼の失敗には理由が一文つき、まだ戻らない�
     return news.includes('予定を過ぎても戻らない')&&news.includes('癒し手の呪文が尽きていた');
   });
   assert.equal(later,true);
+  // 20日見つからないと、消えた者の名が二つ名つきで知らせに並ぶ。375px でも名前は語の途中で折れない
+  const lost=await page.evaluate(()=>{
+    const p=Object.values(S.parties).find(x=>x.state==='wiped'&&x.tav==='ours'&&x.cause);
+    const ms=p.members.map(id=>S.adv[id]);ms[0].title='牙折り';ms[0].titleKind='kills';ms[0].titleTier=1;ms[0].titleStem='kills';
+    const names=ms.map(a=>a.title?`「${a.title}」${a.name}`:a.name);
+    p.wipedAt=S.tick-1001;tick(S);
+    const n=S.news.findLast(x=>x.t.includes('ついに見つからなかった'));
+    return {names,text:n&&n.t,ok:!!n&&n.k==='lost'&&n.t.includes(names.join('、')+'の'+names.length+'人の名が記念碑に刻まれる。')};
+  });
+  assert.ok(lost.ok,`見つからなかった知らせ ${lost.text}`);
+  for(const [width,height] of [[375,740],[1280,800]]){
+    await page.setViewportSize({width,height});
+    await page.evaluate(()=>document.fonts.ready);
+    const bad=await page.evaluate(names=>{
+      tab='news';document.querySelector('#advm').hidden=true;advOpen=null;render();
+      const out=[];
+      const li=[...document.querySelectorAll('.news li')].find(el=>el.textContent.includes('ついに見つからなかった'));
+      const span=li&&[...li.children].find(n=>!n.classList.contains('d'));
+      if(!span){out.push('見つからなかった知らせがない');return out;}
+      const side=document.querySelector('.side').getBoundingClientRect();
+      const r=span.getBoundingClientRect();
+      if(r.height<1||r.right>side.right+1||r.left<side.left-1)out.push('知らせが右の列の外');
+      if(span.scrollWidth>span.clientWidth+1)out.push('知らせが折れていない');
+      for(const name of names){
+        const nw=[...span.querySelectorAll('.nw')].find(el=>el.textContent===name);
+        if(!nw){out.push(name+' が一続きになっていない');continue;}
+        const tops=new Set([...nw.getClientRects()].filter(x=>x.width>1).map(x=>Math.round(x.top)));
+        if(tops.size!==1)out.push(name+' が途中で折れている');
+      }
+      if(document.documentElement.scrollWidth>innerWidth+1)out.push('ページが横にはみ出す');
+      return out;
+    },lost.names);
+    assert.deepEqual(bad,[],`${width}px 見つからなかった知らせ`);
+  }
   assert.deepEqual(errors,[]);await ctx.close();
 });
 
