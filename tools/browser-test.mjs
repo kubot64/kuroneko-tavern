@@ -2399,3 +2399,47 @@ test('札の印は右上に揃い、方針ボタンの幅は変わらず、狭�
   assert.equal(close.bg,'rgb(227, 166, 73)');
   assert.deepEqual(errors,[]);await ctx.close();
 });
+
+test('黒猫亭の帳面の一行は、手帳と記念碑で語の途中で折れない',async()=>{
+  const {ctx,page,errors}=await open();
+  await page.locator('#sp0').click();
+  await page.evaluate(()=>{
+    const D=TICKS_PER_DAY,base=Object.values(S.adv).find(a=>a.tav==='ours');
+    const mk=(tk,status)=>{const a=JSON.parse(JSON.stringify(base));a.id=S.nid++;a.name='帳面'+a.id;a.status=status;a.party=null;a.opening=false;a.chron=[{tk,t:'扉をくぐる'}];S.adv[a.id]=a;return a;};
+    for(let i=0;i<30;i++)mk(0,'idle');
+    const ids=Object.values(S.adv).filter(a=>a.name.startsWith('帳面')).map(a=>a.id);
+    ids.slice(0,3).forEach((id,i)=>{S.adv[id].status='lost';S.memorial.push({id,name:S.adv[id].name,cls:'戦士',lvl:5,race:'人間',tav:'ours',tk:(100+i*50)*D,by:'オーク',floor:3,kills:9});});
+    S.farewells=S.farewells||[];
+    ids.slice(3,7).forEach((id,i)=>{S.adv[id].status='retired';S.farewells.push({id,name:S.adv[id].name,tav:'ours',tk:(580+i*20)*D,why:'故郷に帰る',lvl:9,cls:'戦士',race:'人間',sex:'男',age:30,hage:30});});
+    const lost=mk(1000*D,'lost');lost.chron.push({tk:1173*D,t:'ロスト。その名は記念碑に刻まれる'});
+    S.memorial.push({id:lost.id,name:lost.name,cls:'戦士',lvl:12,race:'人間',tav:'ours',tk:1173*D,by:'オーク',floor:9,kills:40});
+    const gone=mk(1000*D,'retired');gone.chron.push({tk:1642*D,t:'故郷に帰るため、黒猫亭を去る'});
+    S.farewells.push({id:gone.id,name:gone.name,tav:'ours',tk:1642*D,why:'故郷に帰る',lvl:9,cls:'戦士',race:'人間',sex:'男',age:30,hage:30});
+    window.__ledger=[lost.id,gone.id];
+  });
+  const broken=()=>page.evaluate(()=>{
+    const out=[];
+    document.querySelectorAll('.ledger').forEach(el=>{
+      if(!el.getClientRects().length)return;// 閉じた手帳に残る行は見ない
+      el.querySelectorAll('.nw').forEach(s=>{if(s.getClientRects().length!==1)out.push(s.textContent);});
+      if(!el.textContent.startsWith('帳面によれば、'))out.push('頭：'+el.textContent);});
+    return out;});
+  for(const w of [375,1280]){
+    await page.setViewportSize({width:w,height:800});
+    await page.evaluate(()=>{tab='stone';render();});
+    const stone=await page.locator('#tbody').innerText();
+    assert.match(stone,/帳面によれば、[^\n]*人に一人の側に入った。在籍は百七十日ほど。/);
+    assert.match(stone,/帳面によれば、自分の足で出ていった。在籍は六百四十日ほど。帳面のとおりだった。/);
+    assert.deepEqual(await broken(),[],`幅${w}の記念碑`);
+    for(const id of await page.evaluate('window.__ledger')){
+      await page.evaluate(id=>{advOpen=id;document.getElementById('advm').hidden=false;renderAdv();},id);
+      const book=await page.locator('#advbox').innerText();
+      assert.match(book,/帳面によれば、この店に来た者のうち、戻らなかったのは[^\n]*人に一人。たいていは六百日ほどで、自分の足で出ていく。/);
+      assert.equal((book.match(/帳面によれば、/g)||[]).length,2,`幅${w}の手帳の帳面の行数`);
+      assert.deepEqual(await broken(),[],`幅${w}の手帳`);
+      await page.evaluate(()=>{advOpen=null;document.getElementById('advm').hidden=true;});
+    }
+  }
+  assert.deepEqual(errors,[]);
+  await ctx.close();
+});

@@ -32,7 +32,7 @@ const html=readFileSync(new URL('../index.html',import.meta.url),'utf8');
 const ENGINE=html.match(/\/\*ENGINE START\*\/([\s\S]*?)\/\*ENGINE END\*\//)[1];
 const EXPORTS=['newState','tick','rivalTemple','seatCap','seatsUsed','nextSeats','newcomerLvl','buyPrice','investPrice','FACILITIES',
   'RARES','MAXF','DRAGON_F','TICKS_PER_DAY','awayPlan','smallOf','debtTick','DEBT0','encounter','rareSlain','rareMonOf','arrive',
-  'repay','flowAdd','flowView','flowRoll','policyCost','goldSign','errandsOf','assignErrand','errandBlock','designateBlock','MAXF','MINE_TOP','MINE_BOT','MINE_N','FN','deepNow','G','groupMoney','floorsInit','mineOpen','conquest','mineConquest','title','alive','markAdv','markedOf','BOARD_MAX','MARK_MAX','errandStage','boardMax','markMax','ARCS','reachFloor','GATE_F','fac','nextFac','buildFac','migrate','partyShown','crestJa','glossText','PT_A','PT_B','takeCrest','pickCrest','newPartyName','combat','MON','elemMul','elemNote','sleepMul','sleepReach','MINE_RARES','supplyTeam','potionPrice','lendRival','reviveChance','reviveHint','reviveResultText','temple','checkMemo','memoState','nextDue','rankRows','MEMO','setQuietLog','DREAMS','rollAge','AGE2','ORIGINS','careerLine','originBg','BGS','originIntro','newcomerClause','doorLine','ourNewcomerNews','SPELL_LIST','foePool','dz','chest','victory','partyDanger','hpBand','retreatLine','retire','letterTick','kinTick','schedulePendingLetters','scheduleLostKin','memorialize','lostRareLine','dreamText','letterQuote','checkDream','wipe','wipeCause','errandEvent','errandFailLine','partyOverdue','returnPeril','SAVE_V','letterNews','fitOf','ERRANDS'];
+  'repay','flowAdd','flowView','flowRoll','policyCost','goldSign','errandsOf','assignErrand','errandBlock','designateBlock','MAXF','MINE_TOP','MINE_BOT','MINE_N','FN','deepNow','G','groupMoney','floorsInit','mineOpen','conquest','mineConquest','title','alive','markAdv','markedOf','BOARD_MAX','MARK_MAX','errandStage','boardMax','markMax','ARCS','reachFloor','GATE_F','fac','nextFac','buildFac','migrate','partyShown','crestJa','glossText','PT_A','PT_B','takeCrest','pickCrest','newPartyName','combat','MON','elemMul','elemNote','sleepMul','sleepReach','MINE_RARES','supplyTeam','potionPrice','lendRival','reviveChance','reviveHint','reviveResultText','temple','checkMemo','memoState','nextDue','rankRows','MEMO','setQuietLog','DREAMS','rollAge','AGE2','ORIGINS','careerLine','originBg','BGS','originIntro','newcomerClause','doorLine','ourNewcomerNews','SPELL_LIST','foePool','dz','chest','victory','partyDanger','hpBand','retreatLine','retire','letterTick','kinTick','schedulePendingLetters','scheduleLostKin','memorialize','lostRareLine','dreamText','letterQuote','checkDream','wipe','wipeCause','errandEvent','errandFailLine','partyOverdue','returnPeril','SAVE_V','letterNews','fitOf','ERRANDS','ledgerLine','kanjiNum'];
 
 // 乱数の種を固定したゲームの中身を1つ作る。中身の Math.random だけを差し替える
 function load(seed,fixed){
@@ -1128,6 +1128,9 @@ function runSeed(seed){
   // 「新顔の来店」：評判を聞いて来る新顔は、常連の平均レベルの前後3以内（0は、これまでどおりの散らばりで来る印）
   {const rs=Object.values(S.adv).filter(a=>a.tav==='ours'&&live(a));const avg=Math.round(rs.reduce((s,a)=>s+a.lvl,0)/rs.length);
     for(let k=0;k<500;k++){const l=E.newcomerLvl(S,'ours');check('新顔の来店：評判を聞いて来る者は平均レベル±3',l===0||(l>=Math.max(1,avg-3)&&l<=avg+3),`種${seed}・終わり`,`平均${avg}に対して${l}`);}}
+  // 「冒険者の手帳」「記念碑」：帳面の一行は描くたびに同じで、数字も店主も出さない。銀の杯亭の者には出ない
+  for(const a of Object.values(S.adv))for(const k of ['came','end']){const t=E.ledgerLine(S,a,k);
+    check('帳面：同じ記録からは同じ文で、算用数字と店主の心情を書かない',t===E.ledgerLine(S,a,k)&&!/[0-9０-９]|店主/.test(t)&&(a.tav==='ours'||t===''),`種${seed}・終わり`,`${a.name}：${t}`);}
   return `種${seed}：${TICKS}刻を回した（最深 黒猫亭B${S.deepest.ours}F・銀の杯亭B${S.deepest.rival}F）`;
 }
 
@@ -1240,6 +1243,42 @@ const STELE=['B6Fの転移の石碑に、一度触れてみたい','B6Fまで潜
 function openingOf(S){return Object.values(S.adv).filter(a=>a.opening).sort((a,b)=>a.id-b.id);}
 function tieOf(a){const i=a.bg.lastIndexOf('。');return i>=0?a.bg.slice(i+1):a.bg;}
 function dreamLine(a){const c=(a.chron||[]).find(x=>x.t&&x.t.includes('夢は「'));const m=c&&c.t.match(/夢は「([^」]*)」/);return m?m[1]:'';}
+// 「冒険者の手帳」「記念碑」：黒猫亭の帳面。その日より前の記録だけで数え、数は漢数字の言葉で書く
+function checkLedger(){
+  const E=load(1),D=E.TICKS_PER_DAY;
+  check('帳面：漢数字の書き方',[[9,'九'],[15,'十五'],[30,'三十'],[170,'百七十'],[640,'六百四十'],[1200,'千二百']].every(([n,k])=>E.kanjiNum(n)===k),'表',[9,15,30,170,640,1200].map(E.kanjiNum).join('・'));
+  // 開店の顔ぶれは、いつも白い頁
+  for(let i=0;i<4;i++){const S=load(1000+i*7919).newState();const L=load(1000+i*7919);
+    const cast=Object.values(S.adv).filter(a=>a.opening);
+    check('帳面：開店の顔ぶれは白い頁',cast.length===7&&cast.every(a=>L.ledgerLine(S,a,'came')==='帳面によれば、まだ白い頁が多い。'),`種${1000+i*7919}`,()=>cast.map(a=>L.ledgerLine(S,a,'came')).join(' / '));}
+  // 来た者20人・ロスト2人・去った者3人の帳面
+  const mk=(id,tk,tav='ours',status='idle')=>({id,tav,status,name:'者'+id,chron:[{tk,t:'扉をくぐる'}]});
+  const S={adv:{},memorial:[],farewells:[]};
+  for(let i=1;i<=20;i++)S.adv[i]=mk(i,0);
+  S.memorial.push({id:1,tk:150*D},{id:2,tk:300*D});S.adv[1].status=S.adv[2].status='lost';
+  [[3,590],[4,600],[5,640]].forEach(([id,d])=>{S.farewells.push({id,tk:d*D});S.adv[id].status='retired';});
+  for(let i=30;i<40;i++)S.adv[i]=mk(i,0,'rival');
+  const me=S.adv[50]=mk(50,1000*D);
+  const came=E.ledgerLine(S,me,'came');
+  check('帳面：来た者20人・ロスト2人・去った者3人で「十人に一人」と日数の句',came==='帳面によれば、この店に来た者のうち、戻らなかったのは十人に一人。たいていは六百日ほどで、自分の足で出ていく。','場面',came);
+  check('帳面：去った者が3人未満なら日数の句を省く',(()=>{const f=S.farewells.pop();const t=E.ledgerLine(S,me,'came');S.farewells.push(f);return t==='帳面によれば、この店に来た者のうち、戻らなかったのは十人に一人。';})(),'場面',came);
+  check('帳面：銀の杯亭の者には出ない',E.ledgerLine(S,S.adv[30],'came')===''&&E.ledgerLine(S,{...me,tav:'rival'},'came')==='','場面','');
+  // 開く時点が後でも、来た日の文は変わらない（そのあとの記録は数えない）
+  S.memorial.push({id:6,tk:1200*D});S.adv[6].status='lost';
+  for(let i=60;i<80;i++)S.adv[i]=mk(i,1100*D);
+  check('帳面：同じ記録を2回描くと同じ文で、来た日のあとの記録は数えない',E.ledgerLine(S,me,'came')===came&&E.ledgerLine(S,me,'came')===came,'場面',E.ledgerLine(S,me,'came'));
+  // 終わった日
+  S.farewells.push({id:50,tk:(1000+640)*D});me.status='retired';
+  const left=E.ledgerLine(S,me,'end');
+  check('帳面：店を去った者は在籍の日数と、帳面のとおりなら「帳面のとおりだった」',left==='帳面によれば、自分の足で出ていった。在籍は六百四十日ほど。帳面のとおりだった。','場面',left);
+  const lostMe=S.adv[51]=mk(51,1000*D);S.memorial.push({id:51,tk:(1000+172)*D});lostMe.status='lost';
+  const lost=E.ledgerLine(S,lostMe,'end');
+  check('帳面：ロストした者は「○人に一人の側に入った」と在籍の日数',lost==='帳面によれば、二十人に一人の側に入った。在籍は百七十日ほど。','場面',lost);
+  check('帳面：その日より前に20人来ていなければ白い頁',E.ledgerLine(S,S.adv[3],'end')==='帳面によれば、まだ白い頁が多い。','場面',E.ledgerLine(S,S.adv[3],'end'));
+  const none={adv:{},memorial:[],farewells:[]};for(let i=1;i<=24;i++)none.adv[i]=mk(i,0);none.adv[99]=mk(99,10*D);
+  check('帳面：まだ誰もロストしていなければ「まだいない」',E.ledgerLine(none,none.adv[99],'came')==='帳面によれば、この店から迷宮に呑まれた者は、まだいない。','場面',E.ledgerLine(none,none.adv[99],'came'));
+}
+
 function checkOpening(){
   const names=[];
   for(let i=0;i<16;i++){
@@ -1555,7 +1594,7 @@ function checkIntro(){
 
 if(!isMainThread){const line=runSeed(workerData.seed);parentPort.postMessage({line,res:[...results]});}
 else{
-  checkTables();checkScenes();checkLetters();checkErrands();checkCrest();checkRowFallback();checkMine();checkAffinity();checkRevive();checkMemoNotes();checkOpening();checkCareer();checkIntro();checkAge();checkFoes();checkFlow();
+  checkTables();checkScenes();checkLetters();checkErrands();checkCrest();checkRowFallback();checkMine();checkAffinity();checkRevive();checkMemoNotes();checkOpening();checkCareer();checkIntro();checkAge();checkFoes();checkFlow();checkLedger();
   // 種ごとの結果は、種の順に重ねる。反例は、いちばん若い種の最初のものを残す。進捗の行も種の順に出す
   const out=new Array(SEEDS.length);let next=0,printed=0;
   const flush=()=>{while(printed<out.length&&out[printed]){if(out[printed].line)console.log(out[printed].line);printed++;}};

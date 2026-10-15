@@ -179,6 +179,7 @@ button:focus-visible,[tabindex]:focus-visible{outline:2px solid var(--amber);out
 .stone{border:1px solid var(--line);border-radius:4px;padding:10px 12px;margin-bottom:8px;background:linear-gradient(#26201a,#1c1712)}
 .stone b{font-family:var(--f-display)}
 .stone .ep{color:var(--muted);font-size:12px}
+.ledger{color:var(--muted);font-size:12px;word-break:keep-all;line-break:strict;overflow-wrap:anywhere}
 
 /* modal */
 .modal{position:fixed;inset:0;background:#000a;display:flex;align-items:center;justify-content:center;padding:16px;z-index:10}
@@ -2414,6 +2415,32 @@ function rareMonOf(rf){const R0=rareDef(rf);const f=dz(rf);const top=MON.filter(
   return {n:R0.n,u:R0.u,f,rf,hp:Math.round(top.hp*5+30+f*10),atk:Math.round(top.atk*1.5)+3,sp:R0.sp,rare:true,acts:f>=8?2:1};}
 function rareNamesOf(S,a){const names=[];Object.entries(S.rares||{}).forEach(([f,v])=>{const k=v&&v.killed;if(!k||k.by!==a.name)return;const n=(rareDef(+f)||{}).n;if(n&&!names.includes(n))names.push(n);});return names;}
 function lostRareLine(m){const r=m&&m.rares||[];return r.length?`名のある魔物${r.map(n=>`「${n}」`).join('、')}を討った者。`:'';}
+// 黒猫亭の帳面。来た日と終わった日に、その日より前の記録だけで「この店のふつう」を数える。乱数は引かず、描くたびに同じ文になる
+const KJ_D='〇一二三四五六七八九';
+function kanjiNum(n){n=Math.max(0,Math.round(n));if(!n)return '〇';let s='';for(const [u,k] of [[1000,'千'],[100,'百'],[10,'十']]){const d=Math.floor(n/u);n%=u;if(d)s+=(d>1?KJ_D[d]:'')+k;}return s+(n?KJ_D[n]:'');}
+function arrivedTk(a){const c=a&&(a.chron||[])[0];return c&&c.tk!=null?c.tk:null;}
+function ledgerAt(S,tk,self){
+  const came=new Map();Object.values(S.adv||{}).forEach(b=>{if(!b||b.tav!=='ours'||b.id===self)return;const t=arrivedTk(b);if(t!=null&&t<tk)came.set(b.id,t);});
+  const lost=new Set((S.memorial||[]).filter(m=>m.tk<tk&&came.has(m.id)).map(m=>m.id)).size;
+  const stays=[];const seen=new Set();(S.farewells||[]).forEach(f=>{if(f.tk<tk&&came.has(f.id)&&!seen.has(f.id)){seen.add(f.id);stays.push((f.tk-came.get(f.id))/TICKS_PER_DAY);}});
+  stays.sort((x,y)=>x-y);const n=stays.length;
+  return {came:came.size,lost,left:n,median:n?(n%2?stays[(n-1)/2]:(stays[n/2-1]+stays[n/2])/2):0};
+}
+function ledgerOdds(came,lost){let r=Math.round(came/lost);if(r>20)r=Math.round(r/10)*10;else if(r>10)r=Math.round(r/5)*5;return kanjiNum(r)+'人に一人';}
+function ledgerUsual(L){return L.median<100?100:Math.round(L.median/100)*100;}
+function ledgerLine(S,a,kind){
+  if(!a||a.tav!=='ours')return '';const at=arrivedTk(a);if(at==null)return '';
+  let end=null,lost=false;
+  if(kind==='end'){const m=(S.memorial||[]).find(x=>x.id===a.id),f=(S.farewells||[]).find(x=>x.id===a.id);if(m){end=m.tk;lost=true;}else if(f)end=f.tk;else return '';}
+  const L=ledgerAt(S,end!=null?end:at,a.id);
+  if(L.came<20)return '帳面によれば、まだ白い頁が多い。';
+  const usual=L.left>=3?(L.median<100?'百日に満たず':kanjiNum(ledgerUsual(L))+'日ほどで'):'';
+  if(end==null)return '帳面によれば、'+(L.lost?`この店に来た者のうち、戻らなかったのは${ledgerOdds(L.came,L.lost)}。`:'この店から迷宮に呑まれた者は、まだいない。')+(usual?`たいていは${usual}、自分の足で出ていく。`:'');
+  const days=(end-at)/TICKS_PER_DAY,r=Math.round(days/10)*10;
+  const stay=r<10?'在籍は十日に満たない。':`在籍は${kanjiNum(r)}日ほど。`;
+  if(lost)return '帳面によれば、'+(L.lost?`${ledgerOdds(L.came,L.lost)}の側に入った。`:'この店で迷宮に呑まれた、最初の一人になった。')+stay;
+  return `帳面によれば、自分の足で出ていった。${stay}`+(usual&&Math.abs(days-ledgerUsual(L))<=100?'帳面のとおりだった。':'');
+}
 function memorialize(S,a,extra){
   const rares=rareNamesOf(S,a);
   const m={id:a.id,name:full(a),cls:a.cls,lvl:a.lvl,race:a.race,tav:a.tav,tk:S.tick,by:extra&&extra.by||a.lastBy||'不明',floor:extra&&extra.floor!=null?extra.floor:(a.lastFloor!=null?a.lastFloor:'?'),kills:a.kills,marked:a.tav==='ours'&&!!a.marked||undefined};
@@ -4001,8 +4028,16 @@ function rareEp(m){const r=(m.rares&&m.rares.length)?m.rares:(m.id&&S.adv[m.id]?
 function sideStone(){
   const fw=(S.farewells||[]).slice().reverse();
   const ln=(id,name)=>id&&S.adv[id]?`<button class="nm-link" data-act="adv" data-a="${id}">${esc(name)}</button>`:`<b>${esc(name)}</b>`;
-  return `<div class="sect"><h3>店を去った者　${fw.length}人</h3>${fw.map(f=>`<div class="stone">${ln(f.id,f.name)} <span class="meta">${f.age?f.sex+'・'+nw((f.hage||f.age)+'歳'+(f.race&&f.race!=='人間'?'相当':''))+' ':''}${lvCls(f)}</span><div class="ep">${openingEp(f.id)}${f.tav==='ours'?'黒猫亭':'銀の杯亭'}の客。${dayMark(f.tk)}、${esc(f.why)}ため旅立った。</div>${letterEp(f)}</div>`).join('')||'<p class="note">まだ誰も去っていない。</p>'}</div>
-  <div class="sect"><h3>ロストした者　${S.memorial.length}人</h3>`+(S.memorial.slice().reverse().map(m=>`<div class="stone">${ln(m.id,m.name)} <span class="meta">${lvCls(m)}</span><div class="ep">${openingEp(m.id)}${m.marked?'店主が見込んだ者。':''}${m.tav==='ours'?'黒猫亭':'銀の杯亭'}の客。${nw(FN(m.floor))}にて${esc(m.by)}に倒れ、蘇ることなく${dayMark(m.tk)}に眠る。${rareEp(m)}討伐${m.kills}。</div></div>`).join('')||'<p class="note">まだ誰の名も刻まれていない。</p>')+'</div>';
+  return `<div class="sect"><h3>店を去った者　${fw.length}人</h3>${fw.map(f=>`<div class="stone">${ln(f.id,f.name)} <span class="meta">${f.age?f.sex+'・'+nw((f.hage||f.age)+'歳'+(f.race&&f.race!=='人間'?'相当':''))+' ':''}${lvCls(f)}</span><div class="ep">${openingEp(f.id)}${f.tav==='ours'?'黒猫亭':'銀の杯亭'}の客。${dayMark(f.tk)}、${esc(f.why)}ため旅立った。</div>${ledgerHtml(ledgerLine(S,S.adv[f.id],'end'))}${letterEp(f)}</div>`).join('')||'<p class="note">まだ誰も去っていない。</p>'}</div>
+  <div class="sect"><h3>ロストした者　${S.memorial.length}人</h3>`+(S.memorial.slice().reverse().map(m=>`<div class="stone">${ln(m.id,m.name)} <span class="meta">${lvCls(m)}</span><div class="ep">${openingEp(m.id)}${m.marked?'店主が見込んだ者。':''}${m.tav==='ours'?'黒猫亭':'銀の杯亭'}の客。${nw(FN(m.floor))}にて${esc(m.by)}に倒れ、蘇ることなく${dayMark(m.tk)}に眠る。${rareEp(m)}討伐${m.kills}。</div>${ledgerHtml(ledgerLine(S,S.adv[m.id],'end'))}</div>`).join('')||'<p class="note">まだ誰の名も刻まれていない。</p>')+'</div>';
+}
+// 帳面の一行。「九人に一人」「六百日ほど」「在籍は百七十日ほど」は語の途中で折らない
+function ledgerHtml(t){return t?`<div class="ledger">${esc(t).replace(/在籍は(?:[〇一二三四五六七八九十百千]+日ほど|十日に満たない)|[〇一二三四五六七八九十百千]+(?:人に一人|日ほどで)|百日に満たず/g,m=>nw(m))}</div>`:'';}
+// 年代記。来た日の記録（いちばん古い1件）と、ロスト・店を去った記録のすぐ下に、黒猫亭の帳面の一行を添える
+function chronItems(a){
+  const ch=a.chron||[];const endRe=a.status==='lost'?/ロスト。その名は記念碑に刻まれる|迷宮に呑まれる$/:a.status==='retired'?/を去る$/:null;
+  let endAt=-1;if(endRe)for(let i=ch.length-1;i>0;i--)if(endRe.test(ch[i].t)){endAt=i;break;}
+  return ch.map((c,i)=>`<li><span class="d">${Math.floor(c.tk/TICKS_PER_DAY)+1}日目</span>${esc(glossText(c.t))}${i===0?ledgerHtml(ledgerLine(S,a,'came')):i===endAt?ledgerHtml(ledgerLine(S,a,'end')):''}</li>`).reverse().join('');
 }
 function kinNote(a){
   const bits=[];
@@ -4067,7 +4102,7 @@ function renderAdv(){
     return `<div><span class="sl">${SLOT_N[k]}${k==='wpn'&&it?(it.two?'（両手）':'（片手）'):''}</span><span class="${it&&it.rare?'rare':''}">${it?esc(it.n):two?'――（両手持ち）':'<span class="none">ありあわせ</span>'}</span><span class="st">${it?esc(itemStat(it)):''}</span>${it&&it.lore?`<span class="lore">${esc(it.lore)}</span>`:''}</div>`}).join('')}</div>
   <div class="note">攻撃 ${atkOf(a)}・守り ${acOf(a)}・MP ${mmpOf(a)}${a.loan?'・店から借りた装備あり':''}　所属：${esc(team)}${a.party&&S.parties[a.party]&&S.parties[a.party].leader===a.id?'（リーダー）':''}</div>
   <h3 class="h2" style="margin-top:14px">手帳</h3>
-  <ul class="tl">${(a.chron||[]).slice().reverse().map(c=>`<li><span class="d">${Math.floor(c.tk/TICKS_PER_DAY)+1}日目</span>${esc(glossText(c.t))}</li>`).join('')}</ul>
+  <ul class="tl">${chronItems(a)}</ul>
   <div style="margin-top:14px;text-align:right"><button class="btn on" data-act="closeadv">閉じる</button></div>`);
   box.scrollTop=st;
 }
