@@ -1952,9 +1952,11 @@ function tick(S){
   // the dungeon swallows parties nobody recovers. 遺体を運んでいる途中の一行は、運び手が帰るまでこの時計を止める
   for(const p of Object.values(S.parties)){
     if(p.state==='wiped'&&!p.retrieved&&S.tick-p.wipedAt>1000){
+      // 消えた者の名を二つ名つきで並べる。名前は日報で一続きになる（記念碑の名が知らせの語になる）
+      const names=p.members.map(id=>A(S,id)).filter(Boolean).map(full);
       p.members.forEach(id=>{const a=A(S,id);if(a.status!=='missing')return;a.status='lost';a.party=null;chron(S,a,`${FN(p.floor)}から戻ることなく、迷宮に呑まれる`);
         memorialize(S,a,{by:a.lastBy||p.killer||'不明',floor:p.floor});});
-      news(S,`${S.taverns[p.tav].name}の${p.name}は、ついに見つからなかった。${FN(p.floor)}に消えた${p.members.length}人の名が記念碑に刻まれる。`,'lost');
+      news(S,`${S.taverns[p.tav].name}の${p.name}は、ついに見つからなかった。${FN(p.floor)}に消えた${names.join('、')}の${names.length>1?`${names.length}人の`:''}名が記念碑に刻まれる。`,'lost');
       if(S.bounties[p.id]){S.taverns.ours.gold+=S.bounties[p.id];news(S,`${p.name}の死体回収の依頼を取り下げ、預けていた${S.bounties[p.id]}Gが戻った。`,'info');}
       delete S.bounties[p.id];delete S.parties[p.id];
     }
