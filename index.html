@@ -288,6 +288,8 @@ button:focus-visible,[tabindex]:focus-visible{outline:2px solid var(--amber);out
   .tbody .nm-head{display:inline-flex;align-items:center;justify-content:center;box-sizing:border-box;min-width:44px;min-height:44px;padding:0 4px}
   /* 文の途中の名前。行の高さは変えず、上下の押し幅だけ広げる */
   .tbody .nm-link:not(.nm-head){display:inline;padding-block:12px;margin-block:-12px;vertical-align:baseline}
+  /* 手帳の続柄。字が小さいので、上下の押し幅を少し多めにとる */
+  .note .nm-link:not(.nm-head){display:inline;padding-block:14px;margin-block:-14px;vertical-align:baseline}
   .h2{flex-wrap:wrap;row-gap:2px;word-break:keep-all;line-break:strict;overflow-wrap:anywhere}
   .h2 span{flex:1 0 100%}
   .c-members{gap:0 10px}
@@ -1270,7 +1272,7 @@ function letterQuote(S,a,n){
   if(n>=2){
     if(n===2&&why.includes('所帯を持つ'))return {place,quote:'子が生まれた。名前は、まだこちらで呼んでいる。元気な泣き声だ',line:'子が生まれた',child:true};
     if(n>=3&&why.includes('所帯を持つ'))return {place,quote:'こちらは変わりない。子は、もう歩いている。そっちは、まだあの穴に潜っているのか',line:'子は、もう歩いている'};
-    if(why.includes('大陸をめぐる'))return {place:tourPlace(a,n),line:'差出地は、前の便りと違う',tour:true};
+    if(why.includes('大陸をめぐる'))return {place:tourPlace(a,n),line:'差出地は、前の便りと違う',tour:true,narr:true};
     return {place,quote:'こちらは変わりない。そっちは、まだあの穴に潜っているのか',line:'こちらは変わりない'};
   }
   // 「に」より前は店の名に入れない。屋敷は店ではない
@@ -1280,11 +1282,11 @@ function letterQuote(S,a,n){
   if(why.includes('所帯を持つ')){const who=marryWho(a);return {place,quote:`${who}は元気だ。${me}が迷宮の話をすると、黙って皿を片づける`,line:`${who}は元気だ`};}
   const built=why.match(/建てた(.+?)を守る/);
   if(built){const what=built[1];const line=what==='井戸と水車'?'水車が回った':`${what}ができた`;return {place,quote:`${line}。村の子どもが、黒猫の絵を彫った`,line};}
-  if(why.includes('大陸をめぐる'))return {place:tourPlace(a,n),line:'差出地は、前の便りと違う',tour:true};
+  if(why.includes('大陸をめぐる'))return {place:tourPlace(a,n),line:'差出地は、前の便りと違う',tour:true,narr:true};
   // 「引退」だけでは老いにしない。「思い残すことなく引退する」は膝の便りにしない
   if(why.includes('老い')||why.includes('隠居')||why.includes('身を引く'))return {place,quote:'膝が痛む日は、迷宮の階段を思い出す',line:'膝が痛む日は、迷宮の階段を思い出す',short:true};
   if(why.includes('弔い'))return {place,quote:'形見は、故郷の墓に納めた。もう、探さなくていい',line:'形見は、故郷の墓に納めた',bare:true};
-  if(why.includes('海を渡って')||why.includes('海に出る'))return {place:'セーレの港',line:'潮で字が半分にじんでいる',tide:true};
+  if(why.includes('海を渡って')||why.includes('海に出る'))return {place:'セーレの港',line:'潮で字が半分にじんでいる',tide:true,narr:true};
   const kin=why.match(/見つけ出した(.+)と故郷へ帰る/);
   if(kin)return {place,quote:`${kin[1]}は元気だ。もう、迷宮の話はしない`,line:`${kin[1]}は元気だ`,bare:true};
   if(why.includes('故郷'))return {place,quote:'故郷の空は、迷宮より広い。黒猫亭の酒が、ときどき恋しい',line:'故郷の空は、迷宮より広い'};
@@ -1292,7 +1294,8 @@ function letterQuote(S,a,n){
 }
 function letterNews(a,q,n){
   if(q.tide)return `【便り】セーレの港の荷に紛れて、${a.name}の便りが届いた。潮で字が半分にじんでいる。`;
-  if(q.tour)return `【便り】${q.place}から、${a.name}の便りが届いた。差出地は、前の便りと違う。`;
+  // 1通目には比べる前の便りがない。差出地が違うと書くのは2通目から
+  if(q.tour)return `【便り】${q.place}から、${a.name}の便りが届いた。${n>=2?'差出地は、前の便りと違う。':''}`;
   if(n>=2&&!q.child)return `【便り】しばらくぶりに、${a.name}から便りが届いた。「${q.quote}」`;
   if(q.short)return `【便り】${a.name}から短い便りが届いた。「${q.quote}」`;
   if(q.bare)return `【便り】${a.name}から便りが届いた。「${q.quote}」`;
@@ -1322,7 +1325,7 @@ function deliverLetter(S,a){
   const n=(a.letters||[]).length+1;const q=letterQuote(S,a,n);let t=letterNews(a,q,n);
   const who=letterFriend(S,a);
   if(who&&chance(.25)){const item=giveLetterGift(S,a,who);if(item)t+=`便りには${item}が添えてあった。${who.name}に、と書いてある。`;}
-  a.letters=a.letters||[];a.letters.push({tk:S.tick,n,line:q.line});
+  a.letters=a.letters||[];a.letters.push(Object.assign({tk:S.tick,n,line:q.line},q.narr?{place:q.place,narr:1}:{}));
   // 子が生まれたと知らせた刻を、子の生まれた刻にする。来うる日もそこから数え直す
   if(q.child&&a.childAt!=null&&!a.childDone){a.childBorn=S.tick;a.childAt=childAtOf(a,S.tick);}
   chron(S,a,'黒猫亭に便りを寄越す');
@@ -1408,8 +1411,10 @@ function checkDream(S,a){
   const d=a.dream,D=DREAMS[d.k];if(!D||d.done||!D.ok(S,a,d))return;
   if(D.pay)a.gold-=D.pay(d);if(D.act)D.act(S,a,d);
   const msg=D.msg(a,d,S);const ret=D.ret?D.ret(d):null;
-  chron(S,a,`夢がかなう――${dreamText(d)}`);news(S,(a.tav==='rival'?'銀の杯亭の':'')+msg,'record');
-  fulfill(S,a);
+  // 仇がほかの者に討たれていたときは、かなえたのではなく見届けた夢にする
+  const seen=d.k==='kinvenge'&&!(a.slain||{})[d.m];
+  chron(S,a,seen?`仇の最期を見届ける――${dreamText(d)}`:`夢がかなう――${dreamText(d)}`);news(S,(a.tav==='rival'?'銀の杯亭の':'')+msg,'record');
+  fulfill(S,a);if(seen)a.pastDreams[a.pastDreams.length-1].seen=1;
   if(ret)retire(S,a,ret);
 }
 function kinEvent(S,p,a){
@@ -3980,7 +3985,14 @@ function sideShop(){
   <div class="sect"><h3>最近の買い物</h3>${log||'<p class="note">まだ誰も買っていない。</p>'}</div>`;
 }
 function openingEp(id){const a=id&&S.adv[id];return a&&a.opening?'開店からの常連。':''}
-function letterEp(f){const a=f&&S.adv[f.id];const L=a&&(a.letters||[]).slice(-1)[0];return L?`<div class="ep">${dayMark(L.tk)}の便り：「${esc(L.line)}」</div>`:'';}
+// 本人の言葉だけを「」に入れる。差出地や潮のにじみのような地の文は、差出地を添えて書く
+// この書き分けより前の記録には印がないので、文面から読み直す。乱数は引かない
+const LETTER_NARR=['差出地は、前の便りと違う','潮で字が半分にじんでいる'];
+function letterEp(f){const a=f&&S.adv[f.id];const L=a&&(a.letters||[]).slice(-1)[0];if(!L)return '';
+  if(L.narr||LETTER_NARR.includes(L.line)){const place=L.place||letterQuote(S,a,L.n||1).place;return `<div class="ep">${dayMark(L.tk)}の便り${nw('（'+esc(place)+'から）')}</div>`;}
+  // 終わりの数文字と閉じかっこは離さない。1文字と「」」だけが次の行に残らないようにする
+  const t=String(L.line),cut=Math.max(0,t.length-4);
+  return `<div class="ep">${dayMark(L.tk)}の便り：「${esc(t.slice(0,cut))}${nw(esc(t.slice(cut))+'」')}</div>`;}
 function rareEp(m){const r=(m.rares&&m.rares.length)?m.rares:(m.id&&S.adv[m.id]?rareNamesOf(S,S.adv[m.id]):[]);return r.length?`名のある魔物${r.map(n=>`「${esc(n)}」`).join('、')}を討った者。`:'';}
 function sideStone(){
   const fw=(S.farewells||[]).slice().reverse();
@@ -3994,6 +4006,8 @@ function kinNote(a){
   (a.kinOf||[]).forEach(k=>{const btn=S.adv[k.id]?`<button class="nm-link" data-act="adv" data-a="${k.id}">${esc(k.name)}</button>`:esc(k.name);bits.push(`${btn}（${esc(k.rel)}）が黒猫亭に来た`);});
   return bits.length?`<div class="note">${bits.join('<br>')}</div>`:'';
 }
+// 仇が別の者に討たれた夢。印のない古い記録は、仇の名と、本人がその魔物を討っていないことから読む
+function dreamSeen(a,x){if(x.seen)return true;if(x.k!=='kinvenge')return false;const m=String(x.t||'').match(/を殺した(.+)を討ちたい$/);return !!(m&&!(a.slain||{})[m[1]]&&kinVengeOther(S,a,m[1]));}
 function nmLink(a,head){return `<button class="nm-link${head?' nm-head':''}" data-act="adv" data-a="${a.id}">${esc(a.name)}</button>`}
 function teamOf(a){const p=a.party&&S.parties[a.party];return p&&p.tav===a.tav?p:null}
 function isLeader(a){const p=teamOf(a);return !!p&&p.leader===a.id}
@@ -4043,7 +4057,7 @@ function renderAdv(){
   ${C(a).adv||C(a).rare?`<div class="dream cls"><small>${C(a).rare?'レア職業':'上級職（'+esc(a.promoted||C(a).adv)+'から転職）'}・${esc(a.cls)}</small>${esc(C(a).desc)}${a.beast?`<small>相棒：${esc(a.beast.kind)}の${esc(a.beast.name)}</small>`:''}</div>`:''}
   <div class="note">${a.race}：得意　${esc(rc(a).good)}／苦手　${esc(rc(a).bad)}${a.odd?'（克服している）':''}</div>
   ${d?`<div class="dream"><small>夢</small>${esc(dreamText(d))}${dreamProgress(a)?`<small>${esc(dreamProgress(a))}</small>`:''}</div>`:`<div class="dream"><small>夢</small>${a.status==='lost'||a.status==='retired'?'――':'次の夢を探している'}</div>`}
-  ${(a.pastDreams||[]).map(x=>`<div class="dream done"><small>かなえた夢・${Math.floor(x.tk/TICKS_PER_DAY)+1}日目</small>${esc(x.t)}${x.note?`<small>${esc(x.note)}</small>`:''}</div>`).join('')}
+  ${(a.pastDreams||[]).map(x=>`<div class="dream done"><small>${dreamSeen(a,x)?'見届けた夢':'かなえた夢'}・${Math.floor(x.tk/TICKS_PER_DAY)+1}日目</small>${esc(x.t)}${x.note?`<small>${esc(x.note)}</small>`:''}</div>`).join('')}
   <div class="kv"><div><b>${a.kills}</b>討伐</div><div><b>${deepNow(a.deepest)}</b>最深到達</div><div><b>${a.revived}</b>蘇生</div><div><b>${a.disarms}</b>罠解除</div>${a.errandsDone?`<div><b>${a.errandsDone}</b>果たした話</div>`:''}<div><b>${a.gold}G</b>所持金</div><div><b>${Math.max(0,a.hp)}/${a.mhp}</b>HP</div></div>
   <div class="eqtab">${SLOTS.map(k=>{const it=a.eq&&a.eq[k];const two=k==='shield'&&a.eq&&a.eq.wpn&&a.eq.wpn.two;
     return `<div><span class="sl">${SLOT_N[k]}${k==='wpn'&&it?(it.two?'（両手）':'（片手）'):''}</span><span class="${it&&it.rare?'rare':''}">${it?esc(it.n):two?'――（両手持ち）':'<span class="none">ありあわせ</span>'}</span><span class="st">${it?esc(itemStat(it)):''}</span>${it&&it.lore?`<span class="lore">${esc(it.lore)}</span>`:''}</div>`}).join('')}</div>
