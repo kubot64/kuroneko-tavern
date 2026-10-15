@@ -559,7 +559,7 @@ const MON=[
   {n:'石の巨像',u:'うごく いしの すがた',f:10,hp:120,atk:20,xb:1.13},
   {n:'亡霊騎士',u:'よろいの ひとかげ',f:11,hp:90,atk:20,xb:1.13},
   {n:'宮廷魔術師の亡霊',u:'ローブの ひとかげ',f:12,hp:70,atk:16,sp:'blast',xb:1.13},
-  {n:'墓所の番犬',u:'みっつの くびの けもの',f:13,hp:110,atk:22,sp:'breath',w:.45},
+  {n:'墓所の番犬',u:'みっつの くびの けもの',f:13,hp:110,atk:22,sp:'breath',w:.45,br:.6},
   {n:'屍喰らい',u:'うずくまる もの',f:14,hp:120,atk:22,sp:'poison',xb:1.13},
   {n:'吸魂の司祭',u:'ひかる めの ひとかげ',f:15,hp:100,atk:20,sp:'drain',xb:1.13},
   {n:'塔の番兵ゴーレム',u:'うごく てつの すがた',f:14.5,hp:150,atk:24,xb:1.13},
@@ -2535,6 +2535,8 @@ function encounterFlavor(S,p,t,big){const al=alive(S,p);if(!al.length)return;
   const fr=al.find(a=>fearsFoe(a,t));if(fr&&chance(.7)){plog(p,`${fr.name} は ${t.n}を みて あおざめた`,'move');plog(p,`${fr.name}「${FEAR_SAY[fr.fear]}」`,'say');return;}
   if(chance(big?.6:.08)){const a=pick(al);if(a.catch)plog(p,`${a.name}「${pick(CRIES).replace('{catch}',a.catch)}」`,'say');}}
 function foeName(p){return p.ident?p.etype.n:p.etype.u}
+// 炎の息の強さ。番犬の息は竜より弱い。古い記録で戦いの途中だった魔物にも効くよう、名で引く
+function breathScale(t){const m=t.br!=null?t:MON.find(x=>x.n===(t.base||t.n));return m&&m.br||1}
 function combat(S,p){
   p.rareBy=null;
   const t=p.etype,f=dz(Math.max(1,p.floor))+(isFrontier(S,p.floor)?1.3:0);
@@ -2565,7 +2567,7 @@ function combat(S,p){
     }
     if(t.sp==='breath'&&(t.gate||!breathed)&&chance(t.gate?.4:.3)){breathed=true;
       plog(p,`${t.n} は ${t.gate?'くろい ほのおの いきを はいた！':'ほのおを はいた！'}`,'death');
-      tg.forEach(a=>{a.hp-=Math.round((t.gate?ri(18,32):ri(f,f*2))*(1-Math.min(.8,eqSum(a,'fire'))));});
+      tg.forEach(a=>{a.hp-=Math.round((t.gate?ri(18,32):ri(f,f*2)*breathScale(t))*(1-Math.min(.8,eqSum(a,'fire'))));});
       tg.forEach(a=>{if(a.hp<=0){a.hp=0;die(S,p,a,t.n)}});
       continue;
     }
