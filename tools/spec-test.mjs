@@ -1369,19 +1369,23 @@ function checkFoes(){
   // 息の傷の倍率。番犬だけ 0.6 で、ほかの息の魔物は持たない
   const scale={'墓所の番犬':.6};
   for(const m of E.MON)if(m.sp==='breath'||m.br!=null)check('出る魔物：息の傷の倍率を持つのは番犬（0.6）だけ',m.br===scale[m.n],m.n,`倍率${m.br==null?'なし':m.br}（決まりは${scale[m.n]==null?'なし':scale[m.n]}）`);
-  // 番犬の息を、同じ種で、倍率のない同じ強さの魔物と比べる。古い記録で戦いの途中だった番犬（倍率の値を持たない）には名で引いてかける
+  // 番犬の息を、同じ種で、倍率のない同じ強さの魔物と比べる。古い記録で戦いの途中だった番犬（倍率の値を持たない）には名で引いてかける。
+  // 水晶のログは名の文字数ぶん乱数を引き、怖いものや相性は名で引くので、比べる相手は同じ長さで「番犬」を含む名にする
   const breathDmg=(seed,fix)=>{const E2=load(seed),S=E2.newState();const p=Object.values(S.parties).find(x=>x.tav==='ours');const a=S.adv[p.leader];
     a.cls='戦士';a.lvl=8;a.hp=a.mhp=50000;a.mp=0;a.pers='普通';a.poison=0;a.eq={};
-    p.members=[a.id];p.leader=a.id;p.floor=20;p.state='explore';p.fought=true;p.ident=true;p.ambush=false;p.potions=0;p.guard=0;p.buff=0;p.log=[];
+    p.members=[a.id];p.leader=a.id;p.floor=15;p.state='explore';p.fought=true;p.ident=true;p.ambush=false;p.potions=0;p.guard=0;p.buff=0;p.log=[];
+    S.floors=S.floors||{};S.floors[15]={through:1};// 前人未踏の足しがなく、階の強さが整数（10）なので、息の傷の0.6倍を端数なしで比べられる
     p.etype=fix(Object.assign({},E2.MON.find(m=>m.n==='墓所の番犬')));p.enemies=[{hp:99999,sleep:0}];
     E2.combat(S,p);return {dmg:50000-a.hp,breathed:p.log.some(x=>x.t.includes('ほのおを はいた'))};};
   let hound=0;
   for(let seed=1;seed<=40&&hound<5;seed++){
-    const plain=breathDmg(seed,t=>Object.assign(t,{n:'ためしの竜',br:undefined}));
+    const plain=breathDmg(seed,t=>Object.assign(t,{n:'ためし番犬',br:undefined}));
     if(!plain.breathed)continue;hound++;
-    const now=breathDmg(seed,t=>t),old=breathDmg(seed,t=>{delete t.br;return t;}),vari=breathDmg(seed,t=>Object.assign(t,{n:'若い墓所の番犬',base:'墓所の番犬'}));
+    const now=breathDmg(seed,t=>t),old=breathDmg(seed,t=>{delete t.br;return t;});
     check('出る魔物：番犬の息の傷は、同じ強さの息の0.6倍',now.breathed&&now.dmg===Math.round(plain.dmg*.6)&&now.dmg<plain.dmg,`種${seed}`,`倍率なし${plain.dmg} 番犬${now.dmg}`);
-    check('出る魔物：倍率の値を持たない古い記録の番犬と、変異種の番犬にも同じ倍率がかかる',old.dmg===now.dmg&&vari.dmg===now.dmg,`種${seed}`,`番犬${now.dmg} 古い${old.dmg} 変異種${vari.dmg}`);}
+    check('出る魔物：倍率の値を持たない古い記録の番犬にも、名で引いて同じ倍率がかかる',old.dmg===now.dmg,`種${seed}`,`番犬${now.dmg} 古い${old.dmg}`);
+    const vplain=breathDmg(seed,t=>Object.assign(t,{n:'若い墓所の番犬',base:'ためし番犬',br:undefined})),vari=breathDmg(seed,t=>Object.assign(t,{n:'若い墓所の番犬',base:'墓所の番犬'})),vold=breathDmg(seed,t=>{delete t.br;return Object.assign(t,{n:'若い墓所の番犬',base:'墓所の番犬'});});
+    if(vplain.breathed)check('出る魔物：変異種の番犬の息にも同じ倍率がかかり、倍率の値を持たなくても元の名で引く',vari.dmg===Math.round(vplain.dmg*.6)&&vold.dmg===vari.dmg,`種${seed}`,`倍率なし${vplain.dmg} 変異種${vari.dmg} 古い変異種${vold.dmg}`);}
   check('出る魔物：番犬の息を5種で試し打ちした',hound===5,'40種',`${hound}種`);
   const maze={
     'レイス':8,'ミノタウロス':13,'溺れた衛兵':12,'水路の大蛇':14,'堕ちた騎士':16,'石の巨像':20,
