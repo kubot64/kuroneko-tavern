@@ -1959,6 +1959,72 @@ test('便りは青く出て、記念碑と手帳に残る',async()=>{
   assert.deepEqual(errors,[]);await ctx.close();
 });
 
+test('375pxの記念碑は地の文を「」に入れず、言葉の終わりを1文字だけ残さない。仇を見届けた夢と、手帳の続柄の押し幅',async()=>{
+  const {ctx,page,errors}=await open();
+  await page.setViewportSize({width:375,height:740});
+  await page.locator('#sp0').click();
+  const info=await page.evaluate(()=>{
+    const ours=Object.values(S.adv).filter(a=>a.tav==='ours').sort((a,b)=>a.id-b.id);
+    const [a,b,c]=ours;
+    for(const x of [a,b]){x.trips=5;x.status='idle';x.party=null;x.tav='ours';}
+    retire(S,a,'大陸をめぐる旅に出る');
+    S.tick=Math.ceil(a.nextLetter/TICKS_PER_DAY)*TICKS_PER_DAY;letterTick(S);
+    const first=(S.news||[]).filter(n=>n.t.startsWith('【便り】')).slice(-1)[0];
+    retire(S,b,'剣を置いて故郷の村で隠居する');
+    // 古い記録。印のない潮の便り
+    c.trips=5;c.tav='ours';c.status='idle';c.party=null;retire(S,c,'海を渡って東方の島国アズマへ向かう');
+    c.letters=[{tk:S.tick,n:1,line:'潮で字が半分にじんでいる'}];
+    tab='stone';render();
+    return {aid:a.id,bid:b.id,cid:c.id,first:first&&first.t};
+  });
+  assert.ok(info.first,'1通目が届いていない');
+  assert.doesNotMatch(info.first,/前の便りと違う/);
+  const eps=await page.evaluate(({ids,bid})=>{
+    const epOf=id=>{const s=[...document.querySelectorAll('.stone')].find(el=>el.querySelector(`[data-a="${id}"]`));return s&&[...s.querySelectorAll('.ep')].slice(-1)[0];};
+    // 最後の行に入っている字。テキストノードを1字ずつ見る
+    const tailOf=ep=>{
+      const tops=[];const w=document.createTreeWalker(ep,NodeFilter.SHOW_TEXT);const chars=[];
+      for(let n=w.nextNode();n;n=w.nextNode())for(let i=0;i<n.length;i++){const r=document.createRange();r.setStart(n,i);r.setEnd(n,i+1);const rr=r.getBoundingClientRect();if(rr.width){chars.push([Math.round(rr.top),n.data[i]]);tops.push(Math.round(rr.top));}}
+      const last=Math.max(...tops);const rows=new Set(tops.map(t=>Math.round(t/4))).size;
+      return {rows,tail:chars.filter(([t])=>Math.abs(t-last)<=2).map(([,c])=>c).join('')};
+    };
+    const out={a:epOf(ids[0]).innerText,c:epOf(ids[1]).innerText,short:[]};
+    // 長さを変えて、どの長さでも最後の行が「る」」だけにならない
+    const b=S.adv[bid];
+    for(let k=0;k<=40;k++){
+      b.letters=[{tk:S.tick,n:1,line:'膝が痛む日は、'+'迷'.repeat(k)+'宮の階段を思い出している'}];render();
+      const r=tailOf(epOf(bid));
+      if(r.rows>=2&&r.tail.length<4)out.short.push(`${k}:${r.tail}`);
+    }
+    return out;
+  },{ids:[info.aid,info.cid],bid:info.bid});
+  assert.match(eps.a,/^\d+日目の便り（ベルクラントの鉱山町から）$/);
+  assert.doesNotMatch(eps.a,/「/);
+  assert.match(eps.c,/^\d+日目の便り（セーレの港から）$/);
+  assert.deepEqual(eps.short,[]);
+  const book=await page.evaluate(()=>{
+    const ours=Object.values(S.adv).filter(a=>a.tav==='ours'&&a.status!=='retired'&&a.status!=='lost').sort((a,b)=>a.id-b.id);
+    const c=ours[0];c.trips=4;c.status='lost';c.lastBy='オーク';
+    S.rares=S.rares||{};S.rares[1]={killed:{party:'夜明け団',tav:'rival',names:['別人'],by:'別人',tk:1}};
+    memorialize(S,c,{by:'ドブ王',floor:3});
+    S.taverns.ours.seats=40;S.tick=Math.ceil(S.tick/TICKS_PER_DAY)*TICKS_PER_DAY;
+    c.kinDue={tk:S.tick,kind:'lost'};kinTick(S);
+    const kin=Object.values(S.adv).find(x=>x.kin&&x.kin.id===c.id);
+    kin.dream={k:'kinvenge',m:'ドブ王',elder:'兄',who:'親'};kin.status='idle';kin.party=null;checkDream(S,kin);
+    advOpen=kin.id;document.getElementById('advm').hidden=false;renderAdv();
+    const box=document.getElementById('advbox');
+    const link=box.querySelector('.note .nm-link');const note=link&&link.closest('.note');
+    const lr=link.getBoundingClientRect();
+    const lh=parseFloat(getComputedStyle(note).lineHeight)||0;
+    return {text:box.innerText,h:lr.height,w:lr.width,noteH:note.getBoundingClientRect().height,lh};
+  });
+  assert.match(book.text,/見届けた夢・/);
+  assert.doesNotMatch(book.text,/かなえた夢・/);
+  assert.ok(book.h>=44,`続柄のリンクの押し幅 ${Math.round(book.w)}×${Math.round(book.h)}`);
+  assert.ok(book.noteH<30,`続柄の行が高くなった ${book.noteH}`);
+  assert.deepEqual(errors,[]);await ctx.close();
+});
+
 test('375pxと1280pxでは所属の札が行に収まり、名簿と日報と地図は語の途中で折れない',async()=>{
   const {ctx,page,errors}=await open();
   await page.locator('#sp0').click();

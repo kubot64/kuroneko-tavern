@@ -32,7 +32,7 @@ const html=readFileSync(new URL('../index.html',import.meta.url),'utf8');
 const ENGINE=html.match(/\/\*ENGINE START\*\/([\s\S]*?)\/\*ENGINE END\*\//)[1];
 const EXPORTS=['newState','tick','rivalTemple','seatCap','seatsUsed','nextSeats','newcomerLvl','buyPrice','investPrice','FACILITIES',
   'RARES','MAXF','DRAGON_F','TICKS_PER_DAY','awayPlan','smallOf','debtTick','DEBT0','encounter','rareSlain','rareMonOf','arrive',
-  'repay','flowAdd','flowView','flowRoll','policyCost','goldSign','errandsOf','assignErrand','errandBlock','designateBlock','MAXF','MINE_TOP','MINE_BOT','MINE_N','FN','deepNow','G','groupMoney','floorsInit','mineOpen','conquest','mineConquest','title','alive','markAdv','markedOf','BOARD_MAX','MARK_MAX','errandStage','boardMax','markMax','ARCS','reachFloor','GATE_F','fac','nextFac','buildFac','migrate','partyShown','crestJa','glossText','PT_A','PT_B','takeCrest','pickCrest','newPartyName','combat','MON','elemMul','elemNote','sleepMul','sleepReach','MINE_RARES','supplyTeam','potionPrice','lendRival','reviveChance','reviveHint','reviveResultText','temple','checkMemo','memoState','nextDue','rankRows','MEMO','setQuietLog','DREAMS','rollAge','AGE2','ORIGINS','careerLine','originBg','BGS','originIntro','newcomerClause','doorLine','ourNewcomerNews','SPELL_LIST','foePool','dz','chest','victory','partyDanger','hpBand','retreatLine','retire','letterTick','kinTick','schedulePendingLetters','scheduleLostKin','memorialize','lostRareLine','dreamText','letterQuote','checkDream','wipe','wipeCause','errandEvent','errandFailLine','partyOverdue','returnPeril','SAVE_V','fitOf','ERRANDS'];
+  'repay','flowAdd','flowView','flowRoll','policyCost','goldSign','errandsOf','assignErrand','errandBlock','designateBlock','MAXF','MINE_TOP','MINE_BOT','MINE_N','FN','deepNow','G','groupMoney','floorsInit','mineOpen','conquest','mineConquest','title','alive','markAdv','markedOf','BOARD_MAX','MARK_MAX','errandStage','boardMax','markMax','ARCS','reachFloor','GATE_F','fac','nextFac','buildFac','migrate','partyShown','crestJa','glossText','PT_A','PT_B','takeCrest','pickCrest','newPartyName','combat','MON','elemMul','elemNote','sleepMul','sleepReach','MINE_RARES','supplyTeam','potionPrice','lendRival','reviveChance','reviveHint','reviveResultText','temple','checkMemo','memoState','nextDue','rankRows','MEMO','setQuietLog','DREAMS','rollAge','AGE2','ORIGINS','careerLine','originBg','BGS','originIntro','newcomerClause','doorLine','ourNewcomerNews','SPELL_LIST','foePool','dz','chest','victory','partyDanger','hpBand','retreatLine','retire','letterTick','kinTick','schedulePendingLetters','scheduleLostKin','memorialize','lostRareLine','dreamText','letterQuote','checkDream','wipe','wipeCause','errandEvent','errandFailLine','partyOverdue','returnPeril','SAVE_V','letterNews','fitOf','ERRANDS'];
 
 // 乱数の種を固定したゲームの中身を1つ作る。中身の Math.random だけを差し替える
 function load(seed,fixed){
@@ -914,6 +914,9 @@ function checkLetters(){
     for(const id of [a.id,0,1,2,3,4,17,100]){a.id=id;const ps=[1,2,3].map(n=>E.letterQuote(S,a,n).place);sample.push(ps.join('・'));
       if(new Set(ps).size!==3||ps[0]!=='ベルクラントの鉱山町')bad=`${id}:${ps.join(',')}`;}
     check('便り：大陸をめぐる者の3通は、差出地がすべて違う',!bad,'差出地',bad||sample[0]);
+    const tour=[1,2,3].map(n=>E.letterNews(a,E.letterQuote(S,a,n),n));
+    check('便り：大陸をめぐる者の1通目は、差出地と届いたことだけで、前の便りと比べない',tour[0]===`【便り】ベルクラントの鉱山町から、${a.name}の便りが届いた。`&&tour[1].endsWith('差出地は、前の便りと違う。')&&tour[2].endsWith('差出地は、前の便りと違う。'),'1通目',tour.join(' / '));
+    check('便り：差出地と潮のにじみは地の文で、本人の言葉ではない',E.letterQuote(S,a,1).narr&&!E.letterQuote(S,a,1).quote&&(()=>{a.leftWhy='海を渡って東方の島国アズマへ向かう';const q=E.letterQuote(S,a,1);return q.narr&&q.tide&&!q.quote&&q.place==='セーレの港';})(),'地の文',a.leftWhy);
     a.leftWhy='王都に屋敷を構える';const manor=E.letterQuote(S,a,1);
     check('便り：屋敷を構えるは店の便りにしない',manor.line==='こちらは変わりない'&&!String(manor.quote).includes('どうにか回っている')&&!String(manor.quote).includes('札'),'屋敷',manor.quote);
     a.leftWhy='海を渡って故郷に帰り、王都の大通りにパン屋を構える';const shop=E.letterQuote(S,a,1);
@@ -937,6 +940,8 @@ function checkLetters(){
     k.status='idle';k.party=null;const n0=S.news.length;E.checkDream(S,k);
     const told=S.news.slice(n0).map(n=>n.t).join(' / ');
     check('次の世代：別の者に討たれた仇の夢は、酒場にいるあいだにかなう',!k.dream&&(k.pastDreams||[]).some(x=>x.k==='kinvenge')&&told.includes('別の者に討たれていた')&&!told.includes('を討った'),'答え合わせ',told);
+    const seenRec=(k.pastDreams||[]).find(x=>x.k==='kinvenge');const seenChron=(k.chron||[]).slice(-1)[0];
+    check('次の世代：別の者に討たれた仇の夢は、見届けた夢として残る',!!seenRec&&seenRec.seen===1&&seenChron&&String(seenChron.t).startsWith('仇の最期を見届ける')&&!String(seenChron.t).includes('夢がかなう'),'見届けた',seenChron&&seenChron.t);
     const oak={k:'kinvenge',m:'オーク',elder:'兄'};
     check('次の世代：何度でも出る魔物は、自分が討つまでは夢がかなわない',!E.DREAMS.kinvenge.ok(S,k,oak)&&E.DREAMS.kinvenge.prog(k,oak,S)==='これまでの最深 B2F','オーク',E.DREAMS.kinvenge.prog(k,oak,S));}
 }
