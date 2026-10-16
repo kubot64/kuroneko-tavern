@@ -123,7 +123,7 @@ test('留守のあいだの減りは売上と書かず、帳場は返した額�
     return {gold:T.gold,earned:T.earned,support:T.support||0,repaid:T.repaid||0,interest:T.interestPaid||0,v:S.v,
       sum:document.querySelector('#dg-sum').innerText,brk:document.querySelector('#dg-brk').innerText};
   });
-  assert.equal(after.v,27);
+  assert.equal(after.v,await page.evaluate('SAVE_V'));
   assert.doesNotMatch(after.sum,/売上/);
   assert.match(after.sum,/所持金/);
   const gd=after.gold-live.gold,yen=n=>n.toLocaleString('ja-JP'),esign=gd>=0?`+${yen(gd)}`:yen(gd);
@@ -524,7 +524,7 @@ test('帳場の蘇生は、押す前に状態と成功率が出て、押した�
   assert.equal(await page.evaluate(()=>S.taverns.ours.gold),gold0-cost);
   const saved=await page.evaluate(()=>JSON.parse(localStorage.getItem('kuroneko-tavern-v1')));
   assert.equal(saved.S.reviveNote,undefined);
-  assert.equal(saved.S.v,27);
+  assert.equal(saved.S.v,await page.evaluate('SAVE_V'));
   assert.equal(saved.S.adv[prep.id].status,'ash');
   const again=await open({ctx,time:Date.UTC(2026,0,1)});
   await again.page.locator('#sp0').click();
@@ -690,7 +690,7 @@ test('帳場の覚え書きと、次の返済までの日数・必要額が常�
     const home=document.querySelector('#memo li[data-id="home"]');
     return {v:S.v,rep,home:home&&home.innerText,struck:!!home&&!!home.querySelector('s'),pay:document.querySelector('#payw').hidden};
   });
-  assert.equal(old.v,27);
+  assert.equal(old.v,await page.evaluate('SAVE_V'));
   assert.equal(old.rep,4);
   assert.equal(old.struck,true);
   assert.match(old.home,/送り出した連中が、生きて戻ってくる/);
@@ -1558,7 +1558,7 @@ test('見込みが満員のときは理由が読め、見込むボタンはど�
   const saved=await page.evaluate(()=>{save();return JSON.parse(localStorage.getItem('kuroneko-tavern-v1'));});
   assert.equal(saved.boardHelpOpen,undefined);
   assert.equal(saved.S.boardHelpOpen,undefined);
-  assert.equal(saved.S.v,27);
+  assert.equal(saved.S.v,await page.evaluate('SAVE_V'));
   await page.reload();
   await page.locator('#sp0').click();
   await page.locator('button[data-v="bar"]').click();
@@ -2448,7 +2448,7 @@ test('記念碑の最後の言葉と見送りの一行は、375pxと1280pxで語
   const {ctx,page,errors}=await open();
   await page.locator('#sp0').click();
   const info=await page.evaluate(()=>{
-    const ours=Object.values(S.adv).filter(a=>a.tav==='ours'&&a.status==='idle').sort((a,b)=>a.id-b.id);
+    const ours=Object.values(S.adv).filter(a=>a.tav==='ours').sort((a,b)=>a.id-b.id);
     const [lost,friend,quiet]=ours;
     for(const x of [lost,friend,quiet]){x.party=null;x.status='idle';x.trips=4;}
     friend.pers='慎重';friend.tone='普通';
