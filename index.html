@@ -114,6 +114,8 @@ button:focus-visible,[tabindex]:focus-visible{outline:2px solid var(--amber);out
 .pcard .who .cls{flex:none;color:var(--muted);font-size:11px;font-variant-numeric:tabular-nums}
 .pcard .who.lead .nm{color:var(--amber)}
 .pcard .who.down .nm,.pcard .who.down .cls{color:var(--blood)}
+/* 行方の知れない者は、倒れた者の赤ではなく、灰色で出す */
+.pcard .who.gone .nm,.pcard .who.gone .cls{color:var(--ash)}
 .hpstrip{display:flex;gap:3px}
 .hpstrip i{flex:1;height:5px;border-radius:2px;background:#0003;position:relative;overflow:hidden}
 .hpstrip i::after{content:"";position:absolute;inset:0;width:var(--w);background:var(--c)}
@@ -806,9 +808,16 @@ function r100(x){return Math.max(100,Math.round(x/100)*100)}
 function bountyFloor(p){
   if(!p)return 1;
   if(p.knownWiped||p.causeTold)return p.floor||1;
-  if(inMine(p.floor))return MAXF+Math.max(1,p.mineReach||1);
-  return Math.max(1,p.pushTo||p.reach||1);
+  // 出発のときに控えた深さ（到達済みの石碑と、深く攻める目標）。探索中に進んだ reach／mineReach は使わない
+  const k=p.trip&&p.trip.known;if(k)return Math.max(1,k.f);
+  // 控えのない古い記録は、到達済みの石碑で見る
+  if(inMine(p.floor))return MINE_STONES.filter(x=>x<=(p.mineReach||0)).pop()||MINE_TOP;
+  return STONES.filter(x=>x<=(p.reach||0)).pop()||1;
 }
+// 出発のときに分かる深さを控える。迷宮は到達済みの石碑と深く攻める目標の深いほう、坑道は到達済みの坑道の石碑（なければ坑道の入口）
+function noteKnownDepth(p){const mine=!!p.mineTrip;
+  const f=mine?(MINE_STONES.filter(x=>x<=(p.mineReach||0)).pop()||MINE_TOP):Math.max(STONES.filter(x=>x<=(p.reach||0)).pop()||1,p.pushTo||0);
+  p.trip.known={mine,f,reach:p.reach||0,mineReach:p.mineReach||0};}
 function bountyPrice(p){return p?r100(incomeAt(dz(bountyFloor(p)))):500}
 function upkeep(a){const rep=eqList(a).reduce((s,it)=>s+SHOP_PRICE[Math.min(SHOP_TOP,Math.max(1,it.f||1))]*.025,0);return {repair:Math.round(rep),lodge:Math.round(incomeAt(depthOf(a))*.08)};}
 function templeCost(S,a){const base=Math.round(incomeAt(depthOf(a))*(a.status==='ash'?1.5:.5)/10)*10;const e=edict(S,'templeUp')||edict(S,'templeDown');return Math.round(base*(e?e.m:1));}
@@ -2076,7 +2085,7 @@ function stepParty(S,p){
       else{const pe=partyErrand(S,p);const lim=Math.min(p.reach||0,Math.floor(safeFloor(S,p)),p.cap||99,pe?pe.f:99);const st=STONES.filter(x=>x<=lim).pop();
         if(st){p.floor=st;p.trip.deep=st;plog(p,`てんいの せきひで ${FN(st)} へ（${zoneOf(st)}）`,'sys');}
         floorArrive(S,p);}
-      noteDepart(S,p);
+      noteKnownDepth(p);noteDepart(S,p);
     } else {
       p.wait=(p.wait||0)+1;
       if(p.wait>450&&ms.length<3){disbandParty(S,p,'仲間がそろわず');}
@@ -2087,6 +2096,8 @@ function stepParty(S,p){
   if(S.tick%2===0) for(const a of alive(S,p)) if(a.poison&&a.hp>1){a.hp-=1;}
   if(!alive(S,p).length){wipe(S,p,'どく');return;}
   if(p.enemies){combat(S,p);return;}
+  // 戦いのない歩みごとに、水晶の記録の位置と体力を控える。まだ知れていない全滅の水晶は、ここまでを映す
+  if(p.tav==='ours'){p.calmLc=p.lc||0;p.calmHp=p.members.map(id=>{const a=A(S,id);return a?a.hp:0;});}
   p.steps++;
   if(p.state==='return'){
     if(p.floor>=6&&hpRatio(S,p)<.35){const c=alive(S,p).find(a=>CAN.dasshutsu(a)&&a.mp>=3);if(c){escape(S,p,c);return;}}
@@ -2579,10 +2590,12 @@ function escape(S,p,a){a.mp-=3;plog(p,`${a.name} は ダッシュツ を とな�
 function tryYomi(S,p){if(p.floor<YOMI_F)return;const c=alive(S,p).find(a=>CAN.yomi(a)&&a.mp>=4);if(!c)return;
   const d=p.members.map(id=>A(S,id)).find(a=>a.hp<=0&&!a.dungeonAsh);if(!d)return;
   c.mp-=4;plog(p,`${c.name} は ヨミガエリ を となえた……`,'sys');
-  if(chance(Math.min(.85,.45+PL(c)*.015))){d.hp=Math.ceil(d.mhp/3);d.status='party';d.poison=0;d.lastBy=null;
+  if(chance(Math.min(.85,.45+PL(c)*.015))){flushDeathChron(S,d);d.hp=Math.ceil(d.mhp/3);d.status='party';d.poison=0;d.lastBy=null;
     plog(p,`　${d.name} は いきを ふきかえした！`,'loot');chron(S,d,`${FN(p.floor)}で${c.name}のヨミガエリにより息を吹き返す`);chron(S,c,`${FN(p.floor)}でヨミガエリを唱え、${d.name}を蘇らせる`);c.yomiN=(c.yomiN||0)+1;
     if(p.trip.deaths)p.trip.deaths=p.trip.deaths.filter(x=>x.n!==d.name);p.trip.yomi={c:c.name,d:d.name};}
-  else{d.dungeonAsh=true;plog(p,`　しかし ${d.name} は はいに なってしまった……`,'death');chron(S,d,`${FN(p.floor)}でヨミガエリに失敗し、灰になる`);}}
+  else{d.dungeonAsh=true;plog(p,`　しかし ${d.name} は はいに なってしまった……`,'death');const t=`${FN(p.floor)}でヨミガエリに失敗し、灰になる`;
+    // 黒猫亭は、倒れた記録と同じく、生還か遺体の到着まで手帳に残さない
+    if(d.deathPending)d.ashPending=t;else chron(S,d,t);}}
 const VARIANTS=[
   {k:'wound',n:'手負いの',hp:.6,atk:.85,xp:.8,w:3},
   {k:'old',n:'年老いた',hp:.8,atk:.8,xp:.9,w:2},
@@ -2781,6 +2794,7 @@ function flushDeathChron(S,a){
   if(!a||!a.deathPending)return;
   const by=a.lastBy||'不明',fl=a.lastFloor||1;
   chron(S,a,`${FN(fl)}で${by}に倒れる`);a.deathPending=false;
+  if(a.ashPending){chron(S,a,a.ashPending);a.ashPending=null;}
 }
 function victory(S,p){
   const t=p.etype,f=Math.max(1,p.floor),n=p.enemies.length;
@@ -2868,6 +2882,8 @@ function overdueSteps(p){
 }
 // まだ知れていない全滅。予定帰還の刻までは探索中、そのあと消息不明と知らせるまでは「まだ戻らない」と、生きている一行と同じに見せる
 function wipeHidden(p){return !!(p&&p.state==='wiped'&&!p.announced&&!p.knownWiped);}
+// 手帳のうち、全滅が知れるまで伏せる記録（倒れた階と相手、全滅の一文、ヨミガエリの失敗で灰になったこと）
+const DEATH_CHRON=/^全滅した。|で.+に倒れる$|でヨミガエリに失敗し、灰になる$/;
 // 死因と階がまだ店に知れていない全滅（伏せ中・消息不明・運ばれているあいだ）
 function wipeUnknown(p){return !!(p&&p.state==='wiped'&&!p.knownWiped&&!p.causeTold);}
 function partyOverdue(S,p){
@@ -2931,7 +2947,7 @@ function wipe(S,p,by){
     // この回で残った倒れた記録を外す（以前の生還で書いた分や、途中まで見ていた分）。街に着くか、水晶で見届けたとき書き直す
     const from=p.wipedAt-Math.max(0,p.steps||0)-5;
     (p.members||[]).forEach(id=>{const a=A(S,id);if(!a)return;a.deathPending=true;
-      a.chron=(a.chron||[]).filter(c=>c.tk<from||!(c.t.startsWith('全滅した。')||/で.+に倒れる$/.test(c.t)));});
+      a.chron=(a.chron||[]).filter(c=>c.tk<from||!DEATH_CHRON.test(c.t));});
   }
   if(watched&&p.tav==='ours'){p.knownWiped=true;p.announced=true;(p.members||[]).forEach(id=>flushDeathChron(S,A(S,id)));tellCause(S,p);const extra=cause===by+'に倒れた'?'':cause+'。';news(S,`水晶が${p.name}の最期を映した。${FN(p.floor)}、${by}に倒れる。${extra}${p.pushWhy==='race'?'銀の杯亭に先を越されまいとした末だった。':p.pushWhy==='first'?'一番乗りを狙った末だった。':p.pushWhy==='bounty'?'報奨金を狙った末だった。':p.pushWhy==='avenge'?'仇を追った末だった。':p.pushWhy==='errand'?'店主に回された話を果たしに向かった末だった。':p.pushWhy==='boss'?'坑道王を討ちに向かった末だった。':''}`,'death');}
 }
@@ -3867,11 +3883,24 @@ function visible(p){
   if(p.state==='wiped') return p.knownWiped||wipeHidden(p);
   return true;
 }
-// 画面に出す体力。伏せ中は満タンの探索中に見せ、消息不明のあいだは数を出さない
+// 伏せ中の水晶の記録。全滅した戦いより前（戦いのない最後の歩み）までの記録に、全滅のあと2刻ごとに歩みの行を足す。
+// 撤退を命じていれば、その刻に伝書鳩の行が入る。行は一行の番号と刻から決め、乱数は引かない
+function hiddenLog(p){
+  const upto=p.calmLc!=null?p.calmLc:0;const out=p.log.filter(l=>l.n<=upto).map(l=>({t:l.t,k:l.k}));
+  const n=Math.max(0,Math.floor((S.tick-(p.wipedAt||S.tick))/2));let told=false;
+  for(let i=Math.max(0,n-60);i<n;i++){const tk=(p.wipedAt||0)+2*(i+1);
+    if(p.hideRecall&&!told&&tk>=p.hideRecall){told=true;out.push({t:'でんしょばとが まいおりた。「すぐ もどれ」',k:'sys'});}
+    out.push({t:MOVE[((p.id|0)*31+i*17)%MOVE.length],k:'move'});}
+  if(p.hideRecall&&!told)out.push({t:'でんしょばとが まいおりた。「すぐ もどれ」',k:'sys'});
+  return out;}
+// 伏せ中の一行にも、まだ撤退を命じていなければ、探索中の一行と同じく伝書鳩を飛ばせる
+function hideRecall(p){return !!(p&&p.tav==='ours'&&wipeHidden(p)&&!p.hideRecall);}
+// 画面に出す体力。伏せ中は全滅した戦いの前の体力で探索中に見せ、消息不明のあいだは数を出さない
 function shownHp(a){
   const p=a.party&&S.parties[a.party];
   if(a.status==='missing'&&wipeUnknown(p)){
-    if(wipeHidden(p))return {hp:a.mhp,mhp:a.mhp,band:'',label:(a.mhp)+'/'+(a.mhp)};
+    if(wipeHidden(p)){const i=(p.members||[]).indexOf(a.id),h=p.calmHp&&i>=0&&p.calmHp[i]!=null?p.calmHp[i]:a.mhp;
+      const b=hpBand({hp:h,mhp:a.mhp});return {hp:h,mhp:a.mhp,band:b,label:b==='dead'?'しぼう':h+'/'+a.mhp};}
     return {hp:0,mhp:a.mhp,band:'',label:'—',hide:true};
   }
   const band=hpBand(a);
@@ -3901,6 +3930,7 @@ function render(){
 function stateText(p){
   if(p.state==='wiped'){
     // まだ知れていない全滅は、生きている一行と同じ様子で出す（階と死因は遺体が着くまで出さない）
+    if(wipeHidden(p)&&p.hideRecall) return [`${FN(p.floor)} 帰還中`,false];
     if(wipeHidden(p)) return [`${FN(p.floor)} ${p.plan==='grind'?'腕を磨いている':p.plan==='push'?'深く攻めている':'探索中'}`,false];
     if(p.tav==='ours') return p.knownWiped?[`全滅（${FN(p.floor)}）`,true]:[`消息不明（${inMine(p.floor)?'坑道':'迷宮'}）`,true];
     return [`消息不明（噂）`,true];
@@ -3932,10 +3962,10 @@ function renderCrystals(){
     const ms=p.members.concat(p.carried||[]).map(id=>S.adv[id]).filter(Boolean);
     const lost=p.state==='wiped'&&!wipeHidden(p);
     const hide=wipeHidden(p);
-    const mem=ms.slice(0,6).map(a=>{const hp=shownHp(a);const band=hide?'':hp.band;return `<div class="m${band==='dead'?' dead':band==='crit'?' crit':band==='low'?' low':''}"><span>${p.leader===a.id?'<span class="lead" title="リーダー">★</span>':''}${nmLink(a)}${band==='crit'?'<span class="wound">深手</span>':''}</span><span>${esc(hp.label)}${a.poison&&band&&band!=='dead'?'毒':''}</span></div>`}).join('');
+    const mem=ms.slice(0,6).map(a=>{const hp=shownHp(a);const band=hp.band;return `<div class="m${band==='dead'?' dead':band==='crit'?' crit':band==='low'?' low':''}"><span>${p.leader===a.id?'<span class="lead" title="リーダー">★</span>':''}${nmLink(a)}${band==='crit'?'<span class="wound">深手</span>':''}</span><span>${esc(hp.label)}${a.poison&&band&&band!=='dead'?'毒':''}</span></div>`}).join('');
     let last=shown[p.id]||0;let fresh=last&&!hide?p.log.filter(l=>l.n>last).length:0;if(fresh>14){last=0;fresh=0;}const stepD=fresh?Math.min(.35,(TICK_SEC/speedNow()-.3)/fresh):0;let fi=0;
-    // 伏せ中は全滅のログを出さず、もやの探索景色だけにする
-    const lines=hide?`<div class="move">もやの なかを あるいている……</div>`:p.log.slice(-60).map(l=>{const nw=last&&l.n>last;const st=nw?` style="animation-delay:${(fi++*stepD).toFixed(2)}s"`:'';return `<div class="${l.k}${nw?' nw':''}"${st}>${esc(l.t)}</div>`}).join('');
+    // 伏せ中は、全滅した戦いより前の記録を残し、そのあとは探索らしい歩みの行を足していく
+    const lines=hide?hiddenLog(p).slice(-60).map(l=>`<div class="${l.k}">${esc(l.t)}</div>`).join(''):p.log.slice(-60).map(l=>{const nw=last&&l.n>last;const st=nw?` style="animation-delay:${(fi++*stepD).toFixed(2)}s"`:'';return `<div class="${l.k}${nw?' nw':''}"${st}>${esc(l.t)}</div>`}).join('');
     if(!hide)shown[p.id]=p.lc||0;
     const canRecall=p.tav==='ours'&&p.state==='explore';
     const danger=canRecall?partyDanger(S,p):null;
@@ -3944,7 +3974,7 @@ function renderCrystals(){
       <div class="c-head" data-act="selc" data-i="${i}" tabindex="0"><span class="orb"></span><span class="nm">${partyHtml(p.name)}${p.tav==='rival'?'（銀の杯亭）':''}</span><span class="fl">${esc(stateText(p)[0])}${p.floor>0&&p.state!=='town'?'・'+zoneOf(p.floor)+((p.state!=='wiped'||hide)?(hasMap(p)?'・地図あり':'・地図なし'):''):''}</span></div>
       <div class="c-members">${mem}</div>
       <div class="c-log" data-pid="${p.id}">${lines}${lost?'<div class="move">　\n水晶は もう なにも うつさない</div>':''}</div>
-      <div class="c-foot">${canRecall?`<button class="btn sm" data-act="recall" data-p="${p.id}" ${T().gold<50?'disabled':''}>伝書鳩で撤退を命じる（50G）</button>`:`<span>${hide?'探索している':p.state==='return'?'帰路についている':p.state==='town'?'酒場に戻っている':p.tav==='rival'?'すれ違いの間だけ見えている':''}</span>`}${warn}${!hide&&p.loot?`<span class="c-loot">稼ぎ ${p.loot}G</span>`:''}</div>
+      <div class="c-foot">${hideRecall(p)?`<button class="btn sm" data-act="recall" data-p="${p.id}" ${T().gold<50?'disabled':''}>伝書鳩で撤退を命じる（50G）</button>`:canRecall?`<button class="btn sm" data-act="recall" data-p="${p.id}" ${T().gold<50?'disabled':''}>伝書鳩で撤退を命じる（50G）</button>`:`<span>${hide?'帰路についている':p.state==='return'?'帰路についている':p.state==='town'?'酒場に戻っている':p.tav==='rival'?'すれ違いの間だけ見えている':''}</span>`}${warn}${p.loot?`<span class="c-loot">稼ぎ ${p.loot}G</span>`:''}</div>
     </div>`;
   }).join(''));
   box.querySelectorAll('.c-log').forEach(el=>{if(keep[el.dataset.pid]!==false)el.scrollTop=el.scrollHeight;});
@@ -3956,6 +3986,12 @@ function partyMembers(p){
   return (p.members||[]).map(id=>S.adv[id]).filter(Boolean);
 }
 function partyDepth(p){
+  // 消息不明のあいだ（知れたあと、死因と階が届くまで）は、出発のときの到達で出す。倒れた階を漏らさない
+  const k=p.trip&&p.trip.known;
+  if(wipeUnknown(p)&&!wipeHidden(p)){
+    // 控えのない古い記録は、到達済みの石碑まで丸める
+    const lab=k?k.reach:(STONES.filter(x=>x<=(p.reach||0)).pop()||0),mine=k?k.mineReach:(MINE_STONES.filter(x=>x<=(p.mineReach||0)).pop()||0);
+    return {lab,mine,key:Math.max(lab?fx(lab):0,mine?fx(mine):0)};}
   let lab=p.reach||0,mine=p.mineReach||0;
   if(p.floor>0){if(inMine(p.floor))mine=Math.max(mine,p.floor);else lab=Math.max(lab,p.floor);}
   return {lab,mine,key:Math.max(lab?fx(lab):0,mine?fx(mine):0)};
@@ -3980,7 +4016,7 @@ function renderParties(){
     // 伏せ中は探索中と同じ帯。消息不明（死因未判明）は帯を出さない
     const showHp=p.tav==='ours'&&ms.length&&!(p.state==='wiped'&&!wipeHidden(p)&&!p.knownWiped);
     const hp=showHp?`<div class="hpstrip">${ms.map(a=>{const sh=shownHp(a);const r=sh.mhp?sh.hp/sh.mhp:0;const b=sh.band;return `<i style="--w:${Math.round(Math.max(0,r)*100)}%;--c:${b==='dead'?'var(--ash)':b==='crit'?'var(--blood)':b==='low'?'var(--amber)':'var(--heal)'}"></i>`}).join('')}</div>`:'';
-    const roster=ms.length?`<div class="roster">${ms.map(a=>{const mark=rosterMark(a);return `<span class="who${a.id===p.leader?' lead':''}${mark?' down':''}"><span class="nm">${a.id===p.leader?'★':''}${esc(a.name)}</span><span class="cls">${esc(a.cls)} Lv${a.lvl}${mark?' '+mark:''}</span></span>`}).join('')}</div>`:'';
+    const roster=ms.length?`<div class="roster">${ms.map(a=>{const mark=rosterMark(a);return `<span class="who${a.id===p.leader?' lead':''}${mark==='不明'?' gone':mark?' down':''}"><span class="nm">${a.id===p.leader?'★':''}${esc(a.name)}</span><span class="cls">${esc(a.cls)} Lv${a.lvl}${mark?' '+mark:''}</span></span>`}).join('')}</div>`:'';
     return `<button class="pcard${p.tav==='rival'?' rival':''}${S.watch.includes(p.id)?' watching':''}" data-act="watch" data-p="${p.id}" ${vis?'':'aria-disabled="true"'}>
       <div class="top"><span class="pn">${partyHtml(p.name)}</span><span class="tag ${p.tav}">${S.taverns[p.tav].name}${p.ace?'の看板':''}</span></div>
       <div class="facts">${ms.length?`<span>平均<b>Lv${avg}</b></span><span>最高<b>Lv${max}</b></span><span><b>${ms.length}</b>人</span>`:''}<span>到達<b>${esc(reachText(p))}</b></span></div>
@@ -4220,7 +4256,9 @@ function chronItems(a){
   let endAt=-1;if(endRe)for(let i=ch.length-1;i>0;i--)if(endRe.test(ch[i].t)){endAt=i;break;}
   return ch.map((c,i)=>{
     // 伏せ中・消息不明のあいだは、階と相手・全滅の一文を手帳に出さない（古い記録の漏れも隠す）
-    if(hideDeath&&(/で.+に倒れる$/.test(c.t)||c.t.startsWith('全滅した。')))return '';
+    if(hideDeath&&DEATH_CHRON.test(c.t))return '';
+    // 伏せ中は、遺体が見つかって運ばれていることも手帳に出さない
+    if(a.status==='missing'&&wipeHidden(p)&&/^遺体から.+持ち去られる$|に遺体を見つけられ、街へ運ばれる$/.test(c.t))return '';
     return `<li><span class="d">${Math.floor(c.tk/TICKS_PER_DAY)+1}日目</span>${esc(glossText(c.t))}${i===0?ledgerHtml(ledgerLine(S,a,'came')):i===endAt?ledgerHtml(ledgerLine(S,a,'end')):''}</li>`;
   }).filter(Boolean).reverse().join('');
 }
@@ -4336,7 +4374,10 @@ document.addEventListener('click',e=>{
     const j=S.watch.indexOf(p.id);if(j>=0){S.sel=j;render();return;}
     S.watch[S.sel]=p.id;render();return;
   }
-  if(act==='recall'){const p=S.parties[b.dataset.p];if(p&&p.state==='explore'&&T().gold>=50){T().gold-=50;plog(p,'でんしょばとが まいおりた。「すぐ もどれ」','sys');p.state='return';say(S,p,['……店主の めいれいだ。もどるぞ']);render();save();}return;}
+  if(act==='recall'){const p=S.parties[b.dataset.p];
+    // 伏せ中の一行にも、生きている一行と同じく伝書鳩を飛ばせる。届いても、誰も戻らない
+    if(hideRecall(p)&&T().gold>=50){T().gold-=50;p.hideRecall=S.tick;render();save();return;}
+    if(p&&p.state==='explore'&&T().gold>=50){T().gold-=50;plog(p,'でんしょばとが まいおりた。「すぐ もどれ」','sys');p.state='return';say(S,p,['……店主の めいれいだ。もどるぞ']);render();save();}return;}
   if(act==='reset'){if(confirm('いまの記録を消して、最初から始めますか？\n消した記録は戻りません。')){reviveNote=null;S=newState();for(let i=0;i<6;i++)tick(S);save();autoWatch();render();toast('黒猫亭が店を開いた');}return;}
   if(act==='repay'){const x=repay(S,+b.dataset.v);if(x)toast(`両替商に${x}Gを返した`);render();save();return;}
   if(act==='seats'){const ns=nextSeats(S);if(ns&&T().gold>=ns[2]){T().gold-=ns[2];T().seats=ns[1];news(S,`黒猫亭が店を広げた。常連の席は${ns[1]}席になった。`,'record');toast(`常連の席は${ns[1]}席になった`);}render();save();return;}
