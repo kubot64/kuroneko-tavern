@@ -123,7 +123,7 @@ test('留守のあいだの減りは売上と書かず、帳場は返した額�
     return {gold:T.gold,earned:T.earned,support:T.support||0,repaid:T.repaid||0,interest:T.interestPaid||0,v:S.v,
       sum:document.querySelector('#dg-sum').innerText,brk:document.querySelector('#dg-brk').innerText};
   });
-  assert.equal(after.v,27);
+  assert.equal(after.v,await page.evaluate('SAVE_V'));
   assert.doesNotMatch(after.sum,/売上/);
   assert.match(after.sum,/所持金/);
   const gd=after.gold-live.gold,yen=n=>n.toLocaleString('ja-JP'),esign=gd>=0?`+${yen(gd)}`:yen(gd);
@@ -524,7 +524,7 @@ test('帳場の蘇生は、押す前に状態と成功率が出て、押した�
   assert.equal(await page.evaluate(()=>S.taverns.ours.gold),gold0-cost);
   const saved=await page.evaluate(()=>JSON.parse(localStorage.getItem('kuroneko-tavern-v1')));
   assert.equal(saved.S.reviveNote,undefined);
-  assert.equal(saved.S.v,27);
+  assert.equal(saved.S.v,await page.evaluate('SAVE_V'));
   assert.equal(saved.S.adv[prep.id].status,'ash');
   const again=await open({ctx,time:Date.UTC(2026,0,1)});
   await again.page.locator('#sp0').click();
@@ -690,7 +690,7 @@ test('帳場の覚え書きと、次の返済までの日数・必要額が常�
     const home=document.querySelector('#memo li[data-id="home"]');
     return {v:S.v,rep,home:home&&home.innerText,struck:!!home&&!!home.querySelector('s'),pay:document.querySelector('#payw').hidden};
   });
-  assert.equal(old.v,27);
+  assert.equal(old.v,await page.evaluate('SAVE_V'));
   assert.equal(old.rep,4);
   assert.equal(old.struck,true);
   assert.match(old.home,/送り出した連中が、生きて戻ってくる/);
@@ -1558,7 +1558,7 @@ test('見込みが満員のときは理由が読め、見込むボタンはど�
   const saved=await page.evaluate(()=>{save();return JSON.parse(localStorage.getItem('kuroneko-tavern-v1'));});
   assert.equal(saved.boardHelpOpen,undefined);
   assert.equal(saved.S.boardHelpOpen,undefined);
-  assert.equal(saved.S.v,27);
+  assert.equal(saved.S.v,await page.evaluate('SAVE_V'));
   await page.reload();
   await page.locator('#sp0').click();
   await page.locator('button[data-v="bar"]').click();
@@ -2465,4 +2465,61 @@ test('黒猫亭の帳面の一行は、手帳と記念碑で語の途中で折�
   }
   assert.deepEqual(errors,[]);
   await ctx.close();
+});
+
+test('記念碑の最後の言葉と見送りの一行は、375pxと1280pxで語の途中で折れず、「」。」だけが次の行に残らない',async()=>{
+  const {ctx,page,errors}=await open();
+  await page.locator('#sp0').click();
+  const info=await page.evaluate(()=>{
+    const ours=Object.values(S.adv).filter(a=>a.tav==='ours').sort((a,b)=>a.id-b.id);
+    const [lost,friend,quiet]=ours;
+    for(const x of [lost,friend,quiet]){x.party=null;x.status='idle';x.trips=4;}
+    friend.pers='慎重';friend.tone='普通';
+    S.bonds=S.bonds||{};S.bonds[bkey(lost,friend)]={n:3,ev:[]};
+    lost.said=[{tk:S.tick-2,t:'一つ目'},{tk:S.tick-1,t:'二つ目'},{tk:S.tick,t:'次は盗賊を連れていく'}];
+    lost.status='lost';lost.lastBy='オーク';
+    const m=memorialize(S,lost,{by:'オーク',floor:3});
+    S.news.push({tk:S.tick,t:`黒猫亭の${lost.name}、ロスト。その名は記念碑に刻まれる。${m.farewell}`,k:'lost'});
+    // 絆のない者。店の一行になる
+    quiet.said=[];quiet.status='lost';const m2=memorialize(S,quiet,{by:'オーク',floor:2});
+    tab='stone';render();
+    return {lost:lost.id,friend:friend.name,quiet:quiet.id,fw:m.farewell,fw2:m2.farewell,last:m.last&&m.last.t};
+  });
+  assert.equal(info.last,'次は盗賊を連れていく');
+  assert.match(info.fw,new RegExp('^'+info.friend+'は、'));
+  assert.match(info.fw2,/^その夜、黒猫亭/);
+  assert.doesNotMatch(info.fw+info.fw2,/店主|見ていなかった/);
+  const broken=()=>page.evaluate(()=>{
+    const out=[];
+    document.querySelectorAll('.stone .ep .nw, .news li .nw').forEach(s=>{if(s.getClientRects().length>1)out.push(s.textContent);});
+    return out;});
+  for(const w of [375,1280]){
+    await page.setViewportSize({width:w,height:800});
+    await page.evaluate(()=>{tab='stone';render();});
+    const stone=await page.locator('#tbody').innerText();
+    assert.match(stone,/酒場で最後に言ったのは「次は盗賊を連れていく」。/);
+    assert.doesNotMatch(stone,/酒場で最後に言ったのは「」/);
+    assert.match(stone,new RegExp(info.fw.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')));
+    assert.match(stone,new RegExp(info.fw2.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')));
+    // 最後の言葉は添え書きより先。見送りの一行は帳面の下
+    const order=await page.evaluate(id=>{const s=[...document.querySelectorAll('.stone')].find(el=>el.querySelector(`[data-a="${id}"]`));const t=[...s.children].map(c=>c.className+':'+c.textContent.slice(0,6));return t.join('|');},info.lost);
+    assert.match(order,/ep:酒場で最後に.*ep:(開店からの|黒猫亭の客).*ledger:.*ep:/);
+    assert.deepEqual(await broken(),[],`幅${w}の記念碑`);
+    // 言葉の長さを変えても、最後の行が「」。」だけにならない
+    const short=await page.evaluate(id=>{
+      const m=S.memorial.find(x=>x.id===id);const out=[];
+      const tailOf=ep=>{const tops=[],chars=[];const w=document.createTreeWalker(ep,NodeFilter.SHOW_TEXT);
+        for(let n=w.nextNode();n;n=w.nextNode())for(let i=0;i<n.length;i++){const r=document.createRange();r.setStart(n,i);r.setEnd(n,i+1);const rr=r.getBoundingClientRect();if(rr.width){chars.push([Math.round(rr.top),n.data[i]]);tops.push(Math.round(rr.top));}}
+        const last=Math.max(...tops);return {rows:new Set(tops.map(t=>Math.round(t/4))).size,tail:chars.filter(([t])=>Math.abs(t-last)<=2).map(([,c])=>c).join('')};};
+      for(let k=0;k<=40;k++){m.last={tk:1,t:'次は'+'盗'.repeat(k)+'賊を連れていく'};render();
+        const s=[...document.querySelectorAll('.stone')].find(el=>el.querySelector(`[data-a="${id}"]`));const ep=[...s.querySelectorAll('.ep')][0];
+        const r=tailOf(ep);if(r.rows>=2&&r.tail.length<4)out.push(`${k}:${r.tail}`);}
+      m.last={tk:1,t:'次は盗賊を連れていく'};render();return out;},info.lost);
+    assert.deepEqual(short,[],`幅${w}の最後の言葉`);
+    await page.locator('button[data-v="news"]').click();
+    const row=page.locator('.news li',{hasText:'ロスト。その名は記念碑に刻まれる。'}).first();
+    assert.match(await row.innerText(),new RegExp(info.fw.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')));
+    assert.deepEqual(await broken(),[],`幅${w}の日報`);
+  }
+  assert.deepEqual(errors,[]);await ctx.close();
 });
