@@ -1816,7 +1816,7 @@ test('375pxでは水晶の一言が語の途中で折れず、稼ぎは別の行
   assert.deepEqual(errors,[]);await ctx.close();
 });
 
-test('全滅と依頼の失敗には理由が一文つき、まだ戻らないは札で読める',async()=>{
+test('全滅と依頼の失敗には理由が一文つき、知れていない全滅は札も手帳も探索中のまま、消息不明の知らせに死因と階は入らない',async()=>{
   const {ctx,page,errors}=await open();
   await page.locator('#sp0').click();
   const info=await page.evaluate(()=>{
@@ -1830,6 +1830,7 @@ test('全滅と依頼の失敗には理由が一文つき、まだ戻らない�
     const st=card().querySelector('.st');
     const out=[];
     if(!st||!st.classList.contains('bad')||!st.textContent.includes('探索中')||!st.textContent.includes('まだ戻らない'))out.push('遅れの札 '+(st&&st.textContent));
+    const before=st.textContent;
     const a=S.adv[p.leader];
     const rnd=Math.random;Math.random=()=>0.99;
     errandEvent(S,p,{id:1,k:'kitten',n:'迷い込んだ子猫',f:2,hero:a.id});
@@ -1840,14 +1841,42 @@ test('全滅と依頼の失敗には理由が一文つき、まだ戻らない�
     wipe(S,p,'オーク');
     render();
     const st2=card().querySelector('.st');
-    if(!st2||!st2.classList.contains('bad')||st2.textContent!=='B4F まだ戻らない')out.push('全滅直後の札 '+(st2&&st2.textContent));
+    // 全滅しても、知れるまでは札の文も色も変わらない
+    if(!st2||!st2.classList.contains('bad')||st2.textContent!==before)out.push('全滅直後の札 '+(st2&&st2.textContent)+'（前は '+before+'）');
     tab='news';render();
     const news=document.querySelector('#tbody').innerText;
     if(!news.includes('向かなかった'))out.push('日報に失敗の理由がない');
     if(news.includes('癒し手の呪文が尽きていた'))out.push('見ていない全滅の理由が先に出た');
+    tab='roster';render();
+    const roster=document.querySelector('#tbody').innerText;
+    if(roster.includes('行方不明'))out.push('名簿に行方不明が出た');
+    const chip=[...document.querySelectorAll('#tbody .row')].find(el=>el.querySelector('.nm-link')?.textContent===h.name)?.querySelector('.chip')?.textContent;
+    if(chip!=='探索中')out.push('名簿のチップ '+chip);
     advOpen=h.id;document.querySelector('#advm').hidden=false;renderAdv();
     const book=document.querySelector('#advbox').innerText;
-    if(!book.includes('全滅した。癒し手の呪文が尽きていた'))out.push('手帳に原因がない');
+    if(book.includes('全滅した。'))out.push('手帳に原因が先に出た');
+    if(!book.includes('探索中'))out.push('手帳の状態が探索中でない');
+    if(book.includes('行方不明'))out.push('手帳に行方不明が出た');
+    // 予定帰還の刻から MISSING_GRACE 刻たつと消息不明。知らせに死因も階も入らず、札は迷宮とだけ出る
+    document.querySelector('#advm').hidden=true;advOpen=null;
+    Object.values(S.parties).forEach(q=>{if(q!==p){q.state='town';q.rest=99;}});
+    p.dueAt=S.tick-MISSING_GRACE;tick(S);tab='news';render();
+    const news2=document.querySelector('#tbody').innerText;
+    const line=(S.news.findLast(x=>x.t.includes('予定を過ぎても戻らない'))||{}).t||'';
+    if(!line.startsWith(p.name+'が予定を過ぎても戻らない。'))out.push('消息不明の知らせがない '+line);
+    if(/B\d+F|癒し手/.test(line))out.push('消息不明の知らせに死因か階が入った '+line);
+    const st3=card().querySelector('.st');
+    if(!st3||st3.textContent!=='消息不明（迷宮）'||!st3.classList.contains('bad'))out.push('消息不明の札 '+(st3&&st3.textContent));
+    tab='desk';render();
+    const desk=document.querySelector('#tbody').innerText;
+    if(/消息不明[\s\S]*B4F/.test(desk)&&desk.includes(p.name+' 黒猫亭・B4F'))out.push('帳場の依頼欄に階が出た');
+    // 巡回隊が連れ帰ると、死因と階が手帳と知らせに残る
+    corpsesHome(S,p,'巡回隊が見つけ、',null);tab='news';render();
+    const news3=(S.news.findLast(x=>x.t.includes('遺体が街に届いた'))||{}).t||'';
+    if(news3!=='巡回隊が見つけ、'+p.name+'の遺体が街に届いた。B4F、オークに倒れていた。癒し手の呪文が尽きていた。')out.push('届いた知らせがない '+news3);
+    advOpen=h.id;document.querySelector('#advm').hidden=false;renderAdv();
+    const book2=document.querySelector('#advbox').innerText;
+    if(!book2.includes('全滅した。癒し手の呪文が尽きていた'))out.push('届いたあとの手帳に原因がない');
     return {out,pid:p.id,aid:h.id};
   });
   assert.deepEqual(info.out,[]);
@@ -1857,11 +1886,6 @@ test('全滅と依頼の失敗には理由が一文つき、まだ戻らない�
     const bad=await page.evaluate(({pid,aid})=>{
       tab='news';advOpen=aid;document.querySelector('#advm').hidden=false;render();renderAdv();
       const out=[];
-      const card=[...document.querySelectorAll('.pcard')].find(el=>el.dataset.p==String(pid));
-      const st=card&&card.querySelector('.st');
-      const cr=card.getBoundingClientRect(),sr=st.getBoundingClientRect();
-      if(sr.height<1||sr.right>cr.right+1||sr.left<cr.left-1)out.push('札の様子が札の外');
-      if(st.scrollWidth>st.clientWidth+1)out.push('札の様子が折れていない');
       const li=[...document.querySelectorAll('.news li')].find(el=>el.textContent.includes('向かなかった'));
       const span=li&&[...li.children].find(n=>!n.classList.contains('d'));
       const side=document.querySelector('.side').getBoundingClientRect();
@@ -1871,6 +1895,9 @@ test('全滅と依頼の失敗には理由が一文つき、まだ戻らない�
         if(r.height<1||r.right>side.right+1||r.left<side.left-1)out.push('知らせが右の列の外');
         if(span.scrollWidth>span.clientWidth+1)out.push('知らせが折れていない');
       }
+      const li2=[...document.querySelectorAll('.news li')].find(el=>el.textContent.includes('遺体が街に届いた'));
+      const span2=li2&&[...li2.children].find(n=>!n.classList.contains('d'));
+      if(!span2)out.push('届いた知らせがない');else if(span2.scrollWidth>span2.clientWidth+1)out.push('届いた知らせが折れていない');
       const row=[...document.querySelectorAll('#advbox .tl li')].find(el=>el.textContent.includes('全滅した。癒し手の呪文が尽きていた'));
       const modal=document.querySelector('#advbox').getBoundingClientRect();
       if(!row)out.push('手帳の行がない');
@@ -1884,20 +1911,16 @@ test('全滅と依頼の失敗には理由が一文つき、まだ戻らない�
     },info);
     assert.deepEqual(bad,[],`${width}px`);
   }
-  const later=await page.evaluate(()=>{
-    const p=Object.values(S.parties).find(x=>x.state==='wiped'&&x.tav==='ours'&&x.cause);
-    Object.values(S.parties).forEach(q=>{if(q!==p){q.state='town';q.rest=99;}});
-    p.wipedAt=S.tick-14;tick(S);tab='news';document.querySelector('#advm').hidden=true;advOpen=null;render();
-    const news=document.querySelector('#tbody').innerText;
-    return news.includes('予定を過ぎても戻らない')&&news.includes('癒し手の呪文が尽きていた');
-  });
-  assert.equal(later,true);
-  // 20日見つからないと、消えた者の名が二つ名つきで知らせに並ぶ。375px でも名前は語の途中で折れない
+  // 巡回隊の届かない深さで20日見つからないと、消えた者の名が二つ名つきで知らせに並ぶ。375px でも名前は語の途中で折れない
   const lost=await page.evaluate(()=>{
-    const p=Object.values(S.parties).find(x=>x.state==='wiped'&&x.tav==='ours'&&x.cause);
-    const ms=p.members.map(id=>S.adv[id]);ms[0].title='牙折り';ms[0].titleKind='kills';ms[0].titleTier=1;ms[0].titleStem='kills';
+    document.querySelector('#advm').hidden=true;advOpen=null;
+    const p=Object.values(S.parties).find(x=>x.tav==='ours'&&x.members.length>=2);
+    const ms=p.members.map(id=>S.adv[id]);ms.forEach(a=>{a.status='missing';a.hp=0;a.party=p.id;});
+    ms[0].title='牙折り';ms[0].titleKind='kills';ms[0].titleTier=1;ms[0].titleStem='kills';
     const names=ms.map(a=>a.title?`「${a.title}」${a.name}`:a.name);
-    p.wipedAt=S.tick-1001;tick(S);
+    Object.assign(p,{state:'wiped',retrieved:false,announced:true,knownWiped:false,wipedAt:S.tick-1001,floor:4,killer:'オーク',cause:'オークに倒れた',causeTold:false,dueAt:S.tick-200});
+    S.deepest.ours=1;S.deepest.rival=1;S.watch=[null,null];
+    tick(S);
     const n=S.news.findLast(x=>x.t.includes('ついに見つからなかった'));
     return {names,text:n&&n.t,ok:!!n&&n.k==='lost'&&n.t.includes(names.join('、')+'の'+names.length+'人の名が記念碑に刻まれる。')};
   });
