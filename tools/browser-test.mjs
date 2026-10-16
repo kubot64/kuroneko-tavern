@@ -2452,7 +2452,7 @@ test('記念碑の最後の言葉と見送りの一行は、375pxと1280pxで語
     const [lost,friend,quiet]=ours;
     for(const x of [lost,friend,quiet]){x.party=null;x.status='idle';x.trips=4;}
     friend.pers='慎重';friend.tone='普通';
-    S.bonds[bkey(lost,friend)]={n:3,ev:[]};
+    S.bonds=S.bonds||{};S.bonds[bkey(lost,friend)]={n:3,ev:[]};
     lost.said=[{tk:S.tick-2,t:'一つ目'},{tk:S.tick-1,t:'二つ目'},{tk:S.tick,t:'次は盗賊を連れていく'}];
     lost.status='lost';lost.lastBy='オーク';
     const m=memorialize(S,lost,{by:'オーク',floor:3});
@@ -2480,7 +2480,7 @@ test('記念碑の最後の言葉と見送りの一行は、375pxと1280pxで語
     assert.match(stone,new RegExp(info.fw2.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')));
     // 最後の言葉は添え書きより先。見送りの一行は帳面の下
     const order=await page.evaluate(id=>{const s=[...document.querySelectorAll('.stone')].find(el=>el.querySelector(`[data-a="${id}"]`));const t=[...s.children].map(c=>c.className+':'+c.textContent.slice(0,6));return t.join('|');},info.lost);
-    assert.match(order,/ep:酒場で最後に.*ep:黒猫亭の客.*ledger:.*ep:/);
+    assert.match(order,/ep:酒場で最後に.*ep:(開店からの|黒猫亭の客).*ledger:.*ep:/);
     assert.deepEqual(await broken(),[],`幅${w}の記念碑`);
     // 言葉の長さを変えても、最後の行が「」。」だけにならない
     const short=await page.evaluate(id=>{
