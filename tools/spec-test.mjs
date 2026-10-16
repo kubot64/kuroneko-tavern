@@ -32,7 +32,7 @@ const html=readFileSync(new URL('../index.html',import.meta.url),'utf8');
 const ENGINE=html.match(/\/\*ENGINE START\*\/([\s\S]*?)\/\*ENGINE END\*\//)[1];
 const EXPORTS=['newState','tick','rivalTemple','seatCap','seatsUsed','nextSeats','newcomerLvl','buyPrice','investPrice','FACILITIES',
   'RARES','MAXF','DRAGON_F','TICKS_PER_DAY','awayPlan','smallOf','debtTick','DEBT0','encounter','rareSlain','rareMonOf','arrive',
-  'repay','flowAdd','flowView','flowRoll','policyCost','goldSign','errandsOf','assignErrand','errandBlock','designateBlock','MAXF','MINE_TOP','MINE_BOT','MINE_N','FN','deepNow','G','groupMoney','floorsInit','mineOpen','conquest','mineConquest','title','alive','markAdv','markedOf','BOARD_MAX','MARK_MAX','errandStage','boardMax','markMax','ARCS','reachFloor','GATE_F','fac','nextFac','buildFac','migrate','partyShown','crestJa','glossText','PT_A','PT_B','takeCrest','pickCrest','newPartyName','combat','MON','elemMul','elemNote','sleepMul','sleepReach','MINE_RARES','supplyTeam','potionPrice','lendRival','reviveChance','reviveHint','reviveResultText','temple','checkMemo','memoState','nextDue','rankRows','MEMO','setQuietLog','DREAMS','rollAge','AGE2','ORIGINS','careerLine','originBg','BGS','originIntro','newcomerClause','doorLine','ourNewcomerNews','SPELL_LIST','foePool','dz','chest','victory','partyDanger','hpBand','retreatLine','retire','letterTick','kinTick','schedulePendingLetters','scheduleLostKin','memorialize','lostRareLine','dreamText','letterQuote','checkDream','wipe','wipeCause','errandEvent','errandFailLine','partyOverdue','returnPeril','SAVE_V','letterNews','fitOf','ERRANDS','ledgerLine','kanjiNum'];
+  'repay','flowAdd','flowView','flowRoll','policyCost','goldSign','errandsOf','assignErrand','errandBlock','designateBlock','MAXF','MINE_TOP','MINE_BOT','MINE_N','FN','deepNow','G','groupMoney','floorsInit','mineOpen','conquest','mineConquest','title','alive','markAdv','markedOf','BOARD_MAX','MARK_MAX','errandStage','boardMax','markMax','ARCS','reachFloor','GATE_F','fac','nextFac','buildFac','migrate','partyShown','crestJa','glossText','PT_A','PT_B','takeCrest','pickCrest','newPartyName','combat','MON','elemMul','elemNote','sleepMul','sleepReach','MINE_RARES','supplyTeam','potionPrice','lendRival','reviveChance','reviveHint','reviveResultText','temple','checkMemo','memoState','nextDue','rankRows','MEMO','setQuietLog','DREAMS','rollAge','AGE2','ORIGINS','careerLine','originBg','BGS','originIntro','newcomerClause','doorLine','ourNewcomerNews','SPELL_LIST','foePool','dz','chest','victory','partyDanger','hpBand','retreatLine','retire','letterTick','kinTick','schedulePendingLetters','scheduleLostKin','memorialize','lostRareLine','dreamText','letterQuote','checkDream','wipe','wipeCause','errandEvent','errandFailLine','partyOverdue','returnPeril','SAVE_V','letterNews','fitOf','ERRANDS','ledgerLine','kanjiNum','farewellLine','bkey','FAREWELL_ACTS','FAREWELL_TONE','FAREWELL_QUIET'];
 
 // 乱数の種を固定したゲームの中身を1つ作る。中身の Math.random だけを差し替える
 function load(seed,fixed){
@@ -267,7 +267,10 @@ function checkScenes(){
     const want=ms.map(a=>a.title?`「${a.title}」${a.name}`:a.name);
     const exp=`${S.taverns[tav].name}の${p.name}は、ついに見つからなかった。B3Fに消えた${want.join('、')}の${want.length>1?want.length+'人の':''}名が記念碑に刻まれる。`;
     const carved=S.memorial.slice(m0).map(x=>x.name);
-    check('記念碑：見つからなかった一行の知らせに、消えた者の名が二つ名つきで全員ぶん並ぶ',!!n&&n.t===exp&&n.k==='lost'&&ms.every(a=>a.status==='lost')&&want.every(x=>carved.includes(x)),S.taverns[tav].name,n?`${n.t}（期待：${exp}）`:'知らせなし');}
+    // 黒猫亭なら、知らせの文に続けて見送りの一行が1つ付き、消えた者それぞれの記念碑に同じ一行が残る。銀の杯亭には付かない
+    const fws=S.memorial.slice(m0).map(x=>x.farewell||'');const fw=tav==='ours'?fws[0]:'';
+    check('記念碑：見つからなかった一行の知らせに、消えた者の名が二つ名つきで全員ぶん並ぶ',!!n&&n.t===exp+fw&&n.k==='lost'&&ms.every(a=>a.status==='lost')&&want.every(x=>carved.includes(x)),S.taverns[tav].name,n?`${n.t}（期待：${exp+fw}）`:'知らせなし');
+    check('見送りの一行：まとめてロストしたときは知らせ1件に一行だけで、消えた者それぞれの記念碑に同じ一行が残る',tav==='ours'?(!!fw&&fws.every(x=>x===fw)&&(n.t.match(/。/g)||[]).length===(exp.match(/。/g)||[]).length+1):fws.every(x=>x===''),S.taverns[tav].name,fws.join(' / '));}
   // 「身内探し」「席と拡張」：席が埋まっているときは、救い出された身内は客にならない。見つけた本人と故郷へ帰る
   {const E=load(1),S=E.newState();const p=Object.values(S.parties).find(x=>x.tav==='ours');
     const finder=S.adv[p.leader];const kin='席のない身内';
@@ -1092,12 +1095,28 @@ function runSeed(seed){
           check('次の世代：種族と出身を継ぎ、続柄が性別と合い、手帳が互いにつながる',!!(p&&p.race===a.race&&p.origin===a.origin&&back&&relOk&&a.lvl0>=1&&a.lvl0<=5&&had),at,()=>`${a.name}（${a.sex}・${a.kin.rel}）←${p&&p.name}`);}
         if(a.dream&&['kinvenge','kinflower','kinname'].includes(a.dream.k))
           check('次の世代：その夢は続柄で来た者だけが持つ',!!a.kin,at,a.name);}
-      for(const n of S.news||[]){const mm=/ついに見つからなかった。B\d+Fに消えた(.+?)の(?:(\d+)人の)?名が記念碑に刻まれる。$/.exec(String(n.t));if(!mm)continue;
+      for(const n of S.news||[]){const mm=/ついに見つからなかった。B\d+Fに消えた(.+?)の(?:(\d+)人の)?名が記念碑に刻まれる。/.exec(String(n.t));if(!mm)continue;
         const names=mm[1].split('、');const carved=(S.memorial||[]).filter(m=>m.tk===n.tk).map(m=>m.name);
         check('記念碑：見つからなかった知らせの名は、同じ刻に記念碑に刻まれた名で、人数と合う',names.every(x=>carved.includes(x))&&(mm[2]?+mm[2]===names.length:names.length===1),at,()=>n.t);}
       for(const m of S.memorial||[])if(m.rares&&m.rares.length){const a=S.adv[m.id];
         const by=a?Object.entries(S.rares||{}).filter(([,v])=>v.killed&&v.killed.by===a.name).map(([f])=>{const r=[...E.RARES,...E.MINE_RARES].find(x=>x.f===+f);return r&&r.n;}).filter(Boolean):[];
-        check('記念碑：討った名のある魔物の名だけが刻まれる',m.rares.every(n=>rareN.has(n)&&(!a||by.includes(n))),at,()=>`${m.name}：${(m.rares||[]).join('、')}`);}}
+        check('記念碑：討った名のある魔物の名だけが刻まれる',m.rares.every(n=>rareN.has(n)&&(!a||by.includes(n))),at,()=>`${m.name}：${(m.rares||[]).join('、')}`);}
+      // 「酒場のざわめき」「土産話」：しまった言葉は3件までで古い順。見えている会話（40件）と土産話（80件）の言葉は、しまってあるか、それより新しい言葉が3件しまってある
+      {const spoken={};const addSp=(id,tk,t)=>{(spoken[id]=spoken[id]||[]).push({tk,t});};
+        for(const c of S.chatter||[])for(const l of c.lines||[])addSp(l.id,c.tk,l.t);
+        for(const t of S.tales||[])if(t.whoId!=null)addSp(t.whoId,t.tk,t.t);
+        for(const a of advs){const sd=a.said||[];
+          const sorted=sd.every((x,i)=>i===0||x.tk>=sd[i-1].tk)&&sd.every(x=>x.tk<=S.tick&&typeof x.t==='string'&&x.t.length>0);
+          const vis=(spoken[a.id]||[]);
+          const covered=vis.every(u=>sd.some(x=>x.tk===u.tk&&x.t===u.t)||(sd.length===3&&sd[0].tk>=u.tk));
+          check('最後の言葉：しまう言葉は3件までで古い順に並び、見えている会話と土産話の言葉はしまってあるか、それより新しい3件に押し出されている',sd.length<=3&&sorted&&covered,at,()=>`${a.name} しまった${sd.map(x=>x.tk+':'+x.t).join('／')} 見えている${vis.map(x=>x.tk+':'+x.t).join('／')}`);}}
+      // 「知らせ」「記念碑」：黒猫亭のロストの知らせには、記念碑と同じ見送りの一行が続く。銀の杯亭には続かない
+      for(const n of S.news||[]){if(n.k!=='lost')continue;const t=String(n.t);
+        const ash=/^(黒猫亭|銀の杯亭)の(.+?)、ロスト。その名は記念碑に刻まれる。(.*)$/.exec(t);const gone=ash?null:/^(黒猫亭|銀の杯亭)の.+?は、ついに見つからなかった。.+?名が記念碑に刻まれる。(.*)$/.exec(t);
+        if(!ash&&!gone)continue;const tav=(ash||gone)[1],tail=ash?ash[3]:gone[2];
+        const ms=(S.memorial||[]).filter(m=>m.tk===n.tk&&(tav==='黒猫亭'?m.tav==='ours':m.tav==='rival')&&(!ash||m.name===ash[2]));
+        check('見送りの一行：黒猫亭のロストの知らせには記念碑と同じ一行が続き、銀の杯亭には続かない',ms.length>0&&(tav==='黒猫亭'?(!!tail&&ms.every(m=>m.farewell===tail)):(tail===''&&ms.every(m=>!m.farewell))),at,()=>t);
+        if(tail)check('見送りの一行：「店主は」で始まらず、見ていなかった・間に合わなかったとは書かない',!/^店主|見ていなかった|間に合わなかった/.test(tail)&&tail.endsWith('。'),at,()=>tail);}}
     // 「お触れ」：同じ種類は重ならない。蘇生代の値上げと半額も重ならない
     {const act=(S.edicts||[]).filter(e=>e.until>S.tick).map(e=>e.k);
       check('お触れ：同じ種類は重ならない',new Set(act).size===act.length,at,act.join(','));
@@ -1472,6 +1491,65 @@ function checkFoes(){
     check('古い記録：新しい記録の版と、移行を終えた記録の版はどちらも今の版',E.newState().v===SAVE_V&&S.v===SAVE_V,`版${SAVE_V-1}`,`新しい記録${E.newState().v} 移行後${S.v} 今の版${SAVE_V}`);}
 }
 
+// 「酒場のざわめき」「土産話」「記念碑」「知らせ」：最後の言葉と見送りの一行
+function checkLastWords(){
+  // 重複で捨てた会話の行はしまわない。同じ種で、会話が記録に入る刻の直前まで回し、その最初の一言を直近の会話に仕込んでから1刻進める
+  {let hit=null;const E1=load(11),S1=E1.newState();for(let i=0;i<4000&&!hit;i++){const c0=(S1.chatter||[]).length;E1.tick(S1);if((S1.chatter||[]).length>c0)hit={i,entry:S1.chatter[S1.chatter.length-1]};}
+    check('最後の言葉：会話が起きる刻を見つけた',!!hit,'種11・4000刻',hit?`${hit.i+1}刻目`:'起きない');
+    if(hit){const E2=load(11),S2=E2.newState();for(let i=0;i<hit.i;i++)E2.tick(S2);
+      const ids=hit.entry.lines.map(l=>l.id);
+      S2.chatter=S2.chatter||[];S2.chatter.push({tk:S2.tick,lines:[{id:ids[0],who:'',t:hit.entry.lines[0].t}]});
+      const snap=()=>JSON.stringify(ids.map(id=>S2.adv[id].said||[]));
+      const before=snap(),c0=S2.chatter.length;E2.tick(S2);
+      check('最後の言葉：重複で捨てた会話の行はしまわない',S2.chatter.length===c0&&snap()===before,'種11',`会話${c0}→${S2.chatter.length}`);
+      // 仕込まなければ、同じ刻に同じ会話が入り、話した者の言葉がしまわれる
+      const E3=load(11),S3=E3.newState();for(let i=0;i<=hit.i;i++)E3.tick(S3);
+      check('最後の言葉：会話が記録に入ると、その各行が話した者にしまわれる',hit.entry.lines.every(l=>(S3.adv[l.id].said||[]).some(x=>x.t===l.t&&x.tk===hit.entry.tk)),'種11',hit.entry.lines.map(l=>l.t).join('／'));}}
+  // 記念碑の最後の言葉は、しまった言葉のいちばん新しい1件。あとで変わらない。言葉がなければ刻まない。銀の杯亭にも刻む
+  {const E=load(1),S=E.newState();const ours=Object.values(S.adv).filter(a=>a.tav==='ours');const [a,b]=ours;
+    a.said=[{tk:1,t:'一つ目'},{tk:2,t:'二つ目'},{tk:3,t:'三つ目'}];a.status='lost';const m=E.memorialize(S,a,{by:'オーク',floor:2});
+    a.said.push({tk:4,t:'四つ目'});
+    check('記念碑：最後の言葉は、しまった言葉のいちばん新しい1件で、あとから変わらない',!!m.last&&m.last.t==='三つ目'&&m.last.tk===3,'3件',JSON.stringify(m.last));
+    b.status='lost';const m2=E.memorialize(S,b,{by:'オーク',floor:2});
+    check('記念碑：しまった言葉がなければ最後の言葉は刻まない',!('last' in m2),'言葉なし',JSON.stringify(m2.last));
+    const r=Object.values(S.adv).find(x=>x.tav==='rival');r.said=[{tk:5,t:'銀の言葉'}];r.status='lost';const m3=E.memorialize(S,r,{by:'オーク',floor:2});
+    check('記念碑：銀の杯亭の者にも最後の言葉を刻み、見送りの一行は付けない',!!m3.last&&m3.last.t==='銀の言葉'&&!('farewell' in m3),'銀の杯亭',JSON.stringify([m3.last,m3.farewell]));}
+  {const E=load(1),S=E.newState();S.v=27;Object.values(S.adv).forEach(a=>{delete a.said;});E.migrate(S);
+    check('古い記録：版27を開くと版28になり、言葉は埋めず、記念碑にも何も足さない',S.v===28&&S.v===E.SAVE_V&&Object.values(S.adv).every(a=>a.said==null)&&S.memorial.every(m=>!m.last&&!m.farewell),'版27',`版${S.v}`);}
+  // 見送りの一行。選び方と文
+  {const E=load(2),S=E.newState();const ours=Object.values(S.adv).filter(a=>a.tav==='ours').sort((x,y)=>x.id-y.id);
+    const [lost,b,c,d]=ours;for(const x of [b,c,d]){x.status='idle';x.party=null;}
+    const bond=(x,y,n,ev)=>{S.bonds=S.bonds||{};S.bonds[E.bkey(x,y)]={n,ev:ev||[]};};
+    b.pers='慎重';b.tone='普通';bond(lost,b,3);
+    const l1=E.farewellLine(S,[lost]);
+    check('見送りの一行：絆3以上の生きている者がいれば、その者の名で始まる動きの一行',l1.startsWith(b.name+'は、')&&l1.endsWith('。'),'絆3・酒場',l1);
+    check('見送りの一行：同じ記録からは何度やっても同じ一行',E.farewellLine(S,[lost])===l1,'絆3・酒場',l1);
+    b.status='party';b.party=Object.keys(S.parties)[0];const l2=E.farewellLine(S,[lost]);
+    check('見送りの一行：迷宮に出ている者なら、まだ迷宮にいて知らないと書く',l2===`${b.name}はまだ迷宮にいて、それを知らない。`,'絆3・迷宮',l2);
+    b.status='idle';b.party=null;
+    for(const st of ['dead','ash','missing','retired','lost']){b.status=st;const l=E.farewellLine(S,[lost]);
+      check('見送りの一行：寺院で眠る者、行方不明の者、去った者、ロストした者は選ばれず、店の一行になる',/^その夜、黒猫亭/.test(l)&&!l.includes(b.name),st,l);}
+    b.status='idle';S.bonds[E.bkey(lost,b)].n=2;const l3=E.farewellLine(S,[lost]);
+    check('見送りの一行：絆が2以下なら選ばれない',/^その夜、黒猫亭/.test(l3),'絆2',l3);
+    S.bonds[E.bkey(lost,b)].n=3;c.pers='普通';c.tone='普通';bond(lost,c,4);const l4=E.farewellLine(S,[lost]);
+    check('見送りの一行：絆の深い者を選ぶ',l4.startsWith(c.name+'は、'),'絆3と4',l4);
+    S.bonds[E.bkey(lost,c)].n=3;S.bonds[E.bkey(lost,c)].ev=[{k:'x'}];const l5=E.farewellLine(S,[lost]);
+    check('見送りの一行：絆が同じなら出来事の多い者を選ぶ',l5.startsWith(c.name+'は、'),'絆3・出来事1',l5);
+    S.bonds[E.bkey(lost,c)].ev=[];const l6=E.farewellLine(S,[lost]);
+    check('見送りの一行：絆も出来事も同じなら先に店に来た者を選ぶ',l6.startsWith(b.name+'は、'),'絆3・出来事0',l6);
+    b.tone='無口';const l7=E.farewellLine(S,[lost]);
+    check('見送りの一行：口調が無口なら、無口の一覧から選ぶ',E.FAREWELL_TONE['無口'].some(t=>l7===t.replace(/\{n\}/g,b.name)),'無口',l7);
+    b.tone='普通';bond(lost,d,5);d.tav='rival';const l8=E.farewellLine(S,[lost]);
+    check('見送りの一行：よその店の者は選ばれない',l8.startsWith(b.name+'は、'),'銀の杯亭の絆5',l8);
+    lost.tav='rival';check('見送りの一行：銀の杯亭の者には付けない',E.farewellLine(S,[lost])==='','銀の杯亭',E.farewellLine(S,[lost]));lost.tav='ours';
+    const all=[...Object.values(E.FAREWELL_ACTS).flat(),...Object.values(E.FAREWELL_TONE).flat(),...E.FAREWELL_QUIET];
+    check('見送りの一行：一覧のどの文も「店主」で始まらず、見ていなかった・間に合わなかったとは書かない',all.every(t=>!/店主|見ていなかった|間に合わなかった/.test(t)&&t.endsWith('。')),'一覧',all.length+'文');}
+  // 友を失って変わる（無謀→慎重）より前の性格で決める。乱数を0.01に固定すると必ず変わる
+  {const E=load(1,.01),S=E.newState();const ours=Object.values(S.adv).filter(a=>a.tav==='ours').sort((x,y)=>x.id-y.id);const [lost,b]=ours;
+    b.status='idle';b.party=null;b.pers='無謀';b.tone='普通';S.bonds=S.bonds||{};S.bonds[E.bkey(lost,b)]={n:5,ev:[]};lost.status='lost';
+    const m=E.memorialize(S,lost,{by:'オーク',floor:2});
+    check('見送りの一行：友を失って変わるより前の性格で決める',b.pers==='慎重'&&E.FAREWELL_ACTS['無謀'].some(t=>m.farewell===t.replace(/\{n\}/g,b.name).replace(/\{o\}/g,lost.name)),'無謀→慎重',`${b.pers} ${m.farewell}`);}
+}
 function checkFlow(){
   const E=load(1),S=E.newState();
   const z=E.flowView(S);
@@ -1594,7 +1672,7 @@ function checkIntro(){
 
 if(!isMainThread){const line=runSeed(workerData.seed);parentPort.postMessage({line,res:[...results]});}
 else{
-  checkTables();checkScenes();checkLetters();checkErrands();checkCrest();checkRowFallback();checkMine();checkAffinity();checkRevive();checkMemoNotes();checkOpening();checkCareer();checkIntro();checkAge();checkFoes();checkFlow();checkLedger();
+  checkTables();checkScenes();checkLetters();checkErrands();checkCrest();checkRowFallback();checkMine();checkAffinity();checkRevive();checkMemoNotes();checkOpening();checkCareer();checkIntro();checkAge();checkFoes();checkFlow();checkLedger();checkLastWords();
   // 種ごとの結果は、種の順に重ねる。反例は、いちばん若い種の最初のものを残す。進捗の行も種の順に出す
   const out=new Array(SEEDS.length);let next=0,printed=0;
   const flush=()=>{while(printed<out.length&&out[printed]){if(out[printed].line)console.log(out[printed].line);printed++;}};
