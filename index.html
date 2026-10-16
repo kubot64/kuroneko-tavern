@@ -1577,7 +1577,7 @@ function disbandParty(S,p,why,extra){Object.values(S.adv).filter(a=>a.party===p.
 // 合計が0以上なら継ぐ。乱数は引かないので、同じ記録からは何度やっても同じになる
 const INHERIT_SAY={'無謀':['あいつの分まで潜ってやる','群れるのは、性に合わない'],'普通':['看板を下ろすのは、まだ早い','俺には荷が重い'],'慎重':['残った者で、慎重にやる','ここで畳むのが筋だろう'],'強欲':['稼ぎ場を手放す手はない','割に合わない'],'臆病':['……逃げたら、あいつに顔向けできない','もう、怖い']};
 const INHERIT_DEBT_SAY='借りまで継ぐ気はない';
-const INHERIT_BASE={'無謀':.6,'普通':.1,'慎重':-.3,'強欲':.2,'臆病':-.9},INHERIT_BOND={'無謀':.4,'普通':.8,'慎重':1,'強欲':.3,'臆病':.9};
+const INHERIT_BASE={'無謀':.3,'普通':-.1,'慎重':-.3,'強欲':.1,'臆病':-.9},INHERIT_BOND={'無謀':.4,'普通':.8,'慎重':1,'強欲':.3,'臆病':.9};
 function inheritSway(a,old,p){return ((((a.id|0)*2654435761+((old&&old.id)|0)*40503+((p&&p.id)|0)*97)>>>0)%1000)/500-1}
 function inheritScore(S,a,old,p){const pe=INHERIT_BASE[a.pers]!=null?a.pers:'普通';const b=old&&bondOf(S,a,old);const n=b?b.n:0;const fv=a.favor||0;const owed=p&&p.owed||0;
   let s=INHERIT_BASE[pe]+INHERIT_BOND[pe]*Math.min(1,n/40)+Math.min(6,fv)*(pe==='臆病'?.4:.25);
