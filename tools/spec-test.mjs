@@ -1294,6 +1294,16 @@ function checkLedger(){
   const lost=E.ledgerLine(S,lostMe,'end');
   check('帳面：ロストした者は「○人に一人の側に入った」と在籍の日数',lost==='帳面によれば、二十人に一人の側に入った。在籍は百七十日ほど。','場面',lost);
   check('帳面：その日より前に20人来ていなければ白い頁',E.ledgerLine(S,S.adv[3],'end')==='帳面によれば、まだ白い頁が多い。','場面',E.ledgerLine(S,S.adv[3],'end'));
+  // 来た者÷戻らなかった者が1.5未満でも「一人に一人」とは書かない。1.5以上なら二人に一人
+  {let bad=null;
+    for(let c=20;c<=60&&!bad;c++)for(let l=1;l<=c&&!bad;l++){
+      const T={adv:{},memorial:[],farewells:[]};for(let i=1;i<=c;i++)T.adv[i]=mk(i,0);
+      for(let i=1;i<=l;i++){T.memorial.push({id:i,tk:i});T.adv[i].status='lost';}
+      const cm=T.adv[100]=mk(100,10*D),lm=T.adv[101]=mk(101,10*D);T.memorial.push({id:101,tk:50*D});lm.status='lost';
+      const a=E.ledgerLine(T,cm,'came'),b=E.ledgerLine(T,lm,'end'),fa=c/l<1.5,fb=(c+1)/l<1.5;// ロストした日の帳面には、先に来た cm も入る
+      const ok=!/一人に一人/.test(a+b)&&(fa?a.startsWith('帳面によれば、この店に来た者のうち、ほとんどが戻らなかった。'):/人に一人。/.test(a))&&(fb?b.startsWith('帳面によれば、ほとんどの側に入った。'):/人に一人の側に入った。/.test(b));
+      if(!ok)bad=`来た${c}人・ロスト${l}人：${a} / ${b}`;}
+    check('帳面：割合が一人に一人になるときは「ほとんど」と書き、「一人に一人」とは書かない',!bad,'場面',bad);}
   const none={adv:{},memorial:[],farewells:[]};for(let i=1;i<=24;i++)none.adv[i]=mk(i,0);none.adv[99]=mk(99,10*D);
   check('帳面：まだ誰もロストしていなければ「まだいない」',E.ledgerLine(none,none.adv[99],'came')==='帳面によれば、この店から迷宮に呑まれた者は、まだいない。','場面',E.ledgerLine(none,none.adv[99],'came'));
 }

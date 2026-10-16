@@ -2458,7 +2458,8 @@ function ledgerAt(S,tk,self){
   stays.sort((x,y)=>x-y);const n=stays.length;
   return {came:came.size,lost,left:n,median:n?(n%2?stays[(n-1)/2]:(stays[n/2-1]+stays[n/2])/2):0};
 }
-function ledgerOdds(came,lost){let r=Math.round(came/lost);if(r>20)r=Math.round(r/10)*10;else if(r>10)r=Math.round(r/5)*5;return kanjiNum(r)+'人に一人';}
+// 丸めて一人に一人になる（来た者÷戻らなかった者が1.5未満）ときは、割合で言わず「ほとんど」と書く
+function ledgerOdds(came,lost){let r=Math.round(came/lost);if(r<=1)return '';if(r>20)r=Math.round(r/10)*10;else if(r>10)r=Math.round(r/5)*5;return kanjiNum(r)+'人に一人';}
 function ledgerUsual(L){return L.median<100?100:Math.round(L.median/100)*100;}
 function ledgerLine(S,a,kind){
   if(!a||a.tav!=='ours')return '';const at=arrivedTk(a);if(at==null)return '';
@@ -2467,10 +2468,10 @@ function ledgerLine(S,a,kind){
   const L=ledgerAt(S,end!=null?end:at,a.id);
   if(L.came<20)return '帳面によれば、まだ白い頁が多い。';
   const usual=L.left>=3?(L.median<100?'百日に満たず':kanjiNum(ledgerUsual(L))+'日ほどで'):'';
-  if(end==null)return '帳面によれば、'+(L.lost?`この店に来た者のうち、戻らなかったのは${ledgerOdds(L.came,L.lost)}。`:'この店から迷宮に呑まれた者は、まだいない。')+(usual?`たいていは${usual}、自分の足で出ていく。`:'');
+  if(end==null)return '帳面によれば、'+(L.lost?(ledgerOdds(L.came,L.lost)?`この店に来た者のうち、戻らなかったのは${ledgerOdds(L.came,L.lost)}。`:'この店に来た者のうち、ほとんどが戻らなかった。'):'この店から迷宮に呑まれた者は、まだいない。')+(usual?`たいていは${usual}、自分の足で出ていく。`:'');
   const days=(end-at)/TICKS_PER_DAY,r=Math.round(days/10)*10;
   const stay=r<10?'在籍は十日に満たない。':`在籍は${kanjiNum(r)}日ほど。`;
-  if(lost)return '帳面によれば、'+(L.lost?`${ledgerOdds(L.came,L.lost)}の側に入った。`:'この店で迷宮に呑まれた、最初の一人になった。')+stay;
+  if(lost)return '帳面によれば、'+(L.lost?`${ledgerOdds(L.came,L.lost)||'ほとんど'}の側に入った。`:'この店で迷宮に呑まれた、最初の一人になった。')+stay;
   return `帳面によれば、自分の足で出ていった。${stay}`+(usual&&Math.abs(days-ledgerUsual(L))<=100?'帳面のとおりだった。':'');
 }
 function memorialize(S,a,extra){
