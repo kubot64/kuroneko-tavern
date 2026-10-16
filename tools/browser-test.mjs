@@ -1843,6 +1843,16 @@ test('全滅と依頼の失敗には理由が一文つき、知れていない�
     const st2=card().querySelector('.st');
     // 全滅しても、知れるまでは札の文も色も変わらない
     if(!st2||!st2.classList.contains('bad')||st2.textContent!==before)out.push('全滅直後の札 '+(st2&&st2.textContent)+'（前は '+before+'）');
+    // 伏せ中は札を押しても「闇しか映さない」と出ず、水晶に移れる。HP帯も消えない
+    const toast0=document.querySelector('.toast');if(toast0)toast0.remove();
+    card().click();
+    const toast1=(document.querySelector('.toast')||{}).textContent||'';
+    if(toast1.includes('闇しか映さない'))out.push('伏せ中に闇しか映さない '+toast1);
+    if(!S.watch.includes(p.id))out.push('伏せ中に水晶へ移れない');
+    render();
+    const strip=card().querySelector('.hpstrip');
+    if(!strip)out.push('伏せ中にHP帯が消えた');
+    if(strip&&[...strip.querySelectorAll('i')].some(i=>getComputedStyle(i).getPropertyValue('--w').trim()==='0%'))out.push('伏せ中のHP帯が0');
     tab='news';render();
     const news=document.querySelector('#tbody').innerText;
     if(!news.includes('向かなかった'))out.push('日報に失敗の理由がない');
@@ -1850,13 +1860,16 @@ test('全滅と依頼の失敗には理由が一文つき、知れていない�
     tab='roster';render();
     const roster=document.querySelector('#tbody').innerText;
     if(roster.includes('行方不明'))out.push('名簿に行方不明が出た');
+    if(roster.includes('HP0/')||roster.includes('倒'))out.push('伏せ中の名簿にHP0か倒が出た');
     const chip=[...document.querySelectorAll('#tbody .row')].find(el=>el.querySelector('.nm-link')?.textContent===h.name)?.querySelector('.chip')?.textContent;
     if(chip!=='探索中')out.push('名簿のチップ '+chip);
     advOpen=h.id;document.querySelector('#advm').hidden=false;renderAdv();
     const book=document.querySelector('#advbox').innerText;
     if(book.includes('全滅した。'))out.push('手帳に原因が先に出た');
+    if(/B\d+Fで.+に倒れる/.test(book))out.push('手帳に倒れた階が先に出た');
     if(!book.includes('探索中'))out.push('手帳の状態が探索中でない');
     if(book.includes('行方不明'))out.push('手帳に行方不明が出た');
+    if(/\b0\/100\b/.test(book)||book.includes('HP\n0'))out.push('手帳にHP0が出た');
     // 予定帰還の刻から MISSING_GRACE 刻たつと消息不明。知らせに死因も階も入らず、札は迷宮とだけ出る
     document.querySelector('#advm').hidden=true;advOpen=null;
     Object.values(S.parties).forEach(q=>{if(q!==p){q.state='town';q.rest=99;}});
@@ -1867,9 +1880,15 @@ test('全滅と依頼の失敗には理由が一文つき、知れていない�
     if(/B\d+F|癒し手/.test(line))out.push('消息不明の知らせに死因か階が入った '+line);
     const st3=card().querySelector('.st');
     if(!st3||st3.textContent!=='消息不明（迷宮）'||!st3.classList.contains('bad'))out.push('消息不明の札 '+(st3&&st3.textContent));
+    const mark=card().querySelector('.roster .who .cls');
+    if(!mark||!mark.textContent.includes('不明'))out.push('消息不明の名簿印 '+(mark&&mark.textContent));
+    if(mark&&mark.textContent.includes('倒'))out.push('消息不明なのに倒の印 '+mark.textContent);
     tab='desk';render();
     const desk=document.querySelector('#tbody').innerText;
     if(/消息不明[\s\S]*B4F/.test(desk)&&desk.includes(p.name+' 黒猫亭・B4F'))out.push('帳場の依頼欄に階が出た');
+    // 依頼額は倒れた階ではなく、知れている深さで決まる（到達が浅ければ額が違う）
+    p.reach=2;p.pushTo=0;const price=bountyPrice(p),priceFloor=r100(incomeAt(dz(4)));
+    if(price===priceFloor)out.push('依頼額が倒れた階のまま '+price);
     // 巡回隊が連れ帰ると、死因と階が手帳と知らせに残る
     corpsesHome(S,p,'巡回隊が見つけ、',null);tab='news';render();
     const news3=(S.news.findLast(x=>x.t.includes('遺体が街に届いた'))||{}).t||'';
@@ -2214,6 +2233,11 @@ test('帳場のきょうの出入りは前日と直近7日で、375pxでも短�
     if(box.height>200)bad.push(`出入りが長い ${Math.round(box.height)}px`);
     if(box.right>innerWidth+1||box.left<-1)bad.push('出入りが横にはみ出す');
     for(const n of document.querySelectorAll('#flow .num'))if(lines(n)!==1)bad.push(n.textContent+' が折れている');
+    // 行の名前（立て替えの返りなど）も一続き
+    for(const el of document.querySelectorAll('#flow > div:nth-child(3n+1)')){
+      if(!el.textContent.trim())continue;
+      if(lines(el)!==1)bad.push(el.textContent+' の見出しが折れている');
+    }
     for(const c of document.querySelectorAll('[data-cost]')){
       if(c.getBoundingClientRect().height>52)bad.push(`${c.dataset.cost} の見積もりが長い ${Math.round(c.getBoundingClientRect().height)}px`);
       if(c.getBoundingClientRect().right>innerWidth+1)bad.push(c.dataset.cost+' が横にはみ出す');
