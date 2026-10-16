@@ -32,7 +32,7 @@ const html=readFileSync(new URL('../index.html',import.meta.url),'utf8');
 const ENGINE=html.match(/\/\*ENGINE START\*\/([\s\S]*?)\/\*ENGINE END\*\//)[1];
 const EXPORTS=['newState','tick','rivalTemple','seatCap','seatsUsed','nextSeats','newcomerLvl','buyPrice','investPrice','FACILITIES',
   'RARES','MAXF','DRAGON_F','TICKS_PER_DAY','awayPlan','smallOf','debtTick','DEBT0','encounter','rareSlain','rareMonOf','arrive',
-  'repay','flowAdd','flowView','flowRoll','policyCost','goldSign','errandsOf','assignErrand','errandBlock','designateBlock','MAXF','MINE_TOP','MINE_BOT','MINE_N','FN','deepNow','G','groupMoney','floorsInit','mineOpen','conquest','mineConquest','title','alive','markAdv','markedOf','BOARD_MAX','MARK_MAX','errandStage','boardMax','markMax','ARCS','reachFloor','GATE_F','fac','nextFac','buildFac','migrate','partyShown','crestJa','glossText','PT_A','PT_B','takeCrest','pickCrest','newPartyName','combat','MON','elemMul','elemNote','sleepMul','sleepReach','MINE_RARES','supplyTeam','potionPrice','lendRival','reviveChance','reviveHint','reviveResultText','temple','checkMemo','memoState','nextDue','rankRows','MEMO','setQuietLog','DREAMS','rollAge','AGE2','ORIGINS','careerLine','originBg','BGS','originIntro','newcomerClause','doorLine','ourNewcomerNews','SPELL_LIST','foePool','dz','chest','victory','partyDanger','hpBand','retreatLine','retire','letterTick','kinTick','schedulePendingLetters','scheduleLostKin','memorialize','lostRareLine','dreamText','letterQuote','checkDream','wipe','wipeCause','errandEvent','errandFailLine','partyOverdue','returnPeril','SAVE_V','letterNews','fitOf','ERRANDS','ledgerLine','kanjiNum','corpsesHome','deliverCorpses','owe','inheritWill','wipeHidden','overdueSteps','tellCause','MISSING_GRACE','PATROL_DEPTH','OWED_RATE','OWED_REPAY','INHERIT_SAY','disbandParty','arrive','succession','leaderScore','bkey','farewellLine','FAREWELL_ACTS','FAREWELL_TONE','FAREWELL_QUIET'];
+  'repay','flowAdd','flowView','flowRoll','policyCost','goldSign','errandsOf','assignErrand','errandBlock','designateBlock','MAXF','MINE_TOP','MINE_BOT','MINE_N','FN','deepNow','G','groupMoney','floorsInit','mineOpen','conquest','mineConquest','title','alive','markAdv','markedOf','BOARD_MAX','MARK_MAX','errandStage','boardMax','markMax','ARCS','reachFloor','GATE_F','fac','nextFac','buildFac','migrate','partyShown','crestJa','glossText','PT_A','PT_B','takeCrest','pickCrest','newPartyName','combat','MON','elemMul','elemNote','sleepMul','sleepReach','MINE_RARES','supplyTeam','potionPrice','lendRival','reviveChance','reviveHint','reviveResultText','temple','checkMemo','memoState','nextDue','rankRows','MEMO','setQuietLog','DREAMS','rollAge','AGE2','ORIGINS','careerLine','originBg','BGS','originIntro','newcomerClause','doorLine','ourNewcomerNews','SPELL_LIST','foePool','dz','chest','victory','partyDanger','hpBand','retreatLine','retire','letterTick','kinTick','schedulePendingLetters','scheduleLostKin','memorialize','lostRareLine','dreamText','letterQuote','checkDream','wipe','wipeCause','errandEvent','errandFailLine','partyOverdue','returnPeril','SAVE_V','letterNews','fitOf','ERRANDS','ledgerLine','kanjiNum','corpsesHome','deliverCorpses','owe','inheritWill','wipeHidden','overdueSteps','tellCause','MISSING_GRACE','PATROL_DEPTH','OWED_RATE','OWED_REPAY','INHERIT_SAY','INHERIT_DEBT_SAY','inheritScore','inheritSay','heirScore','disbandParty','arrive','succession','leaderScore','bkey','farewellLine','FAREWELL_ACTS','FAREWELL_TONE','FAREWELL_QUIET'];
 
 // 乱数の種を固定したゲームの中身を1つ作る。中身の Math.random だけを差し替える
 function load(seed,fixed){
@@ -1592,20 +1592,35 @@ function checkMissing(){
     check('一行の借り：帰還のとき、稼ぎの OWED_REPAY までを返し、出入りに立て替えの返りとして出る',p.owed===500&&T0.owedBack===500&&E.flowView(S).w.k===500&&T0.gold>=g0+500,'稼ぎ2000・借り1000',`借り${p.owed} 戻り${T0.owedBack} 出入り${E.flowView(S).w.k}`);
     p.state='return';p.floor=1;p.loot=1000;p.owed=100;p.members.forEach(id=>{const a=S.adv[id];a.status='party';a.hp=a.mhp;});E.arrive(S,p);
     check('一行の借り：借りが稼ぎの割合より少なければ、残り全部を返す',p.owed===0&&T0.owedBack===600,'稼ぎ1000・借り100',`借り${p.owed} 戻り${T0.owedBack}`);}
-  // 看板を継ぐかどうか。性格と絆と恩と借りで決まり、乱数は引かない
-  {const E=load(5),S=E.newState();const p=Object.values(S.parties).find(x=>x.tav==='ours');const [old,a]=p.members.map(id=>S.adv[id]);
-    const set=(pers,n,fv,owed,traits)=>{a.pers=pers;a.favor=fv;a.traits=traits||[];p.owed=owed;S.bonds=S.bonds||{};S.bonds[E.bkey(a,old)]={n,ev:[]};return E.inheritWill(S,a,old,p);};
-    const rows=[['無謀',0,0,5000,[],true],['普通',3,0,0,[],true],['普通',2,2,0,[],true],['普通',2,1,0,[],false],['慎重',5,0,0,[],true],['慎重',4,9,0,['人望'],true],['慎重',4,9,0,[],false],['強欲',9,9,0,[],true],['強欲',9,9,1,[],false],['臆病',9,4,0,[],true],['臆病',9,3,0,[],false]];
-    for(const [pers,n,fv,owed,tr,want] of rows)check('後継ぎ：継ぐかどうかは性格と絆・恩・借りの表で決まる',set(pers,n,fv,owed,tr)===want,`${pers}・絆${n}・恩${fv}・借り${owed}${tr.length?'・人望':''}`,`${set(pers,n,fv,owed,tr)}（決まりは${want}）`);
-    check('後継ぎ：どの性格にも継ぐときと継がないときの一言がある',Object.keys(E.INHERIT_SAY).length===5&&Object.values(E.INHERIT_SAY).every(x=>x.length===2&&x.every(t=>typeof t==='string'&&t.length>0)),'一覧',JSON.stringify(E.INHERIT_SAY));}
+  // 看板を継ぐかどうか。性格の傾きに絆・恩・素質・前のリーダーの去り方・借りを足し引きし、番号で決まる揺れを足す。乱数は引かない
+  {const E=load(5),E2=load(99);
+    // 判定に要るのは、継ぐ者・前のリーダー・一行・二人の絆だけ。乱数の種が違う二つの中身で同じ答えになるかも見る
+    const set=(pers,n,fv,owed,traits,id,ost)=>{const a={id,pers,favor:fv,traits:traits||[]},old={id:7,status:ost||'retired'},p={id:3,owed};
+      const r=[E,E2].map(EE=>EE.inheritWill({bonds:{[EE.bkey(a,old)]:{n,ev:[]}}},a,old,p));return r[0]===r[1]?r[0]:null;};
+    const ids=Array.from({length:60},(_,i)=>1000+i*37);
+    for(const pers of ['無謀','普通','慎重','強欲','臆病']){
+      const rs=ids.map(id=>set(pers,20,0,0,[],id));
+      check('後継ぎ：同じ記録からは、乱数の種によらず同じ答えになる',rs.every(x=>x!==null),pers,rs.join(','));
+      check('後継ぎ：どの性格も、継ぐことも継がないこともある（絆20・恩0・借りなし）',rs.includes(true)&&rs.includes(false),pers,`継ぐ${rs.filter(x=>x).length}／継がない${rs.filter(x=>x===false).length}`);
+      const lo=ids.filter(id=>set(pers,5,0,0,[],id)).length,hi=ids.filter(id=>set(pers,40,3,0,[],id)).length;
+      check('後継ぎ：絆と恩が深いほど継ぎやすい',hi>lo&&ids.every(id=>!set(pers,5,0,0,[],id)||set(pers,40,3,0,[],id)),pers,`絆5で${lo}人 → 絆40・恩3で${hi}人`);
+      const free=ids.filter(id=>set(pers,20,0,0,[],id)).length,owe=ids.filter(id=>set(pers,20,0,2000,[],id)).length;
+      check('後継ぎ：借りが重いと継ぎにくい',owe<free,pers,`借りなし${free}人 → 借り2000Gで${owe}人`);}
+    const g0=ids.filter(id=>set('強欲',20,0,0,[],id)).length,g1=ids.filter(id=>set('強欲',20,0,1200,[],id)).length,n0=ids.filter(id=>set('普通',20,0,0,[],id)).length,n1=ids.filter(id=>set('普通',20,0,1200,[],id)).length;
+    check('後継ぎ：強欲な者は、借りが重いとほかの性格より逃げやすい',g1===0&&g0-g1>n0-n1,'借り1200G',`強欲${g0}→${g1}・普通${n0}→${n1}`);
+    const c0=ids.filter(id=>set('臆病',30,0,0,[],id,'retired')).length,c1=ids.filter(id=>set('臆病',30,0,0,[],id,'lost')).length,m0=ids.filter(id=>set('普通',30,0,0,[],id,'retired')).length,m1=ids.filter(id=>set('普通',30,0,0,[],id,'lost')).length;
+    check('後継ぎ：前のリーダーを失ったとき、臆病な者は畳みやすく、ほかの者は継ぎやすい',c1<c0&&m1>=m0,'ロストと引退',`臆病${c0}→${c1}・普通${m0}→${m1}`);
+    check('後継ぎ：どの性格にも継ぐときと継がないときの一言があり、強欲な者は借りが残ると別の一言',Object.keys(E.INHERIT_SAY).length===5&&Object.values(E.INHERIT_SAY).every(x=>x.length===2&&x.every(t=>typeof t==='string'&&t.length>0))&&E.inheritSay({pers:'強欲'},{owed:1},false)===E.INHERIT_DEBT_SAY&&E.inheritSay({pers:'強欲'},{owed:0},false)===E.INHERIT_SAY['強欲'][1],'一覧',JSON.stringify(E.INHERIT_SAY));
+    const coward={pers:'臆病',lvl:20,traits:[],trips:50,age:30,race:'人間',cls:'戦士'},brave={pers:'慎重',lvl:12,traits:[],trips:10,age:30,race:'人間',cls:'戦士'};
+    check('後継ぎ：跡継ぎは腕と経験と人望で選び、性格では外さない（臆病な者も選ばれる）',E.heirScore(coward)>E.heirScore(brave)&&E.leaderScore(coward)-E.heirScore(coward)===-3,'臆病Lv20と慎重Lv12',`${E.heirScore(coward)}／${E.heirScore(brave)}`);}
   {const E=load(6),S=E.newState();const p=Object.values(S.parties).find(x=>x.tav==='ours'&&x.members.length>=3);const ms=p.members.map(id=>S.adv[id]);const old=S.adv[p.leader];
     ms.forEach(a=>{a.status='idle';a.hp=a.mhp;a.pers='強欲';a.favor=0;});old.status='lost';old.party=null;p.state='town';p.rest=1;p.owed=800;
-    const best=ms.filter(a=>a!==old).sort((x,y)=>E.leaderScore(y)-E.leaderScore(x))[0];const n0=S.news.length;const T0=S.taverns.ours;
+    const best=ms.filter(a=>a!==old).sort((x,y)=>E.heirScore(y)-E.heirScore(x)||x.id-y.id)[0];const n0=S.news.length;const T0=S.taverns.ours;
     const ok=E.succession(S,p,ms.filter(a=>a!==old),old);const n=S.news.slice(n0).map(x=>x.t);
     check('後継ぎ：強欲な者は借りの残る看板を継がず、一行は解散して借りは貸し倒れになる',!ok&&!S.parties[p.id]&&T0.badDebt===800&&n.some(t=>t.includes('解散した。')&&t.includes(`${best.name}は看板を継がなかった。「借りまで継ぐ気はない」`))&&n.some(t=>t.includes('800Gは、貸し倒れになった')),'強欲・借り800',n.join(' / '));}
   {const E=load(6),S=E.newState();const p=Object.values(S.parties).find(x=>x.tav==='ours'&&x.members.length>=3);const ms=p.members.map(id=>S.adv[id]);const old=S.adv[p.leader];
-    ms.forEach(a=>{a.status='idle';a.hp=a.mhp;a.pers='無謀';});old.status='lost';old.party=null;p.owed=800;
-    const best=ms.filter(a=>a!==old).sort((x,y)=>E.leaderScore(y)-E.leaderScore(x))[0];const n0=S.news.length;
+    ms.forEach(a=>{a.status='idle';a.hp=a.mhp;a.pers='無謀';a.traits=['人望'];});old.status='lost';old.party=null;p.owed=800;// 無謀で人望があり、前のリーダーを失った者は、揺れがいちばん悪くても継ぐ
+    const best=ms.filter(a=>a!==old).sort((x,y)=>E.heirScore(y)-E.heirScore(x)||x.id-y.id)[0];const n0=S.news.length;
     const ok=E.succession(S,p,ms.filter(a=>a!==old),old);const n=S.news.slice(n0).map(x=>x.t);
     check('後継ぎ：継げば看板と借りをそのまま引き継ぎ、一言が添う',ok&&p.leader===best.id&&p.owed===800&&n.some(t=>t.includes(`${best.name}が後を継いで一行を率いることになった。「あいつの分まで潜ってやる」`)),'無謀・借り800',n.join(' / '));}
   // 古い記録。全滅中の一行は、まだ知らせていなければ古い決まりの15刻で知らせ、手帳の一文はもうある

@@ -1563,26 +1563,36 @@ function plog(p,t,k){
 }
 function alive(S,p){return p.members.map(id=>A(S,id)).filter(a=>a.hp>0)}
 function leader(S,p){const L=p.leader&&A(S,p.leader);if(L&&L.hp>0&&p.members.includes(L.id))return L;return alive(S,p)[0]||A(S,p.members[0])}
-function leaderScore(a){return PL(a)+(has(a,'人望')?4:0)+({'慎重':1.5,'普通':1,'無謀':.5,'強欲':0,'臆病':-3}[a.pers]||0)+Math.min(3,(a.trips||0)/10)+(humanAge(a)>=30?1:0)}
+const LEAD_PERS={'慎重':1.5,'普通':1,'無謀':.5,'強欲':0,'臆病':-3};
+function leaderScore(a){return heirScore(a)+(LEAD_PERS[a.pers]||0)}
+// 看板の跡継ぎに選ばれるのは、腕と経験と人望だけで見る。性格は、選ばれたあと継ぐかどうかで効く（臆病な者も選ばれ、そこで迷う）
+function heirScore(a){return PL(a)+(has(a,'人望')?4:0)+Math.min(3,(a.trips||0)/10)+(humanAge(a)>=30?1:0)}
 function disbandParty(S,p,why,extra){Object.values(S.adv).filter(a=>a.party===p.id).forEach(a=>{a.party=null;if(a.status==='party')a.status='idle';if(a.status!=='lost'&&a.status!=='retired')chron(S,a,`${why}、${p.name}は解散する`);});
   news(S,`${S.taverns[p.tav].name}の${p.name}は、${why}、解散した。${extra||''}`,p.tav==='ours'?'info':'rumor');
   // 看板が消えると、返しきれなかった立て替えの借りは貸し倒れになる
   if(p.tav==='ours'&&p.owed>0){const T0=S.taverns.ours;T0.badDebt=(T0.badDebt||0)+p.owed;news(S,`${p.name}に立て替えていた${p.owed}Gは、貸し倒れになった。`,'death');p.owed=0;}
   delete S.parties[p.id];}
-// 看板を継ぐかどうかは、継ぐ者の性格で決まる。絆（前のリーダーと一緒に潜った回数）、店への恩、一行の借りで傾く。乱数は引かない
-const INHERIT_SAY={'無謀':['あいつの分まで潜ってやる','……'],'普通':['看板を下ろすのは、まだ早い','俺には荷が重い'],'慎重':['残った者で、慎重にやる','ここで畳むのが筋だろう'],'強欲':['稼ぎ場を手放す手はない','借りまで継ぐ気はない'],'臆病':['店主に、借りがあるから','もう、怖い']};
-function inheritWill(S,a,old,p){const b=old&&bondOf(S,a,old);const n=b?b.n:0;const fv=a.favor||0;
-  if(a.pers==='無謀')return true;
-  if(a.pers==='慎重')return n>=5||has(a,'人望');
-  if(a.pers==='強欲')return !(p&&p.owed>0);
-  if(a.pers==='臆病')return fv>=4;
-  return n>=3||fv>=2;}
+// 看板を継ぐかどうかは、継ぐ者の性格で決まる。性格ごとの傾きに、前のリーダーとの絆（一緒に潜った回数）、店への恩、素質、
+// 前のリーダーがどう去ったか、一行の借りが足し引きされる。最後に、その者と前のリーダーと一行の番号から決まる揺れ（−1〜1）を足す。
+// 合計が0以上なら継ぐ。乱数は引かないので、同じ記録からは何度やっても同じになる
+const INHERIT_SAY={'無謀':['あいつの分まで潜ってやる','群れるのは、性に合わない'],'普通':['看板を下ろすのは、まだ早い','俺には荷が重い'],'慎重':['残った者で、慎重にやる','ここで畳むのが筋だろう'],'強欲':['稼ぎ場を手放す手はない','割に合わない'],'臆病':['……逃げたら、あいつに顔向けできない','もう、怖い']};
+const INHERIT_DEBT_SAY='借りまで継ぐ気はない';
+const INHERIT_BASE={'無謀':.3,'普通':-.1,'慎重':-.3,'強欲':.1,'臆病':-.9},INHERIT_BOND={'無謀':.4,'普通':.8,'慎重':1,'強欲':.3,'臆病':.9};
+function inheritSway(a,old,p){return ((((a.id|0)*2654435761+((old&&old.id)|0)*40503+((p&&p.id)|0)*97)>>>0)%1000)/500-1}
+function inheritScore(S,a,old,p){const pe=INHERIT_BASE[a.pers]!=null?a.pers:'普通';const b=old&&bondOf(S,a,old);const n=b?b.n:0;const fv=a.favor||0;const owed=p&&p.owed||0;
+  let s=INHERIT_BASE[pe]+INHERIT_BOND[pe]*Math.min(1,n/40)+Math.min(6,fv)*(pe==='臆病'?.4:.25);
+  if(has(a,'人望'))s+=.8;if(has(a,'不屈'))s+=.4;
+  if(old&&old.status==='lost')s+=pe==='臆病'?-.4:.3;
+  if(owed>0)s-=pe==='強欲'?Math.min(3,owed/400):Math.min(1,owed/2000);
+  return s+inheritSway(a,old,p);}
+function inheritWill(S,a,old,p){return inheritScore(S,a,old,p)>=0}
+function inheritSay(a,p,ok){const say=INHERIT_SAY[a.pers]||INHERIT_SAY['普通'];return ok?say[0]:a.pers==='強欲'&&p&&p.owed>0?INHERIT_DEBT_SAY:say[1];}
 function succession(S,p,roster,old){const why=!old?'リーダーを失い':old.status==='lost'?`リーダーの${old.name}を失い`:old.status==='retired'?`リーダーの${old.name}が店を去り`:`リーダーの${old.name}が${S.taverns[old.tav].name}に移り`;
   const cands=roster.filter(a=>a!==old);if(cands.length<2){disbandParty(S,p,why);return false;}
-  const best=cands.slice().sort((x,y)=>leaderScore(y)-leaderScore(x))[0];const say=INHERIT_SAY[best.pers]||INHERIT_SAY['普通'];
-  if(!inheritWill(S,best,old,p)){chron(S,best,`${p.name}の看板を継がない。「${say[1]}」`);disbandParty(S,p,why,`${best.name}は看板を継がなかった。「${say[1]}」`);return false;}
-  p.leader=best.id;chron(S,best,`${old?old.name:'前のリーダー'}に代わり、${p.name}を率いることになる。「${say[0]}」`);
-  news(S,`${S.taverns[p.tav].name}の${p.name}は、${why}ながらも、${best.name}が後を継いで一行を率いることになった。「${say[0]}」`,p.tav==='ours'?'record':'rumor');return true;}
+  const best=cands.slice().sort((x,y)=>heirScore(y)-heirScore(x)||x.id-y.id)[0];const ok=inheritWill(S,best,old,p),say=inheritSay(best,p,ok);
+  if(!ok){chron(S,best,`${p.name}の看板を継がない。「${say}」`);disbandParty(S,p,why,`${best.name}は看板を継がなかった。「${say}」`);return false;}
+  p.leader=best.id;chron(S,best,`${old?old.name:'前のリーダー'}に代わり、${p.name}を率いることになる。「${say}」`);
+  news(S,`${S.taverns[p.tav].name}の${p.name}は、${why}ながらも、${best.name}が後を継いで一行を率いることになった。「${say}」`,p.tav==='ours'?'record':'rumor');return true;}
 function quarrelCheck(S,p,al){const L=A(S,p.leader);if(!L||!al.includes(L))return;const bad=(p.trip.deaths||[]).length>0||p.hurt;
   for(const m of al){if(m===L)continue;const clash=(L.pers==='無謀'&&['慎重','臆病'].includes(m.pers))||(L.pers==='臆病'&&m.pers==='無謀')||(m.pers==='強欲'&&p.loot<incomeAt(dz(p.trip.deep||1))*.5)||(L.pers==='強欲'&&m.pers==='慎重');
     const pr=(clash?.07:.012)*(bad?2.5:1)*(has(L,'人望')?.4:1);if(!chance(pr))continue;

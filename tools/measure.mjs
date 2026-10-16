@@ -58,7 +58,11 @@ function supportOwner(E,S,day){
 function instrument(engine){
   const from='function dieInDungeon(S,p,a,by){';
   if(!engine.includes(from))throw new Error('計測：dieInDungeon が見つからない');
-  return engine.replace(from,'function dieInDungeon(S,p,a,by){if(__meas)__meas(p.floor,by);');
+  let e=engine.replace(from,'function dieInDungeon(S,p,a,by){if(__meas)__meas(p.floor,by);');
+  // 看板を継ぐかどうかも、決まった瞬間に受け取る。この仕組みのない古いエンジンでは数えない
+  const iw='function inheritWill(S,a,old,p){';
+  if(e.includes(iw))e=e.replace(iw,'function inheritWill(S,a,old,p){const __r=__iw0(S,a,old,p);if(__heir)__heir(p&&p.tav,a.pers,__r);return __r;}\nfunction __iw0(S,a,old,p){');
+  return e;
 }
 const BANDS=[['坑道B8〜15F',f=>f>=38&&f<=45],['迷宮B11〜15F',f=>f>=11&&f<=15],['迷宮B16〜22F',f=>f>=16&&f<=22]];
 const VPRE=['澱にまみれた','群れの長の','手負いの','年老いた','飢えた','凶暴な','巨大な','若い'];
@@ -78,8 +82,8 @@ function noteBandDeaths(deaths,bands){
 
 function run(seed,mode,engine){
   let s=seed>>>0;const M=Object.create(Math);M.random=()=>{s=(s+0x6D2B79F5)>>>0;let t=s;t=Math.imul(t^(t>>>15),t|1);t^=t+Math.imul(t^(t>>>7),t|61);return ((t^(t>>>14))>>>0)/4294967296;};
-  const deaths=[];
-  const E=new Function('Math','__meas',`${instrument(engine)};return {${EXPORTS.map(k=>`${k}:typeof ${k}==='undefined'?undefined:${k}`).join(',')}};`)(M,(floor,by)=>deaths.push([floor,by]));
+  const deaths=[],heirs={};
+  const E=new Function('Math','__meas','__heir',`${instrument(engine)};return {${EXPORTS.map(k=>`${k}:typeof ${k}==='undefined'?undefined:${k}`).join(',')}};`)(M,(floor,by)=>deaths.push([floor,by]),(tav,pers,ok)=>{const k=pers||'?';const o=heirs[k]||(heirs[k]={ok:0,no:0,ours:0,oursNo:0});if(ok)o.ok++;else o.no++;if(tav==='ours'){o.ours++;if(!ok)o.oursNo++;}});
   // 水晶のログは測るのに使わないので残さない（乱数の引き方は変わらない）
   if(E.setQuietLog)E.setQuietLog(true);
   const S=E.newState();const D=E.TICKS_PER_DAY;for(let i=0;i<6;i++)E.tick(S);
@@ -111,6 +115,7 @@ function run(seed,mode,engine){
   noteBandDeaths(deaths,bands);r.bands=bands;r.deathN=deaths.length;
   r.earned=S.taverns.ours.earned||0;
   r.deaths=noteDeaths(S);
+  r.heirs=heirs;
   r.marks=marks;return r;
 }
 // 手帳の「に倒れる」を数える。羽根で持ちこたえた行（「倒れるが」）は死んでいないので数えない
@@ -255,6 +260,21 @@ function ageMarkdown(rows){
   return lines.join('\n');
 }
 
+// 看板を継いだか継がなかったかを、継ぐ者の性格ごとに数える（黒猫亭と銀の杯亭の合計）
+const HEIR_PERS=['無謀','普通','慎重','強欲','臆病'];
+function heirMarkdown(rows){
+  if(!rows.some(([,rs])=>rs.some(r=>r.heirs&&Object.keys(r.heirs).length)))return '';
+  const ag=rows.map(([name,rs])=>{const t={};for(const r of rs)for(const [k,v] of Object.entries(r.heirs||{})){const o=t[k]||(t[k]={ok:0,no:0,ours:0,oursNo:0});o.ok+=v.ok;o.no+=v.no;o.ours+=v.ours||0;o.oursNo+=v.oursNo||0;}return [name,t];});
+  const head='| 継ぐ者の性格 | '+ag.map(([n])=>n).join(' | ')+' |',sep='|---|'+ag.map(()=>'---:|').join('');
+  const cell=o=>o&&(o.ok+o.no)?`継いだ${o.ok}／継がない${o.no}（${pct(o.no,o.ok+o.no)}）`:'-';
+  const tot=t=>Object.values(t).reduce((a,o)=>({ok:a.ok+o.ok,no:a.no+o.no,ours:a.ours+o.ours,oursNo:a.oursNo+o.oursNo}),{ok:0,no:0,ours:0,oursNo:0});
+  const pers=[...HEIR_PERS,...new Set(ag.flatMap(([,t])=>Object.keys(t)).filter(k=>!HEIR_PERS.includes(k)))];
+  return ['看板を継いだか（跡継ぎの性格ごと。黒猫亭と銀の杯亭の合計。括弧は継がなかった割合）',head,sep,
+    ...pers.map(k=>'| '+k+' | '+ag.map(([,t])=>cell(t[k])).join(' | ')+' |'),
+    '| 合計 | '+ag.map(([,t])=>cell(tot(t))).join(' | ')+' |',
+    '| うち黒猫亭 | '+ag.map(([,t])=>{const o=tot(t);return o.ours?`${o.ours}件のうち継がない${o.oursNo}（${pct(o.oursNo,o.ours)}）`:'-';}).join(' | ')+' |'].join('\n');
+}
+
 function sumBands(rs){
   const out={};
   for(const [name] of BANDS){
@@ -314,7 +334,7 @@ else{
   for(const mode of MODES)for(const v of vars){const rs=out.filter((r,k)=>jobs[k].mode===mode&&jobs[k].v===v);console.log(`\n== ${MODE_N[mode]}${v.name?'・'+v.name:''} ==`);
     for(const r of rs){if(r.err){bad=true;console.log(r.err);continue;}console.log(line(r));if(DETAIL)r.marks.forEach(m=>console.log(m));}
     const ok=rs.filter(r=>!r.err);if(ok.length){console.log('--\n'+summary(ok));rows.push([MODE_N[mode]+(v.row?'・'+v.row:''),ok]);}}
-  if(rows.length){console.log('\n'+table(rows));console.log('\n'+bandMarkdown(rows));console.log('\n'+deathMarkdown(rows));const ages=ageMarkdown(rows);if(ages)console.log('\n'+ages);}
+  if(rows.length){console.log('\n'+table(rows));console.log('\n'+bandMarkdown(rows));console.log('\n'+deathMarkdown(rows));const ages=ageMarkdown(rows);if(ages)console.log('\n'+ages);const hs=heirMarkdown(rows);if(hs)console.log('\n'+hs);}
   console.error(`\n${jobs.length}本のうち、測った ${todo.length}本／残してあった結果を使った ${jobs.length-todo.length}本`);
   process.exit(bad?1:0);
 }
