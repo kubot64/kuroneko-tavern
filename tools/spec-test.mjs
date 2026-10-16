@@ -1049,7 +1049,7 @@ function runSeed(seed){
       if(n.t.includes('最期を映した')||n.t.includes('遺体が街に届いた')){
         const hit=parties.filter(q=>q.cause&&n.t.includes(q.name)).sort((a,b)=>b.name.length-a.name.length)[0];
         const cause=hit&&hit.cause;
-        const said=cause&&(n.t.includes(cause)||(cause.endsWith('に倒れた')&&(n.t.includes(cause.slice(0,-1)+'る')||n.t.includes(cause+'いた'))));
+        const said=cause&&(n.t.includes(cause)||(cause.endsWith('に倒れた')&&(n.t.includes(cause.slice(0,-1)+'る')||n.t.includes(cause.slice(0,-1)+'ていた'))));
         check('全滅：水晶の知らせと遺体が届いた知らせには、原因の一文と階がある',!!said&&/B\d+F/.test(n.t),at,()=>n.t);
       }
       if(n.t.includes('予定を過ぎても戻らない')||n.t.includes('から戻らないらしい')){

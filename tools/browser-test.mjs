@@ -2202,9 +2202,9 @@ test('帳場のきょうの出入りは前日と直近7日で、375pxでも短�
   const text=await flow.innerText();
   assert.match(text,/前日/);
   assert.match(text,/直近7日/);
-  for(const name of ['売上','支援','蘇生代','返済','施設'])assert.match(text,new RegExp(name));
+  for(const name of ['売上','支援','蘇生代','立て替えの返り','返済','施設'])assert.match(text,new RegExp(name));
   const zeros=await page.locator('#flow .num').allInnerTexts();
-  assert.deepEqual(zeros,Array(10).fill('0G'));
+  assert.deepEqual(zeros,Array(12).fill('0G'));
   assert.match(await page.locator('[data-cost="potion"]').innerText(),/2本にすると、いまの深さだと 1日あたり約\d+G/);
   for(const k of ['mapPay','revive','rookie'])assert.match(await page.locator(`[data-cost="${k}"]`).innerText(),/^いまの深さだと 1日あたり約\d+G$/);
   const layout=async()=>page.evaluate(()=>{
