@@ -1450,9 +1450,9 @@ function checkFoes(){
   const E=load(1);
   // 息の四体の出やすさ。死因の1位が息の魔物に寄りすぎないよう、番犬と炉の番人ゴーレムはさらに下げる
   const breath={'キメラ':.6,'墓所の番犬':.45,'盲目の洞窟竜':.6,'炉の番人ゴーレム':.4};
-  // 息の傷の倍率。番犬は 0.75、炉の番人ゴーレムは 0.8 で、ほかの息の魔物は持たない
-  const scale={'墓所の番犬':.75,'炉の番人ゴーレム':.8};
-  for(const m of E.MON)if(m.sp==='breath'||m.br!=null)check('出る魔物：息の傷の倍率を持つのは番犬（0.75）と炉の番人ゴーレム（0.8）だけ',m.br===scale[m.n],m.n,`倍率${m.br==null?'なし':m.br}（決まりは${scale[m.n]==null?'なし':scale[m.n]}）`);
+  // 息の傷の倍率。番犬は 0.75、炉の番人ゴーレムは 0.9 で、ほかの息の魔物は持たない
+  const scale={'墓所の番犬':.75,'炉の番人ゴーレム':.9};
+  for(const m of E.MON)if(m.sp==='breath'||m.br!=null)check('出る魔物：息の傷の倍率を持つのは番犬（0.75）と炉の番人ゴーレム（0.9）だけ',m.br===scale[m.n],m.n,`倍率${m.br==null?'なし':m.br}（決まりは${scale[m.n]==null?'なし':scale[m.n]}）`);
   // 番犬の息を、同じ種で、倍率のない同じ強さの魔物と比べる。古い記録で戦いの途中だった番犬（倍率の値を持たない）には名で引いてかける。
   // 水晶のログは名の文字数ぶん乱数を引き、怖いものや相性は名で引くので、比べる相手は同じ長さで「番犬」を含む名にする
   const breathDmg=(seed,fix)=>{const E2=load(seed),S=E2.newState();const p=Object.values(S.parties).find(x=>x.tav==='ours');const a=S.adv[p.leader];
@@ -1478,7 +1478,7 @@ function checkFoes(){
     const plain=golemDmg(seed,t=>Object.assign(t,{n:'ため番人ゴーレム',br:undefined}));
     if(!plain.breathed)continue;golemN++;
     const now=golemDmg(seed,t=>t),old=golemDmg(seed,t=>{delete t.br;return t;});
-    check('出る魔物：炉の番人ゴーレムの息の傷は、同じ強さの息の0.8倍',now.breathed&&now.dmg===Math.round(plain.dmg*.8)&&now.dmg<plain.dmg,`種${seed}`,`倍率なし${plain.dmg} ゴーレム${now.dmg}`);
+    check('出る魔物：炉の番人ゴーレムの息の傷は、同じ強さの息の0.9倍',now.breathed&&now.dmg===Math.round(plain.dmg*.9)&&now.dmg<plain.dmg,`種${seed}`,`倍率なし${plain.dmg} ゴーレム${now.dmg}`);
     check('出る魔物：倍率の値を持たない古い記録の炉の番人ゴーレムにも、名で引いて同じ倍率がかかる',old.dmg===now.dmg,`種${seed}`,`ゴーレム${now.dmg} 古い${old.dmg}`);}
   check('出る魔物：炉の番人ゴーレムの息を5種で試し打ちした',golemN===5,'80種',`${golemN}種`);
   const maze={
