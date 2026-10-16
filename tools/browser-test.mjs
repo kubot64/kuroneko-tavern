@@ -123,7 +123,7 @@ test('留守のあいだの減りは売上と書かず、帳場は返した額�
     return {gold:T.gold,earned:T.earned,support:T.support||0,repaid:T.repaid||0,interest:T.interestPaid||0,v:S.v,
       sum:document.querySelector('#dg-sum').innerText,brk:document.querySelector('#dg-brk').innerText};
   });
-  assert.equal(after.v,27);
+  assert.equal(after.v,await page.evaluate('SAVE_V'));
   assert.doesNotMatch(after.sum,/売上/);
   assert.match(after.sum,/所持金/);
   const gd=after.gold-live.gold,yen=n=>n.toLocaleString('ja-JP'),esign=gd>=0?`+${yen(gd)}`:yen(gd);
@@ -524,7 +524,7 @@ test('帳場の蘇生は、押す前に状態と成功率が出て、押した�
   assert.equal(await page.evaluate(()=>S.taverns.ours.gold),gold0-cost);
   const saved=await page.evaluate(()=>JSON.parse(localStorage.getItem('kuroneko-tavern-v1')));
   assert.equal(saved.S.reviveNote,undefined);
-  assert.equal(saved.S.v,27);
+  assert.equal(saved.S.v,await page.evaluate('SAVE_V'));
   assert.equal(saved.S.adv[prep.id].status,'ash');
   const again=await open({ctx,time:Date.UTC(2026,0,1)});
   await again.page.locator('#sp0').click();
@@ -690,7 +690,7 @@ test('帳場の覚え書きと、次の返済までの日数・必要額が常�
     const home=document.querySelector('#memo li[data-id="home"]');
     return {v:S.v,rep,home:home&&home.innerText,struck:!!home&&!!home.querySelector('s'),pay:document.querySelector('#payw').hidden};
   });
-  assert.equal(old.v,27);
+  assert.equal(old.v,await page.evaluate('SAVE_V'));
   assert.equal(old.rep,4);
   assert.equal(old.struck,true);
   assert.match(old.home,/送り出した連中が、生きて戻ってくる/);
@@ -1558,7 +1558,7 @@ test('見込みが満員のときは理由が読め、見込むボタンはど�
   const saved=await page.evaluate(()=>{save();return JSON.parse(localStorage.getItem('kuroneko-tavern-v1'));});
   assert.equal(saved.boardHelpOpen,undefined);
   assert.equal(saved.S.boardHelpOpen,undefined);
-  assert.equal(saved.S.v,27);
+  assert.equal(saved.S.v,await page.evaluate('SAVE_V'));
   await page.reload();
   await page.locator('#sp0').click();
   await page.locator('button[data-v="bar"]').click();
@@ -1816,13 +1816,15 @@ test('375pxでは水晶の一言が語の途中で折れず、稼ぎは別の行
   assert.deepEqual(errors,[]);await ctx.close();
 });
 
-test('全滅と依頼の失敗には理由が一文つき、まだ戻らないは札で読める',async()=>{
+test('全滅と依頼の失敗には理由が一文つき、知れていない全滅は札も手帳も探索中のまま、消息不明の知らせに死因と階は入らない',async()=>{
   const {ctx,page,errors}=await open();
   await page.locator('#sp0').click();
   const info=await page.evaluate(()=>{
     const p=Object.values(S.parties).find(x=>x.tav==='ours');
     p.state='explore';p.floor=4;p.enemies=null;p.plan='normal';p.pushWhy=null;p.steps=400;
     p.trip=p.trip||{};p.trip.deep=1;p.maps={};p.announced=false;p.knownWiped=false;
+    // 到達B2Fで出発し、探索中にB4Fまで進んだ（ふつうに起きる状態）
+    p.reach=2;p.pushTo=0;p.mineTrip=false;noteKnownDepth(p);reachFloor(S,p,false);
     const ms=p.members.map(id=>S.adv[id]);
     ms.forEach(a=>{a.status='party';a.hp=a.mhp=100;a.poison=0;a.mp=5;a.pers='普通';a.quirk='無口';a.fear=null;a.traits=[];a.cls='戦士';});
     render();
@@ -1830,6 +1832,7 @@ test('全滅と依頼の失敗には理由が一文つき、まだ戻らない�
     const st=card().querySelector('.st');
     const out=[];
     if(!st||!st.classList.contains('bad')||!st.textContent.includes('探索中')||!st.textContent.includes('まだ戻らない'))out.push('遅れの札 '+(st&&st.textContent));
+    const before=st.textContent;
     const a=S.adv[p.leader];
     const rnd=Math.random;Math.random=()=>0.99;
     errandEvent(S,p,{id:1,k:'kitten',n:'迷い込んだ子猫',f:2,hero:a.id});
@@ -1840,14 +1843,67 @@ test('全滅と依頼の失敗には理由が一文つき、まだ戻らない�
     wipe(S,p,'オーク');
     render();
     const st2=card().querySelector('.st');
-    if(!st2||!st2.classList.contains('bad')||st2.textContent!=='B4F まだ戻らない')out.push('全滅直後の札 '+(st2&&st2.textContent));
+    // 全滅しても、知れるまでは札の文も色も変わらない
+    if(!st2||!st2.classList.contains('bad')||st2.textContent!==before)out.push('全滅直後の札 '+(st2&&st2.textContent)+'（前は '+before+'）');
+    // 伏せ中は札を押しても「闇しか映さない」と出ず、水晶に移れる。HP帯も消えない
+    const toast0=document.querySelector('.toast');if(toast0)toast0.remove();
+    card().click();
+    const toast1=(document.querySelector('.toast')||{}).textContent||'';
+    if(toast1.includes('闇しか映さない'))out.push('伏せ中に闇しか映さない '+toast1);
+    if(!S.watch.includes(p.id))out.push('伏せ中に水晶へ移れない');
+    render();
+    const strip=card().querySelector('.hpstrip');
+    if(!strip)out.push('伏せ中にHP帯が消えた');
+    if(strip&&[...strip.querySelectorAll('i')].some(i=>getComputedStyle(i).getPropertyValue('--w').trim()==='0%'))out.push('伏せ中のHP帯が0');
     tab='news';render();
     const news=document.querySelector('#tbody').innerText;
     if(!news.includes('向かなかった'))out.push('日報に失敗の理由がない');
     if(news.includes('癒し手の呪文が尽きていた'))out.push('見ていない全滅の理由が先に出た');
+    tab='roster';render();
+    const roster=document.querySelector('#tbody').innerText;
+    if(roster.includes('行方不明'))out.push('名簿に行方不明が出た');
+    if(roster.includes('HP0/')||roster.includes('倒'))out.push('伏せ中の名簿にHP0か倒が出た');
+    const chip=[...document.querySelectorAll('#tbody .row')].find(el=>el.querySelector('.nm-link')?.textContent===h.name)?.querySelector('.chip')?.textContent;
+    if(chip!=='探索中')out.push('名簿のチップ '+chip);
     advOpen=h.id;document.querySelector('#advm').hidden=false;renderAdv();
     const book=document.querySelector('#advbox').innerText;
-    if(!book.includes('全滅した。癒し手の呪文が尽きていた'))out.push('手帳に原因がない');
+    if(book.includes('全滅した。'))out.push('手帳に原因が先に出た');
+    if(/B\d+Fで.+に倒れる/.test(book))out.push('手帳に倒れた階が先に出た');
+    if(!book.includes('探索中'))out.push('手帳の状態が探索中でない');
+    if(book.includes('行方不明'))out.push('手帳に行方不明が出た');
+    if(/\b0\/100\b/.test(book)||book.includes('HP\n0'))out.push('手帳にHP0が出た');
+    // 予定帰還の刻から MISSING_GRACE 刻たつと消息不明。知らせに死因も階も入らず、札は迷宮とだけ出る
+    document.querySelector('#advm').hidden=true;advOpen=null;
+    Object.values(S.parties).forEach(q=>{if(q!==p){q.state='town';q.rest=99;}});
+    p.dueAt=S.tick-MISSING_GRACE;tick(S);tab='news';render();
+    const news2=document.querySelector('#tbody').innerText;
+    const line=(S.news.findLast(x=>x.t.includes('予定を過ぎても戻らない'))||{}).t||'';
+    if(!line.startsWith(p.name+'が予定を過ぎても戻らない。'))out.push('消息不明の知らせがない '+line);
+    if(/B\d+F|癒し手/.test(line))out.push('消息不明の知らせに死因か階が入った '+line);
+    const st3=card().querySelector('.st');
+    if(!st3||st3.textContent!=='消息不明（迷宮）'||!st3.classList.contains('bad'))out.push('消息不明の札 '+(st3&&st3.textContent));
+    const mark=card().querySelector('.roster .who .cls');
+    if(!mark||!mark.textContent.includes('不明'))out.push('消息不明の名簿印 '+(mark&&mark.textContent));
+    if(mark&&mark.textContent.includes('倒'))out.push('消息不明なのに倒の印 '+mark.textContent);
+    // 「不明」の印は、倒れた者の赤とは別の色
+    const who=card().querySelector('.roster .who');
+    if(!who||!who.classList.contains('gone')||who.classList.contains('down'))out.push('不明の印の色 '+(who&&who.className));
+    // 消息不明の札の「到達」に、倒れた階（B4F）を出さない
+    if(card().innerText.includes('B4F'))out.push('消息不明の札に倒れた階 '+card().innerText.replace(/\n/g,' '));
+    tab='desk';render();
+    const desk=document.querySelector('#tbody').innerText;
+    if(/消息不明[\s\S]*B4F/.test(desk)&&desk.includes(p.name+' 黒猫亭・B4F'))out.push('帳場の依頼欄に階が出た');
+    // 依頼額は倒れた階や、探索中に進んだ最深（B4F）ではなく、出発のときの深さで決まる
+    const price=bountyPrice(p),priceFloor=r100(incomeAt(dz(4)));
+    if(p.reach!==4)out.push('探索中に最深が進んでいない '+p.reach);
+    if(price===priceFloor)out.push('依頼額が倒れた階のまま '+price);
+    // 巡回隊が連れ帰ると、死因と階が手帳と知らせに残る
+    corpsesHome(S,p,'巡回隊が見つけ、',null);tab='news';render();
+    const news3=(S.news.findLast(x=>x.t.includes('遺体が街に届いた'))||{}).t||'';
+    if(news3!=='巡回隊が見つけ、'+p.name+'の遺体が街に届いた。B4F、オークに倒れていた。癒し手の呪文が尽きていた。')out.push('届いた知らせがない '+news3);
+    advOpen=h.id;document.querySelector('#advm').hidden=false;renderAdv();
+    const book2=document.querySelector('#advbox').innerText;
+    if(!book2.includes('全滅した。癒し手の呪文が尽きていた'))out.push('届いたあとの手帳に原因がない');
     return {out,pid:p.id,aid:h.id};
   });
   assert.deepEqual(info.out,[]);
@@ -1857,11 +1913,6 @@ test('全滅と依頼の失敗には理由が一文つき、まだ戻らない�
     const bad=await page.evaluate(({pid,aid})=>{
       tab='news';advOpen=aid;document.querySelector('#advm').hidden=false;render();renderAdv();
       const out=[];
-      const card=[...document.querySelectorAll('.pcard')].find(el=>el.dataset.p==String(pid));
-      const st=card&&card.querySelector('.st');
-      const cr=card.getBoundingClientRect(),sr=st.getBoundingClientRect();
-      if(sr.height<1||sr.right>cr.right+1||sr.left<cr.left-1)out.push('札の様子が札の外');
-      if(st.scrollWidth>st.clientWidth+1)out.push('札の様子が折れていない');
       const li=[...document.querySelectorAll('.news li')].find(el=>el.textContent.includes('向かなかった'));
       const span=li&&[...li.children].find(n=>!n.classList.contains('d'));
       const side=document.querySelector('.side').getBoundingClientRect();
@@ -1871,6 +1922,9 @@ test('全滅と依頼の失敗には理由が一文つき、まだ戻らない�
         if(r.height<1||r.right>side.right+1||r.left<side.left-1)out.push('知らせが右の列の外');
         if(span.scrollWidth>span.clientWidth+1)out.push('知らせが折れていない');
       }
+      const li2=[...document.querySelectorAll('.news li')].find(el=>el.textContent.includes('遺体が街に届いた'));
+      const span2=li2&&[...li2.children].find(n=>!n.classList.contains('d'));
+      if(!span2)out.push('届いた知らせがない');else if(span2.scrollWidth>span2.clientWidth+1)out.push('届いた知らせが折れていない');
       const row=[...document.querySelectorAll('#advbox .tl li')].find(el=>el.textContent.includes('全滅した。癒し手の呪文が尽きていた'));
       const modal=document.querySelector('#advbox').getBoundingClientRect();
       if(!row)out.push('手帳の行がない');
@@ -1884,14 +1938,44 @@ test('全滅と依頼の失敗には理由が一文つき、まだ戻らない�
     },info);
     assert.deepEqual(bad,[],`${width}px`);
   }
-  const later=await page.evaluate(()=>{
-    const p=Object.values(S.parties).find(x=>x.state==='wiped'&&x.tav==='ours'&&x.cause);
-    Object.values(S.parties).forEach(q=>{if(q!==p){q.state='town';q.rest=99;}});
-    p.wipedAt=S.tick-14;tick(S);tab='news';document.querySelector('#advm').hidden=true;advOpen=null;render();
-    const news=document.querySelector('#tbody').innerText;
-    return news.includes('予定を過ぎても戻らない')&&news.includes('癒し手の呪文が尽きていた');
+  // 巡回隊の届かない深さで20日見つからないと、消えた者の名が二つ名つきで知らせに並ぶ。375px でも名前は語の途中で折れない
+  const lost=await page.evaluate(()=>{
+    document.querySelector('#advm').hidden=true;advOpen=null;
+    const p=Object.values(S.parties).find(x=>x.tav==='ours'&&x.members.length>=2);
+    const ms=p.members.map(id=>S.adv[id]);ms.forEach(a=>{a.status='missing';a.hp=0;a.party=p.id;});
+    ms[0].title='牙折り';ms[0].titleKind='kills';ms[0].titleTier=1;ms[0].titleStem='kills';
+    const names=ms.map(a=>a.title?`「${a.title}」${a.name}`:a.name);
+    Object.assign(p,{state:'wiped',retrieved:false,announced:true,knownWiped:false,wipedAt:S.tick-1001,floor:4,killer:'オーク',cause:'オークに倒れた',causeTold:false,dueAt:S.tick-200});
+    S.deepest.ours=1;S.deepest.rival=1;S.watch=[null,null];
+    tick(S);
+    const n=S.news.findLast(x=>x.t.includes('ついに見つからなかった'));
+    return {names,text:n&&n.t,ok:!!n&&n.k==='lost'&&n.t.includes(names.join('、')+'の'+names.length+'人の名が記念碑に刻まれる。')};
   });
-  assert.equal(later,true);
+  assert.ok(lost.ok,`見つからなかった知らせ ${lost.text}`);
+  for(const [width,height] of [[375,740],[1280,800]]){
+    await page.setViewportSize({width,height});
+    await page.evaluate(()=>document.fonts.ready);
+    const bad=await page.evaluate(names=>{
+      tab='news';document.querySelector('#advm').hidden=true;advOpen=null;render();
+      const out=[];
+      const li=[...document.querySelectorAll('.news li')].find(el=>el.textContent.includes('ついに見つからなかった'));
+      const span=li&&[...li.children].find(n=>!n.classList.contains('d'));
+      if(!span){out.push('見つからなかった知らせがない');return out;}
+      const side=document.querySelector('.side').getBoundingClientRect();
+      const r=span.getBoundingClientRect();
+      if(r.height<1||r.right>side.right+1||r.left<side.left-1)out.push('知らせが右の列の外');
+      if(span.scrollWidth>span.clientWidth+1)out.push('知らせが折れていない');
+      for(const name of names){
+        const nw=[...span.querySelectorAll('.nw')].find(el=>el.textContent===name);
+        if(!nw){out.push(name+' が一続きになっていない');continue;}
+        const tops=new Set([...nw.getClientRects()].filter(x=>x.width>1).map(x=>Math.round(x.top)));
+        if(tops.size!==1)out.push(name+' が途中で折れている');
+      }
+      if(document.documentElement.scrollWidth>innerWidth+1)out.push('ページが横にはみ出す');
+      return out;
+    },lost.names);
+    assert.deepEqual(bad,[],`${width}px 見つからなかった知らせ`);
+  }
   assert.deepEqual(errors,[]);await ctx.close();
 });
 
@@ -2145,9 +2229,9 @@ test('帳場のきょうの出入りは前日と直近7日で、375pxでも短�
   const text=await flow.innerText();
   assert.match(text,/前日/);
   assert.match(text,/直近7日/);
-  for(const name of ['売上','支援','蘇生代','返済','施設'])assert.match(text,new RegExp(name));
+  for(const name of ['売上','支援','蘇生代','立て替えの返り','返済','施設'])assert.match(text,new RegExp(name));
   const zeros=await page.locator('#flow .num').allInnerTexts();
-  assert.deepEqual(zeros,Array(10).fill('0G'));
+  assert.deepEqual(zeros,Array(12).fill('0G'));
   assert.match(await page.locator('[data-cost="potion"]').innerText(),/2本にすると、いまの深さだと 1日あたり約\d+G/);
   for(const k of ['mapPay','revive','rookie'])assert.match(await page.locator(`[data-cost="${k}"]`).innerText(),/^いまの深さだと 1日あたり約\d+G$/);
   const layout=async()=>page.evaluate(()=>{
@@ -2157,6 +2241,11 @@ test('帳場のきょうの出入りは前日と直近7日で、375pxでも短�
     if(box.height>200)bad.push(`出入りが長い ${Math.round(box.height)}px`);
     if(box.right>innerWidth+1||box.left<-1)bad.push('出入りが横にはみ出す');
     for(const n of document.querySelectorAll('#flow .num'))if(lines(n)!==1)bad.push(n.textContent+' が折れている');
+    // 行の名前（立て替えの返りなど）も一続き
+    for(const el of document.querySelectorAll('#flow > div:nth-child(3n+1)')){
+      if(!el.textContent.trim())continue;
+      if(lines(el)!==1)bad.push(el.textContent+' の見出しが折れている');
+    }
     for(const c of document.querySelectorAll('[data-cost]')){
       if(c.getBoundingClientRect().height>52)bad.push(`${c.dataset.cost} の見積もりが長い ${Math.round(c.getBoundingClientRect().height)}px`);
       if(c.getBoundingClientRect().right>innerWidth+1)bad.push(c.dataset.cost+' が横にはみ出す');
@@ -2364,4 +2453,158 @@ test('札の印は右上に揃い、方針ボタンの幅は変わらず、狭�
   assert.equal(close.on,true);
   assert.equal(close.bg,'rgb(227, 166, 73)');
   assert.deepEqual(errors,[]);await ctx.close();
+});
+
+test('黒猫亭の帳面の一行は、手帳と記念碑で語の途中で折れない',async()=>{
+  const {ctx,page,errors}=await open();
+  await page.locator('#sp0').click();
+  await page.evaluate(()=>{
+    const D=TICKS_PER_DAY,base=Object.values(S.adv).find(a=>a.tav==='ours');
+    const mk=(tk,status)=>{const a=JSON.parse(JSON.stringify(base));a.id=S.nid++;a.name='帳面'+a.id;a.status=status;a.party=null;a.opening=false;a.chron=[{tk,t:'扉をくぐる'}];S.adv[a.id]=a;return a;};
+    for(let i=0;i<30;i++)mk(0,'idle');
+    const ids=Object.values(S.adv).filter(a=>a.name.startsWith('帳面')).map(a=>a.id);
+    ids.slice(0,3).forEach((id,i)=>{S.adv[id].status='lost';S.memorial.push({id,name:S.adv[id].name,cls:'戦士',lvl:5,race:'人間',tav:'ours',tk:(100+i*50)*D,by:'オーク',floor:3,kills:9});});
+    S.farewells=S.farewells||[];
+    ids.slice(3,7).forEach((id,i)=>{S.adv[id].status='retired';S.farewells.push({id,name:S.adv[id].name,tav:'ours',tk:(580+i*20)*D,why:'故郷に帰る',lvl:9,cls:'戦士',race:'人間',sex:'男',age:30,hage:30});});
+    const lost=mk(1000*D,'lost');lost.chron.push({tk:1173*D,t:'ロスト。その名は記念碑に刻まれる'});
+    S.memorial.push({id:lost.id,name:lost.name,cls:'戦士',lvl:12,race:'人間',tav:'ours',tk:1173*D,by:'オーク',floor:9,kills:40});
+    const gone=mk(1000*D,'retired');gone.chron.push({tk:1642*D,t:'故郷に帰るため、黒猫亭を去る'});
+    S.farewells.push({id:gone.id,name:gone.name,tav:'ours',tk:1642*D,why:'故郷に帰る',lvl:9,cls:'戦士',race:'人間',sex:'男',age:30,hage:30});
+    window.__ledger=[lost.id,gone.id];
+  });
+  const broken=()=>page.evaluate(()=>{
+    const out=[];
+    document.querySelectorAll('.ledger').forEach(el=>{
+      if(!el.getClientRects().length)return;// 閉じた手帳に残る行は見ない
+      el.querySelectorAll('.nw').forEach(s=>{if(s.getClientRects().length!==1)out.push(s.textContent);});
+      if(!el.textContent.startsWith('帳面によれば、'))out.push('頭：'+el.textContent);});
+    return out;});
+  for(const w of [375,1280]){
+    await page.setViewportSize({width:w,height:800});
+    await page.evaluate(()=>{tab='stone';render();});
+    const stone=await page.locator('#tbody').innerText();
+    assert.match(stone,/帳面によれば、[^\n]*人に一人の側に入った。在籍は百七十日ほど。/);
+    assert.match(stone,/帳面によれば、自分の足で出ていった。在籍は六百四十日ほど。帳面のとおりだった。/);
+    assert.deepEqual(await broken(),[],`幅${w}の記念碑`);
+    for(const id of await page.evaluate('window.__ledger')){
+      await page.evaluate(id=>{advOpen=id;document.getElementById('advm').hidden=false;renderAdv();},id);
+      const book=await page.locator('#advbox').innerText();
+      assert.match(book,/帳面によれば、この店に来た者のうち、戻らなかったのは[^\n]*人に一人。たいていは六百日ほどで、自分の足で出ていく。/);
+      assert.equal((book.match(/帳面によれば、/g)||[]).length,2,`幅${w}の手帳の帳面の行数`);
+      assert.deepEqual(await broken(),[],`幅${w}の手帳`);
+      await page.evaluate(()=>{advOpen=null;document.getElementById('advm').hidden=true;});
+    }
+  }
+  assert.deepEqual(errors,[]);
+  await ctx.close();
+});
+
+test('記念碑の最後の言葉と見送りの一行は、375pxと1280pxで語の途中で折れず、「」。」だけが次の行に残らない',async()=>{
+  const {ctx,page,errors}=await open();
+  await page.locator('#sp0').click();
+  const info=await page.evaluate(()=>{
+    const ours=Object.values(S.adv).filter(a=>a.tav==='ours').sort((a,b)=>a.id-b.id);
+    const [lost,friend,quiet]=ours;
+    for(const x of [lost,friend,quiet]){x.party=null;x.status='idle';x.trips=4;}
+    friend.pers='慎重';friend.tone='普通';
+    S.bonds=S.bonds||{};S.bonds[bkey(lost,friend)]={n:3,ev:[]};
+    lost.said=[{tk:S.tick-2,t:'一つ目'},{tk:S.tick-1,t:'二つ目'},{tk:S.tick,t:'次は盗賊を連れていく'}];
+    lost.status='lost';lost.lastBy='オーク';
+    const m=memorialize(S,lost,{by:'オーク',floor:3});
+    S.news.push({tk:S.tick,t:`黒猫亭の${lost.name}、ロスト。その名は記念碑に刻まれる。${m.farewell}`,k:'lost'});
+    // 絆のない者。店の一行になる
+    quiet.said=[];quiet.status='lost';const m2=memorialize(S,quiet,{by:'オーク',floor:2});
+    tab='stone';render();
+    return {lost:lost.id,friend:friend.name,quiet:quiet.id,fw:m.farewell,fw2:m2.farewell,last:m.last&&m.last.t};
+  });
+  assert.equal(info.last,'次は盗賊を連れていく');
+  assert.match(info.fw,new RegExp('^'+info.friend+'は、'));
+  assert.match(info.fw2,/^その夜、黒猫亭/);
+  assert.doesNotMatch(info.fw+info.fw2,/店主|見ていなかった/);
+  const broken=()=>page.evaluate(()=>{
+    const out=[];
+    document.querySelectorAll('.stone .ep .nw, .news li .nw').forEach(s=>{if(s.getClientRects().length>1)out.push(s.textContent);});
+    return out;});
+  for(const w of [375,1280]){
+    await page.setViewportSize({width:w,height:800});
+    await page.evaluate(()=>{tab='stone';render();});
+    const stone=await page.locator('#tbody').innerText();
+    assert.match(stone,/酒場で最後に言ったのは「次は盗賊を連れていく」。/);
+    assert.doesNotMatch(stone,/酒場で最後に言ったのは「」/);
+    assert.match(stone,new RegExp(info.fw.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')));
+    assert.match(stone,new RegExp(info.fw2.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')));
+    // 最後の言葉は添え書きより先。見送りの一行は帳面の下
+    const order=await page.evaluate(id=>{const s=[...document.querySelectorAll('.stone')].find(el=>el.querySelector(`[data-a="${id}"]`));const t=[...s.children].map(c=>c.className+':'+c.textContent.slice(0,6));return t.join('|');},info.lost);
+    assert.match(order,/ep:酒場で最後に.*ep:(開店からの|黒猫亭の客).*ledger:.*ep:/);
+    assert.deepEqual(await broken(),[],`幅${w}の記念碑`);
+    // 言葉の長さを変えても、最後の行が「」。」だけにならない
+    const short=await page.evaluate(id=>{
+      const m=S.memorial.find(x=>x.id===id);const out=[];
+      const tailOf=ep=>{const tops=[],chars=[];const w=document.createTreeWalker(ep,NodeFilter.SHOW_TEXT);
+        for(let n=w.nextNode();n;n=w.nextNode())for(let i=0;i<n.length;i++){const r=document.createRange();r.setStart(n,i);r.setEnd(n,i+1);const rr=r.getBoundingClientRect();if(rr.width){chars.push([Math.round(rr.top),n.data[i]]);tops.push(Math.round(rr.top));}}
+        const last=Math.max(...tops);return {rows:new Set(tops.map(t=>Math.round(t/4))).size,tail:chars.filter(([t])=>Math.abs(t-last)<=2).map(([,c])=>c).join('')};};
+      for(let k=0;k<=40;k++){m.last={tk:1,t:'次は'+'盗'.repeat(k)+'賊を連れていく'};render();
+        const s=[...document.querySelectorAll('.stone')].find(el=>el.querySelector(`[data-a="${id}"]`));const ep=[...s.querySelectorAll('.ep')][0];
+        const r=tailOf(ep);if(r.rows>=2&&r.tail.length<4)out.push(`${k}:${r.tail}`);}
+      m.last={tk:1,t:'次は盗賊を連れていく'};render();return out;},info.lost);
+    assert.deepEqual(short,[],`幅${w}の最後の言葉`);
+    await page.locator('button[data-v="news"]').click();
+    const row=page.locator('.news li',{hasText:'ロスト。その名は記念碑に刻まれる。'}).first();
+    assert.match(await row.innerText(),new RegExp(info.fw.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')));
+    assert.deepEqual(await broken(),[],`幅${w}の日報`);
+  }
+  assert.deepEqual(errors,[]);await ctx.close();
+});
+
+test('まだ知れていない全滅の水晶は、生きている一行と見分けがつかない',async()=>{
+  const {ctx,page,errors}=await open();
+  await page.locator('#sp0').click();
+  for(const w of [375,1280]){
+    await page.setViewportSize({width:w,height:900});
+    const r=await page.evaluate(()=>{
+      const out=[];
+      const p=Object.values(S.parties).find(x=>x.tav==='ours');
+      Object.values(S.parties).forEach(q=>{if(q!==p){q.state='town';q.rest=99;}});
+      p.state='explore';p.floor=5;p.enemies=null;p.plan='normal';p.pushWhy=null;p.steps=0;p.fsteps=0;p.maps={};p.announced=false;p.knownWiped=false;p.hideRecall=0;
+      p.trip=p.trip||{};p.trip.deep=5;p.log=[];p.lc=0;p.loot=1234;
+      const ms=p.members.map(id=>S.adv[id]);
+      ms.forEach(a=>{a.status='party';a.hp=a.mhp=100;a.poison=0;a.mp=5;a.pers='普通';a.cls='戦士';});
+      ms[0].hp=40;// 傷を負った者がいる
+      plog(p,'くらい つうろを すすむ','move');plog(p,'とびらを あけた','move');
+      // 戦いのない歩みで、水晶の位置と体力が控えられる（本物の歩みを1回）
+      const rnd=Math.random;Math.random=()=>0.99;stepParty(S,p);Math.random=rnd;
+      const calm=p.calmLc;
+      plog(p,'＊ かいぶつが あらわれた ＊','sys');plog(p,'オーク ×3','sys');
+      ms.forEach(a=>{a.hp=0;});S.watch=[p.id,null];S.sel=0;
+      // 見ていないことにして全滅させ、そのあと水晶を向ける
+      const wl=S.watch;S.watch=[null,null];wipe(S,p,'オーク');S.watch=[p.id,null];
+      render();
+      const cr=document.querySelector('.crystal.sel')||document.querySelector('.crystal');
+      const txt=cr?cr.innerText:'';
+      if(!cr)out.push('水晶がない');
+      if(/ぜんめつ|うつさない|かいぶつが あらわれた|オーク/.test(txt))out.push('全滅した戦いが映った '+txt.replace(/\n/g,' / '));
+      if(!txt.includes('とびらを あけた'))out.push('全滅より前の記録が消えた');
+      if(!txt.includes('40/100'))out.push('傷を負った者の体力が戻った '+txt.replace(/\n/g,' / '));
+      if(!cr.querySelector('[data-act="recall"]'))out.push('撤退のボタンがない');
+      if(!txt.includes('稼ぎ'))out.push('稼ぎが出ない');
+      const n0=cr.querySelectorAll('.c-log div').length;
+      S.tick+=20;render();
+      const cr2=document.querySelector('.crystal.sel')||document.querySelector('.crystal');
+      const n1=cr2.querySelectorAll('.c-log div').length;
+      if(n1<=n0)out.push(`歩みの行が増えない ${n0}→${n1}`);
+      // 伝書鳩：50G かかり、帰路の様子になる
+      const g0=T().gold;T().gold=Math.max(g0,100);const g1=T().gold;
+      cr2.querySelector('[data-act="recall"]').click();
+      const cr3=document.querySelector('.crystal.sel')||document.querySelector('.crystal');
+      if(T().gold!==g1-50)out.push('伝書鳩の代金 '+(g1-T().gold));
+      if(!cr3.innerText.includes('でんしょばとが まいおりた'))out.push('伝書鳩の行がない');
+      if(!cr3.innerText.includes('帰路についている')||cr3.querySelector('[data-act="recall"]'))out.push('撤退のあとの足元 '+cr3.querySelector('.c-foot').innerText);
+      if(!stateText(p)[0].includes('帰還中'))out.push('撤退のあとの札 '+stateText(p)[0]);
+      if(!wipeHidden(p))out.push('撤退で全滅が知れた');
+      return {out,calm};
+    });
+    assert.deepEqual(r.out,[],`幅${w}`);
+  }
+  assert.deepEqual(errors,[]);
+  await ctx.close();
 });
