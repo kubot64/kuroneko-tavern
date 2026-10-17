@@ -731,7 +731,8 @@ test('開店の顔ぶれは、知らせと手帳と記念碑に出る',async()=>
   });
   assert.equal(info.n,7);
   assert.deepEqual(info.texts,['B6Fの転移の石碑に、一度触れてみたい','B6Fまで潜って、地上の店に戻ってみたい'].sort());
-  assert.equal(info.prog,'まだ迷宮に潜っていない');
+  // 「止める」を押す前に時が進み、もう潜っていることがある。そのときは最深の階が出る
+  assert.equal(info.prog,info.want);
   const news=await page.locator('.news li',{hasText:'最初の客たち'}).innerText();
   assert.match(news,/最初の客たち/);
   for(const name of info.names)assert.match(news,new RegExp(name));
