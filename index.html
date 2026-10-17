@@ -2101,7 +2101,7 @@ function stepParty(S,p){
   p.steps++;
   if(p.state==='return'){
     if(p.floor>=6&&hpRatio(S,p)<.35){const c=alive(S,p).find(a=>CAN.dasshutsu(a)&&a.mp>=3);if(c){escape(S,p,c);return;}}
-    // イシワタリは、2階以上うえに転移の石碑があれば、そこまで一行を運ぶ。着いた階で石碑に触れて地上へ戻る
+    // イシワタリは、いちばん近い転移の石碑が2階以上うえにあれば、そこまで一行を運ぶ。1階うえなら唱えない。着いた階で石碑に触れて地上へ戻る
     {const f=p.floor,st=(inMine(f)?[MINE_TOP,...MINE_STONES]:STONES).filter(x=>x<=f).pop();const c=st&&f-st>=2&&alive(S,p).find(a=>CAN.watari(a)&&a.mp>=4);
       if(c){c.mp-=4;p.floor=st;p.trip.watari=c.name;plog(p,`${c.name} は イシワタリ を となえた\n　いっこうは ${FN(st)}の てんいの せきひの まえに たっていた`,'loot');
         if(!c.watariN)chron(S,c,`${FN(f)}でイシワタリを唱え、一行を${FN(st)}の石碑まで運ぶ`);c.watariN=(c.watariN||0)+1;return;}}

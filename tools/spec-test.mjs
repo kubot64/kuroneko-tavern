@@ -1660,7 +1660,7 @@ function checkHighSpells(){
     check('呪文：帰るまでに地図が売り出されていれば、写しは売れない',!m.log().includes('うつしを うった'),'地図あり',m.log().split('\n').filter(x=>x.includes('うつし')).join(' '));
     const q=at(35);q.E.floorArrive(q.S,q.p);
     check('呪文：ウツシエを覚える手前ではミトオシを唱える',q.log().includes('ミトオシ を となえた')&&!q.log().includes('ウツシエ')&&!(q.p.trip.copies||[]).length,'魔導士Lv35',q.log());}
-  // イシワタリ：帰り道で、2階以上うえの転移の石碑まで一行を運ぶ
+  // イシワタリ：帰り道で、いちばん近い転移の石碑が2階以上うえにあれば、そこまで一行を運ぶ
   {const at=(lvl,floor,prep)=>scene(.5,'僧侶',lvl,10,'オーク',1,(E2,S,p,a)=>{p.state='return';p.enemies=null;p.floor=floor;p.trip=E2.newTrip();if(prep)prep(E2,S,p,a);});
     const r=at(47,14);r.E.stepParty(r.S,r.p);
     check('呪文：イシワタリは帰り道で、うえの石碑の階まで一行を運ぶ。MPを4使う',r.p.floor===11&&r.a.mp===6&&r.log().includes('イシワタリ を となえた'),'僧侶Lv47・B14F',`${r.E.FN(r.p.floor)} MP${r.a.mp} ${r.log()}`);
