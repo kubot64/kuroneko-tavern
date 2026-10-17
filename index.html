@@ -77,9 +77,9 @@ button:focus-visible,[tabindex]:focus-visible{outline:2px solid var(--amber);out
 .c-log .loot{color:#9fe0b2}
 .c-log .move{color:var(--crystal-dim)}
 .c-log .lvl{color:#c8b6ff}
-.c-log .nw{animation:lineIn .18s ease-out both}
+.c-log .fresh{animation:lineIn .18s ease-out both}
 @keyframes lineIn{from{opacity:0;transform:translateY(3px)}}
-@media (prefers-reduced-motion:reduce){.c-log .nw{animation:none}}
+@media (prefers-reduced-motion:reduce){.c-log .fresh{animation:none}}
 .c-empty{display:flex;align-items:center;justify-content:center;text-align:center;color:var(--crystal-dim);font-family:var(--f-log);height:100%;min-height:200px;padding:20px}
 .c-foot{display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:8px 12px;border-top:1px solid #1d2546;font-size:12px;color:var(--crystal-dim)}
 .c-foot .btn{background:#151c36;border-color:#2a3666;color:var(--crystal-fg)}
@@ -441,7 +441,7 @@ const CLS={
   '司教':{adv:'僧侶',lv:22,cond:a=>a.revived<3,req:'レベル22',hd:6,eq:['僧侶','魔術師'],mpg:1,heal:true,mage:true,big:12,bonus:{mmp:3},
     desc:'癒やしと攻撃、両方の呪文を修めた聖職者'},
   '魔導士':{adv:'魔術師',lv:24,cond:()=>true,req:'レベル24',hd:4,eq:['魔術師'],mpg:1,mage:true,sleep:true,big:1,spell:3,bonus:{mmp:3},
-    desc:'呪文の深奥に触れた魔術師。大呪文ゴウカを自在に操る'},
+    desc:'呪文の深奥に触れた魔術師。ゴウカを自在に操り、やがてゴウエンの炎に至る'},
   // レア職業（ごくまれに店に現れる）
   '竜騎士':{rare:true,hp:[11,14],atk:[5,7],ac:2,mp:0,front:true,hd:8,eq:['戦士'],mpg:0,breath:true,
     desc:'竜の血を引く騎士。ときに炎の息吹で敵を焼き払う。竜には効きにくい'},
@@ -4020,7 +4020,7 @@ function renderCrystals(){
     const mem=ms.slice(0,6).map(a=>{const hp=shownHp(a);const band=hp.band;return `<div class="m${band==='dead'?' dead':band==='crit'?' crit':band==='low'?' low':''}"><span>${p.leader===a.id?'<span class="lead" title="リーダー">★</span>':''}${nmLink(a)}${band==='crit'?'<span class="wound">深手</span>':''}</span><span>${esc(hp.label)}${a.poison&&band&&band!=='dead'?'毒':''}</span></div>`}).join('');
     let last=shown[p.id]||0;let fresh=last&&!hide?p.log.filter(l=>l.n>last).length:0;if(fresh>14){last=0;fresh=0;}const stepD=fresh?Math.min(.35,(TICK_SEC/speedNow()-.3)/fresh):0;let fi=0;
     // 伏せ中は、全滅した戦いより前の記録を残し、そのあとは探索らしい歩みの行を足していく
-    const lines=hide?hiddenLog(p).slice(-60).map(l=>`<div class="${l.k}">${esc(l.t)}</div>`).join(''):p.log.slice(-60).map(l=>{const nw=last&&l.n>last;const st=nw?` style="animation-delay:${(fi++*stepD).toFixed(2)}s"`:'';return `<div class="${l.k}${nw?' nw':''}"${st}>${esc(l.t)}</div>`}).join('');
+    const lines=hide?hiddenLog(p).slice(-60).map(l=>`<div class="${l.k}">${esc(l.t)}</div>`).join(''):p.log.slice(-60).map(l=>{const nw=last&&l.n>last;const st=nw?` style="animation-delay:${(fi++*stepD).toFixed(2)}s"`:'';return `<div class="${l.k}${nw?' fresh':''}"${st}>${esc(l.t)}</div>`}).join('');
     if(!hide)shown[p.id]=p.lc||0;
     const canRecall=p.tav==='ours'&&p.state==='explore';
     const danger=canRecall?partyDanger(S,p):null;
