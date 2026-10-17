@@ -2616,15 +2616,16 @@ const SPELL_LIST=[
 function escape(S,p,a){a.mp-=3;plog(p,`${a.name} は ダッシュツ を となえた！\n　いっこうは ひかりに つつまれ ちじょうへ`,'loot');p.trip.escaped=a.name;p.enemies=null;p.buff=0;p.guard=0;p.ward=0;p.star=0;
   chron(S,a,`${FN(p.floor)}でダッシュツを唱え、一行を地上へ逃がす`);p.floor=0;arrive(S,p);}
 // タマヨビを唱えられる者がいれば、ヨミガエリより先にそちらを使う。タマヨビは失敗しても灰にならない
+// そのかわり、タマヨビで魂が戻らなかった者には、その探索のあいだはもう何も唱えない（灰の怖さを残す）
 function tryYomi(S,p){if(p.floor<YOMI_F)return;
   const al=alive(S,p),ct=al.find(a=>CAN.tamayobi(a)&&a.mp>=6),c=ct||al.find(a=>CAN.yomi(a)&&a.mp>=4);if(!c)return;
-  const d=p.members.map(id=>A(S,id)).find(a=>a.hp<=0&&!a.dungeonAsh);if(!d)return;
+  const gone=p.trip.soulGone||[];const d=p.members.map(id=>A(S,id)).find(a=>a.hp<=0&&!a.dungeonAsh&&!gone.includes(a.id));if(!d)return;
   const nm=ct?'タマヨビ':'ヨミガエリ';
   c.mp-=ct?6:4;plog(p,`${c.name} は ${nm} を となえた……`,'sys');
   if(chance(ct?Math.min(.95,.7+PL(c)*.008):Math.min(.85,.45+PL(c)*.015))){flushDeathChron(S,d);d.hp=Math.ceil(d.mhp/(ct?2:3));d.status='party';d.poison=0;d.lastBy=null;
     plog(p,`　${d.name} は いきを ふきかえした！`,'loot');chron(S,d,`${FN(p.floor)}で${c.name}の${nm}により息を吹き返す`);chron(S,c,`${FN(p.floor)}で${nm}を唱え、${d.name}を蘇らせる`);c.yomiN=(c.yomiN||0)+1;
     if(p.trip.deaths)p.trip.deaths=p.trip.deaths.filter(x=>x.n!==d.name);p.trip.yomi={c:c.name,d:d.name,s:nm};}
-  else if(ct){plog(p,`　しかし ${d.name} の たましいは もどらなかった`,'death');}
+  else if(ct){plog(p,`　しかし ${d.name} の たましいは もどらなかった`,'death');(p.trip.soulGone=p.trip.soulGone||[]).push(d.id);}
   else{d.dungeonAsh=true;plog(p,`　しかし ${d.name} は はいに なってしまった……`,'death');const t=`${FN(p.floor)}でヨミガエリに失敗し、灰になる`;
     // 黒猫亭は、倒れた記録と同じく、生還か遺体の到着まで手帳に残さない
     if(d.deathPending)d.ashPending=t;else chron(S,d,t);}}
