@@ -32,7 +32,7 @@ const html=readFileSync(new URL('../index.html',import.meta.url),'utf8');
 const ENGINE=html.match(/\/\*ENGINE START\*\/([\s\S]*?)\/\*ENGINE END\*\//)[1];
 const EXPORTS=['newState','tick','rivalTemple','seatCap','seatsUsed','nextSeats','newcomerLvl','buyPrice','investPrice','FACILITIES',
   'RARES','MAXF','DRAGON_F','TICKS_PER_DAY','awayPlan','smallOf','debtTick','DEBT0','encounter','rareSlain','rareMonOf','arrive',
-  'repay','flowAdd','flowView','flowRoll','policyCost','goldSign','errandsOf','assignErrand','errandBlock','designateBlock','MAXF','MINE_TOP','MINE_BOT','MINE_N','FN','deepNow','G','groupMoney','floorsInit','mineOpen','conquest','mineConquest','title','alive','markAdv','markedOf','BOARD_MAX','MARK_MAX','errandStage','boardMax','markMax','ARCS','reachFloor','GATE_F','fac','nextFac','buildFac','migrate','partyShown','crestJa','glossText','PT_A','PT_B','takeCrest','pickCrest','newPartyName','combat','MON','elemMul','elemNote','sleepMul','sleepReach','MINE_RARES','supplyTeam','potionPrice','lendRival','reviveChance','reviveHint','reviveResultText','temple','checkMemo','memoState','nextDue','rankRows','MEMO','setQuietLog','DREAMS','rollAge','AGE2','ORIGINS','careerLine','originBg','BGS','originIntro','newcomerClause','doorLine','ourNewcomerNews','SPELL_LIST','foePool','dz','chest','victory','partyDanger','hpBand','retreatLine','retire','letterTick','kinTick','schedulePendingLetters','scheduleLostKin','memorialize','lostRareLine','dreamText','letterQuote','checkDream','wipe','wipeCause','errandEvent','errandFailLine','partyOverdue','returnPeril','SAVE_V','letterNews','fitOf','ERRANDS','ledgerLine','kanjiNum','corpsesHome','deliverCorpses','owe','inheritWill','wipeHidden','overdueSteps','tellCause','MISSING_GRACE','PATROL_DEPTH','OWED_RATE','OWED_REPAY','INHERIT_SAY','INHERIT_DEBT_SAY','inheritScore','inheritSay','heirScore','disbandParty','arrive','succession','leaderScore','bkey','farewellLine','FAREWELL_ACTS','FAREWELL_TONE','FAREWELL_QUIET','wipeUnknown','dieInDungeon','findCorpses','flushDeathChron','bountyFloor','bountyPrice','owedTick','incomeAt','dz','r100','CAN','HI_SPELLS','tryYomi','learnHi','YOMI_F','noteKnownDepth','reachFloor','MINE_TOP'];
+  'repay','flowAdd','flowView','flowRoll','policyCost','goldSign','errandsOf','assignErrand','errandBlock','designateBlock','MAXF','MINE_TOP','MINE_BOT','MINE_N','FN','deepNow','G','groupMoney','floorsInit','mineOpen','conquest','mineConquest','title','alive','markAdv','markedOf','BOARD_MAX','MARK_MAX','errandStage','boardMax','markMax','ARCS','reachFloor','GATE_F','fac','nextFac','buildFac','migrate','partyShown','crestJa','glossText','PT_A','PT_B','takeCrest','pickCrest','newPartyName','combat','MON','elemMul','elemNote','sleepMul','sleepReach','MINE_RARES','supplyTeam','potionPrice','lendRival','reviveChance','reviveHint','reviveResultText','temple','checkMemo','memoState','nextDue','rankRows','MEMO','setQuietLog','DREAMS','rollAge','AGE2','ORIGINS','careerLine','originBg','BGS','originIntro','newcomerClause','doorLine','ourNewcomerNews','SPELL_LIST','foePool','dz','chest','victory','partyDanger','hpBand','retreatLine','retire','letterTick','kinTick','schedulePendingLetters','scheduleLostKin','memorialize','lostRareLine','dreamText','letterQuote','checkDream','wipe','wipeCause','errandEvent','errandFailLine','partyOverdue','returnPeril','SAVE_V','letterNews','fitOf','ERRANDS','ledgerLine','kanjiNum','corpsesHome','deliverCorpses','owe','inheritWill','wipeHidden','overdueSteps','tellCause','MISSING_GRACE','PATROL_DEPTH','OWED_RATE','OWED_REPAY','INHERIT_SAY','INHERIT_DEBT_SAY','inheritScore','inheritSay','heirScore','disbandParty','arrive','succession','leaderScore','bkey','farewellLine','FAREWELL_ACTS','FAREWELL_TONE','FAREWELL_QUIET','wipeUnknown','dieInDungeon','findCorpses','flushDeathChron','bountyFloor','bountyPrice','owedTick','incomeAt','dz','r100','CAN','HI_SPELLS','tryYomi','learnHi','YOMI_F','noteKnownDepth','reachFloor','MINE_TOP','floorArrive','stepParty','mapPrice','newTrip','STONES','MINE_STONES'];
 
 // 乱数の種を固定したゲームの中身を1つ作る。中身の Math.random だけを差し替える
 function load(seed,fixed){
@@ -1581,7 +1581,7 @@ function checkFoes(){
 // 「呪文」：レベル30〜60で覚える呪文。資料の一覧と覚えるレベルが一致し、それぞれの効き目が決まりどおり
 function checkHighSpells(){
   const E=load(1);
-  const keys={キヨメ:'kiyome',ゴウエン:'goen',タマヨビ:'tamayobi',オリハライ:'orihara',ホシオトシ:'hoshi'};
+  const keys={キヨメ:'kiyome',ゴウエン:'goen',タマヨビ:'tamayobi',オリハライ:'orihara',ホシオトシ:'hoshi',イシガタメ:'ishi',ウツシエ:'utsushi',イシワタリ:'watari'};
   for(const [n,k] of Object.entries(keys)){
     const row=E.SPELL_LIST.find(s=>s[0]===n);
     check('呪文：高い呪文は資料の一覧に載る',!!row&&E.HI_SPELLS.some(([kk,nn])=>kk===k&&nn===n),n,row&&row.join(' / '));
@@ -1643,10 +1643,37 @@ function checkHighSpells(){
     check('呪文：ふつうの敵一体にはホシオトシを使わない',!o.log().includes('ホシオトシ'),'オーク1体',o.log().split('\n')[0]);
     const lo=scene(.5,'魔導士',47,30,'澱呑みの坑道王',1);lo.E.combat(lo.S,lo.p);
     check('呪文：ホシオトシを覚える手前では唱えない',!lo.log().includes('ホシオトシ'),'魔導士Lv47',lo.log().split('\n')[0]);}
+  // イシガタメ：体力の多い一体を石にする。MPを3使う。主には効かない。覚える手前では唱えない
+  {const r=scene(.5,'魔導士',41,10,'オーク',3);r.E.combat(r.S,r.p);const left=r.p.enemies.filter(e=>e.hp>0).length;
+    check('呪文：イシガタメは一体を石に変え、MPを3使う',r.log().includes('イシガタメ を となえた')&&r.log().includes('いしに なった')&&left===2&&r.a.mp===7,'魔導士Lv41・オーク3体',`${r.log().split('\n').slice(0,2).join(' ')} 残り${left} MP${r.a.mp}`);
+    const q=scene(.5,'魔導士',39,10,'オーク',3);q.E.combat(q.S,q.p);
+    check('呪文：イシガタメを覚える手前では唱えない',!q.log().includes('イシガタメ'),'魔導士Lv39',q.log().split('\n')[0]);
+    const b=scene(.5,'魔導士',41,10,'澱呑みの坑道王',3,(E2,S,p)=>{p.floor=E2.MINE_BOT;});b.E.combat(b.S,b.p);
+    check('呪文：イシガタメは主には効かないので唱えない',!b.log().includes('イシガタメ'),'坑道王',b.log().split('\n')[0]);}
+  // ウツシエ：ミトオシの代わりに唱え、地図の出ていない階なら写しを持ち帰って地図屋に売る
+  {const at=(lvl,prep)=>scene(.5,'魔導士',lvl,10,'オーク',1,(E2,S,p)=>{p.floor=8;p.trip=E2.newTrip();p.maps={};p.tmap={};const F=E2.floorsInit(S);F[8]={};if(prep)prep(E2,S,p);});
+    const r=at(37);r.E.floorArrive(r.S,r.p);
+    check('呪文：ウツシエは道筋を見通し、地図のない階の写しを取る。MPを4使う',r.p.tmap[8]===1&&(r.p.trip.copies||[]).includes(8)&&r.a.mp===6&&r.log().includes('ウツシエ を となえた'),'魔導士Lv37・B8F',`${r.log()} MP${r.a.mp}`);
+    r.p.loot=0;r.E.arrive(r.S,r.p);const pay=Math.round(r.E.mapPrice(8)*.3/10)*10;
+    check('呪文：帰還したとき、地図屋が写しを地図の値段の3割で買う',r.log().includes(`うつしを うった（${pay} G）`),`B8F ${pay}G`,r.log().split('\n').filter(x=>x.includes('うつし')).join(' ')||'売らない');
+    const m=at(37);m.E.floorArrive(m.S,m.p);m.E.floorsInit(m.S)[8].map=true;m.p.loot=0;m.E.arrive(m.S,m.p);
+    check('呪文：帰るまでに地図が売り出されていれば、写しは売れない',!m.log().includes('うつしを うった'),'地図あり',m.log().split('\n').filter(x=>x.includes('うつし')).join(' '));
+    const q=at(35);q.E.floorArrive(q.S,q.p);
+    check('呪文：ウツシエを覚える手前ではミトオシを唱える',q.log().includes('ミトオシ を となえた')&&!q.log().includes('ウツシエ')&&!(q.p.trip.copies||[]).length,'魔導士Lv35',q.log());}
+  // イシワタリ：帰り道で、2階以上うえの転移の石碑まで一行を運ぶ
+  {const at=(lvl,floor,prep)=>scene(.5,'僧侶',lvl,10,'オーク',1,(E2,S,p,a)=>{p.state='return';p.enemies=null;p.floor=floor;p.trip=E2.newTrip();if(prep)prep(E2,S,p,a);});
+    const r=at(47,14);r.E.stepParty(r.S,r.p);
+    check('呪文：イシワタリは帰り道で、うえの石碑の階まで一行を運ぶ。MPを4使う',r.p.floor===11&&r.a.mp===6&&r.log().includes('イシワタリ を となえた'),'僧侶Lv47・B14F',`${r.E.FN(r.p.floor)} MP${r.a.mp} ${r.log()}`);
+    const n=at(47,12);n.E.stepParty(n.S,n.p);
+    check('呪文：石碑が1階うえなら、イシワタリは唱えない',!n.log().includes('イシワタリ'),'B12F',n.log());
+    const q=at(45,14);q.E.stepParty(q.S,q.p);
+    check('呪文：イシワタリを覚える手前では唱えない',!q.log().includes('イシワタリ'),'僧侶Lv45',q.log());
+    const k=at(47,0,(E2,S,p)=>{p.floor=E2.MINE_STONES[1]+3;});k.E.stepParty(k.S,k.p);
+    check('呪文：坑道では、坑道の石碑まで運ぶ',k.p.floor===k.E.MINE_STONES[1],'坑道',k.E.FN(k.p.floor));}
   // 覚えたときの一言は、はじめての一度だけ
   {const r=scene(.5,'司教',57,30,'オーク',1);r.a.chron=[];r.E.learnHi(r.S,r.p,r.a);r.a.lvl=55;r.E.learnHi(r.S,r.p,r.a);r.a.lvl=57;r.E.learnHi(r.S,r.p,r.a);
     const got=r.a.chron.map(c=>c.t).join('、');
-    check('呪文：高い呪文を覚えたら、一度だけ手帳に残す',got==='新しい呪文キヨメを覚える、新しい呪文ゴウエンを覚える、新しい呪文タマヨビを覚える、新しい呪文オリハライを覚える、新しい呪文ホシオトシを覚える','司教Lv57',got);}
+    check('呪文：高い呪文を覚えたら、一度だけ手帳に残す',got==='新しい呪文キヨメを覚える、新しい呪文ゴウエンを覚える、新しい呪文タマヨビを覚える、新しい呪文オリハライを覚える、新しい呪文ホシオトシを覚える、新しい呪文イシガタメを覚える、新しい呪文ウツシエを覚える、新しい呪文イシワタリを覚える','司教Lv57',got);}
 }
 
 // 「全滅」「他の一行の発見」「後継ぎ」「寺院の費用と店の立て替え」：消息不明の期間、遺体の搬送、巡回隊、一行の借り、看板を継ぐかどうか

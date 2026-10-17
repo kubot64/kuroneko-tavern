@@ -2101,6 +2101,10 @@ function stepParty(S,p){
   p.steps++;
   if(p.state==='return'){
     if(p.floor>=6&&hpRatio(S,p)<.35){const c=alive(S,p).find(a=>CAN.dasshutsu(a)&&a.mp>=3);if(c){escape(S,p,c);return;}}
+    // イシワタリは、2階以上うえに転移の石碑があれば、そこまで一行を運ぶ。着いた階で石碑に触れて地上へ戻る
+    {const f=p.floor,st=(inMine(f)?[MINE_TOP,...MINE_STONES]:STONES).filter(x=>x<=f).pop();const c=st&&f-st>=2&&alive(S,p).find(a=>CAN.watari(a)&&a.mp>=4);
+      if(c){c.mp-=4;p.floor=st;p.trip.watari=c.name;plog(p,`${c.name} は イシワタリ を となえた\n　いっこうは ${FN(st)}の てんいの せきひの まえに たっていた`,'loot');
+        if(!c.watariN)chron(S,c,`${FN(f)}でイシワタリを唱え、一行を${FN(st)}の石碑まで運ぶ`);c.watariN=(c.watariN||0)+1;return;}}
     if(chance(.18)){encounter(S,p);return;}
     findCorpses(S,p,.02);
     if(chance(.3)){
@@ -2328,7 +2332,10 @@ function floorArrive(S,p,byTrap){const F=floorsInit(S);const f=p.floor;if(f<1)re
   if(!F[f].arrive)F[f].arrive={party:p.name,tav:p.tav,tk:S.tick,trap:!!(byTrap&&f>1&&!(F[f-1]&&F[f-1].through))||undefined};
   useMap(S,p);
   {const fz=alive(S,p).find(a=>{const fo=fearOf(a);return fo&&((fo.zone&&zoneOf(f)===fo.zone)||(fo.nomap&&!((p.maps&&p.maps[f])||(p.tmap&&p.tmap[f]))));});if(fz&&chance(.3))plog(p,`${fz.name}「${FEAR_SAY[fz.fear]}」`,'say');}
-  if(!hasMap(p)&&f>3){const c=alive(S,p).find(a=>CAN.mitooshi(a)&&a.mp>=3);if(c&&chance(.6)){c.mp-=3;p.tmap=p.tmap||{};p.tmap[f]=1;plog(p,`${c.name} は ミトオシ を となえた。${FN(f)}の みちすじが うかびあがる`,'loot');}}}
+  // ウツシエを唱えられる者がいれば、ミトオシより先にそちらを使う。地図がまだ出ていない階なら、写しを持ち帰る
+  if(!hasMap(p)&&f>3){const al=alive(S,p),cu=al.find(a=>CAN.utsushi(a)&&a.mp>=4),c=cu||al.find(a=>CAN.mitooshi(a)&&a.mp>=3);if(c&&chance(.6)){c.mp-=cu?4:3;p.tmap=p.tmap||{};p.tmap[f]=1;
+    if(cu){const cp=!F[f].map;if(cp)(p.trip.copies=p.trip.copies||[]).push(f);plog(p,`${c.name} は ウツシエ を となえた。${FN(f)}の みちすじが うかびあがる${cp?'\n　みちすじを かみに うつしとった':''}`,'loot');}
+    else plog(p,`${c.name} は ミトオシ を となえた。${FN(f)}の みちすじが うかびあがる`,'loot');}}}
 function floorThrough(S,p,f){const F=floorsInit(S);F[f]=F[f]||{};if(F[f].through)return;
   F[f].through={party:p.name,tav:p.tav,tk:S.tick,names:alive(S,p).map(a=>a.name)};
   if(!F[f].map)F[f].mapAt=S.tick+(ri(4,8)+Math.ceil(dz(f)/2))*TICKS_PER_DAY;}
@@ -2581,9 +2588,12 @@ const CAN={
   tamayobi:a=>(a.cls==='僧侶'&&PL(a)>=21)||(a.cls==='司教'&&PL(a)>=19),
   orihara:a=>(a.cls==='僧侶'&&PL(a)>=23)||(a.cls==='司教'&&PL(a)>=21)||(a.cls==='聖騎士'&&PL(a)>=25),
   hoshi:a=>(a.cls==='魔術師'&&PL(a)>=27)||(a.cls==='魔導士'&&PL(a)>=25)||(a.cls==='司教'&&PL(a)>=29),
+  ishi:a=>(a.cls==='魔術師'&&PL(a)>=23)||(a.cls==='魔導士'&&PL(a)>=21)||(a.cls==='司教'&&PL(a)>=25),
+  utsushi:a=>(a.cls==='魔術師'&&PL(a)>=21)||(a.cls==='魔導士'&&PL(a)>=19)||(a.cls==='司教'&&PL(a)>=23),
+  watari:a=>(a.cls==='僧侶'&&PL(a)>=24)||(a.cls==='司教'&&PL(a)>=22)||(a.cls==='聖騎士'&&PL(a)>=26),
 };
 // レベルの高い呪文の名。はじめて覚えたときに、水晶のログと手帳へ残す。吸い取られて覚え直しても、二度は残さない
-const HI_SPELLS=[['kiyome','キヨメ'],['goen','ゴウエン'],['tamayobi','タマヨビ'],['orihara','オリハライ'],['hoshi','ホシオトシ']];
+const HI_SPELLS=[['kiyome','キヨメ'],['goen','ゴウエン'],['tamayobi','タマヨビ'],['orihara','オリハライ'],['hoshi','ホシオトシ'],['ishi','イシガタメ'],['utsushi','ウツシエ'],['watari','イシワタリ']];
 function learnHi(S,p,a){for(const [k,n] of HI_SPELLS){if(!CAN[k](a)||(a.hiSp||[]).includes(k))continue;(a.hiSp=a.hiSp||[]).push(k);
   plog(p,`${a.name} は あたらしい じゅもん ${n} を おぼえた`,'lvl');chron(S,a,`新しい呪文${n}を覚える`);}}
 const SPELL_LIST=[
@@ -2599,6 +2609,9 @@ const SPELL_LIST=[
   ['タマヨビ','ヨミガエリの上位。B16Fから先で、倒れた仲間を高い見込みで蘇らせる。失敗しても灰にはならない','僧侶Lv41〜・司教Lv37〜'],
   ['オリハライ','その戦闘のあいだ、レベルを吸い取る攻撃から一行を守る。沈んだ王や坑道王にも効く','僧侶Lv45〜・司教Lv41〜・聖騎士Lv49〜'],
   ['ホシオトシ','一戦に一度だけの大呪文。敵すべてに、相性のない大きな傷を負わせる。主や名のある魔物にも効く','魔術師Lv53〜・魔導士Lv49〜・司教Lv57〜'],
+  ['イシガタメ','敵一体を石に変えて止める。主や名のある魔物、門番には効かない','魔術師Lv45〜・魔導士Lv41〜・司教Lv49〜'],
+  ['ウツシエ','ミトオシの上位。道筋を見通し、まだ地図の出ていない階なら写しを持ち帰って地図屋に売る','魔術師Lv41〜・魔導士Lv37〜・司教Lv45〜'],
+  ['イシワタリ','ダッシュツの上位。帰り道で、いちばん近い転移の石碑まで一行を運ぶ','僧侶Lv47〜・司教Lv43〜・聖騎士Lv51〜'],
 ];
 function escape(S,p,a){a.mp-=3;plog(p,`${a.name} は ダッシュツ を となえた！\n　いっこうは ひかりに つつまれ ちじょうへ`,'loot');p.trip.escaped=a.name;p.enemies=null;p.buff=0;p.guard=0;p.ward=0;p.star=0;
   chron(S,a,`${FN(p.floor)}でダッシュツを唱え、一行を地上へ逃がす`);p.floor=0;arrive(S,p);}
@@ -2776,8 +2789,12 @@ function combat(S,p){
       if(CAN.goen(a))opts.push({k:'fire',name:'ゴウエン',goen:true,ev:foes.length*(16+PL(a)*3+bonus)*mu('fire')});
       if(CAN.koori(a))opts.push({k:'ice',name:'コオリ',ev:foes.length*(4+PL(a)+bonus)*mu('ice')*1.15});
       if(CAN.ikazuchi(a))opts.push({k:'bolt',name:'イカズチ',ev:Math.min(Math.max(...foes.map(e=>e.hp)),(13+PL(a)*3+bonus)*mu('bolt'))});
-      const sp=opts.reduce((m,o)=>o.ev>m.ev?o:m,opts[0]);a.mp--;
+      // イシガタメは一体を確実に止める。MPを3使うので、止める一体の体力の半分で比べる。主・門番・名のある魔物には効かない
+      if(CAN.ishi(a)&&a.mp>=3&&!t.boss&&!t.gate&&!t.rare)opts.push({k:'stone',name:'イシガタメ',mp:3,ev:Math.max(...foes.map(e=>e.hp))*.5});
+      const sp=opts.reduce((m,o)=>o.ev>m.ev?o:m,opts[0]);a.mp-=sp.mp||1;
       plog(p,`${a.name} は ${sp.name} を となえた`);let dead=0;
+      if(sp.k==='stone'){const e=foes.reduce((m,x)=>x.hp>m.hp?x:m,foes[0]);e.hp=0;dead++;kill(p,a);p.trip.stoned=(p.trip.stoned||0)+1;
+        plog(p,`　${foeName(p)}${foes.length>1?' の 1たい':''} は いしに なった`);continue;}
       if(sp.k==='bolt'){const e=foes.reduce((m,x)=>x.hp>m.hp?x:m,foes[0]);const bm=elemMul(t,'bolt');const d=Math.round((ri(8,18)+PL(a)*3+bonus)*bm);e.hp-=d;if(e.hp<=0){dead++;kill(p,a)}
         plog(p,`　いかずちが ${foeName(p)}を うった　${d} の ダメージ${elemTag(bm)}${dead?'　'+foeName(p)+' は しんだ':''}`);continue;}
       const m=elemMul(t,sp.k);let fr=0;
@@ -3006,6 +3023,9 @@ function arrive(S,p){
   if(p.tav==='ours'&&p.owed>0&&p.loot>0){const pay=Math.min(p.owed,Math.floor(p.loot*OWED_REPAY));if(pay>0){p.loot-=pay;p.owed-=pay;tav.gold+=pay;tav.owedBack=(tav.owedBack||0)+pay;flowAdd(S,'k',pay);plog(p,`たてかえの かり ${pay} G を みせに かえした`,'move');}}
   const er=edict(S,'relic');if(er&&p.loot>0){p.loot=Math.round(p.loot*er.r);}
   const et=edict(S,'tax');if(et&&p.loot>0){const tx=Math.round(p.loot*et.r);p.loot-=tx;plog(p,`たんさくぜい ${tx} G を おさめた`,'move');}
+  // ウツシエの写しは、帰るまでに地図が出ていなければ地図屋が買う。売値の3割
+  {const F=floorsInit(S);const cs=(p.trip.copies||[]).filter(f=>!(F[f]&&F[f].map));if(cs.length){const g=cs.reduce((t,f)=>t+Math.round(mapPrice(f)*.3/10)*10,0);p.loot+=g;p.trip.copySold=g;
+    plog(p,`${CARTO}に ${cs.map(FN).join('・')}の うつしを うった（${g} G）`,'loot');}}
   const share=Math.floor(p.loot/Math.max(1,al.length));
   let lvls=[];
   al.forEach(a=>{
