@@ -30,7 +30,7 @@ const JOBS=jobCount();
 
 const html=readFileSync(new URL('../index.html',import.meta.url),'utf8');
 const ENGINE=html.match(/\/\*ENGINE START\*\/([\s\S]*?)\/\*ENGINE END\*\//)[1];
-const EXPORTS=['lifeLines','lifeWorthy','queueLife','LIFE_MAX','LIFE_KEEP','newState','tick','rivalTemple','seatCap','seatsUsed','nextSeats','newcomerLvl','buyPrice','investPrice','FACILITIES',
+const EXPORTS=['lifeLines','lifeWorthy','queueLife','moveTav','chron','LIFE_MAX','LIFE_KEEP','newState','tick','rivalTemple','seatCap','seatsUsed','nextSeats','newcomerLvl','buyPrice','investPrice','FACILITIES',
   'RARES','MAXF','DRAGON_F','TICKS_PER_DAY','awayPlan','smallOf','debtTick','DEBT0','encounter','rareSlain','rareMonOf','arrive',
   'repay','flowAdd','flowView','flowRoll','policyCost','goldSign','errandsOf','assignErrand','errandBlock','designateBlock','MAXF','MINE_TOP','MINE_BOT','MINE_N','FN','deepNow','G','groupMoney','floorsInit','mineOpen','conquest','mineConquest','title','alive','markAdv','markedOf','BOARD_MAX','MARK_MAX','errandStage','boardMax','markMax','ARCS','reachFloor','GATE_F','fac','nextFac','buildFac','migrate','partyShown','crestJa','glossText','PT_A','PT_B','takeCrest','pickCrest','newPartyName','combat','MON','elemMul','elemNote','sleepMul','sleepReach','MINE_RARES','supplyTeam','potionPrice','lendRival','reviveChance','reviveHint','reviveResultText','temple','checkMemo','memoState','nextDue','rankRows','MEMO','setQuietLog','DREAMS','rollAge','AGE2','ORIGINS','careerLine','originBg','BGS','originIntro','newcomerClause','doorLine','ourNewcomerNews','SPELL_LIST','foePool','dz','chest','victory','partyDanger','hpBand','retreatLine','retire','letterTick','kinTick','schedulePendingLetters','scheduleLostKin','memorialize','lostRareLine','dreamText','letterQuote','checkDream','wipe','wipeCause','errandEvent','errandFailLine','partyOverdue','returnPeril','SAVE_V','letterNews','fitOf','ERRANDS','ledgerLine','kanjiNum','corpsesHome','deliverCorpses','owe','inheritWill','wipeHidden','overdueSteps','tellCause','MISSING_GRACE','PATROL_DEPTH','OWED_RATE','OWED_REPAY','INHERIT_SAY','INHERIT_DEBT_SAY','inheritScore','inheritSay','heirScore','disbandParty','arrive','succession','leaderScore','bkey','farewellLine','FAREWELL_ACTS','FAREWELL_TONE','FAREWELL_QUIET','wipeUnknown','dieInDungeon','findCorpses','flushDeathChron','bountyFloor','bountyPrice','owedTick','incomeAt','dz','r100','CAN','HI_SPELLS','tryYomi','learnHi','YOMI_F','noteKnownDepth','reachFloor','MINE_TOP','floorArrive','stepParty','mapPrice','newTrip','STONES','MINE_STONES'];
 
@@ -2036,6 +2036,22 @@ function checkLife(){
   {const E=load(4),S=E.newState();const a={id:999,name:'古い客',tav:'ours',lvl:9,trips:5};
     let L=null,err='';try{L=E.lifeLines(S,a,{k:'missing',tk:100*E.TICKS_PER_DAY,floor:'?'});}catch(e){err=String(e);}
     check('ひと幕：記録の足りない古い客でも壊れず、組める文だけを出す',!!L&&L.length===2&&L[0]==='5回潜り。討った魔物は0体。'&&L[1]==='戻らず、101日目、記念碑に刻まれた。','手帳なし',err||(L||[]).join(' / '));}
+  // 銀の杯亭から移ってきた者：手帳があふれて移った記録が消えても、来た日とレベルは黒猫亭に移ったときのもの
+  {const E=load(6),S=E.newState();const a=Object.values(S.adv).filter(x=>x.tav==='rival').sort((x,y)=>x.id-y.id)[0];
+    a.party=null;a.lvl0=2;a.lvl=7;a.trips=4;S.tick=50*E.TICKS_PER_DAY;E.moveTav(S,a,'ours');
+    for(let i=0;i<100;i++){S.tick++;E.chron(S,a,'稽古をする');}a.lvl=12;
+    const lost=!a.chron.some(c=>/黒猫亭の客になる$/.test(c.t)),L=E.lifeLines(S,a,{k:'retired',tk:S.tick,why:'旅に出る'});
+    check('ひと幕：移ってきた者の手帳があふれても、来た日とレベルは黒猫亭に移ったときのもの',lost&&L[0].endsWith('51日目、銀の杯亭から黒猫亭に移ってきた。レベル7だった。')&&!L[0].includes('黒猫亭に来た')&&L.some(t=>t.startsWith('レベル12まで上がり、4回潜って')),a.name,L.join(' / '));
+    // 移った刻を持たない古い記録（版29まで）：手帳から移った記録が消えていれば、来た日とレベルの行を出さない。残っていれば、その日だけを出す
+    const old=chron=>{const E2=load(6),S2=JSON.parse(JSON.stringify(S));const b=S2.adv[a.id];delete b.moved;b.chron=chron(b.chron);S2.v=29;E2.migrate(S2);
+      return {v:S2.v,L:E2.lifeLines(S2,S2.adv[b.id],{k:'retired',tk:S2.tick,why:'旅に出る'})};};
+    const gone=old(c=>c),kept=old(c=>[...c,{tk:60*E.TICKS_PER_DAY,t:'銀の杯亭を出て、黒猫亭の客になる'}]);
+    check('ひと幕：移った日の分からない古い記録では、来た日とレベルの行を出さない',gone.v===E.SAVE_V&&!/黒猫亭に(来た|移ってきた)|レベル2/.test(gone.L[0]||'')&&gone.L.some(t=>t.startsWith('4回潜り'))
+      &&kept.L[0].endsWith('61日目、銀の杯亭から黒猫亭に移ってきた。')&&kept.L.some(t=>t.startsWith('4回潜り')),a.name,gone.L.join(' / ')+' ｜ '+kept.L.join(' / '));}
+  // 階も相手も分からない古い記録の灰のロスト：終わりの文は「倒れ、」で始まらない
+  {const E=load(7),S=E.newState();const a={id:998,name:'古い客',tav:'ours',lvl:9,trips:5};
+    const L=E.lifeLines(S,a,{k:'ash',tk:100*E.TICKS_PER_DAY,floor:'?',by:'不明'});
+    check('ひと幕：階も相手もない灰のロストでも、終わりの文が「倒れ、」で始まらない',L.at(-1)==='101日目、灰から戻ることなく記念碑に刻まれた。','階も相手もなし',L.join(' / '));}
   // 予約は古いものから捨て、LIFE_KEEP 件まで残す
   {const E=load(5),S=E.newState();for(let i=0;i<E.LIFE_KEEP+5;i++)E.queueLife(S,'lost',[{id:i,name:'n'+i,lines:['x']}]);
     check('ひと幕：出していない予約は新しい分だけ残す',S.lifeQ.length===E.LIFE_KEEP&&S.lifeQ[0].people[0].id===5,'予約35件',S.lifeQ.length);}

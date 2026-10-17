@@ -199,7 +199,7 @@ button:focus-visible,[tabindex]:focus-visible{outline:2px solid var(--amber);out
 .ending h3{margin:14px 0 0;font-family:var(--f-display);font-size:15px}
 .ending .more{color:var(--muted);font-size:13px}
 .stone details.life{margin-top:4px;color:var(--muted);font-size:12px}
-.stone details.life summary{cursor:pointer;min-height:24px}
+.stone details.life summary{cursor:pointer;min-height:44px;line-height:44px;margin:-10px 0}
 .stone details.life p{margin:4px 0 0;line-height:1.7}
 .nm-link{background:none;border:0;padding:0;font:inherit;color:inherit;font-weight:700;text-decoration:underline;text-decoration-color:var(--amber-dim);text-underline-offset:3px;cursor:pointer}
 .nm-link:hover{color:var(--amber)}
@@ -765,7 +765,7 @@ function assignOpeningDreams(S){
   });
 }
 // セーブの版。記録の形を変えたら上げ、migrate に移行の段を足す
-const SAVE_V=29;
+const SAVE_V=30;
 // 全滅した一行の扱い。予定帰還の刻を過ぎてから消息不明と知らせるまでの刻、巡回隊が届く深さ（最深階から何階上まで）、立て替えの借りの利息（消息不明の1日ごと・複利）と、帰還時に稼ぎから返す割合
 const MISSING_GRACE=150,PATROL_DEPTH=3,OWED_RATE=.02,OWED_REPAY=.25;
 function newState(){
@@ -2562,8 +2562,9 @@ function memorialize(S,a,extra){
 const LIFE_ORDER=['旅','功','夢','命','店','縁','絆'];
 const LIFE_MAX=3,LIFE_KEEP=30;
 function lifeWorthy(a){return !!a&&a.tav==='ours'&&((a.trips||0)>=3||!!a.marked||!!a.opening||(a.rareKills||0)>0);}
-// 黒猫亭に来た刻。銀の杯亭から移ってきた者は移った刻。手帳のいちばん古い記録は店に来た刻（帳面の一行と同じ）。記録がなければ null
-function lifeCame(a){const ch=a.chron||[];for(let i=ch.length-1;i>0;i--)if(/を出て、黒猫亭の客になる$/.test(ch[i].t))return {tk:ch[i].tk,moved:true};
+// 黒猫亭に来た刻。銀の杯亭から移ってきた者は移った刻とそのときのレベル（古い記録では分からないことがあり、そのときは null）。
+// それ以外は手帳のいちばん古い記録の刻（帳面の一行と同じ）。記録がなければ null
+function lifeCame(a){if(a.moved)return {tk:a.moved.tk,moved:true,lvl:a.moved.lvl};
   const t=arrivedTk(a);return t!=null?{tk:t,moved:false}:null;}
 // いちばん絆の深い黒猫亭の仲間。絆の深さ、出来事の数、先に店に来た者の順。gone は同じときに消えた者の id
 function lifeMate(S,a,gone){let best=null;
@@ -2576,10 +2577,10 @@ function lifeMate(S,a,gone){let best=null;
 // end：{k:'ash'|'missing'|'retired', tk, floor, by, wipedAt, party, n, why}
 function lifeLines(S,a,end){
   const day=tk=>`${Math.floor(tk/TICKS_PER_DAY)+1}日目`;
-  const came=lifeCame(a),lv0=a.lvl0!=null&&!(came&&came.moved)?a.lvl0:null;
+  const came=lifeCame(a),lv0=came&&came.moved?came.lvl:a.lvl0!=null?a.lvl0:null;
   let head=a.origin&&a.bg&&ORIGINS[a.origin]?`${originIntro(a.origin,a.bg).door}${a.bg}。`:'';
-  if(a.opening)head='開店からの常連。'+head+(lv0!=null?`レベル${lv0}で黒猫亭の扉をくぐった。`:'');
-  else if(came&&came.moved)head+=`${day(came.tk)}、銀の杯亭から黒猫亭に移ってきた。`;
+  if(a.opening)head='開店からの常連。'+head+(lv0!=null&&!(came&&came.moved)?`レベル${lv0}で黒猫亭の扉をくぐった。`:'');
+  else if(came&&came.moved){if(came.tk!=null)head+=`${day(came.tk)}、銀の杯亭から黒猫亭に移ってきた。`+(lv0!=null?`レベル${lv0}だった。`:'');}
   else if(came)head+=`${day(came.tk)}に黒猫亭に来た。`+(lv0!=null?`レベル${lv0}だった。`:'');
   else if(lv0!=null)head+=`レベル${lv0}で黒猫亭に来た。`;
   // 点を付けた文。群ごとにいちばん点の高いもの（同じ点なら先に書いたもの）
@@ -2608,7 +2609,7 @@ function lifeLines(S,a,end){
   const at=end.floor!=null&&end.floor!=='?'&&end.floor>0?`${FN(end.floor)}で`:'',by=end.by&&end.by!=='不明'?`${end.by}に`:'';
   const tail=end.k==='retired'?`${day(end.tk)}、${end.why}ため店を去った。`
     :end.k==='missing'?`${end.wipedAt>0?day(end.wipedAt)+'、':''}${end.party&&end.n>1?`${end.party}の${end.n}人とともに`:''}${at?FN(end.floor)+'から':''}戻らず、${day(end.tk)}、記念碑に刻まれた。`
-    :`${at}${by}倒れ、${day(end.tk)}、灰から戻ることなく記念碑に刻まれた。`;
+    :at||by?`${at}${by}倒れ、${day(end.tk)}、灰から戻ることなく記念碑に刻まれた。`:`${day(end.tk)}、灰から戻ることなく記念碑に刻まれた。`;
   return [head,...top.map(c=>c.t),tail].filter(Boolean);
 }
 // ひと幕を出す予約。踏破のひと幕と同じく、留守のあいだのまとめを閉じたあとに出す。古い予約から LIFE_KEEP 件だけ残す
@@ -3430,7 +3431,9 @@ function nearestMemo(S){return memoState(S).show.find(m=>!m.done)||null;}
 function memoUnseen(S){const seen=(S.memo&&S.memo.seen)||{};return memoState(S).show.some(m=>!seen[m.id]);}
 function markMemoSeen(S){const st=memoState(S);if(!st.show.length)return false;S.memo=S.memo||{done:{}};S.memo.seen=S.memo.seen||{};let ch=false;for(const m of st.show){if(!S.memo.seen[m.id]){S.memo.seen[m.id]=1;ch=true;}}return ch;}
 function moveTav(S,a,tav){const team=a.party&&S.parties[a.party];if(team&&team.state!=='town')return false;
-  a.party=null;const from=S.taverns[a.tav].name;a.tav=tav;a.favor=0;a.marked=false;chron(S,a,`${from}を出て、${S.taverns[tav].name}の客になる`);return true;}
+  a.party=null;const from=S.taverns[a.tav].name;a.tav=tav;a.favor=0;a.marked=false;chron(S,a,`${from}を出て、${S.taverns[tav].name}の客になる`);
+  // 黒猫亭に移った刻とそのときのレベルは、手帳があふれて移った記録が消えても残るように、手帳とは別に持つ
+  if(tav==='ours')a.moved={tk:S.tick,lvl:a.lvl};return true;}
 function pickAce(S,quiet){const ps=Object.values(S.parties).filter(p=>p.tav==='rival'&&p.state!=='wiped');if(!ps.length){if(S.ace&&S.parties[S.ace])S.parties[S.ace].ace=false;S.ace=null;return;}
   ps.sort((x,y)=>avgLvl(S,y)-avgLvl(S,x));const b=ps[0];if(S.ace===b.id)return;Object.values(S.parties).forEach(p=>{p.ace=false;});S.ace=b.id;b.ace=true;
   if(!quiet)news(S,`噂：銀の杯亭の看板は、${b.name}に代わったらしい。`,'rumor');}
@@ -3844,6 +3847,14 @@ function migrate(S){
   if(!(S.v>=29)){// 予定帰還の刻と一行の借り。全滅中の一行は、まだ知らせていなければ古い決まりどおり全滅から15刻で知らせ、手帳の一文はもう書かれている。乱数は引かない
     Object.values(S.parties).forEach(p=>{if(p.dueAt==null)p.dueAt=p.state==='wiped'?(p.wipedAt||S.tick)+15-MISSING_GRACE:0;if(p.owed==null)p.owed=0;if(p.state==='wiped'&&p.causeTold==null)p.causeTold=true;});
     S.v=29;
+  }
+  if(!(S.v>=30)){// 黒猫亭に移った刻とレベル。手帳に移った記録が残っていれば、その刻（レベルは分からない）。
+    // 移った記録がなく、黒猫亭の扉をくぐった記録もない者は、銀の杯亭から来たのかどうか分からないので、刻もレベルも分からないとする。乱数は引かない
+    const RN=S.taverns.rival.name,ON=S.taverns.ours.name;
+    Object.values(S.adv).forEach(a=>{if(a.tav!=='ours'||a.moved)return;const ch=a.chron||[];
+      for(let i=ch.length-1;i>=0;i--)if(String(ch[i].t).endsWith(`${RN}を出て、${ON}の客になる`)){a.moved={tk:ch[i].tk,lvl:null};return;}
+      if(!ch.some(c=>String(c.t).includes(`${ON}の扉をくぐる`)))a.moved={tk:null,lvl:null};});
+    S.v=30;
   }
   if(typeof S.taverns.ours.interestPaid!=='number')S.taverns.ours.interestPaid=inferInterestPaid(S);
   Object.values(S.adv).forEach(a=>{if(!a.tone)personalize(a);if(!a.traits)assignTraits(S,a,true);});
