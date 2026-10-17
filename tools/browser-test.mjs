@@ -2609,3 +2609,43 @@ test('まだ知れていない全滅の水晶は、生きている一行と見�
   assert.deepEqual(errors,[]);
   await ctx.close();
 });
+
+test('水晶のログのいちばん新しい行も、375pxで折り返して右で切れない',async()=>{
+  const {ctx,page,errors}=await open();
+  await page.locator('#sp0').click();
+  await page.setViewportSize({width:375,height:900});
+  const r=await page.evaluate(()=>{
+    const out=[];
+    const p=Object.values(S.parties).find(x=>x.tav==='ours');
+    Object.values(S.parties).forEach(q=>{if(q!==p){q.state='town';q.rest=99;}});
+    p.state='explore';p.floor=5;p.enemies=null;p.trip=p.trip||{};p.trip.deep=5;p.log=[];p.lc=0;
+    p.members.forEach(id=>{const a=S.adv[id];a.status='party';a.hp=a.mhp=100;});
+    S.watch=[p.id,null];S.sel=0;
+    plog(p,'くらい つうろを すすむ','move');render();
+    // 前の描画のあとに足した行が「新しい行」になる
+    const long='ながい ぎょうが みぎはしで きれずに おりかえされるかを たしかめる ための とても ながい ぎょう です';
+    plog(p,long,'move');render();
+    const cr=document.querySelector('.crystal.sel')||document.querySelector('.crystal');
+    const log=cr&&cr.querySelector('.c-log');
+    if(!log)return ['ログがない'];
+    const row=[...log.querySelectorAll('div')].find(d=>d.textContent===long);
+    if(!row)return ['新しい行がない'];
+    if(!row.classList.contains('fresh'))out.push('新しい行の印がない '+row.className);
+    if(row.classList.contains('nw'))out.push('新しい行に折り返さない印が付いている');
+    const old=[...log.querySelectorAll('div')].find(d=>d!==row);
+    if(old&&getComputedStyle(row).whiteSpace!==getComputedStyle(old).whiteSpace)out.push(`新しい行の white-space ${getComputedStyle(row).whiteSpace}（ほかの行は ${getComputedStyle(old).whiteSpace}）`);
+    if(row.scrollWidth>row.clientWidth+1)out.push(`新しい行が横にはみ出す ${row.scrollWidth}/${row.clientWidth}`);
+    const lr=log.getBoundingClientRect(),rr=row.getBoundingClientRect();
+    if(rr.right>lr.right+1||rr.right>innerWidth)out.push(`新しい行の右端 ${Math.round(rr.right)} ログ ${Math.round(lr.right)}`);
+    const range=document.createRange();range.selectNodeContents(row);
+    const lines=new Set([...range.getClientRects()].filter(x=>x.width>1).map(x=>Math.round(x.top))).size;
+    if(lines<2)out.push('新しい行が折り返されていない');
+    // ほかの場所の折り返さない印は、そのまま
+    const nw=document.querySelector('.nw:not(.c-log *)');
+    if(nw&&getComputedStyle(nw).whiteSpace!=='nowrap')out.push('.nw が折り返す');
+    return out;
+  });
+  assert.deepEqual(r,[]);
+  assert.deepEqual(errors,[]);
+  await ctx.close();
+});
