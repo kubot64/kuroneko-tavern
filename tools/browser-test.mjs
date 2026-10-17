@@ -23,6 +23,14 @@ async function open({ctx,time=Date.UTC(2026,0,1)}={}){
   return {ctx,page,errors};
 }
 const tick=page=>page.evaluate('S.tick');
+// 常連のひと幕が出ていることを確かめて閉じる。name を渡すと、その名が出ていることも確かめる
+async function closeLife(page,name){
+  const life=page.locator('#life');
+  assert.equal(await life.isVisible(),true,'ひと幕が出ていない');
+  if(name)assert.match(await life.innerText(),new RegExp(name));
+  await page.locator('#lf-btn').click();
+  assert.equal(await life.isVisible(),false);
+}
 const digestShown=page=>page.locator('#digest').isVisible();
 const setVisibility=(page,state)=>page.evaluate(s=>{
   Object.defineProperty(document,'visibilityState',{value:s,configurable:true});
@@ -549,6 +557,8 @@ test('帳場の蘇生は、押す前に状態と成功率が出て、押した�
   await again.page.locator(`button[data-act="revive"][data-a="${other.id}"]`).click();
   assert.equal(await again.page.locator('.revive-result').innerText(),`${other.name}は蘇生に失敗し、ロストした`);
   assert.equal(await again.page.evaluate(id=>S.adv[id].status,other.id),'lost');
+  // 常連がロストしたので、ひと幕が出る。閉じてから先へ進む
+  await closeLife(again.page,other.name);
   await again.page.locator('button[data-v="news"]').click();
   await again.page.locator('button[data-v="desk"]').click();
   assert.equal(await again.page.locator('.revive-result').count(),0,'別の札へ移ると成否が残っている');
@@ -2006,6 +2016,8 @@ test('便りは青く出て、記念碑と手帳に残る',async()=>{
   assert.ok(info.line,'便りが届いていない');
   assert.ok(info.kid,'弟妹が来ていない');
   assert.ok(info.rare&&info.rare.includes('ドブ王'),`記念碑の魔物 ${info.rare}`);
+  // 3回以上潜った常連が店を去ったので、ひと幕が出る。閉じてから先へ進む
+  await closeLife(page);
   await page.locator('button[data-v="news"]').click();
   const letter=page.locator('.news .letter').filter({hasText:'【便り】'}).first();
   await letter.scrollIntoViewIfNeeded();
@@ -2646,6 +2658,71 @@ test('水晶のログのいちばん新しい行も、375pxで折り返して右
     return out;
   });
   assert.deepEqual(r,[]);
+  assert.deepEqual(errors,[]);
+  await ctx.close();
+});
+
+test('常連のひと幕は、留守のまとめのあとに出て、375pxと1280pxで語の途中で折れず、記念碑に生涯が残る',async()=>{
+  const {ctx,page,errors}=await open();
+  await page.locator('#sp0').click();
+  for(const w of [375,1280]){
+    await page.setViewportSize({width:w,height:w===375?740:800});
+    // 留守のあいだのまとめが出ているあいだは出さない
+    const who=await page.evaluate(()=>{
+      $('digest').hidden=false;
+      const a=Object.values(S.adv).find(x=>x.tav==='ours'&&x.status!=='lost'&&x.status!=='retired');
+      a.trips=12;a.kills=345;a.deepest=14;a.party=null;a.title='牙折り';
+      Math.random=()=>0.999;a.status='ash';a.hp=0;a.gold=1e6;a.lastBy='キメラ';a.lastFloor=14;temple(S,a,false);
+      render();return {id:a.id,name:a.name,life:!$('life').hidden};
+    });
+    assert.equal(who.life,false,`幅${w}：まとめの上にひと幕が出た`);
+    await page.locator('[data-act="closedigest"]').click();
+    const life=page.locator('#life');
+    assert.equal(await life.isVisible(),true,`幅${w}：まとめを閉じてもひと幕が出ない`);
+    const text=await life.innerText();
+    assert.match(text,new RegExp(who.name));
+    assert.match(text,/B14Fでキメラに倒れ、\d+日目、灰から戻ることなく記念碑に刻まれた。/);
+    assert.match(text,/12回潜/);
+    assert.match(text,/迷宮暦\d+年・解禁から\d+日目/);
+    const fit=await page.evaluate(narrow=>{
+      const bad=[];const box=document.querySelector('#life .mbox').getBoundingClientRect();
+      if(box.left<0||box.right>innerWidth+1)bad.push('ひと幕が横にはみ出す');
+      if(document.documentElement.scrollWidth>innerWidth+1)bad.push('ページが横にはみ出す');
+      const btn=$('lf-btn').getBoundingClientRect();
+      // 押しやすい大きさの44pxは、ほかのボタンと同じく幅640px以下で
+      if(narrow&&(btn.height<44||btn.width<44))bad.push(`ボタンが小さい ${Math.round(btn.width)}x${Math.round(btn.height)}`);
+      if($('lf-btn').textContent!=='杯を上げる')bad.push('ボタン '+$('lf-btn').textContent);
+      for(const el of document.querySelectorAll('#lf-body .nw')){const r=new Set([...el.getClientRects()].filter(x=>x.width>1).map(x=>Math.round(x.top)));if(r.size>1)bad.push(el.textContent+' が折れている');}
+      if(!document.querySelector('#lf-body .nw'))bad.push('一続きの語がない');
+      return bad;
+    },w===375);
+    assert.deepEqual(fit,[],`幅${w}`);
+    await page.locator('#lf-btn').click();
+    assert.equal(await life.isVisible(),false);
+    assert.equal(await page.evaluate(()=>(S.lifeQ||[]).length),0);
+    // 同じ者に二度は出ない
+    await page.evaluate(()=>render());
+    assert.equal(await life.isVisible(),false,`幅${w}：閉じたひと幕がまた出た`);
+    // 記念碑の添え書きの下に、同じ文が生涯として残る
+    await page.locator('button[data-v="stone"]').click();
+    const stone=page.locator('.stone',{has:page.locator(`[data-a="${who.id}"]`)});
+    await stone.locator('details.life summary').click();
+    const lifeText=(await stone.locator('details.life p').innerText()).replace(/\s+/g,'');
+    assert.ok(text.replace(/\s+/g,'').includes(lifeText),`幅${w}：記念碑の生涯がひと幕と違う ${lifeText}`);
+    // 店を去った者は「見送る」で閉じる
+    await page.evaluate(id=>{const a=Object.values(S.adv).find(x=>x.tav==='ours'&&x.status!=='lost'&&x.status!=='retired'&&x.id!==id);a.trips=5;a.party=null;a.status='idle';retire(S,a,'旅に出る');render();},who.id);
+    assert.equal(await page.locator('#lf-btn').innerText(),'見送る');
+    assert.match(await life.innerText(),/旅に出るため店を去った。/);
+    await page.locator('#lf-btn').click();
+  }
+  // 踏破のひと幕が待っているときは、それを閉じたあとに出す
+  await page.evaluate(()=>{const a=Object.values(S.adv).find(x=>x.tav==='ours'&&x.status!=='lost'&&x.status!=='retired');a.trips=5;a.party=null;a.status='idle';
+    S.conquered={tk:S.tick,tav:'ours',party:'夜明け団',names:[a.name],ending:true};retire(S,a,'旅に出る');render();});
+  assert.equal(await page.locator('#ending').isVisible(),true);
+  assert.equal(await page.locator('#life').isVisible(),false,'踏破のひと幕より先に出た');
+  await page.locator('#ed-btn').click();
+  assert.equal(await page.locator('#life').isVisible(),true,'踏破のひと幕を閉じても出ない');
+  await page.locator('#lf-btn').click();
   assert.deepEqual(errors,[]);
   await ctx.close();
 });

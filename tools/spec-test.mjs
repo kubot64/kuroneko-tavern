@@ -30,7 +30,7 @@ const JOBS=jobCount();
 
 const html=readFileSync(new URL('../index.html',import.meta.url),'utf8');
 const ENGINE=html.match(/\/\*ENGINE START\*\/([\s\S]*?)\/\*ENGINE END\*\//)[1];
-const EXPORTS=['newState','tick','rivalTemple','seatCap','seatsUsed','nextSeats','newcomerLvl','buyPrice','investPrice','FACILITIES',
+const EXPORTS=['lifeLines','lifeWorthy','queueLife','LIFE_MAX','LIFE_KEEP','newState','tick','rivalTemple','seatCap','seatsUsed','nextSeats','newcomerLvl','buyPrice','investPrice','FACILITIES',
   'RARES','MAXF','DRAGON_F','TICKS_PER_DAY','awayPlan','smallOf','debtTick','DEBT0','encounter','rareSlain','rareMonOf','arrive',
   'repay','flowAdd','flowView','flowRoll','policyCost','goldSign','errandsOf','assignErrand','errandBlock','designateBlock','MAXF','MINE_TOP','MINE_BOT','MINE_N','FN','deepNow','G','groupMoney','floorsInit','mineOpen','conquest','mineConquest','title','alive','markAdv','markedOf','BOARD_MAX','MARK_MAX','errandStage','boardMax','markMax','ARCS','reachFloor','GATE_F','fac','nextFac','buildFac','migrate','partyShown','crestJa','glossText','PT_A','PT_B','takeCrest','pickCrest','newPartyName','combat','MON','elemMul','elemNote','sleepMul','sleepReach','MINE_RARES','supplyTeam','potionPrice','lendRival','reviveChance','reviveHint','reviveResultText','temple','checkMemo','memoState','nextDue','rankRows','MEMO','setQuietLog','DREAMS','rollAge','AGE2','ORIGINS','careerLine','originBg','BGS','originIntro','newcomerClause','doorLine','ourNewcomerNews','SPELL_LIST','foePool','dz','chest','victory','partyDanger','hpBand','retreatLine','retire','letterTick','kinTick','schedulePendingLetters','scheduleLostKin','memorialize','lostRareLine','dreamText','letterQuote','checkDream','wipe','wipeCause','errandEvent','errandFailLine','partyOverdue','returnPeril','SAVE_V','letterNews','fitOf','ERRANDS','ledgerLine','kanjiNum','corpsesHome','deliverCorpses','owe','inheritWill','wipeHidden','overdueSteps','tellCause','MISSING_GRACE','PATROL_DEPTH','OWED_RATE','OWED_REPAY','INHERIT_SAY','INHERIT_DEBT_SAY','inheritScore','inheritSay','heirScore','disbandParty','arrive','succession','leaderScore','bkey','farewellLine','FAREWELL_ACTS','FAREWELL_TONE','FAREWELL_QUIET','wipeUnknown','dieInDungeon','findCorpses','flushDeathChron','bountyFloor','bountyPrice','owedTick','incomeAt','dz','r100','CAN','HI_SPELLS','tryYomi','learnHi','YOMI_F','noteKnownDepth','reachFloor','MINE_TOP','floorArrive','stepParty','mapPrice','newTrip','STONES','MINE_STONES'];
 
@@ -263,7 +263,13 @@ function checkScenes(){
     // 巡回隊が届かない深さ（最深階から PATROL_DEPTH 階より浅くない）で、20日見つからなかった
     p.state='wiped';p.retrieved=false;p.wipedAt=S.tick-1001;p.floor=Math.max(S.deepest.ours,S.deepest.rival);p.killer='オーク';
     Object.values(S.parties).forEach(q=>{if(q!==p){q.state='town';q.rest=99;}});
+    if(ms.length>=2){const k=ms[0].id<ms[1].id?`${ms[0].id}-${ms[1].id}`:`${ms[1].id}-${ms[0].id}`;S.bonds=S.bonds||{};S.bonds[k]={n:30,ev:[]};}
+    ms.forEach(a=>{a.trips=Math.max(3,a.trips||0);});const q0=(S.lifeQ||[]).length;
     const n0=S.news.length,m0=S.memorial.length;E.tick(S);
+    // 黒猫亭なら、消えた者のひと幕を一行で1件にまとめて出す。いちばん絆の深い仲間が同じ一行なら「同じ日に消えた」
+    {const q=(S.lifeQ||[]).slice(q0);const e=q[0];const L0=e&&e.people.find(x=>x.id===ms[0].id);
+      check('ひと幕：見つからなかった一行は1件にまとめ、一行の名と人数、同じ日に消えた仲間を書く',tav==='ours'?(q.length===1&&e.k==='lost'&&e.party===p.name&&e.people.length===ms.length&&!!L0
+        &&L0.lines.at(-1).includes(`${p.name}の${ms.length}人とともに${E.FN(p.floor)}から戻らず、`)&&(ms.length<2||L0.lines.some(t=>t===`いちばん長く背中を預けた${ms[1].name}は、同じ日に消えた。`))):q.length===0,S.taverns[tav].name,()=>JSON.stringify(q).slice(0,300));}
     const n=S.news.slice(n0).find(x=>x.t.includes('ついに見つからなかった'));
     const want=ms.map(a=>a.title?`「${a.title}」${a.name}`:a.name);
     const exp=`${S.taverns[tav].name}の${p.name}は、ついに見つからなかった。${E.FN(p.floor)}に消えた${want.join('、')}の${want.length>1?want.length+'人の':''}名が記念碑に刻まれる。`;
@@ -1019,6 +1025,7 @@ function runSeed(seed){
   noteNames(`種${seed}・開店`);
   for(let i=0;i<6;i++){E.tick(S);noteNames(`種${seed}・開店直後${i+1}刻`);}// 画面側の開店と同じ
   const prevState={},killed={},lore={},owedSeen={};let conquered=null,arcStage=0,mineConq=null,errandSt=E.errandStage(S);
+  let lifeM=S.memorial.length,lifeF=(S.farewells||[]).length;const lifeSeen=new Set();
   // 種の半分では、店主が借金を返し、話を回し、常連を見込む（話の仕組みを動かすため）
   const owner=seed%2===1;
   for(let i=0;i<TICKS;i++){
@@ -1029,6 +1036,19 @@ function runSeed(seed){
     const at=`種${seed}・${S.tick}刻（${Math.floor(S.tick/E.TICKS_PER_DAY)+1}日目）`;
     const advs=Object.values(S.adv),parties=Object.values(S.parties),T0=S.taverns.ours;
     noteNames(at);
+
+    // 「ひと幕」：記念碑に刻まれた・店を去った黒猫亭の常連のうち、条件に当たる者にだけ、その刻に一度だけ出す。文は手帳の記録と合う
+    {const day=tk=>`${Math.floor(tk/E.TICKS_PER_DAY)+1}日目`;const fresh=(S.lifeQ||[]).filter(e=>e.tk===S.tick).flatMap(e=>e.people);
+      for(const x of fresh){check('ひと幕：同じ者に二度は出ない',!lifeSeen.has(x.id),at,x.name);lifeSeen.add(x.id);}
+      const recs=S.memorial.slice(lifeM).map(r=>({r,k:'lost'})).concat((S.farewells||[]).slice(lifeF).map(r=>({r,k:'retired'})));lifeM=S.memorial.length;lifeF=(S.farewells||[]).length;
+      for(const {r,k} of recs){const a=S.adv[r.id];if(!a)continue;const want=E.lifeWorthy(a);
+        check('ひと幕：黒猫亭で3回以上潜った者・見込んだ者・開店からの常連・名のある魔物を討った者にだけ出す',!!r.life===want&&fresh.some(x=>x.id===a.id)===want,at,()=>`${r.name}（${a.tav} 探索${a.trips||0} 見込み${!!a.marked} 開店${!!a.opening} 名のある魔物${a.rareKills||0}） 生涯${!!r.life}`);
+        if(!r.life)continue;const L=r.life,last=L[L.length-1],trip=L.find(t=>/回潜/.test(t));
+        check('ひと幕：終わりの文は、記念碑に刻まれた日か去った日と、去った理由を持つ',last.includes(day(r.tk)+'、')&&(k==='lost'?last.endsWith('記念碑に刻まれた。'):last.endsWith(`${r.why}ため店を去った。`)),at,last);
+        check('ひと幕：探索の回数・最深・討伐数は手帳の記録と合う',!trip||(trip.includes(`${a.trips}回潜`)&&trip.includes(`討った魔物は${a.kills||0}体`)&&(!(a.deepest>0)||trip.includes(E.FN(a.deepest)+'まで'))),at,()=>`${trip}（手帳：探索${a.trips} 討伐${a.kills||0} 最深${E.FN(a.deepest)}・${k==='lost'?'ロスト':r.why}）`);
+        const pd=(a.pastDreams||[]).length,dl=L.find(t=>t.startsWith('かなえた夢は'));
+        check('ひと幕：かなえた夢の数は手帳の記録と合う',!dl||dl.startsWith(`かなえた夢は${pd}つ。`),at,dl);
+        check('ひと幕：来たときと終わりの文のあいだに、3文まで',L.length>=2&&L.length<=5,at,L.join(' / '));}}
 
     // 「席と拡張」：寺院や行方不明の者も含め、常連の数は席の数を超えない
     check('席と拡張：常連の数は席の数を超えない',E.seatsUsed(S,'ours')<=E.seatCap(S,'ours'),at,()=>`${E.seatsUsed(S,'ours')}人 / ${E.seatCap(S,'ours')}席`);
@@ -1978,9 +1998,52 @@ function checkIntro(){
   check('手帳：来た者の記録でも、出身と経歴は重ならない',!lived.length,'4種の開店',lived.slice(0,3).join(' / ')||'合う');
 }
 
+// 「ひと幕」：組み立ては乱数を引かず、手帳から決まった順で組む。条件に当たらない者には出さない。古い記録でも壊れない
+function checkLife(){
+  const ours=S=>Object.values(S.adv).filter(a=>a.tav==='ours').sort((x,y)=>x.id-y.id);
+  // 乱数を引かない：同じ種の二つの記録を同じだけ進め、片方でだけ全員のひと幕を組んでから、さらに進めて比べる
+  {const E1=load(4242),E2=load(4242),S1=E1.newState(),S2=E2.newState();
+    for(let i=0;i<3000;i++){E1.tick(S1);E1.rivalTemple(S1);E2.tick(S2);E2.rivalTemple(S2);}
+    for(const a of ours(S1)){E1.lifeLines(S1,a,{k:'retired',tk:S1.tick,why:'旅に出る'});E1.lifeLines(S1,a,{k:'ash',tk:S1.tick,floor:3,by:'オーク'});}
+    for(let i=0;i<300;i++){E1.tick(S1);E1.rivalTemple(S1);E2.tick(S2);E2.rivalTemple(S2);}
+    check('ひと幕：組んでも乱数は動かず、記録も変わらない',JSON.stringify(S1)===JSON.stringify(S2),'種4242・3300刻','記録が違う');}
+  // 灰からのロスト：開店からの常連が名のある魔物を討っていれば、ひと幕が出る
+  {const E=load(1,.999),S=E.newState();const [a,b]=ours(S);
+    a.trips=2;a.kills=40;a.deepest=4;a.title='ドブ王殺し';a.rareKills=1;S.rares={1:{killed:{party:'夜明け団',tav:'ours',names:[a.name],by:a.name,tk:1}}};
+    a.status='ash';a.hp=0;a.party=null;a.gold=1e6;a.lastBy='オーク';a.lastFloor=3;S.tick=40*E.TICKS_PER_DAY;
+    const r=E.temple(S,a,false);const m=S.memorial.find(x=>x.id===a.id);const L=m&&m.life||[];
+    check('ひと幕：灰からロストした常連に出し、記念碑に生涯として残る',r==='lost'&&L.length>=3&&L[0].startsWith('開店からの常連。')&&L.some(t=>t.includes('「ドブ王」')&&t.includes('「ドブ王殺し」と呼ばれた'))&&L.at(-1)==='B3Fでオークに倒れ、41日目、灰から戻ることなく記念碑に刻まれた。'
+      &&S.lifeQ.length===1&&S.lifeQ[0].k==='lost'&&S.lifeQ[0].people[0].id===a.id&&S.lifeQ[0].people[0].lines===m.life,'開店の常連・灰',L.join(' / '));
+    // 条件に当たらない者（2回しか潜っておらず、見込みも開店も名のある魔物もない）には出さない
+    b.opening=false;b.trips=2;b.marked=false;b.rareKills=0;b.status='ash';b.hp=0;b.party=null;b.gold=1e6;E.temple(S,b,false);const mb=S.memorial.find(x=>x.id===b.id);
+    check('ひと幕：条件に当たらない者には出さず、知らせの1行のまま',!!mb&&!mb.life&&S.lifeQ.length===1,'探索2回',mb&&mb.name);}
+  // 店を去る：3回以上潜った常連に出る。終わりの文は去った理由
+  {const E=load(2),S=E.newState();const a=ours(S).find(x=>!x.opening)||ours(S)[0];a.trips=3;a.status='idle';a.party=null;S.tick=200*E.TICKS_PER_DAY;
+    E.retire(S,a,'王国の騎士に取り立てられる');const f=S.farewells.find(x=>x.id===a.id);const L=f&&f.life||[];
+    check('ひと幕：店を去った常連に出し、終わりの文は去った理由',L.at(-1)==='201日目、王国の騎士に取り立てられるため店を去った。'&&S.lifeQ.length===1&&S.lifeQ[0].k==='retired',a.name,L.join(' / '));}
+  // 点の上位3文だけが入り、同じ群から2文は入らない。並びは 旅・功・夢・命・店・縁・絆
+  {const E=load(3),S=E.newState();const [a,b]=ours(S);
+    Object.assign(a,{opening:false,trips:40,kills:500,deepest:20,lvl0:5,lvl:30,conq:true,title:'牙折り',rareKills:1,firsts:2,revived:2,marked:true,kin:{id:b.id,name:b.name,rel:'弟'}});
+    a.pastDreams=[{k:'x',t:'一つ目の夢',tk:1},{k:'y',t:'二つ目の夢',tk:2}];a.chron.push({tk:5,t:'灰の中からよみがえる'});
+    S.rares={1:{killed:{party:'夜明け団',tav:'ours',names:[a.name],by:a.name,tk:1}}};
+    const k=a.id<b.id?`${a.id}-${b.id}`:`${b.id}-${a.id}`;S.bonds={[k]:{n:50,ev:[]}};
+    const L=E.lifeLines(S,a,{k:'retired',tk:S.tick,why:'旅に出る'}),mid=L.slice(1,-1);
+    // 点：絆 3+50/10=8、功（沈んだ王）13、夢 6+2=8、旅 4+40/20+25/10=8.5、命 5、店 4、縁 4 → 功・旅、夢と絆は8で並び、先に書く群（夢）
+    check('ひと幕：点の上位3文だけが入り、同じ群から2文は入らない',mid.length===E.LIFE_MAX&&mid[0].startsWith('レベル30まで上がり、40回潜って')&&mid[1]==='沈んだ王を討った一行にいた。'&&mid[2]==='かなえた夢は2つ。最後にかなえたのは「二つ目の夢」。','点を付けた常連',mid.join(' / '));
+    b.status='retired';
+    check('ひと幕：いちばん絆の深い仲間とその消息',E.lifeLines(S,a,{k:'retired',tk:S.tick,why:'旅に出る'}).length===5&&E.lifeLines(S,Object.assign(a,{conq:false,title:'',rareKills:0,firsts:0,pastDreams:[],trips:0,lvl:5}),{k:'retired',tk:S.tick,why:'旅に出る'}).includes(`いちばん長く背中を預けた${b.name}は、先に店を去った。`),'絆50',b.name);}
+  // 古い記録：手帳も経歴も来たときのレベルもない者でも、組める文だけを出す
+  {const E=load(4),S=E.newState();const a={id:999,name:'古い客',tav:'ours',lvl:9,trips:5};
+    let L=null,err='';try{L=E.lifeLines(S,a,{k:'missing',tk:100*E.TICKS_PER_DAY,floor:'?'});}catch(e){err=String(e);}
+    check('ひと幕：記録の足りない古い客でも壊れず、組める文だけを出す',!!L&&L.length===2&&L[0]==='5回潜り。討った魔物は0体。'&&L[1]==='戻らず、101日目、記念碑に刻まれた。','手帳なし',err||(L||[]).join(' / '));}
+  // 予約は古いものから捨て、LIFE_KEEP 件まで残す
+  {const E=load(5),S=E.newState();for(let i=0;i<E.LIFE_KEEP+5;i++)E.queueLife(S,'lost',[{id:i,name:'n'+i,lines:['x']}]);
+    check('ひと幕：出していない予約は新しい分だけ残す',S.lifeQ.length===E.LIFE_KEEP&&S.lifeQ[0].people[0].id===5,'予約35件',S.lifeQ.length);}
+}
+
 if(!isMainThread){const line=runSeed(workerData.seed);parentPort.postMessage({line,res:[...results]});}
 else{
-  checkTables();checkScenes();checkLetters();checkErrands();checkCrest();checkRowFallback();checkMine();checkAffinity();checkRevive();checkMemoNotes();checkOpening();checkCareer();checkIntro();checkAge();checkFoes();checkFlow();checkLedger();checkMissing();checkLastWords();checkHighSpells();
+  checkTables();checkScenes();checkLife();checkLetters();checkErrands();checkCrest();checkRowFallback();checkMine();checkAffinity();checkRevive();checkMemoNotes();checkOpening();checkCareer();checkIntro();checkAge();checkFoes();checkFlow();checkLedger();checkMissing();checkLastWords();checkHighSpells();
   // 種ごとの結果は、種の順に重ねる。反例は、いちばん若い種の最初のものを残す。進捗の行も種の順に出す
   const out=new Array(SEEDS.length);let next=0,printed=0;
   const flush=()=>{while(printed<out.length&&out[printed]){if(out[printed].line)console.log(out[printed].line);printed++;}};
