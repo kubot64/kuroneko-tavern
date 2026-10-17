@@ -1,5 +1,5 @@
 // 画面まわりの決まりを、本物のブラウザ（Playwright の Chromium）で index.html を開いて確かめる。
-// 時計は Playwright の偽の時計に差し替え、待たずに時間を進める。タブの表と裏は visibilityState を差し替えて起こす。
+// 時計は Playwright の偽の時計に差し替えて止め、テストが進めたぶんだけ進める。乱数は種を決めて固定する。タブの表と裏は visibilityState を差し替えて起こす。
 //
 //   npm install && npx playwright install chromium   最初の一度だけ
 //   node --test tools/browser-test.mjs
@@ -14,15 +14,23 @@ before(async()=>{browser=await chromium.launch();});
 after(async()=>{await browser?.close();});
 
 // まっさらな記録で店を開く。ctx を渡すと、その保存（localStorage）を引き継ぐ
-async function open({ctx,time=Date.UTC(2026,0,1)}={}){
+// 時計は time で止め、乱数は seed で固定する。時が進むのは runFor か setSystemTime を呼んだときだけで、結果は実時間に左右されない
+async function open({ctx,time=Date.UTC(2026,0,1),seed=1}={}){
   ctx=ctx||await browser.newContext();
   const page=await ctx.newPage();
   const errors=[];page.on('pageerror',e=>errors.push(e.message));
-  await page.clock.install({time});
+  await page.addInitScript(s=>{
+    // mulberry32。テストの中で Math.random を差し替えて戻しても、この列の続きに戻る
+    Math.random=()=>{s=s+0x6D2B79F5|0;let t=Math.imul(s^s>>>15,1|s);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};
+  },seed);
+  await page.clock.install({time:time-1000});
+  await page.clock.pauseAt(time);
   await page.goto(URL_);
   return {ctx,page,errors};
 }
 const tick=page=>page.evaluate('S.tick');
+// 時計を止めているので、requestAnimationFrame は時計を進めないと呼ばれない。2こま分進めて待つ
+const frames=page=>page.clock.runFor(40);
 // 常連のひと幕が出ていることを確かめて閉じる。name を渡すと、その名が出ていることも確かめる
 async function closeLife(page,name){
   const life=page.locator('#life');
@@ -737,12 +745,11 @@ test('開店の顔ぶれは、知らせと手帳と記念碑に出る',async()=>
     const holders=cast.filter(a=>a.dream&&a.dream.k==='stele');
     const h=holders[0];
     const prog=DREAMS.stele.prog(h);
-    return {n:cast.length,names:cast.map(a=>a.name),origins:cast.map(a=>a.origin),guests:guests&&guests.t,id:h.id,bg:h.bg,dream:dreamText(h.dream),texts:holders.map(a=>dreamText(a.dream)).sort(),prog,want:(h.deepest||0)?`これまでの最深 ${FN(h.deepest)}`:'まだ迷宮に潜っていない'};
+    return {n:cast.length,names:cast.map(a=>a.name),origins:cast.map(a=>a.origin),guests:guests&&guests.t,id:h.id,bg:h.bg,dream:dreamText(h.dream),texts:holders.map(a=>dreamText(a.dream)).sort(),prog};
   });
   assert.equal(info.n,7);
   assert.deepEqual(info.texts,['B6Fの転移の石碑に、一度触れてみたい','B6Fまで潜って、地上の店に戻ってみたい'].sort());
-  // 「止める」を押す前に時が進み、もう潜っていることがある。そのときは最深の階が出る
-  assert.equal(info.prog,info.want);
+  assert.equal(info.prog,'まだ迷宮に潜っていない');
   const news=await page.locator('.news li',{hasText:'最初の客たち'}).innerText();
   assert.match(news,/最初の客たち/);
   for(const name of info.names)assert.match(news,new RegExp(name));
@@ -827,7 +834,6 @@ test('スマホ幅では帳場と名簿と留守のあいだの押し場所が44
     render();
   });
   await page.evaluate(()=>document.fonts.ready);
-  const frames=()=>page.evaluate(()=>new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r))));
   const headsOf=()=>page.evaluate(()=>{
     const bad=[];
     const lines=node=>{
@@ -965,7 +971,7 @@ test('スマホ幅では帳場と名簿と留守のあいだの押し場所が44
   await page.locator('h3',{hasText:'常連への手当て'}).scrollIntoViewIfNeeded();
   const toastAt=async()=>{
     await page.evaluate(()=>toast('エリンは蘇生に失敗し、ロストした'));
-    await frames();
+    await frames(page);
     return page.evaluate(()=>{
       const el=document.querySelector('.toast');
       if(!el)return ['知らせがない'];
@@ -1302,7 +1308,7 @@ test('帳場の設備と席に、いまの段が出る',async()=>{
   };
   for(const [width,height] of [[375,740],[1280,800]]){
     await page.setViewportSize({width,height});
-    await page.evaluate(()=>document.fonts.ready.then(()=>new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)))));
+    await page.evaluate(()=>document.fonts.ready);await frames(page);
     const fresh=await read();
     assert.match(fresh.dojo,/稽古場（未建築）/);
     assert.match(fresh.dojo,/Lv0\/3　まだ建てていない/);
@@ -1352,7 +1358,7 @@ test('帳場の設備と席に、いまの段が出る',async()=>{
   assert.match(mid.seats,/拡張の段とは別/);
   for(const [width,height] of [[375,740],[1280,800]]){
     await page.setViewportSize({width,height});
-    await page.evaluate(()=>document.fonts.ready.then(()=>new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)))));
+    await page.evaluate(()=>document.fonts.ready);await frames(page);
     const view=await read();
     assert.equal(view.wide,false,width+' でページが横にはみ出す');
     await lvUnderName(width);
