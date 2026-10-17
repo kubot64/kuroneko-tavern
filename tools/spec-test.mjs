@@ -1617,6 +1617,19 @@ function checkHighSpells(){
   {const r=scene(1e-9,'僧侶',41,20,'オーク',1,(E2,S,p,a)=>{const d=Object.values(S.adv).find(x=>x.id!==a.id&&x.tav==='ours');d.status='party';d.party=a.party;d.hp=0;d.mhp=41;d.dungeonAsh=false;p.members.push(d.id);p.floor=20;p.trip=p.trip||{};});
     const d=r.S.adv[r.p.members[1]];r.E.tryYomi(r.S,r.p);
     check('呪文：タマヨビで息を吹き返すと、体力は半分',d.hp===21&&!d.dungeonAsh&&r.p.trip.yomi&&r.p.trip.yomi.s==='タマヨビ','僧侶Lv41・成功',`体力${d.hp}`);}
+  // タマヨビは同じ死者に一探索一度。失敗した者には、その探索のあいだはヨミガエリも唱えず、ほかの死者に移る。次の探索ではまた唱える
+  {const r=scene(.99,'僧侶',41,30,'オーク',1,(E2,S,p,a)=>{const ds=Object.values(S.adv).filter(x=>x.id!==a.id&&x.tav==='ours').slice(0,2);
+      ds.forEach(d=>{d.status='party';d.party=a.party;d.hp=0;d.mhp=40;d.dungeonAsh=false;p.members.push(d.id);});p.floor=20;
+      const y=Object.values(S.adv).find(x=>x.tav==='ours'&&!p.members.includes(x.id));y.status='party';y.party=a.party;y.cls='僧侶';y.lvl=39;y.hp=y.mhp=99;y.mp=20;p.members.push(y.id);});
+    const [d1,d2]=[1,2].map(i=>r.S.adv[r.p.members[i]]),y=r.S.adv[r.p.members[3]];
+    r.E.tryYomi(r.S,r.p);const n1=r.log().split('タマヨビ を となえた').length-1;
+    r.E.tryYomi(r.S,r.p);const second=r.p.log.slice(-2).map(x=>x.t).join(' ');
+    r.E.tryYomi(r.S,r.p);r.E.tryYomi(r.S,r.p);
+    const n=r.log().split('タマヨビ を となえた').length-1;
+    check('呪文：タマヨビは同じ死者に一探索一度。失敗したらほかの死者に移り、もう唱えない',n1===1&&second.includes(d2.name)&&n===2&&r.a.mp===18&&!r.log().includes('ヨミガエリ')&&y.mp===20&&!d1.dungeonAsh&&!d2.dungeonAsh&&d1.hp===0&&d2.hp===0,
+      '僧侶Lv41・死者2人・ヨミガエリの使い手も同行・4回勝つ',`タマヨビ${n}回 MP${r.a.mp} 2回目「${second}」 ヨミガエリの使い手のMP${y.mp}`);
+    r.p.trip=r.E.newTrip();r.E.tryYomi(r.S,r.p);
+    check('呪文：次の探索では、またタマヨビを唱える',(r.log().split('タマヨビ を となえた').length-1)===3,'探索を改める',r.log().split('\n').slice(-2).join(' / '));}
   {const r=scene(.99,'僧侶',41,20,'オーク',1,(E2,S,p,a)=>{const d=Object.values(S.adv).find(x=>x.id!==a.id&&x.tav==='ours');d.status='party';d.party=a.party;d.hp=0;d.mhp=40;p.members.push(d.id);p.floor=15;});
     r.E.tryYomi(r.S,r.p);check('呪文：タマヨビもB16Fより浅いところでは唱えない',!r.log().includes('タマヨビ')&&r.a.mp===20,'B15F',r.log());}
   // オリハライ：レベルを吸う相手には先に唱え、その戦いのあいだは吸い取られない。一人だとダッシュツで逃げるので、頑丈な戦士を後ろに付ける
