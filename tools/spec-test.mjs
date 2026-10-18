@@ -2048,6 +2048,13 @@ function checkLife(){
     const gone=old(c=>c),kept=old(c=>[...c,{tk:60*E.TICKS_PER_DAY,t:'銀の杯亭を出て、黒猫亭の客になる'}]);
     check('ひと幕：移った日の分からない古い記録では、来た日とレベルの行を出さない',gone.v===E.SAVE_V&&!/黒猫亭に(来た|移ってきた)|レベル2/.test(gone.L[0]||'')&&gone.L.some(t=>t.startsWith('4回潜り'))
       &&kept.L[0].endsWith('61日目、銀の杯亭から黒猫亭に移ってきた。')&&kept.L.some(t=>t.startsWith('4回潜り')),a.name,gone.L.join(' / ')+' ｜ '+kept.L.join(' / '));}
+  // 開店からの常連：古い記録で扉の行が手帳からあふれて消えていても、移行のあとで扉の一文が欠けない。版30で外していた記録も版31で戻る
+  {const E=load(8),S=E.newState();const a=Object.values(S.adv).filter(x=>x.opening).sort((x,y)=>x.id-y.id)[0];a.trips=4;
+    const want=`レベル${a.lvl0}で黒猫亭の扉をくぐった。`,fresh=E.lifeLines(S,a,{k:'retired',tk:S.tick,why:'旅に出る'})[0];
+    const old=(v,moved)=>{const E2=load(8),S2=JSON.parse(JSON.stringify(S));const b=S2.adv[a.id];b.chron=b.chron.filter(c=>!c.t.includes('黒猫亭の扉をくぐる'));
+      if(moved)b.moved=moved;else delete b.moved;S2.v=v;E2.migrate(S2);return {v:S2.v,head:E2.lifeLines(S2,S2.adv[a.id],{k:'retired',tk:S2.tick,why:'旅に出る'})[0]};};
+    const v29=old(29,null),v30=old(30,{tk:null,lvl:null});
+    check('ひと幕：扉の行があふれた開店からの常連でも、移行のあとで扉の一文が欠けない',fresh.endsWith(want)&&v29.head===fresh&&v30.head===fresh&&v29.v===E.SAVE_V&&v30.v===E.SAVE_V,a.name,`${fresh} ｜ 版29→${v29.head} ｜ 版30→${v30.head}`);}
   // 階も相手も分からない古い記録の灰のロスト：終わりの文は「倒れ、」で始まらない
   {const E=load(7),S=E.newState();const a={id:998,name:'古い客',tav:'ours',lvl:9,trips:5};
     const L=E.lifeLines(S,a,{k:'ash',tk:100*E.TICKS_PER_DAY,floor:'?',by:'不明'});
