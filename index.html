@@ -198,9 +198,10 @@ button:focus-visible,[tabindex]:focus-visible{outline:2px solid var(--amber);out
 .ending .said{padding-left:1em;border-left:2px solid var(--amber-dim)}
 .ending h3{margin:14px 0 0;font-family:var(--f-display);font-size:15px}
 .ending .more{color:var(--muted);font-size:13px}
-.stone details.life{margin-top:4px;color:var(--muted);font-size:12px}
-.stone details.life summary{cursor:pointer;min-height:44px;line-height:44px;margin:-10px 0}
-.stone details.life p{margin:4px 0 0;line-height:1.7}
+/* 押す所は44px。上の行には重ねず、札の下の余白（10px）にだけはみ出す */
+.stone details.life{color:var(--muted);font-size:12px}
+.stone details.life summary{cursor:pointer;box-sizing:border-box;min-height:44px;padding-top:4px;line-height:24px;margin-bottom:-10px}
+.stone details.life p{margin:14px 0 0;line-height:1.7}
 .nm-link{background:none;border:0;padding:0;font:inherit;color:inherit;font-weight:700;text-decoration:underline;text-decoration-color:var(--amber-dim);text-underline-offset:3px;cursor:pointer}
 .nm-link:hover{color:var(--amber)}
 .c-members .nm-link{font-weight:400;text-decoration-color:#3a4677}
@@ -765,7 +766,7 @@ function assignOpeningDreams(S){
   });
 }
 // セーブの版。記録の形を変えたら上げ、migrate に移行の段を足す
-const SAVE_V=30;
+const SAVE_V=31;
 // 全滅した一行の扱い。予定帰還の刻を過ぎてから消息不明と知らせるまでの刻、巡回隊が届く深さ（最深階から何階上まで）、立て替えの借りの利息（消息不明の1日ごと・複利）と、帰還時に稼ぎから返す割合
 const MISSING_GRACE=150,PATROL_DEPTH=3,OWED_RATE=.02,OWED_REPAY=.25;
 function newState(){
@@ -3849,12 +3850,17 @@ function migrate(S){
     S.v=29;
   }
   if(!(S.v>=30)){// 黒猫亭に移った刻とレベル。手帳に移った記録が残っていれば、その刻（レベルは分からない）。
-    // 移った記録がなく、黒猫亭の扉をくぐった記録もない者は、銀の杯亭から来たのかどうか分からないので、刻もレベルも分からないとする。乱数は引かない
+    // 移った記録がなく、黒猫亭の扉をくぐった記録もない者は、銀の杯亭から来たのかどうか分からないので、刻もレベルも分からないとする。
+    // 開店からの常連は黒猫亭で始まったと分かっているので、移った記録がなければ扉の行がなくても移ったことにしない。乱数は引かない
     const RN=S.taverns.rival.name,ON=S.taverns.ours.name;
     Object.values(S.adv).forEach(a=>{if(a.tav!=='ours'||a.moved)return;const ch=a.chron||[];
       for(let i=ch.length-1;i>=0;i--)if(String(ch[i].t).endsWith(`${RN}を出て、${ON}の客になる`)){a.moved={tk:ch[i].tk,lvl:null};return;}
-      if(!ch.some(c=>String(c.t).includes(`${ON}の扉をくぐる`)))a.moved={tk:null,lvl:null};});
+      if(!a.opening&&!ch.some(c=>String(c.t).includes(`${ON}の扉をくぐる`)))a.moved={tk:null,lvl:null};});
     S.v=30;
+  }
+  if(!(S.v>=31)){// 版30の移行で、扉の行が手帳からあふれた開店からの常連にも「移った刻もレベルも分からない」を付けていた。それを外す。乱数は引かない
+    Object.values(S.adv).forEach(a=>{if(a.opening&&a.moved&&a.moved.tk==null)delete a.moved;});
+    S.v=31;
   }
   if(typeof S.taverns.ours.interestPaid!=='number')S.taverns.ours.interestPaid=inferInterestPaid(S);
   Object.values(S.adv).forEach(a=>{if(!a.tone)personalize(a);if(!a.traits)assignTraits(S,a,true);});

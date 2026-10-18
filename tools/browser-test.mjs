@@ -2712,9 +2712,12 @@ test('常連のひと幕は、留守のまとめのあとに出て、375pxと128
     // 記念碑の添え書きの下に、同じ文が生涯として残る
     await page.locator('button[data-v="stone"]').click();
     const stone=page.locator('.stone',{has:page.locator(`[data-a="${who.id}"]`)});
-    // 「生涯」の押す所は、375pxでも高さ44px以上
-    const sum=await stone.locator('details.life summary').boundingBox();
-    assert.ok(sum.height>=44&&sum.width>=44,`幅${w}：生涯の押す所が小さい ${JSON.stringify(sum)}`);
+    // 「生涯」の押す所は、375pxでも高さ44px以上。すぐ上の行にも、札の外にも重ならない
+    const sum=await stone.locator('details.life summary').evaluate(el=>{const r=el.getBoundingClientRect(),up=el.parentElement.previousElementSibling.getBoundingClientRect(),card=el.closest('.stone').getBoundingClientRect();
+      return {h:r.height,w:r.width,top:r.top,bottom:r.bottom,upBottom:up.bottom,cardBottom:card.bottom};});
+    assert.ok(sum.h>=44&&sum.w>=44,`幅${w}：生涯の押す所が小さい ${JSON.stringify(sum)}`);
+    assert.ok(sum.top>=sum.upBottom-0.5,`幅${w}：生涯の押す所が上の行に重なる ${JSON.stringify(sum)}`);
+    assert.ok(sum.bottom<=sum.cardBottom+0.5,`幅${w}：生涯の押す所が札の外にはみ出す ${JSON.stringify(sum)}`);
     await stone.locator('details.life summary').click();
     const lifeText=(await stone.locator('details.life p').innerText()).replace(/\s+/g,'');
     assert.ok(text.replace(/\s+/g,'').includes(lifeText),`幅${w}：記念碑の生涯がひと幕と違う ${lifeText}`);
