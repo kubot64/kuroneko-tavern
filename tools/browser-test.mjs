@@ -2719,6 +2719,11 @@ test('常連のひと幕は、留守のまとめのあとに出て、375pxと128
     assert.ok(sum.top>=sum.upBottom-0.5,`幅${w}：生涯の押す所が上の行に重なる ${JSON.stringify(sum)}`);
     assert.ok(sum.bottom<=sum.cardBottom+0.5,`幅${w}：生涯の押す所が札の外にはみ出す ${JSON.stringify(sum)}`);
     await stone.locator('details.life summary').click();
+    // 開いたとき、「生涯」の行と本文のあきは10px前後。押す所は44pxのまま、下の端まで押せる
+    const open=await stone.locator('details.life summary').evaluate(el=>{const r=el.getBoundingClientRect(),cs=getComputedStyle(el),p=el.nextElementSibling.getBoundingClientRect();
+      const hit=document.elementFromPoint(r.left+r.width/2,r.bottom-2);return {gap:p.top-(r.top+parseFloat(cs.paddingTop)+parseFloat(cs.lineHeight)),h:r.height,hit:!!hit&&el.contains(hit)};});
+    assert.ok(open.gap>=6&&open.gap<=14,`幅${w}：生涯と本文のあきが10px前後でない ${JSON.stringify(open)}`);
+    assert.ok(open.h>=44&&open.hit,`幅${w}：開いた生涯の押す所が44pxでない ${JSON.stringify(open)}`);
     const lifeText=(await stone.locator('details.life p').innerText()).replace(/\s+/g,'');
     assert.ok(text.replace(/\s+/g,'').includes(lifeText),`幅${w}：記念碑の生涯がひと幕と違う ${lifeText}`);
     // 店を去った者は「見送る」で閉じる

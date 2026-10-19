@@ -2035,7 +2035,10 @@ function checkLife(){
   // 古い記録：手帳も経歴も来たときのレベルもない者でも、組める文だけを出す
   {const E=load(4),S=E.newState();const a={id:999,name:'古い客',tav:'ours',lvl:9,trips:5};
     let L=null,err='';try{L=E.lifeLines(S,a,{k:'missing',tk:100*E.TICKS_PER_DAY,floor:'?'});}catch(e){err=String(e);}
-    check('ひと幕：記録の足りない古い客でも壊れず、組める文だけを出す',!!L&&L.length===2&&L[0]==='5回潜り。討った魔物は0体。'&&L[1]==='戻らず、101日目、記念碑に刻まれた。','手帳なし',err||(L||[]).join(' / '));}
+    check('ひと幕：記録の足りない古い客でも壊れず、組める文だけを出す',!!L&&L.length===2&&L[0]==='5回潜った。討った魔物は0体。'&&L[1]==='戻らず、101日目、記念碑に刻まれた。','手帳なし',err||(L||[]).join(' / '));
+    // 潜ったのに下りた深さがない者でも、旅の文が「潜り。」で切れない
+    const b={id:997,name:'浅い客',tav:'ours',lvl:6,lvl0:3,trips:3,deepest:0,kills:2},M=E.lifeLines(S,b,{k:'retired',tk:S.tick,why:'旅に出る'});
+    check('ひと幕：下りた深さが0でも、旅の文が切れない',M.includes('レベル6まで上がり、3回潜った。討った魔物は2体。')&&!M.some(t=>/潜り。|潜って。/.test(t)),'深さ0',M.join(' / '));}
   // 銀の杯亭から移ってきた者：手帳があふれて移った記録が消えても、来た日とレベルは黒猫亭に移ったときのもの
   {const E=load(6),S=E.newState();const a=Object.values(S.adv).filter(x=>x.tav==='rival').sort((x,y)=>x.id-y.id)[0];
     a.party=null;a.lvl0=2;a.lvl=7;a.trips=4;S.tick=50*E.TICKS_PER_DAY;E.moveTav(S,a,'ours');
