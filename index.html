@@ -198,10 +198,10 @@ button:focus-visible,[tabindex]:focus-visible{outline:2px solid var(--amber);out
 .ending .said{padding-left:1em;border-left:2px solid var(--amber-dim)}
 .ending h3{margin:14px 0 0;font-family:var(--f-display);font-size:15px}
 .ending .more{color:var(--muted);font-size:13px}
-/* 押す所は44px。上の行には重ねず、札の下の余白（10px）にだけはみ出す */
+/* 押す所は44px。上の行には重ねず、札の下の余白（10px）にだけはみ出す。開いたときは本文の頭に重なるので、押す所を手前に置く */
 .stone details.life{color:var(--muted);font-size:12px}
-.stone details.life summary{cursor:pointer;box-sizing:border-box;min-height:44px;padding-top:4px;line-height:24px;margin-bottom:-10px}
-.stone details.life p{margin:14px 0 0;line-height:1.7}
+.stone details.life summary{cursor:pointer;box-sizing:border-box;min-height:44px;padding-top:4px;line-height:24px;margin-bottom:-10px;position:relative;z-index:1}
+.stone details.life p{margin:4px 0 0;line-height:1.7}
 .nm-link{background:none;border:0;padding:0;font:inherit;color:inherit;font-weight:700;text-decoration:underline;text-decoration-color:var(--amber-dim);text-underline-offset:3px;cursor:pointer}
 .nm-link:hover{color:var(--amber)}
 .c-members .nm-link{font-weight:400;text-decoration-color:#3a4677}
@@ -2588,7 +2588,8 @@ function lifeLines(S,a,end){
   const C=[],add=(g,sc,t)=>{if(t)C.push({g,sc,t});};
   const trips=a.trips||0;
   const up=lv0!=null&&a.lvl>lv0?a.lvl-lv0:0;
-  if(trips>0)add('旅',4+trips/20+up/10,(up?`レベル${a.lvl}まで上がり、${trips}回潜って`:`${trips}回潜り`)+(a.deepest>0?`、${FN(a.deepest)}まで下りた`:'')+`。討った魔物は${a.kills||0}体。`);
+  if(trips>0){const dove=up?`レベル${a.lvl}まで上がり、${trips}回潜`:`${trips}回潜`;
+    add('旅',4+trips/20+up/10,(a.deepest>0?dove+(up?'って':'り')+`、${FN(a.deepest)}まで下りた`:dove+'った')+`。討った魔物は${a.kills||0}体。`);}
   else if(up)add('旅',3+up/10,`レベル${a.lvl}まで上がった。`);
   if(a.mconq)add('功',13,'坑道王を討った一行にいた。');
   if(a.conq)add('功',13,'沈んだ王を討った一行にいた。');

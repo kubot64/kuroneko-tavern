@@ -2035,19 +2035,22 @@ function checkLife(){
   // 古い記録：手帳も経歴も来たときのレベルもない者でも、組める文だけを出す
   {const E=load(4),S=E.newState();const a={id:999,name:'古い客',tav:'ours',lvl:9,trips:5};
     let L=null,err='';try{L=E.lifeLines(S,a,{k:'missing',tk:100*E.TICKS_PER_DAY,floor:'?'});}catch(e){err=String(e);}
-    check('ひと幕：記録の足りない古い客でも壊れず、組める文だけを出す',!!L&&L.length===2&&L[0]==='5回潜り。討った魔物は0体。'&&L[1]==='戻らず、101日目、記念碑に刻まれた。','手帳なし',err||(L||[]).join(' / '));}
+    check('ひと幕：記録の足りない古い客でも壊れず、組める文だけを出す',!!L&&L.length===2&&L[0]==='5回潜った。討った魔物は0体。'&&L[1]==='戻らず、101日目、記念碑に刻まれた。','手帳なし',err||(L||[]).join(' / '));
+    // 潜ったのに下りた深さがない者でも、旅の文が「潜り。」で切れない
+    const b={id:997,name:'浅い客',tav:'ours',lvl:6,lvl0:3,trips:3,deepest:0,kills:2},M=E.lifeLines(S,b,{k:'retired',tk:S.tick,why:'旅に出る'});
+    check('ひと幕：下りた深さが0でも、旅の文が切れない',M.includes('レベル6まで上がり、3回潜った。討った魔物は2体。')&&!M.some(t=>/潜り。|潜って。/.test(t)),'深さ0',M.join(' / '));}
   // 銀の杯亭から移ってきた者：手帳があふれて移った記録が消えても、来た日とレベルは黒猫亭に移ったときのもの
   {const E=load(6),S=E.newState();const a=Object.values(S.adv).filter(x=>x.tav==='rival').sort((x,y)=>x.id-y.id)[0];
     a.party=null;a.lvl0=2;a.lvl=7;a.trips=4;S.tick=50*E.TICKS_PER_DAY;E.moveTav(S,a,'ours');
     for(let i=0;i<100;i++){S.tick++;E.chron(S,a,'稽古をする');}a.lvl=12;
     const lost=!a.chron.some(c=>/黒猫亭の客になる$/.test(c.t)),L=E.lifeLines(S,a,{k:'retired',tk:S.tick,why:'旅に出る'});
-    check('ひと幕：移ってきた者の手帳があふれても、来た日とレベルは黒猫亭に移ったときのもの',lost&&L[0].endsWith('51日目、銀の杯亭から黒猫亭に移ってきた。レベル7だった。')&&!L[0].includes('黒猫亭に来た')&&L.some(t=>t.startsWith('レベル12まで上がり、4回潜って')),a.name,L.join(' / '));
+    check('ひと幕：移ってきた者の手帳があふれても、来た日とレベルは黒猫亭に移ったときのもの',lost&&L[0].endsWith('51日目、銀の杯亭から黒猫亭に移ってきた。レベル7だった。')&&!L[0].includes('黒猫亭に来た')&&L.some(t=>t.startsWith('レベル12まで上がり、4回潜')),a.name,L.join(' / '));
     // 移った刻を持たない古い記録（版29まで）：手帳から移った記録が消えていれば、来た日とレベルの行を出さない。残っていれば、その日だけを出す
     const old=chron=>{const E2=load(6),S2=JSON.parse(JSON.stringify(S));const b=S2.adv[a.id];delete b.moved;b.chron=chron(b.chron);S2.v=29;E2.migrate(S2);
       return {v:S2.v,L:E2.lifeLines(S2,S2.adv[b.id],{k:'retired',tk:S2.tick,why:'旅に出る'})};};
     const gone=old(c=>c),kept=old(c=>[...c,{tk:60*E.TICKS_PER_DAY,t:'銀の杯亭を出て、黒猫亭の客になる'}]);
-    check('ひと幕：移った日の分からない古い記録では、来た日とレベルの行を出さない',gone.v===E.SAVE_V&&!/黒猫亭に(来た|移ってきた)|レベル2/.test(gone.L[0]||'')&&gone.L.some(t=>t.startsWith('4回潜り'))
-      &&kept.L[0].endsWith('61日目、銀の杯亭から黒猫亭に移ってきた。')&&kept.L.some(t=>t.startsWith('4回潜り')),a.name,gone.L.join(' / ')+' ｜ '+kept.L.join(' / '));}
+    check('ひと幕：移った日の分からない古い記録では、来た日とレベルの行を出さない',gone.v===E.SAVE_V&&!/黒猫亭に(来た|移ってきた)|レベル2/.test(gone.L[0]||'')&&gone.L.some(t=>t.startsWith('4回潜'))
+      &&kept.L[0].endsWith('61日目、銀の杯亭から黒猫亭に移ってきた。')&&kept.L.some(t=>t.startsWith('4回潜')),a.name,gone.L.join(' / ')+' ｜ '+kept.L.join(' / '));}
   // 開店からの常連：古い記録で扉の行が手帳からあふれて消えていても、移行のあとで扉の一文が欠けない。版30で外していた記録も版31で戻る
   {const E=load(8),S=E.newState();const a=Object.values(S.adv).filter(x=>x.opening).sort((x,y)=>x.id-y.id)[0];a.trips=4;
     const want=`レベル${a.lvl0}で黒猫亭の扉をくぐった。`,fresh=E.lifeLines(S,a,{k:'retired',tk:S.tick,why:'旅に出る'})[0];
