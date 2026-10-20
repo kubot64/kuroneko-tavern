@@ -1656,7 +1656,7 @@ function checkHighSpells(){
     check('呪文：次の探索では、またタマヨビを唱える',(r.log().split('タマヨビ を となえた').length-1)===3,'探索を改める',r.log().split('\n').slice(-2).join(' / '));}
   // タマヨビの使い手のMPが尽きていても、魂が戻らなかった者には、ヨミガエリの使い手が唱える。成功すれば体力の3分の1で立ち上がる
   {const r=scene(1e-9,'僧侶',41,3,'オーク',1,(E2,S,p,a)=>{const d=Object.values(S.adv).find(x=>x.id!==a.id&&x.tav==='ours');d.status='party';d.party=a.party;d.hp=0;d.mhp=42;d.dungeonAsh=false;p.members.push(d.id);p.floor=20;
-      const y=Object.values(S.adv).find(x=>x.tav==='ours'&&!p.members.includes(x.id));y.status='party';y.party=a.party;y.cls='僧侶';y.lvl=20;y.hp=y.mhp=99;y.mp=20;p.members.push(y.id);});
+      const y=Object.values(S.adv).find(x=>x.tav==='ours'&&!p.members.includes(x.id));y.status='party';y.party=a.party;y.cls='僧侶';y.lvl=30;y.hp=y.mhp=99;y.mp=20;p.members.push(y.id);});
     const d=r.S.adv[r.p.members[1]],y=r.S.adv[r.p.members[2]];r.p.trip.soulGone=[d.id];r.E.tryYomi(r.S,r.p);
     check('呪文：魂が戻らなかった者にヨミガエリが効けば、体力の3分の1で立ち上がる',r.log().includes(`${y.name} は ヨミガエリ を となえた`)&&!r.log().includes('タマヨビ')&&d.hp===14&&!d.dungeonAsh&&y.mp===16&&r.a.mp===3,
       '僧侶Lv41（MP3）・魂が戻らなかった者・ヨミガエリの使い手',`${r.log()} 体力${d.hp} MP${r.a.mp}/${y.mp}`);}
