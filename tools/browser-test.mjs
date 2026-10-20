@@ -498,7 +498,7 @@ test('裏に回ったときに保存するので、そのまま閉じられて�
   assert.deepEqual([...errors,...again.errors],[]);await ctx.close();
 });
 
-test('帳場の蘇生は、押す前に状態と成功率が出て、押した直後に成否が残る',async()=>{
+test('帳場の蘇生は、押す前に状態と司祭の見立てが出て、押した直後に成否が残る',async()=>{
   const {ctx,page,errors}=await open();
   await page.locator('#sp0').click();
   const prep=await page.evaluate(()=>{
@@ -511,7 +511,8 @@ test('帳場の蘇生は、押す前に状態と成功率が出て、押した�
   const row=()=>page.locator('#tbody .row',{has:page.locator(`button[data-act="revive"][data-a="${prep.id}"]`)});
   const before=await row().innerText();
   assert.match(before,/寺院・死/);
-  assert.match(before,/死・成功率の目安 \d+%/);
+  assert.match(before,/死・司祭の見立てでは、/);
+  assert.doesNotMatch(prep.hint,/[0-9０-９%％]/,'見立てに数字が出ている');
   assert.equal(before.includes(prep.hint),true,before);
   assert.doesNotMatch(before,/寄進で上がっている|信心深く/);
   const raised=await page.evaluate(id=>{
@@ -536,7 +537,7 @@ test('帳場の蘇生は、押す前に状態と成功率が出て、押した�
   assert.equal(await page.locator('.toast').innerText(),failed);
   const ash=await row().innerText();
   assert.match(ash,/寺院・灰/);
-  assert.match(ash,/灰・成功率の目安 \d+%/);
+  assert.match(ash,/灰・司祭の見立てでは、/);
   assert.equal(await page.evaluate(()=>S.taverns.ours.gold),gold0-cost);
   const saved=await page.evaluate(()=>JSON.parse(localStorage.getItem('kuroneko-tavern-v1')));
   assert.equal(saved.S.reviveNote,undefined);
@@ -547,7 +548,7 @@ test('帳場の蘇生は、押す前に状態と成功率が出て、押した�
   await again.page.locator('button[data-v="desk"]').click();
   assert.equal(await again.page.locator('.revive-result').count(),0,'閉じたあとに成否の一文が残っている');
   const kept=await again.page.locator('#tbody .row',{has:again.page.locator(`button[data-act="revive"][data-a="${prep.id}"]`)}).innerText();
-  assert.match(kept,/灰・成功率の目安/);
+  assert.match(kept,/灰・司祭の見立てでは、/);
   await again.page.evaluate(()=>{Math.random=()=>0;});
   await again.page.locator(`button[data-act="revive"][data-a="${prep.id}"]`).click();
   assert.equal(await again.page.locator('.revive-result').innerText(),`${prep.name}がよみがえった`);
@@ -579,13 +580,20 @@ test('帳場の蘇生は、押す前に状態と成功率が出て、押した�
   const phone=await again.page.evaluate(id=>{
     const row=document.querySelector(`button[data-act="revive"][data-a="${id}"]`)?.closest('.row');
     if(!row)return ['行がない'];
+    // 見立ての文が折れるのは、読点・中黒・句点・閉じかっこのあとか、開きかっこの前だけ。札の外にもはみ出さない
+    const wrapBad=el=>{const tn=el.firstChild,t=tn.textContent,out=[];let top=null;
+      for(let i=0;i<t.length;i++){const range=document.createRange();range.setStart(tn,i);range.setEnd(tn,i+1);const r=[...range.getClientRects()].find(x=>x.width>.5);if(!r)continue;
+        if(top!=null&&r.top>top+2&&!('、。・）'.includes(t[i-1])||t[i]==='（'))out.push(`語の途中で折れる：${t.slice(Math.max(0,i-4),i)}｜${t.slice(i,i+4)}`);
+        if(r.right>row.getBoundingClientRect().right+1)out.push('見立てが行の外にはみ出す');top=r.top;}
+      return [...new Set(out)];};
     const bad=[];
     const r=row.getBoundingClientRect();
     if(r.left<-1||r.right>innerWidth+1)bad.push('行が横にはみ出す');
     if(document.documentElement.scrollWidth>innerWidth+1)bad.push('ページが横にはみ出す');
     const hint=row.querySelector('.does'),btn=row.querySelector('button[data-act="revive"]');
-    if(!hint.innerText.includes('死・成功率の目安')||!hint.innerText.includes('寄進で上がっている'))bad.push(hint.innerText);
+    if(!hint.innerText.includes('死・司祭の見立てでは、')||!hint.innerText.includes('寄進で上がっている'))bad.push(hint.innerText);
     if(btn.getBoundingClientRect().top<hint.getBoundingClientRect().bottom-1)bad.push('ボタンが見出しの横にある');
+    bad.push(...wrapBad(hint));
     return bad;
   },other.id);
   assert.deepEqual(phone,[]);
@@ -594,10 +602,17 @@ test('帳場の蘇生は、押す前に状態と成功率が出て、押した�
   const wide=await again.page.evaluate(id=>{
     const row=document.querySelector(`button[data-act="revive"][data-a="${id}"]`)?.closest('.row');
     if(!row)return ['行がない'];
+    // 見立ての文が折れるのは、読点・中黒・句点・閉じかっこのあとか、開きかっこの前だけ。札の外にもはみ出さない
+    const wrapBad=el=>{const tn=el.firstChild,t=tn.textContent,out=[];let top=null;
+      for(let i=0;i<t.length;i++){const range=document.createRange();range.setStart(tn,i);range.setEnd(tn,i+1);const r=[...range.getClientRects()].find(x=>x.width>.5);if(!r)continue;
+        if(top!=null&&r.top>top+2&&!('、。・）'.includes(t[i-1])||t[i]==='（'))out.push(`語の途中で折れる：${t.slice(Math.max(0,i-4),i)}｜${t.slice(i,i+4)}`);
+        if(r.right>row.getBoundingClientRect().right+1)out.push('見立てが行の外にはみ出す');top=r.top;}
+      return [...new Set(out)];};
     const who=row.querySelector('.who').getBoundingClientRect(),btn=row.querySelector('button[data-act="revive"]').getBoundingClientRect();
     const bad=[];
     if(!(btn.top<who.bottom&&btn.left>who.left))bad.push('広い画面でボタンが見出しの横にない');
-    if(!row.innerText.includes('成功率の目安'))bad.push('目安がない');
+    if(!row.innerText.includes('司祭の見立てでは、'))bad.push('見立てがない');
+    bad.push(...wrapBad(row.querySelector('.does')));
     return bad;
   },other.id);
   assert.deepEqual(wide,[]);

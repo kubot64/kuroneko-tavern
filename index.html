@@ -3292,13 +3292,15 @@ function reviveChance(S,a){
   if(a.status==='ash')return clamp(.7+PL(a)*.015+faith*.06+b*.08,0,b?.97:.94);
   return 0;
 }
+// 蘇生の見込みは数字で出さず、司祭の見立ての言葉にする。上の段から、見込みが段の下限以上なら当たり
+const REVIVE_WORDS=[[.95,'まず戻る'],[.88,'たいていは戻る'],[.8,'戻らないこともある'],[0,'戻らないことも少なくない']];
 function reviveHint(S,a){
-  const pct=Math.round(reviveChance(S,a)*100);
+  const r=reviveChance(S,a),w=REVIVE_WORDS.find(x=>r>=x[0]-1e-9)[1];
   const st=a.status==='ash'?'灰':'死';
   const bits=[];
   if(blessed(S,a))bits.push('寄進で上がっている');
   if(has(a,'信心深い'))bits.push('信心深く、成功しやすい');
-  return `${st}・成功率の目安 ${pct}%${bits.length?'（'+bits.join('。')+'）':''}`;
+  return `${st}・司祭の見立てでは、${w}${bits.length?'（'+bits.join('。')+'）':''}`;
 }
 function reviveResultText(name,r){
   if(r==='ok')return `${name}がよみがえった`;

@@ -1231,10 +1231,17 @@ function checkRevive(){
   check('蘇生：信心深い者は成功しやすい',near(p('dead',1,1,0),dead(1,1,0))&&p('dead',1,1,0)>p('dead',1,0,0)&&near(p('ash',1,1,0),ash(1,1,0))&&p('ash',1,1,0)>p('ash',1,0,0),'Lv1','');
   check('蘇生：寄進中は8ポイント上がり、上限も上がる',near(p('dead',1,0,1),dead(1,0,1))&&p('dead',40,0,1)===.99&&near(p('ash',1,0,1),ash(1,0,1))&&p('ash',40,0,1)===.97,'Lv1と上限',`${p('dead',40,0,1)} ${p('ash',40,0,1)}`);
   a.status='dead';a.lvl=1;a.traits=[];S.blessUntil=0;
-  check('蘇生の目安：押す前に状態と百分率が出る',E.reviveHint(S,a)===`死・成功率の目安 ${Math.round(E.reviveChance(S,a)*100)}%`,'死・寄進なし',E.reviveHint(S,a));
-  a.status='ash';a.traits=['信心深い'];S.blessUntil=S.tick+1;
+  // 見込みは数字で出さず、司祭の見立ての言葉にする。95%・88%・80% で段が変わる
+  const words=(status,lvl,faith,bless)=>{p(status,lvl,faith,bless);return E.reviveHint(S,a);};
+  const cases=[['dead',1,0,0,'死・司祭の見立てでは、戻らないこともある'],['dead',20,0,0,'死・司祭の見立てでは、たいていは戻る'],['dead',22,0,0,'死・司祭の見立てでは、まず戻る'],
+    ['ash',1,0,0,'灰・司祭の見立てでは、戻らないことも少なくない'],['ash',14,0,0,'灰・司祭の見立てでは、戻らないこともある'],['ash',40,0,0,'灰・司祭の見立てでは、たいていは戻る']];
+  const got=cases.map(([s,l,f,b])=>words(s,l,f,b));
+  check('蘇生の目安：押す前に状態と司祭の見立てが出て、見込みの高い低いが言葉で分かる',got.every((t,i)=>t===cases[i][4]),'死Lv1・20・22、灰Lv1・14・40',got.join(' / '));
+  const pcts=[];for(const s of ['dead','ash'])for(let l=1;l<=60;l++)for(const f of [0,1])for(const b of [0,1]){p(s,l,f,b);pcts.push(E.reviveHint(S,a));}
+  check('蘇生の目安：百分率も算用数字も出さない',pcts.every(t=>!/[0-9０-９%％]/.test(t)),'死と灰・Lv1〜60・信心と寄進',pcts.find(t=>/[0-9０-９%％]/.test(t))||'');
+  a.status='ash';a.lvl=1;a.traits=['信心深い'];S.blessUntil=S.tick+1;
   const hint=E.reviveHint(S,a);
-  check('蘇生の目安：寄進と信心深さは一言添える',hint.startsWith(`灰・成功率の目安 ${Math.round(E.reviveChance(S,a)*100)}%`)&&hint.includes('寄進で上がっている')&&hint.includes('信心深く、成功しやすい'),'灰・両方',hint);
+  check('蘇生の目安：寄進と信心深さは一言添える',hint.startsWith('灰・司祭の見立てでは、')&&hint.includes('寄進で上がっている')&&hint.includes('信心深く、成功しやすい'),'灰・両方',hint);
   check('蘇生の結果：その場の文面',E.reviveResultText('ファビアン','ok')==='ファビアンがよみがえった'&&E.reviveResultText('ファビアン','ash')==='ファビアンは蘇生に失敗し、灰になった'&&E.reviveResultText('ファビアン','lost')==='ファビアンは蘇生に失敗し、ロストした','三通り','');
   // 第2引数の 0 は偽なので乱数を固定できない。成功する小さな値にして、開店の抽選で種の並びがずれても結果を確かめる
   {const E2=load(2,1e-9),S2=E2.newState();const b=Object.values(S2.adv).find(x=>x.tav==='ours');b.status='dead';b.hp=0;
