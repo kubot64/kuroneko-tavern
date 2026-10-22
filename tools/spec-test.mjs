@@ -1220,7 +1220,7 @@ function runSeed(seed){
     for(let k=0;k<500;k++){const l=E.newcomerLvl(S,'ours');check('新顔の来店：評判を聞いて来る者は平均レベル±3',l===0||(l>=Math.max(1,avg-3)&&l<=avg+3),`種${seed}・終わり`,`平均${avg}に対して${l}`);}}
   // 「冒険者の手帳」「記念碑」：帳面の一行は描くたびに同じで、数字も店主も出さない。銀の杯亭の者には出ない
   for(const a of Object.values(S.adv))for(const k of ['came','end']){const t=E.ledgerLine(S,a,k);
-    check('帳面：同じ記録からは同じ文で、算用数字と店主の心情を書かない',t===E.ledgerLine(S,a,k)&&!/[0-9０-９]|店主/.test(t)&&(a.tav==='ours'||t===''),`種${seed}・終わり`,`${a.name}：${t}`);}
+    check('帳面：同じ記録からは同じ文で、算用数字と店主の心情と「この店」を書かない',t===E.ledgerLine(S,a,k)&&!/[0-9０-９%％]|店主|この店/.test(t)&&(a.tav==='ours'||t===''),`種${seed}・終わり`,`${a.name}：${t}`);}
   return `種${seed}：${TICKS}刻を回した（最深 黒猫亭B${S.deepest.ours}F・銀の杯亭B${S.deepest.rival}F）`;
 }
 
@@ -1340,7 +1340,7 @@ const STELE=['B6Fの転移の石碑に、一度触れてみたい','B6Fまで潜
 function openingOf(S){return Object.values(S.adv).filter(a=>a.opening).sort((a,b)=>a.id-b.id);}
 function tieOf(a){const i=a.bg.lastIndexOf('。');return i>=0?a.bg.slice(i+1):a.bg;}
 function dreamLine(a){const c=(a.chron||[]).find(x=>x.t&&x.t.includes('夢は「'));const m=c&&c.t.match(/夢は「([^」]*)」/);return m?m[1]:'';}
-// 「冒険者の手帳」「記念碑」：黒猫亭の帳面。その日より前の記録だけで数え、数は漢数字の言葉で書く
+// 「冒険者の手帳」「記念碑」：黒猫亭の帳面。その日より前の記録だけで、両方の店の冒険者を数え、数は漢数字の言葉で書く
 function checkLedger(){
   const E=load(1),D=E.TICKS_PER_DAY;
   check('帳面：漢数字の書き方',[[9,'九'],[15,'十五'],[30,'三十'],[170,'百七十'],[640,'六百四十'],[1200,'千二百']].every(([n,k])=>E.kanjiNum(n)===k),'表',[9,15,30,170,640,1200].map(E.kanjiNum).join('・'));
@@ -1348,18 +1348,17 @@ function checkLedger(){
   for(let i=0;i<4;i++){const S=load(1000+i*7919).newState();const L=load(1000+i*7919);
     const cast=Object.values(S.adv).filter(a=>a.opening);
     check('帳面：開店の顔ぶれは白い頁',cast.length===7&&cast.every(a=>L.ledgerLine(S,a,'came')==='帳面によれば、まだ白い頁が多い。'),`種${1000+i*7919}`,()=>cast.map(a=>L.ledgerLine(S,a,'came')).join(' / '));}
-  // 来た者20人・ロスト2人・去った者3人の帳面
+  // 来た者20人（黒猫亭10人・銀の杯亭10人）・ロスト2人・去った者3人の帳面。よその店の者も数える
   const mk=(id,tk,tav='ours',status='idle')=>({id,tav,status,name:'者'+id,chron:[{tk,t:'扉をくぐる'}]});
   const S={adv:{},memorial:[],farewells:[]};
-  for(let i=1;i<=20;i++)S.adv[i]=mk(i,0);
-  S.memorial.push({id:1,tk:150*D},{id:2,tk:300*D});S.adv[1].status=S.adv[2].status='lost';
-  [[3,590],[4,600],[5,640]].forEach(([id,d])=>{S.farewells.push({id,tk:d*D});S.adv[id].status='retired';});
-  for(let i=30;i<40;i++)S.adv[i]=mk(i,0,'rival');
+  for(let i=1;i<=20;i++)S.adv[i]=mk(i,0,i<=10?'ours':'rival');
+  S.memorial.push({id:1,tk:150*D},{id:12,tk:300*D});S.adv[1].status=S.adv[12].status='lost';
+  [[3,590],[14,600],[5,640]].forEach(([id,d])=>{S.farewells.push({id,tk:d*D});S.adv[id].status='retired';});
   const me=S.adv[50]=mk(50,1000*D);
   const came=E.ledgerLine(S,me,'came');
-  check('帳面：来た者20人・ロスト2人・去った者3人で「十人に一人」と日数の句',came==='帳面によれば、この店に来た者のうち、戻らなかったのは十人に一人。たいていは六百日ほどで、自分の足で出ていく。','場面',came);
-  check('帳面：去った者が3人未満なら日数の句を省く',(()=>{const f=S.farewells.pop();const t=E.ledgerLine(S,me,'came');S.farewells.push(f);return t==='帳面によれば、この店に来た者のうち、戻らなかったのは十人に一人。';})(),'場面',came);
-  check('帳面：銀の杯亭の者には出ない',E.ledgerLine(S,S.adv[30],'came')===''&&E.ledgerLine(S,{...me,tav:'rival'},'came')==='','場面','');
+  check('帳面：両方の店で来た者20人・ロスト2人・去った者3人で「十人に一人」と日数の句',came==='帳面によれば、この街の冒険者のうち、戻らなかったのは十人に一人。たいていは六百日ほどで、自分の足で出ていく。','場面',came);
+  check('帳面：去った者が3人未満なら日数の句を省く',(()=>{const f=S.farewells.pop();const t=E.ledgerLine(S,me,'came');S.farewells.push(f);return t==='帳面によれば、この街の冒険者のうち、戻らなかったのは十人に一人。';})(),'場面',came);
+  check('帳面：銀の杯亭の者には出ない',E.ledgerLine(S,S.adv[11],'came')===''&&E.ledgerLine(S,{...me,tav:'rival'},'came')==='','場面','');
   // 開く時点が後でも、来た日の文は変わらない（そのあとの記録は数えない）
   S.memorial.push({id:6,tk:1200*D});S.adv[6].status='lost';
   for(let i=60;i<80;i++)S.adv[i]=mk(i,1100*D);
@@ -1379,11 +1378,11 @@ function checkLedger(){
       for(let i=1;i<=l;i++){T.memorial.push({id:i,tk:i});T.adv[i].status='lost';}
       const cm=T.adv[100]=mk(100,10*D),lm=T.adv[101]=mk(101,10*D);T.memorial.push({id:101,tk:50*D});lm.status='lost';
       const a=E.ledgerLine(T,cm,'came'),b=E.ledgerLine(T,lm,'end'),fa=c/l<1.5,fb=(c+1)/l<1.5;// ロストした日の帳面には、先に来た cm も入る
-      const ok=!/一人に一人/.test(a+b)&&(fa?a.startsWith('帳面によれば、この店に来た者のうち、ほとんどが戻らなかった。'):/人に一人。/.test(a))&&(fb?b.startsWith('帳面によれば、ほとんどの側に入った。'):/人に一人の側に入った。/.test(b));
+      const ok=!/一人に一人/.test(a+b)&&(fa?a.startsWith('帳面によれば、この街の冒険者のうち、ほとんどが戻らなかった。'):/人に一人。/.test(a))&&(fb?b.startsWith('帳面によれば、ほとんどの側に入った。'):/人に一人の側に入った。/.test(b));
       if(!ok)bad=`来た${c}人・ロスト${l}人：${a} / ${b}`;}
     check('帳面：割合が一人に一人になるときは「ほとんど」と書き、「一人に一人」とは書かない',!bad,'場面',bad);}
   const none={adv:{},memorial:[],farewells:[]};for(let i=1;i<=24;i++)none.adv[i]=mk(i,0);none.adv[99]=mk(99,10*D);
-  check('帳面：まだ誰もロストしていなければ「まだいない」',E.ledgerLine(none,none.adv[99],'came')==='帳面によれば、この店から迷宮に呑まれた者は、まだいない。','場面',E.ledgerLine(none,none.adv[99],'came'));
+  check('帳面：まだ誰もロストしていなければ「まだいない」',E.ledgerLine(none,none.adv[99],'came')==='帳面によれば、この街で迷宮に呑まれた冒険者は、まだいない。','場面',E.ledgerLine(none,none.adv[99],'came'));
 }
 
 function checkOpening(){

@@ -2523,7 +2523,7 @@ test('黒猫亭の帳面の一行は、手帳と記念碑で語の途中で折�
     for(const id of await page.evaluate('window.__ledger')){
       await page.evaluate(id=>{advOpen=id;document.getElementById('advm').hidden=false;renderAdv();},id);
       const book=await page.locator('#advbox').innerText();
-      assert.match(book,/帳面によれば、この店に来た者のうち、戻らなかったのは[^\n]*人に一人。たいていは六百日ほどで、自分の足で出ていく。/);
+      assert.match(book,/帳面によれば、この街の冒険者のうち、戻らなかったのは[^\n]*人に一人。たいていは六百日ほどで、自分の足で出ていく。/);
       assert.equal((book.match(/帳面によれば、/g)||[]).length,2,`幅${w}の手帳の帳面の行数`);
       assert.deepEqual(await broken(),[],`幅${w}の手帳`);
       await page.evaluate(()=>{advOpen=null;document.getElementById('advm').hidden=true;});
@@ -2755,6 +2755,31 @@ test('常連のひと幕は、留守のまとめのあとに出て、375pxと128
   await page.locator('#ed-btn').click();
   assert.equal(await page.locator('#life').isVisible(),true,'踏破のひと幕を閉じても出ない');
   await page.locator('#lf-btn').click();
+  assert.deepEqual(errors,[]);
+  await ctx.close();
+});
+
+test('水晶の札：映せない一行を押すと、わけが一言出る',async()=>{
+  const {ctx,page,errors}=await open();
+  await page.locator('#sp0').click();
+  const got=await page.evaluate(()=>{
+    const ours=Object.values(S.parties).find(x=>x.tav==='ours');
+    const rival=Object.values(S.parties).find(x=>x.tav==='rival');
+    const press=p=>{S.watch=[null,null];render();document.querySelector('.toast')?.remove();
+      document.querySelector(`.pcard[data-p="${p.id}"]`).click();return {toast:(document.querySelector('.toast')||{}).textContent||'',watched:S.watch.includes(p.id)};};
+    const out={};
+    rival.state='explore';rival.seen=S.tick-31;out.rival=press(rival);
+    rival.seen=S.tick;out.rivalSeen=press(rival);
+    rival.state='wiped';rival.announced=true;out.rivalWiped=press(rival);
+    ours.state='wiped';ours.announced=true;ours.knownWiped=false;out.missing=press(ours);
+    ours.knownWiped=true;out.known=press(ours);
+    return out;
+  });
+  assert.deepEqual(got.rival,{toast:'銀の杯亭の一行は、すれ違ったときしか見えない',watched:false});
+  assert.deepEqual(got.rivalSeen,{toast:'',watched:true});
+  assert.deepEqual(got.rivalWiped,{toast:'銀の杯亭の全滅は、噂でしか伝わらない',watched:false});
+  assert.deepEqual(got.missing,{toast:'消息不明の一行は、水晶には映らない',watched:false});
+  assert.deepEqual(got.known,{toast:'',watched:true});
   assert.deepEqual(errors,[]);
   await ctx.close();
 });
