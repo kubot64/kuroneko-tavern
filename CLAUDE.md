@@ -16,7 +16,7 @@
 | index.html の script に、使っていない名前と宣言していない名前を残さない | lint：`tools/lint.mjs`（ESLint、CI） |
 | テストと measure からだけ使う名前は、index.html の `/* exported … */` に並べる | lint：`tools/lint.mjs`（CI） |
 | テストからエンジンの名前を使うのに、一覧は書かない | 仕組み：`tools/engine.mjs` がトップレベルの宣言を名前で引く |
-| 古いセーブを壊さない | テスト：spec-test の移行の確かめ（一部）と、人のレビュー |
+| 古いセーブを壊さない | テスト：spec-test が `tools/old-saves/` の版ごとの見本を今の migrate にかける（CI）。SAVE_V を上げる PR では、上げる前の版の見本を足す（README「仕様のテスト」） |
 | 振る舞いを変えたら、同じ変更で `docs/spec.md` を直す | 人のレビュー |
 | 釣り合いに効く変更は、支援なしと支援ありの両方を測って PR に書く | 人のレビュー。指紋を書き直した PR では、CI が変更前と並べて measure で測り、ジョブの要約に残す |
 | シミュレーションの結果が変わったら、同じ変更で釣り合いの指紋を書き直す | テスト：`tools/fingerprint.mjs --check`（CI） |
