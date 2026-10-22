@@ -717,7 +717,7 @@ test('帳場の覚え書きと、次の返済までの日数・必要額が常�
   });
   assert.deepEqual(wide,[]);
   const old=await page.evaluate(()=>{
-    S.v=22;delete S.memo;S.taverns.ours.rep=4;
+    S.v=SAVE_V;delete S.memo;S.taverns.ours.rep=4;
     const a=Object.values(S.adv).find(x=>x.tav==='ours'&&(x.trips||0)>=1);
     a.trips=2;migrate(S);const rep=S.taverns.ours.rep;render();
     const home=document.querySelector('#memo li[data-id="home"]');
