@@ -2849,7 +2849,9 @@ function screenAudit(){
     walk(c,c);
   }};
   walk(document.body,document.body);
-  const terms=[...new Set(newsTerms().flatMap(t=>{const m=/^(.+)(（[^（）]+）)$/.exec(t);return m?[m[1],m[2]]:[t];}))];
+  // 人の名など（newsTerms）に加えて、性格と素質の言葉（「慎重」「有望」。土産話の添え書きと手帳の見出しに出る）も一続きの語とする
+  const traits=[...Object.keys(PERS),...Object.keys(TAL)].filter(t=>t.length>=2);
+  const terms=[...new Set(newsTerms().flatMap(t=>{const m=/^(.+)(（[^（）]+）)$/.exec(t);return m?[m[1],m[2]]:[t];}).concat(traits))];
   const units=[/Lv\d+(?: [^\s・、。（）]+の[^\s・、。（）]+)?/g,/（[^（）\s￼]{1,12}）/g,/(?:坑道)?B\d+F/g,/[+-]?\d[\d,]*(?:\.\d+)?(?:G|日目|日|歳相当|歳|部|人|本|年|月|時|作目|刻|階|段|回|体|倍|%)?/g];
   for(const [blk,arr] of groups){
     if(!shown(blk)||blk.closest('.c-log'))continue;
@@ -2887,7 +2889,10 @@ test('どのタブも、375px・768px・1280pxで押す所が44px以上あり、
     const a=ours.find(x=>x.lvl>=10);
     a.status='dead';a.hp=0;a.party=null;a.traits=(a.traits||[]).concat(['信心深い']);S.blessUntil=S.tick+30*TICKS_PER_DAY;
     render();
-    return [a.id,ours.find(x=>x!==a).id];
+    // 手帳は、寺院で眠る常連とほかの常連に加えて、素質ごとに1人ずつと、いちばんレベルの高い者（銀の杯亭の客も含む）を開く
+    const live=Object.values(S.adv).filter(x=>x!==a&&!['lost','retired'].includes(x.status));
+    const more=Object.keys(TAL).map(t=>live.find(x=>x.tal===t)).concat([live.slice().sort((x,y)=>y.lvl-x.lvl)[0]]);
+    return [...new Set([a.id,ours.find(x=>x!==a).id,...more.filter(Boolean).map(x=>x.id)])];
   });
   const widths=[[375,740],[768,1024],[1280,800]];
   const check=async(width,what)=>{
@@ -2905,6 +2910,8 @@ test('どのタブも、375px・768px・1280pxで押す所が44px以上あり、
     for(const v of tabs){
       await page.locator(`#tabs button[data-v="${v}"]`).click();
       assert.ok((await page.locator('#tbody').innerText()).length>200,`${v} の中身が少ない`);
+      // 酒場は土産話（話した者・一行・性格の添え書き）が出ている状態で見る
+      if(v==='bar')assert.ok(await page.locator('#tbody .quote .by').count()>0,'酒場に土産話が出ていない');
       await check(width,v);
     }
     // 冒険者の手帳。寺院で眠る常連と、ほかの常連
