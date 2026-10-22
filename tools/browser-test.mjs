@@ -2783,3 +2783,138 @@ test('水晶の札：映せない一行を押すと、わけが一言出る',asy
   assert.deepEqual(errors,[]);
   await ctx.close();
 });
+
+// 画面全体で、押す所の大きさ・はみ出し・折れ目を確かめ、崩れを「何が・どこで」の一行ずつで返す（ページの中で動かす）
+//   押す所：押せるもの（ボタン・リンク・欄の開け閉め・data-act の付いたもの）は縦横44px以上
+//   はみ出し：ページが横に滑らない。要素は画面の外に出ず、字は入れ物の外に出ず、横に滑る枠もない
+//   折れ目：一続きにした語（.nw・.tie、名前のボタン、所属の札）は1行。字を1字ずつ並べて、行が変わるところが
+//     人の名前・一行の名・店の名・地名、「Lv20 ホビットの盗賊」、B○F、数と単位（3,000G・12日目・10%など）、中が12字までのかっこ書きの途中なら崩れ。
+//     句読点と閉じかっこが行の頭に来るのと、開きかっこが行の末尾に残るのも崩れ（docs/principles.md 8）
+// 例外とその理由
+//   - 768px と 1280px の押す所は、手帳の「見込む」と記念碑の「生涯」だけを見る。ほかの44pxは、spec.md「タブ」で640px以下に限っている
+//   - 文の途中の名前は、横幅を見ない。箱にすると文の行が崩れるので、押せる範囲を縦にだけ広げている（spec.md「タブ」）
+//   - 語ひとつが行より長いとき（表の狭いますに入る長い一行の名など）は、その語の途中で折れてよい（spec.md「タブ」）
+//   - 水晶のログは、幅に合わせて字の単位で折り返す作り（spec.md「遠見の水晶」）なので、折れ目は見ない。はみ出しは見る
+//   - 末尾を「…」にする札（所属の札、一行の札の名）は、字が枠の外に出ても見ない。全文は札に触れると出る
+function screenAudit(){
+  const bad=[],vw=innerWidth,phone=vw<=640;
+  const shown=el=>{for(let e=el;e&&e.nodeType===1;e=e.parentElement){const cs=getComputedStyle(e);if(cs.display==='none'||cs.visibility==='hidden')return false;}return true;};
+  const where=el=>{const p=[];for(let e=el;e&&e!==document.body&&p.length<3;e=e.parentElement)p.unshift(e.tagName.toLowerCase()+(e.id?'#'+e.id:'')+[...e.classList].map(c=>'.'+c).join(''));return p.join('>');};
+  const say=el=>(el.innerText||el.textContent||'').replace(/\s+/g,' ').trim().slice(0,20);
+  const charRect=(n,i)=>{const r=document.createRange();r.setStart(n,i);r.setEnd(n,i+1);return [...r.getClientRects()].find(x=>x.width>.5)||null;};
+  const cut=el=>{for(let e=el;e&&e!==document.body;e=e.parentElement){const cs=getComputedStyle(e);if(cs.textOverflow==='ellipsis'&&cs.overflowX!=='visible')return true;}return false;};
+  // 押す所
+  for(const el of document.querySelectorAll('button,a[href],input,select,summary,[data-act]:not(.modal)')){
+    if(!el.getClientRects().length||!shown(el))continue;
+    if(!phone&&!el.matches('[data-act="mark"],.life>summary'))continue;
+    const r=el.getBoundingClientRect(),inline=el.matches('.nm-link:not(.nm-head)')&&!el.closest('.c-members');
+    if((!inline&&r.width<44)||r.height<44)bad.push(`押す所が小さい ${where(el)}「${say(el)}」${Math.round(r.width)}×${Math.round(r.height)}`);
+  }
+  // はみ出し
+  if(document.documentElement.scrollWidth>vw+1)bad.push(`ページが横にはみ出す ${document.documentElement.scrollWidth}px`);
+  for(const el of document.body.querySelectorAll('*')){
+    if(!el.getClientRects().length||!shown(el))continue;
+    const cs=getComputedStyle(el),r=el.getBoundingClientRect();
+    if((cs.overflowX==='auto'||cs.overflowX==='scroll')&&el.scrollWidth>el.clientWidth+1)bad.push(`横に滑る ${where(el)} ${el.scrollWidth}>${el.clientWidth}`);
+    if(r.width>=1&&(r.right>vw+1||r.left<-1)&&!cut(el.parentElement))bad.push(`画面の外 ${where(el)}「${say(el)}」`);
+  }
+  const blockOf=n=>{let e=n.parentElement;while(e&&getComputedStyle(e).display==='inline')e=e.parentElement;return e;};
+  const walker=document.createTreeWalker(document.body,NodeFilter.SHOW_TEXT);
+  for(let n;(n=walker.nextNode());){
+    if(!n.textContent.trim()||!shown(n.parentElement))continue;
+    if(cut(n.parentElement))continue;
+    const b=blockOf(n).getBoundingClientRect(),range=document.createRange();range.selectNodeContents(n);
+    if(![...range.getClientRects()].some(r=>r.width>=1&&(r.right>b.right+1.5||r.left<b.left-1.5)))continue;
+    // 行末の空白だけがはみ出すのは見ない
+    const t=n.textContent;
+    for(let i=0;i<t.length;i++){if(!t[i].trim())continue;const r=charRect(n,i);if(r&&(r.right>b.right+1.5||r.left<b.left-1.5)){bad.push(`字が入れ物の外 ${where(blockOf(n))}「${t.trim().slice(0,20)}」`);break;}}
+  }
+  // 折れ目：一続きにした語は1行
+  const lines=rs=>{const m=[];for(const r of rs){if(r.width<1)continue;const c=(r.top+r.bottom)/2;if(!m.some(x=>Math.abs(x-c)<r.height/2))m.push(c);}return m.length;};
+  for(const el of document.querySelectorAll('.nw,.tie,.nm-link,.ptag')){
+    if(!el.getClientRects().length||!shown(el))continue;
+    const range=document.createRange();range.selectNodeContents(el);
+    if(lines(range.getClientRects())>1)bad.push(`一続きの語が折れる ${where(el)}「${el.textContent}」`);
+  }
+  // 折れ目：入れ物ごとに字を並べ、行が変わるところを見る。行の中でひとかたまりの要素（inline-block など）は1字（￼）と数え、その中は別の入れ物として見る
+  const groups=new Map();
+  const put=(blk,ch,r)=>{if(!groups.has(blk))groups.set(blk,[]);groups.get(blk).push({ch,r});};
+  const walk=(blk,el)=>{for(const c of el.childNodes){
+    if(c.nodeType===3){for(let i=0;i<c.textContent.length;i++)put(blk,c.textContent[i],charRect(c,i));continue;}
+    if(c.nodeType!==1)continue;
+    const d=getComputedStyle(c).display;
+    if(d==='none')continue;
+    if(d==='inline'){walk(blk,c);continue;}
+    if(d.startsWith('inline')){const r=c.getBoundingClientRect();put(blk,'￼',r.width?r:null);}else put(blk,'\n',null);
+    walk(c,c);
+  }};
+  walk(document.body,document.body);
+  const terms=[...new Set(newsTerms().flatMap(t=>{const m=/^(.+)(（[^（）]+）)$/.exec(t);return m?[m[1],m[2]]:[t];}))];
+  const units=[/Lv\d+(?: [^\s・、。（）]+の[^\s・、。（）]+)?/g,/（[^（）\s￼]{1,12}）/g,/(?:坑道)?B\d+F/g,/[+-]?\d[\d,]*(?:\.\d+)?(?:G|日目|日|歳相当|歳|部|人|本|年|月|時|作目|刻|階|段|回|体|倍|%)?/g];
+  for(const [blk,arr] of groups){
+    if(!shown(blk)||blk.closest('.c-log'))continue;
+    const s=arr.map(x=>x.ch).join(''),spans=[];
+    for(const re of units)for(const m of s.matchAll(re))if(m[0].length>1)spans.push([m.index,m.index+m[0].length,m[0]]);
+    for(const t of terms)for(let i=s.indexOf(t);i>=0;i=s.indexOf(t,i+1))spans.push([i,i+t.length,t]);
+    const cs=getComputedStyle(blk),room=blk.clientWidth-parseFloat(cs.paddingLeft)-parseFloat(cs.paddingRight);
+    const wide=([p,q])=>arr.slice(p,q).reduce((w,x)=>w+(x.r?x.r.width:0),0);
+    let prev=-1;
+    for(let i=0;i<arr.length;i++){
+      const x=arr[i];
+      if(x.ch==='\n'){prev=-1;continue;}
+      if(!x.r||!x.ch.trim())continue;
+      const a=prev>=0&&arr[prev].r;
+      if(a&&x.r.top>(a.top+a.bottom)/2&&x.r.top>a.top+3){
+        const at=`${where(blk)} ${s.slice(Math.max(0,prev-6),prev+1)}｜${s.slice(i,i+6)}`.replace(/\n/g,'');
+        const hit=spans.find(sp=>sp[0]<=prev&&i<sp[1]&&wide(sp)<=room);
+        if(hit)bad.push(`語の途中で折れる「${hit[2]}」 ${at}`);
+        else if('、。，．）」』】！？'.includes(x.ch))bad.push(`句読点か閉じかっこが行の頭 ${at}`);
+        else if('（「『【'.includes(arr[prev].ch))bad.push(`開きかっこが行の末尾 ${at}`);
+      }
+      prev=i;
+    }
+  }
+  return [...new Set(bad)];
+}
+
+test('どのタブも、375px・768px・1280pxで押す所が44px以上あり、横にはみ出さず、語の途中で折れない',async()=>{
+  const {ctx,page,errors}=await open();
+  await page.locator('#sp0').click();
+  // 300日すすめて、どのタブにも中身を出す。寺院に常連を1人置き、帳場に蘇生の見立てのかっこ書きを出す
+  const ids=await page.evaluate(()=>{
+    for(let i=0;i<300*TICKS_PER_DAY;i++){tick(S);rivalTemple(S);}
+    const ours=Object.values(S.adv).filter(x=>x.tav==='ours'&&!['lost','retired','dead','ash'].includes(x.status));
+    const a=ours.find(x=>x.lvl>=10);
+    a.status='dead';a.hp=0;a.party=null;a.traits=(a.traits||[]).concat(['信心深い']);S.blessUntil=S.tick+30*TICKS_PER_DAY;
+    render();
+    return [a.id,ours.find(x=>x!==a).id];
+  });
+  const widths=[[375,740],[768,1024],[1280,800]];
+  const check=async(width,what)=>{
+    await page.evaluate(()=>document.fonts.ready);
+    assert.deepEqual(await page.evaluate(screenAudit),[],`${width}px の${what}`);
+  };
+  // 300日のあいだにたまった常連のひと幕
+  assert.equal(await page.locator('#life').isVisible(),true,'ひと幕が出ていない');
+  for(const [width,height] of widths){await page.setViewportSize({width,height});await check(width,'ひと幕');}
+  await page.locator('#lf-btn').click();
+  const tabs=await page.locator('#tabs button[data-act="tab"]').evaluateAll(bs=>bs.map(b=>b.dataset.v));
+  assert.deepEqual(tabs,['news','bar','roster','rank','stone','ref','desk','shop','maps']);
+  for(const [width,height] of widths){
+    await page.setViewportSize({width,height});
+    for(const v of tabs){
+      await page.locator(`#tabs button[data-v="${v}"]`).click();
+      assert.ok((await page.locator('#tbody').innerText()).length>200,`${v} の中身が少ない`);
+      await check(width,v);
+    }
+    // 冒険者の手帳。寺院で眠る常連と、ほかの常連
+    for(const id of ids){
+      await page.evaluate(id=>{advOpen=id;$('advm').hidden=false;renderAdv();},id);
+      await check(width,'手帳');
+      await page.keyboard.press('Escape');
+    }
+  }
+  await page.locator('#tabs button[data-v="desk"]').click();
+  assert.match(await page.locator(`#tbody .row:has(button[data-act="revive"][data-a="${ids[0]}"])`).innerText(),/（寄進で上がっている。信心深く、成功しやすい）/);
+  assert.deepEqual(errors,[]);await ctx.close();
+});
