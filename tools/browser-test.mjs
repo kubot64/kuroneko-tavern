@@ -2523,7 +2523,7 @@ test('黒猫亭の帳面の一行は、手帳と記念碑で語の途中で折�
     for(const id of await page.evaluate('window.__ledger')){
       await page.evaluate(id=>{advOpen=id;document.getElementById('advm').hidden=false;renderAdv();},id);
       const book=await page.locator('#advbox').innerText();
-      assert.match(book,/帳面によれば、この店に来た者のうち、戻らなかったのは[^\n]*人に一人。たいていは六百日ほどで、自分の足で出ていく。/);
+      assert.match(book,/帳面によれば、この街の冒険者のうち、戻らなかったのは[^\n]*人に一人。たいていは六百日ほどで、自分の足で出ていく。/);
       assert.equal((book.match(/帳面によれば、/g)||[]).length,2,`幅${w}の手帳の帳面の行数`);
       assert.deepEqual(await broken(),[],`幅${w}の手帳`);
       await page.evaluate(()=>{advOpen=null;document.getElementById('advm').hidden=true;});

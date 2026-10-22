@@ -2520,12 +2520,12 @@ function rareMonOf(rf){const R0=rareDef(rf);const f=dz(rf);const top=MON.filter(
   return {n:R0.n,u:R0.u,f,rf,hp:Math.round(top.hp*5+30+f*10),atk:Math.round(top.atk*1.5)+3,sp:R0.sp,rare:true,acts:f>=8?2:1};}
 function rareNamesOf(S,a){const names=[];Object.entries(S.rares||{}).forEach(([f,v])=>{const k=v&&v.killed;if(!k||k.by!==a.name)return;const n=(rareDef(+f)||{}).n;if(n&&!names.includes(n))names.push(n);});return names;}
 function lostRareLine(m){const r=m&&m.rares||[];return r.length?`名のある魔物${r.map(n=>`「${n}」`).join('、')}を討った者。`:'';}
-// 黒猫亭の帳面。来た日と終わった日に、その日より前の記録だけで「この店のふつう」を数える。乱数は引かず、描くたびに同じ文になる
+// 黒猫亭の帳面。来た日と終わった日に、その日より前の記録だけで「この街のふつう」を数える。よその店の者も街で聞いた話として数える。乱数は引かず、描くたびに同じ文になる
 const KJ_D='〇一二三四五六七八九';
 function kanjiNum(n){n=Math.max(0,Math.round(n));if(!n)return '〇';let s='';for(const [u,k] of [[1000,'千'],[100,'百'],[10,'十']]){const d=Math.floor(n/u);n%=u;if(d)s+=(d>1?KJ_D[d]:'')+k;}return s+(n?KJ_D[n]:'');}
 function arrivedTk(a){const c=a&&(a.chron||[])[0];return c&&c.tk!=null?c.tk:null;}
 function ledgerAt(S,tk,self){
-  const came=new Map();Object.values(S.adv||{}).forEach(b=>{if(!b||b.tav!=='ours'||b.id===self)return;const t=arrivedTk(b);if(t!=null&&t<tk)came.set(b.id,t);});
+  const came=new Map();Object.values(S.adv||{}).forEach(b=>{if(!b||b.id===self)return;const t=arrivedTk(b);if(t!=null&&t<tk)came.set(b.id,t);});
   const lost=new Set((S.memorial||[]).filter(m=>m.tk<tk&&came.has(m.id)).map(m=>m.id)).size;
   const stays=[];const seen=new Set();(S.farewells||[]).forEach(f=>{if(f.tk<tk&&came.has(f.id)&&!seen.has(f.id)){seen.add(f.id);stays.push((f.tk-came.get(f.id))/TICKS_PER_DAY);}});
   stays.sort((x,y)=>x-y);const n=stays.length;
@@ -2541,10 +2541,10 @@ function ledgerLine(S,a,kind){
   const L=ledgerAt(S,end!=null?end:at,a.id);
   if(L.came<20)return '帳面によれば、まだ白い頁が多い。';
   const usual=L.left>=3?(L.median<100?'百日に満たず':kanjiNum(ledgerUsual(L))+'日ほどで'):'';
-  if(end==null)return '帳面によれば、'+(L.lost?(ledgerOdds(L.came,L.lost)?`この店に来た者のうち、戻らなかったのは${ledgerOdds(L.came,L.lost)}。`:'この店に来た者のうち、ほとんどが戻らなかった。'):'この店から迷宮に呑まれた者は、まだいない。')+(usual?`たいていは${usual}、自分の足で出ていく。`:'');
+  if(end==null)return '帳面によれば、'+(L.lost?(ledgerOdds(L.came,L.lost)?`この街の冒険者のうち、戻らなかったのは${ledgerOdds(L.came,L.lost)}。`:'この街の冒険者のうち、ほとんどが戻らなかった。'):'この街で迷宮に呑まれた冒険者は、まだいない。')+(usual?`たいていは${usual}、自分の足で出ていく。`:'');
   const days=(end-at)/TICKS_PER_DAY,r=Math.round(days/10)*10;
   const stay=r<10?'在籍は十日に満たない。':`在籍は${kanjiNum(r)}日ほど。`;
-  if(lost)return '帳面によれば、'+(L.lost?`${ledgerOdds(L.came,L.lost)||'ほとんど'}の側に入った。`:'この店で迷宮に呑まれた、最初の一人になった。')+stay;
+  if(lost)return '帳面によれば、'+(L.lost?`${ledgerOdds(L.came,L.lost)||'ほとんど'}の側に入った。`:'この街で迷宮に呑まれた、最初の一人になった。')+stay;
   return `帳面によれば、自分の足で出ていった。${stay}`+(usual&&Math.abs(days-ledgerUsual(L))<=100?'帳面のとおりだった。':'');
 }
 function memorialize(S,a,extra){
