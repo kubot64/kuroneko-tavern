@@ -8,7 +8,8 @@
 //   node tools/spec-test.mjs --jobs 2        同時に回す数。環境変数 SPEC_TEST_JOBS でも指定できる（ふだんは CPU のコア数）
 //   node tools/spec-test.mjs --shard 2/4     種を4つに分けたうちの2つめだけを回す（CI で並べて回すときに使う）。種に関係ない確かめは 1/n だけで行う
 // 種ごとに別のスレッドで回す。進捗と合否は種の順に出すので、同時に回す数を変えても結果は同じになる。
-import {readFileSync} from 'node:fs';
+import {readFileSync,readdirSync} from 'node:fs';
+import {gunzipSync} from 'node:zlib';
 import {Worker,isMainThread,parentPort,workerData} from 'node:worker_threads';
 import {availableParallelism} from 'node:os';
 import {engineOf,loadEngine} from './engine.mjs';
@@ -1608,6 +1609,42 @@ function checkFoes(){
 }
 
 // 「呪文」：レベル30〜60で覚える呪文。資料の一覧と覚えるレベルが一致し、それぞれの効き目が決まりどおり
+// 古いセーブの見本（tools/old-saves/vNN.json.gz）。版ごとに、その版のコードで店を300日回して保存したもの。
+// 今の migrate で最新の形になり、人も一行も記録も欠けず、そのまま続けて遊べることを確かめる
+function checkOldSaves(){
+  const dir=new URL('./old-saves/',import.meta.url);
+  const files=readdirSync(dir).filter(f=>/^v\d+\.json\.gz$/.test(f)).sort((a,b)=>parseInt(a.slice(1))-parseInt(b.slice(1)));
+  check('古いセーブ：見本がある',files.length>0,'tools/old-saves',files.join(','));
+  // 今のコードで店を開いたときに、いつもある項目
+  const F=load(1).newState();const always=xs=>xs.reduce((k,x)=>k.filter(n=>n in x),Object.keys(xs[0]||{}));
+  const topKeys=Object.keys(F),advKeys=always(Object.values(F.adv)),partyKeys=always(Object.values(F.parties));
+  const read=f=>JSON.parse(gunzipSync(readFileSync(new URL(f,dir))).toString('utf8'));
+  for(const f of files){
+    const saved=read(f),S=saved.S,v0=S.v,at=`見本${f}`;
+    const before={adv:Object.keys(S.adv).length,parties:Object.keys(S.parties).length,memorial:(S.memorial||[]).length,farewells:(S.farewells||[]).length,tick:S.tick,gold:S.taverns.ours.gold,debt:S.taverns.ours.debt};
+    const E=load(1);let err=null;try{E.migrate(S);}catch(e){err=e;}
+    check('古いセーブ：移行がエラーで止まらない',!err,at,()=>err&&err.stack.split('\n').slice(0,3).join(' / '));
+    if(err)continue;
+    check('古いセーブ：移行のあとは今の版',S.v===SAVE_V,at,`版${v0}→${S.v}`);
+    const after={adv:Object.keys(S.adv).length,parties:Object.keys(S.parties).length,memorial:S.memorial.length,farewells:S.farewells.length,tick:S.tick,gold:S.taverns.ours.gold,debt:S.taverns.ours.debt};
+    check('古いセーブ：冒険者・一行・記念碑・去った者の数と、刻・店の金・借金が変わらない',JSON.stringify(before)===JSON.stringify(after),at,()=>`${JSON.stringify(before)} → ${JSON.stringify(after)}`);
+    const miss=[...topKeys.filter(k=>!(k in S)).map(k=>`S.${k}`),
+      ...Object.values(S.adv).flatMap(a=>advKeys.filter(k=>!(k in a)).map(k=>`${a.name}.${k}`)),
+      ...Object.values(S.parties).flatMap(p=>partyKeys.filter(k=>!(k in p)).map(k=>`${p.name}.${k}`))];
+    check('古いセーブ：今のコードで店を開いたときにいつもある項目が、移行のあとにもある',!miss.length,at,()=>miss.slice(0,8).join('、'));
+    const stray=Object.values(S.parties).flatMap(p=>(p.members||[]).filter(id=>!S.adv[id]).map(id=>`${p.name}の${id}`));
+    check('古いセーブ：一行の仲間がみな名簿にいる',!stray.length,at,stray.join('、'));
+    // 移行のあと、30日続けて回してもエラーで止まらない
+    let run=null;try{for(let i=0;i<30*E.TICKS_PER_DAY;i++){E.tick(S);E.rivalTemple(S);}}catch(e){run=e;}
+    check('古いセーブ：移行のあと30日続けて回せる',!run,at,()=>run&&run.stack.split('\n').slice(0,3).join(' / '));
+  }
+  // 版22の記録（覚え書きのない記録）。版24の見本から覚え書きを外して版22に戻し、移行で覚え書きが埋まることを見る。
+  // もうかなえている行には線だけ引き、評判は足さない
+  const v24=files.find(f=>f==='v24.json.gz');
+  if(v24){const S=read(v24).S;S.v=22;delete S.memo;delete S.taverns.ours.cleanPay;const rep=S.taverns.ours.rep;const E=load(1);E.migrate(S);
+    const done=Object.keys((S.memo||{}).done||{});
+    check('古いセーブ：覚え書きのない版22の記録は、移行で覚え書きが埋まり、評判は変わらない',S.v===SAVE_V&&done.length>0&&S.taverns.ours.rep===rep,'版24の見本を版22に戻したもの',`版${S.v}・線を引いた行${done.join(',')}・評判${rep}→${S.taverns.ours.rep}`);}
+}
 function checkHighSpells(){
   const E=load(1);
   const keys={キヨメ:'kiyome',ゴウエン:'goen',タマヨビ:'tamayobi',オリハライ:'orihara',ホシオトシ:'hoshi',イシガタメ:'ishi',ウツシエ:'utsushi',イシワタリ:'watari'};
@@ -2088,7 +2125,7 @@ function checkLife(){
 
 if(!isMainThread){const line=runSeed(workerData.seed);parentPort.postMessage({line,res:[...results]});}
 else{
-  if(SHARD.k===1){checkTables();checkScenes();checkLife();checkLetters();checkErrands();checkCrest();checkRowFallback();checkMine();checkAffinity();checkRevive();checkMemoNotes();checkOpening();checkCareer();checkIntro();checkAge();checkFoes();checkFlow();checkLedger();checkMissing();checkLastWords();checkHighSpells();}
+  if(SHARD.k===1){checkTables();checkScenes();checkLife();checkLetters();checkErrands();checkCrest();checkRowFallback();checkMine();checkAffinity();checkRevive();checkMemoNotes();checkOpening();checkCareer();checkIntro();checkAge();checkFoes();checkFlow();checkLedger();checkMissing();checkLastWords();checkHighSpells();checkOldSaves();}
   // 種ごとの結果は、種の順に重ねる。反例は、いちばん若い種の最初のものを残す。進捗の行も種の順に出す
   const out=new Array(SEEDS.length);let next=0,printed=0;
   const flush=()=>{while(printed<out.length&&out[printed]){if(out[printed].line)console.log(out[printed].line);printed++;}};
