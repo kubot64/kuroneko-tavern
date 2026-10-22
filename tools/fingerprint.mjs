@@ -23,8 +23,8 @@ const ROOT=fileURLToPath(new URL('..',import.meta.url));
 
 // 死因の偏り：measure の帯ごとに、16種を合わせて、魔物に倒された人数のうち、いちばん多い魔物が占める割合の上限。
 // 宝箱のわな（「宝箱の○○」）は魔物とは別の死因なので、分子にも分母にも入れない（指紋の死因の記録には残す）。
-// 魔物に倒された人数が MIN に満たない帯は見ない。55% は #193 で PM が決めた（docs/principles.md 6）
-const SKEW={max:0.55,min:100};
+// 魔物に倒された人数が MIN に満たない帯は見ない。60% は #193 で PM が決めた（docs/principles.md 6）
+const SKEW={max:0.6,min:100};
 const isTrap=n=>String(n).startsWith('宝箱の');
 
 const args=process.argv.slice(2);
