@@ -406,6 +406,7 @@ button:focus-visible,[tabindex]:focus-visible{outline:2px solid var(--amber);out
 
 <script>
 /*ENGINE START*/
+/* exported BGS, setQuietLog, lostRareLine, BOARD_MAX, MARK_MAX -- テストと measure からだけ使う名前（tools/lint.mjs） */
 const R=()=>Math.random();
 const ri=(a,b)=>a+Math.floor(R()*(b-a+1));
 const pick=a=>a[Math.floor(R()*a.length)];
@@ -472,7 +473,7 @@ const BEAST_NAMES=['ハヤテ','クロ','シロガネ','ツムジ','モミジ','
 function C(a){return CLS[a.cls]||CLS['戦士']}
 function canUse(cls,it){const g=(CLS[cls]||CLS['戦士']).eq;return it.for.some(c=>g.includes(c));}
 function promote(S,a){
-  const opts=Object.entries(CLS).filter(([k,c])=>c.adv===a.cls&&a.lvl>=c.lv&&c.cond(a));
+  const opts=Object.entries(CLS).filter(([,c])=>c.adv===a.cls&&a.lvl>=c.lv&&c.cond(a));
   if(!opts.length||!chance(.3))return;
   const [nk,nc]=pick(opts);const old=a.cls;a.cls=nk;a.promoted=old;
   const b=nc.bonus||{};a.mhp+=ri(3,8);a.atk=Math.max(1,a.atk+(b.atk||0));a.ac+=(b.ac||0);a.mmp+=(b.mmp||0);a.hp=a.mhp;a.mp=mmpOf(a);
@@ -875,14 +876,12 @@ function uname(S,g){
 }
 const AGE2={'人間':{n:[15,30],o:[31,62]},'ホビット':{n:[18,40],o:[41,95]},'ドワーフ':{n:[25,90],o:[91,190]},'エルフ':{n:[30,180],o:[181,420]}};
 const AGE=Object.fromEntries(Object.entries(AGE2).map(([k,v])=>[k,[v.n[0],v.o[1]]]));
-const OLD={'人間':55,'エルフ':400,'ドワーフ':175,'ホビット':85};
 // 年長枠は来店時レベルで 3% / 8% / 15%（レベルの半分を切り上げて 5 以下、6〜8、9 以上）。枠の中の寄り方は変えない
 function rollAge(race,lv0){const lvl=Math.ceil(lv0/2);const r=AGE2[race]||AGE2['人間'];const oldP=lvl>=9?.15:lvl>=6?.08:.03;const old=chance(oldP);const rg=old?r.o:r.n;const t=old?clamp(R()**2*(.5+lvl*.04),0,1):clamp((lvl-1)/10*.4+R()*.6,0,1);return Math.round(rg[0]+(rg[1]-rg[0])*t);}
 const KIN_G={'兄':'男','弟':'男','父':'男','姉':'女'};
 const KIN_AGE={'父':[20,32],'兄':[1,8],'姉':[1,8],'弟':[-7,-1],'師匠':[15,40],'幼なじみ':[-2,2]};
 function humanAge(a){if(a.race==='人間'||!AGE2[a.race])return a.age;const r=AGE2[a.race];
   const v=a.age<=r.n[1]?15+(a.age-r.n[0])/(r.n[1]-r.n[0])*15:31+(a.age-r.o[0])/(r.o[1]-r.o[0])*31;return Math.max(13,Math.round(v));}
-function sexAge(a){return `${a.sex}・${humanAge(a)}歳${a.race==='人間'?'':'相当'}`}
 function ageWords(a){return a.race==='人間'?`${a.age}歳`:`人間でいえば${humanAge(a)}歳ほど（実年齢${a.age}歳）`}
 function originOf(a){return a.origin&&ORIGINS[a.origin]?a.origin:'不明'}
 const TAL={'凡庸':{g:.8,hp:0,w:3},'並':{g:1,hp:0,w:5},'有望':{g:1.25,hp:1,w:2},'天賦':{g:1.5,hp:2,atk:1,w:.6}};
@@ -970,7 +969,6 @@ function lvlUp(a){a.lvl++;const c=CLS[a.cls];const t=TAL[a.tal]||TAL['並'];
   a.mhp+=Math.max(1,Math.round((ri(2,c.hd)+t.hp+(a.odd&&rc(a).hd<0?0:rc(a).hd))/2)+(has(a,'頑健')?1:0)-(has(a,'虚弱')&&chance(.5)?1:0));
   if(a.lvl%2===1){const k=(a.lvl+1)/2;if(k%2===0||(t.atk&&k%3===0))a.atk++;if(c.mpg>=1||(c.mpg===.5&&k>=(c.mageLv||3)&&k%2===1))a.mmp++;}}
 function chron(S,a,t){a.chron=a.chron||[];a.chron.push({tk:S.tick,t});if(a.chron.length>90)a.chron.splice(1,1);}
-const TOP_TITLES=['百戦錬磨','深淵帰り','三度目の蘇生者'];
 const DREAMS={
   conquer:{w:.6,cw:{'戦士':1,'侍':1,'聖騎士':1.5,'剣聖':1.5,'竜騎士':1.2},mk:()=>({}),txt:()=>'迷宮の主を討ち、踏破者として名を残したい',
     ok:(S,a)=>a.conq,msg:a=>`${a.name}が迷宮の主を討ち、踏破者として名を残した。`,prog:a=>`これまでの最深 ${deepNow(a.deepest)}`},
@@ -1782,7 +1780,7 @@ function recordBonds(S,p,al,dead,share){
   const close=al.filter(a=>p.trip.close.includes(a.name));const hl=byN(p.trip.healer);
   if(close.length>=2)bondEv(S,close[0],close[1],{k:'close',f});
   if(close.length&&hl&&hl!==close[0])bondEv(S,hl,close[0],{k:'heal',a:hl.id,b:close[0].id,f});
-  const rk=Object.entries(S.rares||{}).find(([rf,v])=>v.killed&&v.killed.party===p.name&&S.tick-v.killed.tk<TICKS_PER_DAY*6);
+  const rk=Object.entries(S.rares||{}).find(([,v])=>v.killed&&v.killed.party===p.name&&S.tick-v.killed.tk<TICKS_PER_DAY*6);
   if(rk&&al.length>=2){const R0=rareDef(+rk[0]);const m=R0?R0.n:'名のある魔物';const rf=+rk[0];
     const seen=(a,b)=>((bondOf(S,a,b)||{}).ev||[]).some(e=>e.k==='rare'&&e.m===m&&e.f===rf);
     const sl=rk[1].killed.by&&al.find(a=>a.name===rk[1].killed.by);
@@ -1895,7 +1893,6 @@ function trDodge(a){return (has(a,'俊足')?.05:0)-(has(a,'鈍足')?.05:0)}
 function trTrap(a){return (has(a,'器用')?.12:0)+(has(a,'強運')?.1:0)-(has(a,'不器用')?.12:0)-(has(a,'不運')?.08:0)}
 function trXp(a){let x=1;if(has(a,'早熟'))x*=a.lvl<20?1.25:.95;if(has(a,'大器晩成'))x*=a.lvl<20?.9:1.3;if(has(a,'覚えが悪い'))x*=.85;return x;}
 /* ---- personality: speech, catchphrases, fears, favourite food, change ---- */
-const TONES=['普通','丁寧','ぶっきらぼう','無口','陽気','古風','商人言葉','田舎なまり'];
 function pickTone(a){const h=humanAge(a);const w={'普通':4,'丁寧':1.5,'ぶっきらぼう':2,'無口':.5,'陽気':1.5,'古風':.5,'商人言葉':.4,'田舎なまり':.4};
   if(a.origin==='セーレ自由都市同盟')w['商人言葉']*=8;if(['カルセ王国','麦穂の丘','ハザン草原'].includes(a.origin))w['田舎なまり']*=6;if(a.origin==='聖オルド教国'||a.cls==='僧侶'||a.cls==='司教')w['丁寧']*=2.5;
   if(h>=50||a.cls==='侍'||a.cls==='剣聖'||a.origin==='東方の島国アズマ')w['古風']*=6;if(a.quirk==='無口')w['無口']*=4;if(a.pers==='無謀')w['陽気']*=2,w['ぶっきらぼう']*=2;if(a.pers==='臆病')w['丁寧']*=2;if(h<18)w['陽気']*=2;if(a.race==='エルフ')w['丁寧']*=2;
@@ -1914,7 +1911,7 @@ function fearPen(a,t,p){const f=fearOf(a);if(!f)return 0;if(f.re&&f.re.test(t.ba
 const DA=/(?<!(?:[一-龠々]|[らそしころびみ]|[^一-龠々]く)ん)だ(な|よ|ぞ|ぜ)?(?=[。！？]|$)/g;
 // 仲間の死やつらい話。陽気な口調でも笑わない
 const SAD=/やられ|死|寺院|担いで|亡く|失っ|ロスト|灰に|墓|弔|記念碑|いいやつだった|放っておいて|そっとして|席が、ひとつ/;
-function toneT(a,t){const tn=a.tone||'普通';const end=(re,f)=>t.replace(re,f);
+function toneT(a,t){const tn=a.tone||'普通';
   if(tn==='丁寧')t=t.replace(/だろう(?=[。！？]|$)/g,'でしょう').replace(DA,(m,x)=>x==='な'?'ですね':x?'ですよ':'です').replace(/(?<=[^っ])(ぞ|ぜ|さ)(?=[。！？]|$)/g,'');
   else if(tn==='古風')t=t.replace(/だろう(?=[。！？]|$)/g,'じゃろう').replace(DA,(m,x)=>x==='な'?'じゃな':x?'じゃぞ':'じゃ');
   else if(tn==='商人言葉')t=t.replace(/だろう(?=[。！？]|$)/g,'やろ').replace(DA,(m,x)=>x==='な'?'やな':x?'やで':'や').replace(/じゃない/g,'やない');
@@ -1984,10 +1981,10 @@ function chatterTick(S){
   if(fresh.length&&vet.length)topics.push([2,()=>{const n=pick(fresh),v=pick(vet);L.length=0;say2(v,`新入り、${pick(['地図のない階では欲を出すな','宝箱は盗賊に任せろ','仲間が倒れたら、すぐ引き返せ','僧侶の呪文が尽きたら帰り時だ','名のある魔物を見たら逃げろ。勝てると思うな'])}`);say2(n,pick(['は、はい','わかってますよ','……覚えておきます']));}]);
   const sh=S.shop||{};const top=[9,8,7,6,5,4,3,2].find(t=>sh.tiers&&sh.tiers[t]);
   if(top&&top>1)topics.push([1,()=>{say2(A,`武具屋に${SHOP_TIERS[top].label}が並んでるらしいな`);say2(B,pick(['高くて手が出ないよ','いつか買ってやるさ','迷宮で拾ったほうが早い']));}]);
-  const mp=Object.entries(S.floors||{}).filter(([f,v])=>v.map&&v.mapAt&&recent(v.mapAt)).map(([f])=>+f);
+  const mp=Object.entries(S.floors||{}).filter(([,v])=>v.map&&v.mapAt&&recent(v.mapAt)).map(([f])=>+f);
   if(mp.length)topics.push([2,()=>{const f=pick(mp);say2(A,`${FN(f)}の地図が出たぞ`);say2(B,pick(['これでやっと稼げる','高いんだろう、どうせ','地図があっても死ぬ時は死ぬ']));}]);
   if(S.dragon&&S.dragon.kills)topics.push([1,()=>{say2(A,dragonAlive(S)?'黒竜がまた階段を塞いでるらしい':'黒竜が討たれたってよ');say2(B,pick(REACT[B.pers]));}]);
-  const rk=Object.entries(S.rares||{}).filter(([f,v])=>v.killed&&recent(v.killed.tk));
+  const rk=Object.entries(S.rares||{}).filter(([,v])=>v.killed&&recent(v.killed.tk));
   if(rk.length)topics.push([2.5,()=>{const [f,v]=pick(rk);const R0=rareDef(+f);say2(A,`${v.killed.party}が「${R0.n}」を仕留めたらしい`);say2(B,pick(['見てみたかったな','運のいい連中だ',...REACT[B.pers]]));}]);
   if(A.race!==B.race&&['エルフ','ドワーフ'].includes(A.race)&&['エルフ','ドワーフ'].includes(B.race))topics.push([2,()=>{say2(A,A.race==='ドワーフ'?'エルフは酒の飲み方も知らんのか':'ドワーフは、もう少し静かに飲めないのか');say2(B,B.race==='エルフ'?'樽ごと飲むのを飲み方とは呼ばない':'森の水でも飲んでろ');}]);
   if(A.origin&&A.origin===B.origin)topics.push([1.5,()=>{say2(A,`お前も${A.origin}の出か`);say2(B,pick(['ああ。もう何年も帰ってない','懐かしいな、あそこの飯','帰る理由もないがな']));}]);
@@ -2927,7 +2924,7 @@ function flushDeathChron(S,a){
   if(a.ashPending){chron(S,a,a.ashPending);a.ashPending=null;}
 }
 function victory(S,p){
-  const t=p.etype,f=Math.max(1,p.floor),n=p.enemies.length;
+  const t=p.etype,n=p.enemies.length;
   const al=alive(S,p);
   // 主は1体きり。同じ主とほかの一行が先に決着をつけていたら、踏破の記録は書き換えない
   if(t.mboss){if(!S.mineConq)mineConquest(S,p);p.state='return';}
@@ -3330,7 +3327,7 @@ const TITLE_ADJ={'怪力':'剛力の','俊足':'疾風の','鷹の目':'鷹の�
 function titleCands(S,a,kind){const sl=Object.entries(a.slain||{}).filter(([k])=>!/ネズミ|スライム/.test(k)).sort((x,y)=>y[1]-x[1]);const ms=sl.length?sl[0][0]:'魔物';const ms2=sl[1]?sl[1][0]:ms;
   const os=ORIGINS[a.origin]?ORIGINS[a.origin].short:'';const w=a.eq&&a.eq.wpn?(a.eq.wpn.base||''):'';const g=a.sex==='女';
   // by がある討伐は、とどめを刺した者だけが「○○殺し」の候補になる。by のない古い記録は、これまでどおりその場にいた者を候補にする
-  const rk=Object.entries(S.rares||{}).filter(([f,v])=>{const k=v.killed;if(!k)return false;if(k.by)return k.by===a.name;if('by' in k)return false;return !!(k.names&&k.names.includes(a.name));}).map(([f])=>(rareDef(+f)||{}).n).filter(Boolean);
+  const rk=Object.entries(S.rares||{}).filter(([,v])=>{const k=v.killed;if(!k)return false;if(k.by)return k.by===a.name;if('by' in k)return false;return !!(k.names&&k.names.includes(a.name));}).map(([f])=>(rareDef(+f)||{}).n).filter(Boolean);
   const it=eqList(a).find(x=>x.rare);const P=(st,t)=>[st,t];
   const PER={'無謀':[P('命知らず','命知らず'),P('向こう見ず','向こう見ず')],'慎重':[P('石橋','石橋叩き'),P('しんがり','しんがり')],'強欲':[P('金の亡者','金の亡者'),P('宝箱荒らし','宝箱荒らし')],'臆病':[P('逃げ足','逃げ足'),P('震える刃','震える刃')],'普通':[P('職人','迷宮職人')]}[a.pers]||[];
   const CL={'侍':[P('人斬り','人斬り'),P('居合','居合の'+(g?'姫':'鬼'))],'僧侶':[P('癒し手','癒し手'),P('祈り','祈りの盾')],'魔術師':[P('火の手','火の手'),P('雷鳴','雷鳴')],'盗賊':[P('影','影法師'),P('早業','早業')],'戦士':[P('壁','動く壁'),P('鉄塊','鉄塊')],'忍者':[P('朧','朧'),P('音無し','音無し')],'司教':[P('鑑定眼','鑑定眼'),P('説教','説教屋')],'聖騎士':[P('光の盾','光の盾')],'剣聖':[P('一閃','一閃')],'狂戦士':[P('狂犬','狂犬')],'吟遊詩人':[P('歌う剣','歌う剣')],'錬金術師':[P('爆炎','爆炎')],'獣使い':[P('獣連れ','獣連れ')],'竜騎士':[P('竜の友','竜の友')],'魔導士':[P('星読み','星読み')]}[a.cls]||[];

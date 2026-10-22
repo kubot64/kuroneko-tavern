@@ -1,5 +1,5 @@
 // docs/spec.md に書かれた決まりを「いつでも成り立つはずの性質」として、ゲームの中身を回しながら確かめる。
-// ブラウザは使わない。index.html の /*ENGINE START*/〜/*ENGINE END*/ を取り出して node で動かす。
+// ブラウザは使わない。index.html の /*ENGINE START*/〜/*ENGINE END*/ を取り出して node で動かす（tools/engine.mjs）。
 //
 //   node tools/spec-test.mjs                 完全版。乱数の種を48個、それぞれ30000刻（600日）回す
 //   node tools/spec-test.mjs --quick         速い版。完全版と同じ並びの先頭12種を、それぞれ30000刻回す
@@ -11,6 +11,7 @@
 import {readFileSync} from 'node:fs';
 import {Worker,isMainThread,parentPort,workerData} from 'node:worker_threads';
 import {availableParallelism} from 'node:os';
+import {engineOf,loadEngine} from './engine.mjs';
 
 const args=process.argv.slice(2);
 const opt=(k,d)=>{const i=args.indexOf(k);return i>=0?Number(args[i+1]):d;};
@@ -34,16 +35,13 @@ function jobCount(){
 const JOBS=jobCount();
 
 const html=readFileSync(new URL('../index.html',import.meta.url),'utf8');
-const ENGINE=html.match(/\/\*ENGINE START\*\/([\s\S]*?)\/\*ENGINE END\*\//)[1];
-const EXPORTS=['lifeLines','lifeWorthy','queueLife','moveTav','chron','LIFE_MAX','LIFE_KEEP','newState','tick','rivalTemple','seatCap','seatsUsed','nextSeats','newcomerLvl','buyPrice','investPrice','FACILITIES',
-  'RARES','MAXF','DRAGON_F','TICKS_PER_DAY','awayPlan','smallOf','debtTick','DEBT0','encounter','rareSlain','rareMonOf','arrive',
-  'repay','flowAdd','flowView','flowRoll','policyCost','goldSign','errandsOf','assignErrand','errandBlock','designateBlock','MAXF','MINE_TOP','MINE_BOT','MINE_N','FN','deepNow','G','groupMoney','floorsInit','mineOpen','conquest','mineConquest','title','alive','markAdv','markedOf','BOARD_MAX','MARK_MAX','errandStage','boardMax','markMax','ARCS','reachFloor','GATE_F','fac','nextFac','buildFac','migrate','partyShown','crestJa','glossText','PT_A','PT_B','takeCrest','pickCrest','newPartyName','combat','MON','elemMul','elemNote','sleepMul','sleepReach','MINE_RARES','supplyTeam','potionPrice','lendRival','reviveChance','reviveHint','reviveResultText','temple','checkMemo','memoState','nextDue','rankRows','MEMO','setQuietLog','DREAMS','rollAge','AGE2','ORIGINS','careerLine','originBg','BGS','originIntro','newcomerClause','doorLine','ourNewcomerNews','SPELL_LIST','foePool','dz','chest','victory','partyDanger','hpBand','retreatLine','retire','letterTick','kinTick','schedulePendingLetters','scheduleLostKin','memorialize','lostRareLine','dreamText','letterQuote','checkDream','wipe','wipeCause','errandEvent','errandFailLine','partyOverdue','returnPeril','SAVE_V','letterNews','fitOf','ERRANDS','ledgerLine','kanjiNum','corpsesHome','deliverCorpses','owe','inheritWill','wipeHidden','overdueSteps','tellCause','MISSING_GRACE','PATROL_DEPTH','OWED_RATE','OWED_REPAY','INHERIT_SAY','INHERIT_DEBT_SAY','inheritScore','inheritSay','heirScore','disbandParty','arrive','succession','leaderScore','bkey','farewellLine','FAREWELL_ACTS','FAREWELL_TONE','FAREWELL_QUIET','wipeUnknown','dieInDungeon','findCorpses','flushDeathChron','bountyFloor','bountyPrice','owedTick','incomeAt','dz','r100','CAN','HI_SPELLS','tryYomi','learnHi','YOMI_F','noteKnownDepth','reachFloor','MINE_TOP','floorArrive','stepParty','mapPrice','newTrip','STONES','MINE_STONES'];
+const ENGINE=engineOf(html);
 
 // 乱数の種を固定したゲームの中身を1つ作る。中身の Math.random だけを差し替える
 function load(seed,fixed){
   let s=seed>>>0;const rnd=fixed?()=>fixed:()=>{s=(s+0x6D2B79F5)>>>0;let t=s;t=Math.imul(t^(t>>>15),t|1);t^=t+Math.imul(t^(t>>>7),t|61);return ((t^(t>>>14))>>>0)/4294967296;};
   const M=Object.create(Math);M.random=rnd;
-  return new Function('Math',`${ENGINE};return {${EXPORTS.join(',')}};`)(M);
+  return loadEngine(ENGINE,{Math:M});
 }
 
 const results=new Map();// 性質の名前 → 最初の反例（なければ null）
