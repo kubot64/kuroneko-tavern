@@ -77,18 +77,81 @@ jobs:
       - run: npm ci
       - run: node tools/lint.mjs
 
+  # 釣り合いの指紋（tools/fingerprint.json）と今の結果が同じか。死因の偏りもここで見る。node だけで動くので npm ci は要らない
+  # 指紋が違ったとき、または pull request で指紋を書き直したときは、変更前と並べて measure で測り、ジョブの要約と成果物に残す
+  fingerprint:
+    runs-on: ubuntu-24.04
+    steps:
+      # 変更前のコミットを measure --base で取り出すので、履歴をすべて取る
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+      - name: CPU
+        run: nproc; grep -m1 'model name' /proc/cpuinfo
+      - name: fingerprint
+        id: check
+        run: node tools/fingerprint.mjs --check
+      # pull request のとき、基のブランチから指紋のファイルを変えたか
+      - name: 指紋を書き直したか
+        id: changed
+        if: always() && github.event_name == 'pull_request'
+        run: |
+          if git diff --quiet "origin/$BASE_REF" HEAD -- tools/fingerprint.json; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+        env:
+          BASE_REF: ${{ github.base_ref }}
+      # 合否は上の fingerprint だけで決める。ここで測るのに失敗しても、ジョブは落とさない
+      - name: 変更前と並べて測る
+        if: always() && (steps.check.outcome == 'failure' || steps.changed.outputs.changed == 'true')
+        continue-on-error: true
+        run: |
+          BASE="origin/${BASE_REF:-main}"
+          # main への push では、push の前のコミットと比べる
+          if [ "$EVENT" = "push" ] && git cat-file -e "$BEFORE^{commit}" 2>/dev/null; then BASE="$BEFORE"; fi
+          status=0
+          node tools/measure.mjs --seeds 16 --days 1400 --base "$BASE" > measure.txt 2>&1 || status=$?
+          {
+            echo "## 釣り合い（measure --seeds 16 --days 1400 --base $BASE）"
+            echo
+            if [ "$CHECK" = "failure" ]; then
+              echo "**指紋が tools/fingerprint.json と違うか、死因が偏りすぎている。** fingerprint のステップのログを見る。釣り合いを変えるつもりなら、\`node tools/fingerprint.mjs --update\` で書き直して同じ変更に入れ、下の表を PR に書く。"
+            else
+              echo "指紋を書き直した変更。下の表を PR に書く。全文は成果物の measure にある。"
+            fi
+            echo
+            sed -n '/^| | 迷宮を踏破した店/,$p' measure.txt
+          } >> "$GITHUB_STEP_SUMMARY"
+          exit $status
+        env:
+          EVENT: ${{ github.event_name }}
+          BASE_REF: ${{ github.base_ref }}
+          BEFORE: ${{ github.event.before }}
+          CHECK: ${{ steps.check.outcome }}
+      - if: always() && hashFiles('measure.txt') != ''
+        uses: actions/upload-artifact@v7
+        with:
+          name: measure
+          path: measure.txt
+
   # 分けたジョブがすべて通ったら合格。必須のチェックの名前を test のまま保つ
   test:
     if: always()
-    needs: [spec-test, browser-test, lint]
+    needs: [spec-test, browser-test, lint, fingerprint]
     runs-on: ubuntu-24.04
     steps:
       - run: |
-          if [ "$SPEC" != "success" ] || [ "$BROWSER" != "success" ] || [ "$LINT" != "success" ]; then
-            echo "spec-test: $SPEC / browser-test: $BROWSER / lint: $LINT"
+          if [ "$SPEC" != "success" ] || [ "$BROWSER" != "success" ] || [ "$LINT" != "success" ] || [ "$FINGERPRINT" != "success" ]; then
+            echo "spec-test: $SPEC / browser-test: $BROWSER / lint: $LINT / fingerprint: $FINGERPRINT"
             exit 1
           fi
         env:
           SPEC: ${{ needs.spec-test.result }}
           BROWSER: ${{ needs.browser-test.result }}
           LINT: ${{ needs.lint.result }}
+          FINGERPRINT: ${{ needs.fingerprint.result }}
