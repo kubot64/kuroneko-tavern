@@ -73,6 +73,16 @@ function noteBandFights(S,fighting,bands){
     fighting.set(p,on);
   }
 }
+// 一行が全滅した回数を、店と探索先（迷宮か坑道か）ごとに数える。一行の様子が全滅に変わった刻を見る（乱数は引かない）
+function noteWipes(S,wst,w,maxf){
+  for(const p of Object.values(S.parties)){
+    const on=p.state==='wiped';
+    if(on&&!wst.get(p)){const k=(p.tav==='rival'?'rival':'ours')+(p.floor>maxf?'Mine':'Maze');w[k]=(w[k]||0)+1;}
+    wst.set(p,on);
+  }
+}
+// 倒れた相手を、階を問わず数える（変異の肩書きは外す）
+function deathCauses(deaths){const c={};for(const [,by] of deaths){const n=monBase(by);c[n]=(c[n]||0)+1;}return c;}
 function noteBandDeaths(deaths,bands){
   for(const [floor,by] of deaths){const b=bandOf(floor);if(!b)continue;const o=bands[b];o.deathN++;const n=monBase(by);o.deaths[n]=(o.deaths[n]||0)+1;}
 }
@@ -87,13 +97,13 @@ function run(seed,mode,engine){
   const S=E.newState();const D=E.TICKS_PER_DAY;for(let i=0;i<6;i++)E.tick(S);
   const lv=names=>names.map(n=>(Object.values(S.adv).find(a=>a.name===n)||{}).lvl).join(',');
   const r={seed,mode,fights:0,pre:{},fac:{},payN:0,payPen:0};const marks=[];
-  const seen=new Set(),visit=emptyVisit(),fighting=new WeakMap(),bands=emptyBands();noteArrivals(S,seen,visit);
+  const seen=new Set(),visit=emptyVisit(),fighting=new WeakMap(),bands=emptyBands(),wst=new WeakMap();r.wipes={};noteArrivals(S,seen,visit);
   for(let d=1;d<=DAYS;d++){
     if(mode==='support')supportOwner(E,S,d);
     for(let i=0;i<D;i++){E.tick(S);E.rivalTemple(S);
       // 坑道王との戦いを数え、戦いが始まったときの一行のレベルを残す（坑道王はレベルを吸うので、勝ったあとのレベルは下がっている）
       for(const p of Object.values(S.parties))if(p.enemies&&p.etype&&p.etype.mboss){if(!p.bossKey){p.bossKey=S.tick;r.fights++;r.pre[p.name]=p.members.map(id=>S.adv[id].lvl).join(',');}}else if(p.bossKey)p.bossKey=0;
-      noteBandFights(S,fighting,bands);}
+      noteBandFights(S,fighting,bands);noteWipes(S,wst,r.wipes,E.MAXF);}
     notePays(S,r,d);
     const md=S.mineDeep||{ours:0,rival:0};
     for(const [k,ts] of E.FACILITIES)ts.forEach((t,i)=>{if(((S.fac||{})[k]||0)>i&&r.fac[t[0]]==null)r.fac[t[0]]=d;});
@@ -110,7 +120,7 @@ function run(seed,mode,engine){
   const aged=(S.farewells||[]).filter(f=>f.why&&f.why.includes('老いを感じ'));
   r.ageRet={ours:aged.filter(f=>f.tav==='ours').length,rival:aged.filter(f=>f.tav==='rival').length};
   r.dreams=dreamCounts(S);
-  noteBandDeaths(deaths,bands);r.bands=bands;r.deathN=deaths.length;
+  noteBandDeaths(deaths,bands);r.bands=bands;r.deathN=deaths.length;r.causes=deathCauses(deaths);
   r.earned=S.taverns.ours.earned||0;
   r.deaths=noteDeaths(S);
   r.heirs=heirs;
