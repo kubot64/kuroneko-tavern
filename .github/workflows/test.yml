@@ -41,8 +41,33 @@ jobs:
           EVENT: ${{ github.event_name }}
           SHARD: ${{ matrix.shard }}
 
-  browser-test:
+  # browser-test で使う Playwright のコンテナイメージの版を、package-lock.json の playwright の版から引く。
+  # 版を workflow に書かないので、playwright を上げても、イメージの版がずれない
+  playwright-version:
     runs-on: ubuntu-24.04
+    outputs:
+      version: ${{ steps.pw.outputs.version }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          sparse-checkout: package-lock.json
+          sparse-checkout-cone-mode: false
+      - name: playwright の版
+        id: pw
+        run: |
+          version=$(jq -r '.packages["node_modules/playwright"].version // empty' package-lock.json)
+          if ! printf '%s' "$version" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$'; then
+            echo "package-lock.json から playwright の版を読めない：'$version'"
+            exit 1
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+  # Playwright の公式イメージで回す。ブラウザ本体（/ms-playwright）と OS の部品が入っているので、install も install-deps も要らない
+  browser-test:
+    needs: playwright-version
+    runs-on: ubuntu-24.04
+    container:
+      image: mcr.microsoft.com/playwright:v${{ needs.playwright-version.outputs.version }}-noble
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
@@ -50,19 +75,16 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
-      # ブラウザ本体は Playwright の版ごとに残す。残っていれば、OS の部品だけを入れる
-      - name: playwright の版
-        id: pw
-        run: echo "version=$(node -p "require('playwright/package.json').version")" >> "$GITHUB_OUTPUT"
-      - uses: actions/cache@v6
-        id: pw-cache
-        with:
-          path: ~/.cache/ms-playwright
-          key: playwright-${{ runner.os }}-${{ steps.pw.outputs.version }}
-      - if: steps.pw-cache.outputs.cache-hit != 'true'
-        run: npx playwright install --with-deps chromium
-      - if: steps.pw-cache.outputs.cache-hit == 'true'
-        run: npx playwright install-deps chromium
+      # 入った playwright と、イメージの版が同じか。違えば、イメージのブラウザが合わない
+      - name: playwright の版を確かめる
+        run: |
+          installed=$(node -p "require('playwright/package.json').version")
+          if [ "$installed" != "$IMAGE" ]; then
+            echo "playwright $installed と、イメージの版 $IMAGE が違う"
+            exit 1
+          fi
+        env:
+          IMAGE: ${{ needs.playwright-version.outputs.version }}
       - run: node --test tools/browser-test.mjs
 
   # index.html の script に、使っていない名前と宣言していない名前がないか（ESLint）
