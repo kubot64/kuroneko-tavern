@@ -26,6 +26,9 @@ jobs:
       - uses: actions/setup-node@v7
         with:
           node-version: 22
+      # 同じ版の runner でも速さが1.5〜2倍ほど違うことがある。あとで比べられるように、CPU を記録に残す
+      - name: CPU
+        run: nproc; grep -m1 'model name' /proc/cpuinfo
       # pull request は速い版（決まった12種）。main への push、毎晩、手動実行は48種の完全版
       - name: spec-test
         run: |
