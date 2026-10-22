@@ -4545,7 +4545,7 @@ document.addEventListener('click',e=>{
   if(act==='selc'){S.sel=+b.dataset.i;render();return;}
   if(act==='watch'){
     const p=S.parties[b.dataset.p];
-    if(!visible(p)){toast(p.state==='wiped'?(p.tav==='rival'?'銀の杯亭の全滅は、噂でしか伝わらない':p.announced?'消息不明の一行は、水晶には映らない':'水晶は闇しか映さない'):(p.tav==='rival'?'銀の杯亭の一行は、すれ違ったときしか見えない':'水晶は闇しか映さない'));return;}
+    if(!visible(p)){toast(p.tav==='rival'?(p.state==='wiped'?'銀の杯亭の全滅は、噂でしか伝わらない':'銀の杯亭の一行は、すれ違ったときしか見えない'):'消息不明の一行は、水晶には映らない');return;}
     const j=S.watch.indexOf(p.id);if(j>=0){S.sel=j;render();return;}
     S.watch[S.sel]=p.id;render();return;
   }
