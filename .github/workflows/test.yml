@@ -13,7 +13,32 @@ permissions:
   contents: read
 
 jobs:
-  test:
+  # 種を4つに分けて並べて回す。種に関係ない確かめは 1/4 だけで行う。spec-test は node だけで動くので npm ci は要らない
+  spec-test:
+    name: spec-test (${{ matrix.shard }}/4)
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4]
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+      # pull request は速い版（決まった12種）。main への push、毎晩、手動実行は48種の完全版
+      - name: spec-test
+        run: |
+          if [ "$EVENT" = "pull_request" ]; then
+            node tools/spec-test.mjs --quick --shard "$SHARD/4"
+          else
+            node tools/spec-test.mjs --shard "$SHARD/4"
+          fi
+        env:
+          EVENT: ${{ github.event_name }}
+          SHARD: ${{ matrix.shard }}
+
+  browser-test:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
@@ -22,15 +47,32 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
-      - run: npx playwright install --with-deps chromium
-      # pull request は速い版（決まった12種）。main への push、毎晩、手動実行は48種の完全版
-      - name: spec-test
-        run: |
-          if [ "$EVENT" = "pull_request" ]; then
-            node tools/spec-test.mjs --quick
-          else
-            node tools/spec-test.mjs
+      # ブラウザ本体は Playwright の版ごとに残す。残っていれば、OS の部品だけを入れる
+      - name: playwright の版
+        id: pw
+        run: echo "version=$(node -p "require('playwright/package.json').version")" >> "$GITHUB_OUTPUT"
+      - uses: actions/cache@v6
+        id: pw-cache
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ steps.pw.outputs.version }}
+      - if: steps.pw-cache.outputs.cache-hit != 'true'
+        run: npx playwright install --with-deps chromium
+      - if: steps.pw-cache.outputs.cache-hit == 'true'
+        run: npx playwright install-deps chromium
+      - run: node --test tools/browser-test.mjs
+
+  # 分けたジョブがすべて通ったら合格。必須のチェックの名前を test のまま保つ
+  test:
+    if: always()
+    needs: [spec-test, browser-test]
+    runs-on: ubuntu-24.04
+    steps:
+      - run: |
+          if [ "$SPEC" != "success" ] || [ "$BROWSER" != "success" ]; then
+            echo "spec-test: $SPEC / browser-test: $BROWSER"
+            exit 1
           fi
         env:
-          EVENT: ${{ github.event_name }}
-      - run: node --test tools/browser-test.mjs
+          SPEC: ${{ needs.spec-test.result }}
+          BROWSER: ${{ needs.browser-test.result }}
