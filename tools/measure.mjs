@@ -15,6 +15,7 @@ import {createHash} from 'node:crypto';
 import {fileURLToPath} from 'node:url';
 import {Worker,isMainThread,parentPort,workerData} from 'node:worker_threads';
 import {availableParallelism} from 'node:os';
+import {engineOf,loadEngine} from './engine.mjs';
 
 const args=process.argv.slice(2);
 const opt=(k,d)=>{const i=args.indexOf(k);return i>=0?args[i+1]:d;};
@@ -23,10 +24,6 @@ const MODES=opt('--mode','both')==='both'?['none','support']:[opt('--mode')];
 const DETAIL=args.includes('--detail'),BASE=opt('--base',null),FRESH=args.includes('--fresh');
 const MODE_N={none:'支援なし',support:'支援あり'};
 const ROOT=fileURLToPath(new URL('..',import.meta.url)),CACHE=ROOT+'.cache/measure/';
-const engineOf=html=>html.match(/\/\*ENGINE START\*\/([\s\S]*?)\/\*ENGINE END\*\//)[1];
-// --base で測る前のエンジンには、まだない関数もある。ないものは undefined にする
-const EXPORTS=['newState','tick','rivalTemple','TICKS_PER_DAY','MINE_N','repay','nextSeats','policy','giftOffer','giveGift','donate','donatePrice',
-  'FACILITIES','nextFac','buildFac','customOffer','orderCustom','setQuietLog','nextDue'];
 
 // 次の返済額に足す余裕。返済日の直前に新人へ支度の品を渡しても、返済額を割らないための分
 const PAY_MARGIN=2000;
@@ -83,7 +80,8 @@ function noteBandDeaths(deaths,bands){
 function run(seed,mode,engine){
   let s=seed>>>0;const M=Object.create(Math);M.random=()=>{s=(s+0x6D2B79F5)>>>0;let t=s;t=Math.imul(t^(t>>>15),t|1);t^=t+Math.imul(t^(t>>>7),t|61);return ((t^(t>>>14))>>>0)/4294967296;};
   const deaths=[],heirs={};
-  const E=new Function('Math','__meas','__heir',`${instrument(engine)};return {${EXPORTS.map(k=>`${k}:typeof ${k}==='undefined'?undefined:${k}`).join(',')}};`)(M,(floor,by)=>deaths.push([floor,by]),(tav,pers,ok)=>{const k=pers||'?';const o=heirs[k]||(heirs[k]={ok:0,no:0,ours:0,oursNo:0});if(ok)o.ok++;else o.no++;if(tav==='ours'){o.ours++;if(!ok)o.oursNo++;}});
+  // --base で測る前のエンジンには、まだない関数もある。ないものは undefined になる
+  const E=loadEngine(instrument(engine),{Math:M,__meas:(floor,by)=>deaths.push([floor,by]),__heir:(tav,pers,ok)=>{const k=pers||'?';const o=heirs[k]||(heirs[k]={ok:0,no:0,ours:0,oursNo:0});if(ok)o.ok++;else o.no++;if(tav==='ours'){o.ours++;if(!ok)o.oursNo++;}}});
   // 水晶のログは測るのに使わないので残さない（乱数の引き方は変わらない）
   if(E.setQuietLog)E.setQuietLog(true);
   const S=E.newState();const D=E.TICKS_PER_DAY;for(let i=0;i<6;i++)E.tick(S);
@@ -316,7 +314,8 @@ function bandMarkdown(rows){
 
 if(!isMainThread)parentPort.postMessage(run(workerData.seed,workerData.mode,workerData.engine));
 else{
-  const TOOL=readFileSync(fileURLToPath(import.meta.url),'utf8');
+  // 測り方が変われば測り直す。エンジンを読み込む tools/engine.mjs も含める
+  const TOOL=readFileSync(fileURLToPath(import.meta.url),'utf8')+readFileSync(new URL('./engine.mjs',import.meta.url),'utf8');
   const vars=[];
   if(BASE){const git=(...a)=>execFileSync('git',a,{cwd:ROOT,encoding:'utf8',maxBuffer:1<<26,stdio:['ignore','pipe','pipe']});let html,id;
     try{id=git('rev-parse','--short',`${BASE}^{commit}`).trim();html=git('show',`${id}:index.html`);}

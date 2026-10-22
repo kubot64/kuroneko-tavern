@@ -65,17 +65,30 @@ jobs:
         run: npx playwright install-deps chromium
       - run: node --test tools/browser-test.mjs
 
+  # index.html の script に、使っていない名前と宣言していない名前がないか（ESLint）
+  lint:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: node tools/lint.mjs
+
   # 分けたジョブがすべて通ったら合格。必須のチェックの名前を test のまま保つ
   test:
     if: always()
-    needs: [spec-test, browser-test]
+    needs: [spec-test, browser-test, lint]
     runs-on: ubuntu-24.04
     steps:
       - run: |
-          if [ "$SPEC" != "success" ] || [ "$BROWSER" != "success" ]; then
-            echo "spec-test: $SPEC / browser-test: $BROWSER"
+          if [ "$SPEC" != "success" ] || [ "$BROWSER" != "success" ] || [ "$LINT" != "success" ]; then
+            echo "spec-test: $SPEC / browser-test: $BROWSER / lint: $LINT"
             exit 1
           fi
         env:
           SPEC: ${{ needs.spec-test.result }}
           BROWSER: ${{ needs.browser-test.result }}
+          LINT: ${{ needs.lint.result }}

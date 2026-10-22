@@ -3,5 +3,19 @@
 何を良しとするか（開発方針）は [`docs/principles.md`](docs/principles.md) にまとめてある。
 
 - 振る舞いを変えたら、同じ変更で `docs/spec.md` も直す（`docs/spec.md` の冒頭を参照）。
-- 仕様のテスト（`node tools/spec-test.mjs`）と画面のテスト（`node --test tools/browser-test.mjs`）を通してから push する。
+- 仕様のテスト（`node tools/spec-test.mjs`）と画面のテスト（`node --test tools/browser-test.mjs`）と lint（`node tools/lint.mjs`）を通してから push する。
 - **大きな変更（戦闘・成長・経済・ダンジョン・一行の動きなど、釣り合いに効くもの）をしたら、`node tools/measure.mjs --seeds 16 --days 1400` で支援なしと支援ありの両方を測り、結果（どちらの店が何回踏破したか、踏破日、レベル）を PR に書く。** 測り方は README の「釣り合いを測る」を参照。
+
+## 決まりと、それを守らせる仕組み
+
+| 決まり | 守らせるもの |
+|---|---|
+| `docs/spec.md` の決まりが、コードで成り立つ | テスト：`tools/spec-test.mjs`（CI） |
+| 画面の決まり（折り返し、はみ出し、押す所の大きさなど）が成り立つ | テスト：`tools/browser-test.mjs`（CI） |
+| index.html の script に、使っていない名前と宣言していない名前を残さない | lint：`tools/lint.mjs`（ESLint、CI） |
+| テストと measure からだけ使う名前は、index.html の `/* exported … */` に並べる | lint：`tools/lint.mjs`（CI） |
+| テストからエンジンの名前を使うのに、一覧は書かない | 仕組み：`tools/engine.mjs` がトップレベルの宣言を名前で引く |
+| 古いセーブを壊さない | テスト：spec-test の移行の確かめ（一部）と、人のレビュー |
+| 振る舞いを変えたら、同じ変更で `docs/spec.md` を直す | 人のレビュー |
+| 釣り合いに効く変更は、支援なしと支援ありの両方を測って PR に書く | 人のレビュー（measure は手で回す） |
+| 上のテストと lint がすべて通ってから main に入れる | CI：まとめの `test` ジョブ |
