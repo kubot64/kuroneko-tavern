@@ -21,10 +21,10 @@
       "119785": {"debtFree":null,"firstPay":"無事","payPenalties":0,"maze":{"day":350,"tav":"銀の杯亭","lv":"35,34,36,37,39,37"},"mineOpen":360,"mineBottom":118,"kingFights":2,"mine":{"day":545,"tav":"銀の杯亭","lv":"48,48,48,54,53"},"wipes":{"ours":{"maze":0,"mine":1},"rival":{"maze":2,"mine":11}},"deaths":497,"topCauses":["炉の番人ゴーレム 83","盲目の洞窟竜 78","宝箱のばくだん 42"],"rep":{"ours":2346,"rival":4841},"earned":2274428}
     },
     "deathSkew": {
-      "坑道B8〜15F": {"deaths":2113,"top":"盲目の洞窟竜","share":0.351},
-      "迷宮B11〜15F": {"deaths":871,"top":"キメラ","share":0.482},
-      "迷宮B16〜22F": {"deaths":387,"top":"宝箱のばくだん","share":0.227},
-      "全体": {"deaths":6364,"top":"盲目の洞窟竜","share":0.127}
+      "坑道B8〜15F": {"deaths":2046,"top":"盲目の洞窟竜","share":0.362},
+      "迷宮B11〜15F": {"deaths":797,"top":"キメラ","share":0.527},
+      "迷宮B16〜22F": {"deaths":280,"top":"墓所の番犬","share":0.257},
+      "全体": {"deaths":5414,"top":"盲目の洞窟竜","share":0.15}
     }
   },
   "support": {
@@ -47,10 +47,10 @@
       "119785": {"debtFree":107,"firstPay":"無事","payPenalties":0,"maze":{"day":310,"tav":"黒猫亭","lv":"37,31,32,37"},"mineOpen":319,"mineBottom":125,"kingFights":1,"mine":{"day":444,"tav":"黒猫亭","lv":"48,50,50,49,50,47"},"wipes":{"ours":{"maze":0,"mine":0},"rival":{"maze":2,"mine":1}},"deaths":364,"topCauses":["盲目の洞窟竜 64","宝箱のばくだん 44","炉の番人ゴーレム 38"],"rep":{"ours":4781,"rival":3404},"earned":5268133}
     },
     "deathSkew": {
-      "坑道B8〜15F": {"deaths":2195,"top":"盲目の洞窟竜","share":0.365},
-      "迷宮B11〜15F": {"deaths":1045,"top":"キメラ","share":0.449},
-      "迷宮B16〜22F": {"deaths":484,"top":"墓所の番犬","share":0.236},
-      "全体": {"deaths":6741,"top":"宝箱のばくだん","share":0.128}
+      "坑道B8〜15F": {"deaths":2054,"top":"盲目の洞窟竜","share":0.39},
+      "迷宮B11〜15F": {"deaths":939,"top":"キメラ","share":0.499},
+      "迷宮B16〜22F": {"deaths":349,"top":"墓所の番犬","share":0.327},
+      "全体": {"deaths":5508,"top":"盲目の洞窟竜","share":0.157}
     }
   }
 }
