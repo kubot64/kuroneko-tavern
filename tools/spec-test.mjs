@@ -6,6 +6,7 @@
 //   node tools/spec-test.mjs --seeds 40 --ticks 10000
 //   node tools/spec-test.mjs --seed 12345    その種だけを回す（不合格の再現に使う）
 //   node tools/spec-test.mjs --jobs 2        同時に回す数。環境変数 SPEC_TEST_JOBS でも指定できる（ふだんは CPU のコア数）
+//   node tools/spec-test.mjs --shard 2/4     種を4つに分けたうちの2つめだけを回す（CI で並べて回すときに使う）。種に関係ない確かめは 1/n だけで行う
 // 種ごとに別のスレッドで回す。進捗と合否は種の順に出すので、同時に回す数を変えても結果は同じになる。
 import {readFileSync} from 'node:fs';
 import {Worker,isMainThread,parentPort,workerData} from 'node:worker_threads';
@@ -17,7 +18,11 @@ const TICKS=opt('--ticks',30000);
 // 速い版の12種は、完全版（1000 から 7919 ずつ）の先頭で、毎回同じ並び
 const QUICK_SEEDS=12;
 const seedN=args.includes('--seed')?1:opt('--seeds',args.includes('--quick')?QUICK_SEEDS:48);
-const SEEDS=args.includes('--seed')?[opt('--seed',1)]:Array.from({length:Number.isFinite(seedN)&&seedN>=0?seedN:0},(_,i)=>1000+i*7919);
+const ALL_SEEDS=args.includes('--seed')?[opt('--seed',1)]:Array.from({length:Number.isFinite(seedN)&&seedN>=0?seedN:0},(_,i)=>1000+i*7919);
+// --shard k/n：並びの k 番目から n 個おきの種だけを回す。n 個の分を合わせると、分けないときと同じ種になる
+const SHARD=(()=>{const i=args.indexOf('--shard');if(i<0)return {k:1,n:1};const m=/^(\d+)\/(\d+)$/.exec(args[i+1]||'');
+  const k=m?+m[1]:0,n=m?+m[2]:0;if(!(n>=1&&k>=1&&k<=n)){console.error('--shard は k/n（1≦k≦n）で渡す');process.exit(2);}return {k,n};})();
+const SEEDS=ALL_SEEDS.filter((_,i)=>i%SHARD.n===SHARD.k-1);
 // --jobs が最優先。なければ SPEC_TEST_JOBS。どちらもなければ CPU の数
 function jobCount(){
   let n;
@@ -2085,7 +2090,7 @@ function checkLife(){
 
 if(!isMainThread){const line=runSeed(workerData.seed);parentPort.postMessage({line,res:[...results]});}
 else{
-  checkTables();checkScenes();checkLife();checkLetters();checkErrands();checkCrest();checkRowFallback();checkMine();checkAffinity();checkRevive();checkMemoNotes();checkOpening();checkCareer();checkIntro();checkAge();checkFoes();checkFlow();checkLedger();checkMissing();checkLastWords();checkHighSpells();
+  if(SHARD.k===1){checkTables();checkScenes();checkLife();checkLetters();checkErrands();checkCrest();checkRowFallback();checkMine();checkAffinity();checkRevive();checkMemoNotes();checkOpening();checkCareer();checkIntro();checkAge();checkFoes();checkFlow();checkLedger();checkMissing();checkLastWords();checkHighSpells();}
   // 種ごとの結果は、種の順に重ねる。反例は、いちばん若い種の最初のものを残す。進捗の行も種の順に出す
   const out=new Array(SEEDS.length);let next=0,printed=0;
   const flush=()=>{while(printed<out.length&&out[printed]){if(out[printed].line)console.log(out[printed].line);printed++;}};
@@ -2104,6 +2109,6 @@ else{
 function report(){
 let bad=0;
 for(const [name,f] of results){if(f){bad++;console.log(`× ${name}\n    反例 ${f}`);}else console.log(`○ ${name}`);}
-console.log(`\n種${SEEDS.length}個×${TICKS}刻。${results.size}件のうち、合格${results.size-bad}件・不合格${bad}件`);
+console.log(`\n種${SEEDS.length}個×${TICKS}刻${SHARD.n>1?`（${SHARD.n}つに分けた${SHARD.k}つめ）`:''}。${results.size}件のうち、合格${results.size-bad}件・不合格${bad}件`);
 process.exit(bad?1:0);
 }
