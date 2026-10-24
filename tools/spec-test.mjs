@@ -65,8 +65,8 @@ function checkTables(){
   const fl=E.RARES.map(r=>r.f).sort((a,b)=>a-b).join(',');
   check('名のある魔物：B1〜30Fに1体ずつ',fl===Array.from({length:E.MAXF},(_,i)=>i+1).join(','),'RARES',fl);
   for(const r of E.RARES)check('名のある魔物：どれにも説明がある',typeof r.lore==='string'&&r.lore.length>0,`B${r.f}F`,r.n);
-  const yomi=E.SPELL_LIST.find(s=>s[0]==='ヨミガエリ');
-  check('ヨミガエリ：資料の説明はB16Fから先',!!yomi&&yomi[1].startsWith('B16Fから先の澱の中でだけ')&&!yomi[1].includes('より深い'),'資料',yomi&&yomi[1]);
+  const yomi=E.SPELLS.find(s=>s.n==='ヨミガエリ');
+  check('ヨミガエリ：資料の説明はB16Fから先',!!yomi&&yomi.d.startsWith('B16Fから先の澱の中でだけ')&&!yomi.d.includes('より深い'),'資料',yomi&&yomi.d);
   // 「大きな使い道」：店の設備の費用
   {const got=E.FACILITIES.map(([,ts])=>ts.map(t=>t[0]+t[1]).join('→')).join(' ');
     check('大きな使い道：設備の段と費用が表のとおり',got==='稽古場15000→道場60000→修練場300000 情報屋50000→情報網300000 療養所800000','表',got);}
@@ -1811,15 +1811,35 @@ function checkOldSaves(){
     const done=Object.keys((S.memo||{}).done||{});
     check('古いセーブ：覚え書きのない版22の記録は、移行で覚え書きが埋まり、評判は変わらない',S.v===SAVE_V&&done.length>0&&S.taverns.ours.rep===rep,'版24の見本を版22に戻したもの',`版${S.v}・線を引いた行${done.join(',')}・評判${rep}→${S.taverns.ours.rep}`);}
 }
+// 呪文の表 SPELLS と docs/spec.md（「呪文」の表と「一行の動き」の番号）が食い違わない（#190）
+function checkSpellTable(){
+  const E=load(1),md=readFileSync(new URL('../docs/spec.md',import.meta.url),'utf8');
+  const sec=md.slice(md.indexOf('#### 呪文\n'));const rows=sec.slice(0,sec.indexOf('\n\n- ')).split('\n').filter(l=>/^\| [^-呪]/.test(l)).map(l=>l.split('|').slice(1,-1).map(x=>x.trim()));
+  const want=E.SPELLS.map(x=>[x.n,x.d,E.spellWho(x),String(x.mp),x.turn?String(x.turn):'—']);
+  check('呪文：spec.md の表は SPELLS と同じ数の行がある',rows.length===want.length,'行の数',`spec ${rows.length} / SPELLS ${want.length}`);
+  want.forEach((w,i)=>{const r=rows.find(r=>r[0]===w[0]);check('呪文：spec.md の表の行（効果・使い手・MP・戦いの順）が SPELLS と同じ',!!r&&r.join('|')===w.join('|'),w[0],r?`spec「${r.join(' | ')}」 / SPELLS「${w.join(' | ')}」`:'spec に行がない');});
+  check('呪文：spec.md の表は SPELLS と同じ並び',rows.map(r=>r[0]).join('・')===want.map(w=>w[0]).join('・'),'並び',rows.map(r=>r[0]).join('・'));
+  // 「一行の動き」の番号の項は、その番号の呪文の名を挙げる。番号の数は、ひと巡りの手の数と同じ
+  const mv=md.slice(md.indexOf('#### 一行の動き\n'),md.indexOf('#### 呪文\n'));const items=Object.fromEntries([...mv.matchAll(/^(\d+)\. (.+)$/gm)].map(m=>[+m[1],m[2]]));
+  check('呪文：一行の動きの番号の数は、ひと巡りの手の数と同じ',Object.keys(items).length===E.TURN.length,'一行の動き',`${Object.keys(items).length} / ${E.TURN.length}`);
+  for(const x of E.SPELLS.filter(x=>x.turn))check('呪文：戦いの順の番号の項に、その呪文の名がある',(items[x.turn]||'').includes(x.n),x.n,`${x.turn}. ${items[x.turn]||'(なし)'}`);
+  for(const x of E.SPELLS.filter(x=>!x.turn))check('呪文：戦いの順のない呪文は、一行の動きの番号に出ない',!Object.values(items).some(t=>t.includes(x.n)),x.n,'番号の項に出る');
+  // 資料に出す文には、確率の数字を書かない（docs/principles.md 8）
+  for(const x of E.SPELLS)check('呪文：資料の説明に確率の数字を書かない',!/[0-9０-９]+\s*[%％]/.test(x.d),x.n,x.d);
+  // 覚える条件は表のレベルどおり。表にない職業は覚えない
+  const ALL=Object.keys(E.CLS);
+  for(const x of E.SPELLS)for(const cls of ALL){const L=x.lv[cls];
+    check('呪文：覚える条件は SPELLS のレベルどおり',L==null?!E.CAN[x.k]({cls,lvl:99}):(E.CAN[x.k]({cls,lvl:L})&&(L===1||!E.CAN[x.k]({cls,lvl:L-1}))),`${x.n} ${cls}`,L==null?'表にないのに覚える':`Lv${L}`);}
+}
 function checkHighSpells(){
   const E=load(1);
   const keys={キヨメ:'kiyome',ゴウエン:'goen',タマヨビ:'tamayobi',オリハライ:'orihara',ホシオトシ:'hoshi',イシガタメ:'ishi',ウツシエ:'utsushi',イシワタリ:'watari'};
   for(const [n,k] of Object.entries(keys)){
-    const row=E.SPELL_LIST.find(s=>s[0]===n);
-    check('呪文：高い呪文は資料の一覧に載る',!!row&&E.HI_SPELLS.some(([kk,nn])=>kk===k&&nn===n),n,row&&row.join(' / '));
+    const row=E.SPELLS.find(s=>s.n===n),w=row&&E.spellWho(row);
+    check('呪文：高い呪文は資料の一覧に載る',!!row&&E.HI_SPELLS.some(x=>x.k===k&&x.n===n),n,row&&w);
     if(!row)continue;
-    const who=row[2].split('・').map(x=>x.match(/^(.+?)Lv(\d+)〜$/)).filter(Boolean);
-    check('呪文：高い呪文は職業ごとに覚えるレベルが決まっている',who.length===row[2].split('・').length,n,row[2]);
+    const who=w.split('・').map(x=>x.match(/^(.+?)Lv(\d+)〜$/)).filter(Boolean);
+    check('呪文：高い呪文は職業ごとに覚えるレベルが決まっている',who.length===w.split('・').length,n,w);
     for(const [,cls,lv] of who){const L=Number(lv);
       check('呪文：一覧のレベルで覚え、その手前では覚えない',E.CAN[k]({cls,lvl:L})&&!E.CAN[k]({cls,lvl:L-1})&&E.CAN[k]({cls,lvl:60}),`${n} ${cls}`,`Lv${L}:${E.CAN[k]({cls,lvl:L})} Lv${L-1}:${E.CAN[k]({cls,lvl:L-1})}`);}
     for(const cls of ['戦士','盗賊','侍','忍者','吟遊詩人'])check('呪文：一覧にない職業は覚えない',!E.CAN[k]({cls,lvl:99}),`${n} ${cls}`,'覚えた');
@@ -2395,7 +2415,7 @@ function checkLife(){
 
 if(!isMainThread){const line=runSeed(workerData.seed);parentPort.postMessage({line,res:[...results]});}
 else{
-  if(SHARD.k===1){checkTables();checkScenes();checkLife();checkLetters();checkErrands();checkCrest();checkRowFallback();checkMine();checkAffinity();checkRevive();checkMemoNotes();checkOpening();checkCareer();checkIntro();checkAge();checkFoes();checkQuarrel();checkFlow();checkLedger();checkLevelNews();checkBounty();checkMissing();checkLastWords();checkHighSpells();checkPush();checkOldSaves();}
+  if(SHARD.k===1){checkTables();checkScenes();checkLife();checkLetters();checkErrands();checkCrest();checkRowFallback();checkMine();checkAffinity();checkRevive();checkMemoNotes();checkOpening();checkCareer();checkIntro();checkAge();checkFoes();checkQuarrel();checkFlow();checkLedger();checkLevelNews();checkBounty();checkMissing();checkLastWords();checkHighSpells();checkSpellTable();checkPush();checkOldSaves();}
   // 種ごとの結果は、種の順に重ねる。反例は、いちばん若い種の最初のものを残す。進捗の行も種の順に出す
   const out=new Array(SEEDS.length);let next=0,printed=0;
   const flush=()=>{while(printed<out.length&&out[printed]){if(out[printed].line)console.log(out[printed].line);printed++;}};
