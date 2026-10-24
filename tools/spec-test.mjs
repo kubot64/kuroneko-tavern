@@ -660,16 +660,17 @@ function checkAffinity(){
   {const oak=lullaby('オーク',true,25),slime=lullaby('スライム',true,25),deep=lullaby('坑道ゴーレム',true,40),half=lullaby('澱の坑夫',true,40);
     check('眠り：眠れる群れと眠りにくい群れには深い階でも子守歌を歌い、眠らない群れには歌わない',oak.slept===2&&oak.mp===7&&oak.hp===1e9&&slime.slept===2&&slime.mp===7&&half.slept===2&&half.mp===7&&deep.slept===0&&deep.mp===8&&deep.hp<1e9,'B25Fのオークとスライム、坑道の澱の坑夫とゴーレム',`オーク${oak.slept}体 スライム${slime.slept}体 澱${half.slept}体 ゴーレムMP${deep.mp}`);}
   // 沈んだ王と坑道王の黒い炎は、炎を防ぐ装備では軽くならない。ふつうの炎の息は軽くなる
-  const hurt=(seed,mon,fire)=>{const E2=load(seed),S=E2.newState();const p=Object.values(S.parties).find(x=>x.tav==='ours');const a=S.adv[p.leader];
+  // キメラの息は 0.8 倍なので、B1F では傷が端数で消えて耐性の差が出ない。キメラは B5F（文字化けの始まる B6F より浅い）で試す。黒い炎は B1F のまま
+  const hurt=(seed,mon,fire,floor=1)=>{const E2=load(seed),S=E2.newState();const p=Object.values(S.parties).find(x=>x.tav==='ours');const a=S.adv[p.leader];
     a.cls='戦士';a.lvl=8;a.hp=a.mhp=50000;a.mp=0;a.pers='普通';a.poison=0;a.eq=fire?{body:{fire,slot:'body'}}:{};
-    p.members=[a.id];p.leader=a.id;p.floor=1;p.state='explore';p.fought=true;p.ident=true;p.ambush=false;p.potions=0;p.guard=0;p.buff=0;p.log=[];
+    p.members=[a.id];p.leader=a.id;p.floor=floor;p.state='explore';p.fought=true;p.ident=true;p.ambush=false;p.potions=0;p.guard=0;p.buff=0;p.log=[];
     p.etype=Object.assign({},E2.MON.find(m=>m.n===mon));p.enemies=[{hp:99999,sleep:0}];
     E2.combat(S,p);return {dmg:50000-a.hp,log:p.log.map(x=>x.t).join('\n')};};
   let black=false,breathHit=false;
   for(let seed=1;seed<=40;seed++){for(const mon of ['沈んだ王','澱呑みの坑道王']){const a=hurt(seed,mon,0),b=hurt(seed,mon,.8);
       if(a.log.includes('くろい ほのお'))black=true;
       check('属性の相性：黒い炎は炎の耐性では軽くならない',a.dmg===b.dmg,`${mon}・種${seed}`,`なし${a.dmg} 耐性${b.dmg}`);}
-    const a=hurt(seed,'キメラ',0),b=hurt(seed,'キメラ',.5);
+    const a=hurt(seed,'キメラ',0,5),b=hurt(seed,'キメラ',.5,5);
     if(a.log.includes('ほのおを はいた')){breathHit=true;check('属性の相性：ふつうの炎の息は炎の耐性で軽くなる',b.dmg<a.dmg,`キメラ・種${seed}`,`なし${a.dmg} 耐性${b.dmg}`);}
     else check('属性の相性：炎の息を吐かなければ耐性では変わらない',a.dmg===b.dmg,`キメラ・種${seed}`,`なし${a.dmg} 耐性${b.dmg}`);}
   check('属性の相性：黒い炎と炎の息の両方を試し打ちした',black&&breathHit,'40種',`黒い炎${black} 炎の息${breathHit}`);
@@ -1565,9 +1566,9 @@ function checkFoes(){
   const E=load(1);
   // 息の四体の出やすさ。死因の1位が息の魔物に寄りすぎないよう、番犬と炉の番人ゴーレムはさらに下げる
   const breath={'キメラ':.6,'墓所の番犬':.45,'盲目の洞窟竜':.6,'炉の番人ゴーレム':.4};
-  // 息の傷の倍率。番犬は 0.75、炉の番人ゴーレムは 0.9 で、ほかの息の魔物は持たない
-  const scale={'墓所の番犬':.75,'炉の番人ゴーレム':.9};
-  for(const m of E.MON)if(m.sp==='breath'||m.br!=null)check('出る魔物：息の傷の倍率を持つのは番犬（0.75）と炉の番人ゴーレム（0.9）だけ',m.br===scale[m.n],m.n,`倍率${m.br==null?'なし':m.br}（決まりは${scale[m.n]==null?'なし':scale[m.n]}）`);
+  // 息の傷の倍率。キメラは 0.8、番犬は 0.75、炉の番人ゴーレムは 0.9 で、ほかの息の魔物は持たない
+  const scale={'キメラ':.8,'墓所の番犬':.75,'炉の番人ゴーレム':.9};
+  for(const m of E.MON)if(m.sp==='breath'||m.br!=null)check('出る魔物：息の傷の倍率を持つのはキメラ（0.8）と番犬（0.75）と炉の番人ゴーレム（0.9）だけ',m.br===scale[m.n],m.n,`倍率${m.br==null?'なし':m.br}（決まりは${scale[m.n]==null?'なし':scale[m.n]}）`);
   // 番犬の息を、同じ種で、倍率のない同じ強さの魔物と比べる。古い記録で戦いの途中だった番犬（倍率の値を持たない）には名で引いてかける。
   // 水晶のログは名の文字数ぶん乱数を引き、怖いものや相性は名で引くので、比べる相手は同じ長さで「番犬」を含む名にする
   const breathDmg=(seed,fix)=>{const E2=load(seed),S=E2.newState();const p=Object.values(S.parties).find(x=>x.tav==='ours');const a=S.adv[p.leader];
@@ -1596,6 +1597,18 @@ function checkFoes(){
     check('出る魔物：炉の番人ゴーレムの息の傷は、同じ強さの息の0.9倍',now.breathed&&now.dmg===Math.round(plain.dmg*.9)&&now.dmg<plain.dmg,`種${seed}`,`倍率なし${plain.dmg} ゴーレム${now.dmg}`);
     check('出る魔物：倍率の値を持たない古い記録の炉の番人ゴーレムにも、名で引いて同じ倍率がかかる',old.dmg===now.dmg,`種${seed}`,`ゴーレム${now.dmg} 古い${old.dmg}`);}
   check('出る魔物：炉の番人ゴーレムの息を5種で試し打ちした',golemN===5,'80種',`${golemN}種`);
+  // キメラも同じく。名を変えずに倍率だけを 1 にしたものと比べる（名が同じなので、乱数の引き方も相性も同じになる）
+  const chimeraDmg=(seed,fix)=>breathDmg(seed,t=>fix(Object.assign(t,E.MON.find(m=>m.n==='キメラ'),{})));
+  let chimeraN=0;
+  for(let seed=1;seed<=200&&chimeraN<5;seed++){
+    const plain=chimeraDmg(seed,t=>Object.assign(t,{br:1}));
+    if(!plain.breathed)continue;chimeraN++;
+    const now=chimeraDmg(seed,t=>t),old=chimeraDmg(seed,t=>{delete t.br;return t;});
+    check('出る魔物：キメラの息の傷は、同じ強さの息の0.8倍',now.breathed&&now.dmg===Math.round(plain.dmg*.8)&&now.dmg<plain.dmg,`種${seed}`,`倍率なし${plain.dmg} キメラ${now.dmg}`);
+    check('出る魔物：倍率の値を持たない古い記録のキメラにも、名で引いて同じ倍率がかかる',old.dmg===now.dmg,`種${seed}`,`キメラ${now.dmg} 古い${old.dmg}`);
+    const vplain=chimeraDmg(seed,t=>Object.assign(t,{n:'若いキメラ',base:'キメラ',br:1})),vold=chimeraDmg(seed,t=>{delete t.br;return Object.assign(t,{n:'若いキメラ',base:'キメラ'});});
+    if(vplain.breathed)check('出る魔物：変異種のキメラの息にも同じ倍率がかかり、倍率の値を持たなくても元の名で引く',vold.dmg===Math.round(vplain.dmg*.8),`種${seed}`,`倍率なし${vplain.dmg} 古い変異種${vold.dmg}`);}
+  check('出る魔物：キメラの息を5種で試し打ちした',chimeraN===5,'200種',`${chimeraN}種`);
   const maze={
     'レイス':8,'ミノタウロス':13,'溺れた衛兵':12,'水路の大蛇':14,'堕ちた騎士':16,'石の巨像':20,
     '亡霊騎士':20,'宮廷魔術師の亡霊':16,'屍喰らい':22,'吸魂の司祭':20,'塔の番兵ゴーレム':24,
