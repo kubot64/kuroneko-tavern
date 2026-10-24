@@ -734,8 +734,8 @@ test('帳場の覚え書きと、次の返済までの日数・必要額が常�
     const a=Object.values(S.adv).find(x=>x.tav==='ours');
     a.pastDreams=[{k:'fame',t:'夢',tk:S.tick}];S.stats.dreams.ours=(S.stats.dreams.ours||0)+1;
     S.taverns.ours.seats=18;S.taverns.ours.cleanPay=S.taverns.ours.cleanPay??S.tick;
-    S.deepest.ours=Math.max(S.deepest.ours,6);S.rares=S.rares||{};S.rares[1]={killed:{tav:'ours',tk:S.tick,party:'p',names:[a.name]}};
-    S.taverns.ours.debt=0;S.taverns.ours.debtFree=S.taverns.ours.debtFree??S.tick;
+    S.deepest.ours=Math.max(S.deepest.ours,21);S.deepest.rival=1;S.rares=S.rares||{};S.rares[1]={killed:{tav:'ours',tk:S.tick,party:'p',names:[a.name]}};
+    S.taverns.ours.debt=0;S.taverns.ours.debtFree=S.taverns.ours.debtFree??S.tick;S.taverns.ours.overtook=S.tick;
     render();
     const added=MEMO.filter(m=>!before.has(m.id)).reduce((s,m)=>s+m.rep,0);
     return {rep:S.taverns.ours.rep-rep0,added,show:memoState(S).show.length,log:memoState(S).log.length,pay:document.querySelector('#payw').hidden,desk:!!document.querySelector('#memo')};
@@ -743,11 +743,11 @@ test('帳場の覚え書きと、次の返済までの日数・必要額が常�
   assert.equal(done.rep,done.added);
   assert.equal(done.show,0);
   assert.equal(done.desk,false);
-  assert.equal(done.log,9);
+  assert.equal(done.log,12);
   assert.equal(done.pay,true);
   await page.locator('button[data-v="rank"]').click();
-  assert.equal(await page.locator('#memo-log li').count(),9);
-  assert.equal(await page.locator('#memo-log s').count(),9);
+  assert.equal(await page.locator('#memo-log li').count(),12);
+  assert.equal(await page.locator('#memo-log s').count(),12);
   assert.deepEqual(errors,[]);await ctx.close();
 });
 
@@ -1118,9 +1118,9 @@ test('新しく始めると、何も押さなくても覚え書きがあると�
     S.taverns.ours.rep=Math.max(S.taverns.ours.rep,200);
     const a=Object.values(S.adv).find(x=>x.tav==='ours');
     a.trips=1;a.pastDreams=[{k:'fame',t:'夢',tk:S.tick}];S.stats.dreams.ours=1;
-    S.taverns.ours.seats=18;S.taverns.ours.cleanPay=S.tick;S.deepest.ours=30;
+    S.taverns.ours.seats=18;S.taverns.ours.cleanPay=S.tick;S.deepest.ours=30;S.deepest.rival=1;
     S.rares={1:{killed:{tav:'ours',tk:S.tick,party:'p',names:[a.name]}}};
-    S.taverns.ours.debt=0;S.taverns.ours.debtFree=S.tick;
+    S.taverns.ours.debt=0;S.taverns.ours.debtFree=S.tick;S.taverns.ours.overtook=S.tick;
     render();
   });
   const done=await page.evaluate(()=>({line:document.querySelector('#memoline').hidden,mark:document.querySelector('button[data-v="desk"]').textContent.includes('覚え書き')}));
@@ -2759,6 +2759,70 @@ test('常連のひと幕は、留守のまとめのあとに出て、375pxと128
   await ctx.close();
 });
 
+test('完済の場面は、返し終えたその場で一度だけ、留守のまとめのあとに出て、踏破のひと幕より先に出る',async()=>{
+  const {ctx,page,errors}=await open();
+  await page.locator('#sp0').click();
+  const yen=n=>n.toLocaleString('ja-JP');
+  const got=await page.evaluate(()=>{
+    $('digest').hidden=false;
+    const U=S.taverns.ours;U.payClean=3;U.repaid=12000;U.interestPaid=3000;U.gold=U.debt+5000;repay(S,U.debt);
+    const a=Object.values(S.adv).find(x=>x.tav==='ours');S.conquered={tk:S.tick,tav:'ours',party:'夜明け団',names:[a.name],ending:true};
+    render();return {shown:!$('payoff').hidden,ending:!$('ending').hidden,repaid:U.repaid,intr:U.interestPaid,day:Math.floor(U.debtFree/TICKS_PER_DAY)+1};
+  });
+  assert.equal(got.shown,false,'留守のまとめの上に完済の場面が出た');
+  await page.locator('[data-act="closedigest"]').click();
+  const po=page.locator('#payoff');
+  assert.equal(await po.isVisible(),true,'まとめを閉じても完済の場面が出ない');
+  assert.equal(await page.locator('#ending').isVisible(),false,'完済の場面より先に踏破のひと幕が出た');
+  const text=(await po.innerText()).replace(/\s+/g,'');
+  assert.match(text,/^借用書に最後の印を押した/);
+  assert.match(text,new RegExp(`迷宮暦\\d+年・開店から${got.day}日目`));
+  assert.ok(text.includes(`返した額は、あわせて${yen(got.repaid)}G（うち利息${yen(got.intr)}G）。`),text);
+  assert.ok(text.includes('返済日に、取り立て人を呼ばずに済んだのは3回。'),text);
+  assert.ok(text.includes('帳場の覚え書きに、次の行を書き足した。まずは、ロウエンいちの酒場の名を、銀の杯亭から取る。'),text);
+  for(const w of [375,1280]){
+    await page.setViewportSize({width:w,height:w===375?740:800});await page.evaluate(()=>document.fonts.ready);
+    assert.deepEqual(await page.evaluate(screenAudit),[],`${w}px の完済の場面`);
+  }
+  await page.locator('#po-btn').click();
+  assert.equal(await po.isVisible(),false);
+  assert.equal(await page.locator('#ending').isVisible(),true,'完済の場面を閉じても踏破のひと幕が出ない');
+  await page.locator('#ed-btn').click();
+  await page.evaluate(()=>render());
+  assert.equal(await po.isVisible(),false,'閉じた完済の場面がまた出た');
+  // 開き直しても出ない
+  const again=await open({ctx});
+  assert.equal(await again.page.locator('#payoff').isVisible(),false,'開き直すと完済の場面がまた出た');
+  assert.deepEqual(errors,[]);assert.deepEqual(again.errors,[]);
+  await ctx.close();
+});
+
+test('回数を持たない記録では、完済の場面に回数の行を出さない。すでに返し終えた古い記録を開いても、場面は出ない',async()=>{
+  const {ctx,page,errors}=await open();
+  await page.locator('#sp0').click();
+  // 常連のひと幕が出ているときに返し終えたら、ひと幕を閉じたあとに出る
+  await page.evaluate(()=>{const a=Object.values(S.adv).find(x=>x.tav==='ours'&&x.status!=='lost'&&x.status!=='retired');a.trips=5;a.party=null;a.status='idle';retire(S,a,'旅に出る');render();});
+  assert.equal(await page.locator('#life').isVisible(),true);
+  await page.evaluate(()=>{const U=S.taverns.ours;delete U.payClean;U.gold=U.debt+5000;repay(S,U.debt);render();});
+  const po=page.locator('#payoff');
+  assert.equal(await po.isVisible(),false,'出ているひと幕の上に完済の場面が出た');
+  await page.locator('#lf-btn').click();
+  assert.equal(await po.isVisible(),true,'ひと幕を閉じても完済の場面が出ない');
+  const text=await po.innerText();
+  assert.match(text,/返した額は、あわせて/);
+  assert.doesNotMatch(text,/取り立て人/);
+  await page.locator('#po-btn').click();
+  // 版31の、すでに返し終えた記録（場面の印も回数もない）を開く
+  await page.evaluate(()=>{const U=S.taverns.ours;S.v=31;delete U.payClean;delete U.payoffScene;delete S.memo.done.top;U.overtook=S.tick;save();});
+  const again=await open({ctx});
+  assert.equal(await again.page.locator('#payoff').isVisible(),false,'返し終えた古い記録で完済の場面が出た');
+  const m=await again.page.evaluate(()=>({v:S.v,top:S.memo.done.top,overtook:S.taverns.ours.overtook}));
+  assert.equal(m.v,await again.page.evaluate('SAVE_V'));
+  assert.equal(m.top&&m.top.tk,m.overtook,'もう満たしている行に線が引かれていない');
+  assert.deepEqual(errors,[]);assert.deepEqual(again.errors,[]);
+  await ctx.close();
+});
+
 test('水晶の札：映せない一行を押すと、わけが一言出る',async()=>{
   const {ctx,page,errors}=await open();
   await page.locator('#sp0').click();
@@ -2923,5 +2987,10 @@ test('どのタブも、375px・768px・1280pxで押す所が44px以上あり、
   }
   await page.locator('#tabs button[data-v="desk"]').click();
   assert.match(await page.locator(`#tbody .row:has(button[data-act="revive"][data-a="${ids[0]}"])`).innerText(),/（寄進で上がっている。信心深く、成功しやすい）/);
+  // 完済の場面。300日のうちに返し終えていなければ、ここで返し終える
+  await page.evaluate(()=>{const U=S.taverns.ours;if(U.debt>0){U.gold+=U.debt;repay(S,U.debt);}U.payoffScene=true;render();});
+  assert.equal(await page.locator('#payoff').isVisible(),true,'完済の場面が出ていない');
+  for(const [width,height] of widths){await page.setViewportSize({width,height});await check(width,'完済の場面');}
+  await page.locator('#po-btn').click();
   assert.deepEqual(errors,[]);await ctx.close();
 });

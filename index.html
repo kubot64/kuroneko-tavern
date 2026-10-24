@@ -391,6 +391,14 @@ button:focus-visible,[tabindex]:focus-visible{outline:2px solid var(--amber);out
     <div style="margin-top:16px;text-align:right"><button class="btn on" data-act="closedigest">店に戻る</button></div>
   </div>
 </div>
+<div class="modal" id="payoff" hidden>
+  <div class="mbox" role="dialog" aria-labelledby="po-t">
+    <h2 id="po-t"><span class="nw">借用書に</span><span class="nw">最後の印を押した</span></h2>
+    <div class="note" id="po-sub"></div>
+    <div class="ending" id="po-body"></div>
+    <div style="margin-top:16px;text-align:right"><button class="btn on" data-act="closepayoff" id="po-btn">店に戻る</button></div>
+  </div>
+</div>
 <div class="modal" id="ending" hidden>
   <div class="mbox" role="dialog" aria-labelledby="ed-t">
     <h2 id="ed-t">迷宮踏破</h2>
@@ -771,12 +779,12 @@ function assignOpeningDreams(S){
   });
 }
 // セーブの版。記録の形を変えたら上げ、migrate に移行の段を足す
-const SAVE_V=31;
+const SAVE_V=32;
 // 全滅した一行の扱い。予定帰還の刻を過ぎてから消息不明と知らせるまでの刻、巡回隊が届く深さ（最深階から何階上まで）、立て替えの借りの利息（消息不明の1日ごと・複利）と、帰還時に稼ぎから返す割合
 const MISSING_GRACE=150,PATROL_DEPTH=3,OWED_RATE=.02,OWED_REPAY=.25;
 function newState(){
   const S={tick:0,nid:1,adv:{},parties:{},news:[],tales:[],memorial:[],
-    taverns:{ours:{name:'黒猫亭',gold:400,rep:0,crystals:1,earned:0,debt:DEBT0,seats:12,nextPay:30*TICKS_PER_DAY,late:0},rival:{name:'銀の杯亭',gold:99999,rep:60,owner:RIVAL_OWNER}},
+    taverns:{ours:{name:'黒猫亭',gold:400,rep:0,crystals:1,earned:0,debt:DEBT0,seats:12,nextPay:30*TICKS_PER_DAY,late:0,payClean:0},rival:{name:'銀の杯亭',gold:99999,rep:60,owner:RIVAL_OWNER}},
     bounties:{},deepest:{ours:1,rival:GATE_F},usedNames:{[RIVAL_OWNER]:1},usedParty:{'鉄の誓い':1,'黄金の剣':1,'七つ星':1,'夜鷹':1,'鉄の誓い傭兵団':1,'黄金の剣団':1},usedItems:{},uniqFound:{},farewells:[],edicts:[],v:SAVE_V,loreFound:{},shop:{tiers:{1:true},mats:{},serial:0,log:[]},watch:[null,null],sel:0,stats:{dreams:{ours:0,rival:0}},small:SMALL_TAV.slice(0,5)};
   const cast=[];
   for(const cls of ['戦士','僧侶','盗賊','魔術師'])cast.push(makeAdv(S,'ours',{lvl:OPENING_LVL(),cls,race:raceForCls(cls),opening:true}));
@@ -3372,11 +3380,13 @@ function title(S,a,quiet){
 }
 
 /* ---- the tavern's debt, the rival and the small taverns ---- */
-function debtNews(S){const T0=S.taverns.ours;if(T0.debt<=0&&!T0.debtFree){T0.debt=0;T0.debtFree=S.tick;T0.rep+=10;news(S,'黒猫亭の借金を、すべて返し終えた。店はようやく、本当に店主のものになった。','record');}advanceErrandStage(S);}
+// 返し終えたその場で一度だけ、完済の場面を出す印を付ける。返し終えている古い記録には付かない
+function debtNews(S){const T0=S.taverns.ours;if(T0.debt<=0&&T0.debtFree==null){T0.debt=0;T0.debtFree=S.tick;T0.payoffScene=true;T0.rep+=10;news(S,'黒猫亭の借金を、すべて返し終えた。店はようやく、本当に店主のものになった。','record');}advanceErrandStage(S);}
 function repay(S,amt){const T0=S.taverns.ours;const x=Math.min(amt,T0.debt,Math.max(0,T0.gold));if(x<=0)return 0;T0.gold-=x;T0.debt-=x;T0.repaid=(T0.repaid||0)+x;flowAdd(S,'r',x);debtNews(S);checkMemo(S);return x;}
+// 返済日。不足なく払えた月は、取り立て人を呼ばずに済んだ回数（payClean）に1足す。回数を持たない古い記録では数えない
 function debtTick(S){const T0=S.taverns.ours;if(!(T0.debt>0))return;if(T0.nextPay==null)T0.nextPay=S.tick+30*TICKS_PER_DAY;if(S.tick<T0.nextPay)return;
   T0.nextPay=S.tick+30*TICKS_PER_DAY;const intr=Math.round(T0.debt*.02);T0.debt+=intr;const due=Math.min(T0.debt,DEBT_DUE+intr);
-  if(T0.gold>=due){T0.gold-=due;T0.debt-=due;T0.repaid=(T0.repaid||0)+due;T0.interestPaid=(T0.interestPaid||0)+intr;flowAdd(S,'r',due);T0.late=0;if(T0.cleanPay==null)T0.cleanPay=S.tick;news(S,`セーレの両替商に、今月の返済${due}G（うち利息${intr}G）を払った。借金の残りは${T0.debt}G。`,'info');}
+  if(T0.gold>=due){T0.gold-=due;T0.debt-=due;T0.repaid=(T0.repaid||0)+due;T0.interestPaid=(T0.interestPaid||0)+intr;flowAdd(S,'r',due);T0.late=0;if(T0.cleanPay==null)T0.cleanPay=S.tick;if(typeof T0.payClean==='number')T0.payClean++;news(S,`セーレの両替商に、今月の返済${due}G（うち利息${intr}G）を払った。借金の残りは${T0.debt}G。`,'info');}
   else{const p0=Math.max(0,T0.gold);T0.gold-=p0;T0.debt-=p0;if(p0>0){T0.repaid=(T0.repaid||0)+p0;T0.interestPaid=(T0.interestPaid||0)+Math.min(p0,intr);flowAdd(S,'r',p0);}const pen=Math.round((due-p0)*.25);T0.debt+=pen;T0.late=(T0.late||0)+1;T0.rep=Math.max(0,T0.rep-3);
     news(S,`今月の返済に${due-p0}G足りなかった。両替商の取り立て人が店先に居座り、客が眉をひそめている。延滞の罰金${pen}Gが上乗せされ、借金の残りは${T0.debt}G。`,'death');}
   debtNews(S);}
@@ -3405,7 +3415,12 @@ const MEMO=[
   {id:'rank',rep:2,t:'番付のどこか一つ、銀の杯亭に勝つ',met:S=>rankRows(S).some(r=>r.lead>0)},
   {id:'half',rep:3,t:'借金を、半分まで減らす',met:S=>S.taverns.ours.debt<=DEBT0/2},
   {id:'free',rep:3,t:'借用書に、最後の印を押す',met:S=>!(S.taverns.ours.debt>0)},
+  // 借金を返し終えたあとに追う行（after）。返し終えるまでは帳場に出さず、かなえもしない
+  {id:'top',rep:2,after:true,t:'ロウエンいちの酒場の名を、銀の杯亭から取る',met:S=>S.taverns.ours.overtook!=null},
+  {id:'rankHalf',rep:3,after:true,t:'番付の半分で、銀の杯亭に勝つ',met:S=>{const rows=rankRows(S);return rows.filter(r=>r.lead>0).length*2>=rows.length;}},
+  {id:'stone21',rep:3,after:true,t:'うちの客の誰かが、B21Fの石碑に触れる',met:S=>(S.deepest&&S.deepest.ours||0)>=21},
 ];
+const debtCleared=S=>!(S.taverns.ours.debt>0);
 // 古い記録で、分かるものだけ日付を戻す。分からない行は null（線だけ）
 function memoWhen(S,id){
   const T0=S.taverns.ours;
@@ -3413,21 +3428,25 @@ function memoWhen(S,id){
   if(id==='free')return T0.debtFree!=null?T0.debtFree:null;
   if(id==='rare'){let tk=null;Object.values(S.rares||{}).forEach(v=>{const k=v&&v.killed;if(k&&k.tav==='ours'&&k.tk!=null&&(tk==null||k.tk<tk))tk=k.tk;});return tk;}
   if(id==='dream'){let tk=null;Object.values(S.adv||{}).forEach(a=>{if(!a||a.tav!=='ours')return;(a.pastDreams||[]).forEach(d=>{if(d&&d.tk!=null&&(tk==null||d.tk<tk))tk=d.tk;});});return tk;}
-  if(id==='stone'){let tk=null;Object.values(S.adv||{}).forEach(a=>{if(!a||a.tav!=='ours')return;(a.chron||[]).forEach(c=>{if(c&&c.t==='はじめてB6Fに足を踏み入れる'&&c.tk!=null&&(tk==null||c.tk<tk))tk=c.tk;});});return tk;}
+  if(id==='stone'||id==='stone21'){const t=`はじめて${FN(id==='stone'?6:21)}に足を踏み入れる`;let tk=null;Object.values(S.adv||{}).forEach(a=>{if(!a||a.tav!=='ours')return;(a.chron||[]).forEach(c=>{if(c&&c.t===t&&c.tk!=null&&(tk==null||c.tk<tk))tk=c.tk;});});return tk;}
+  if(id==='top')return T0.overtook!=null?T0.overtook:null;
   return null;
 }
-function memoStamp(S,id,live){const tk=memoWhen(S,id);if(tk!=null)return tk;return live?S.tick:null;}
+// 返し終えたあとに追う行は、遊びの途中でかなえたらその刻にする（返し終える前に満たしていても、線を引くのは返し終えたとき）
+function memoStamp(S,id,live){if(live&&MEMO.find(m=>m.id===id).after)return S.tick;const tk=memoWhen(S,id);if(tk!=null)return tk;return live?S.tick:null;}
 // quiet のときは線だけ引き、評判は足さない（古い記録を開いたとき）
 function checkMemo(S,quiet){
   S.memo=S.memo||{done:{}};if(!S.memo.done)S.memo.done={};
   const T0=S.taverns.ours;
-  for(const m of MEMO){if(S.memo.done[m.id]||!m.met(S))continue;S.memo.done[m.id]={tk:memoStamp(S,m.id,!quiet)};if(!quiet)T0.rep=(T0.rep||0)+m.rep;}
+  const free=debtCleared(S);
+  for(const m of MEMO){if(S.memo.done[m.id]||(m.after&&!free)||!m.met(S))continue;S.memo.done[m.id]={tk:memoStamp(S,m.id,!quiet)};if(!quiet)T0.rep=(T0.rep||0)+m.rep;}
 }
 // 帳場に出す行。未達の先頭3行と、いちばん新しくかなえた行（同じ日ならその日の分すべて）
 function memoState(S){
   const done=(S.memo&&S.memo.done)||{};
   const row=m=>{const d=done[m.id];return {id:m.id,t:m.t,rep:m.rep,done:!!d,tk:d?d.tk:null};};
-  const log=MEMO.filter(m=>done[m.id]).map(row);const open=MEMO.filter(m=>!done[m.id]);
+  const free=debtCleared(S);
+  const log=MEMO.filter(m=>done[m.id]).map(row);const open=MEMO.filter(m=>!done[m.id]&&(!m.after||free));
   if(!open.length)return {show:[],log,allDone:true};
   let keep=[];
   if(log.length){const known=log.map(m=>m.tk).filter(t=>t!=null);if(known.length){const mx=Math.max(...known);keep=log.filter(m=>m.tk===mx);}else keep=[log[log.length-1]];}
@@ -3868,6 +3887,10 @@ function migrate(S){
     Object.values(S.adv).forEach(a=>{if(a.opening&&a.moved&&a.moved.tk==null)delete a.moved;});
     S.v=31;
   }
+  if(!(S.v>=32)){// 取り立て人を呼ばずに済んだ返済の回数と、完済の場面。回数は数えはじめる前の分が分からないので持たせない（場面に回数の行が出ない）。
+    // すでに返し終えている記録には場面を出さない。返し終えたあとに追う覚え書きは、もう満たしている行に線だけ引き、評判は足さない。乱数は引かない
+    checkMemo(S,true);S.v=32;
+  }
   if(typeof S.taverns.ours.interestPaid!=='number')S.taverns.ours.interestPaid=inferInterestPaid(S);
   Object.values(S.adv).forEach(a=>{if(!a.tone)personalize(a);if(!a.traits)assignTraits(S,a,true);});
   smallOf(S);
@@ -3945,9 +3968,23 @@ function fastForward(n,awaySec){
   };
   setTimeout(run,40);
 }
+// 完済の場面。返し終えたその場で一度だけ、留守のあいだのまとめを閉じたあとに出す。踏破と常連のひと幕は、これを閉じたあとに出す（すでに出ているひと幕があれば、それを閉じたあとに出す）
+// 取り立て人を呼ばずに済んだ回数は、数えている記録でだけ出す。最後に、返し終えたあとに追う覚え書きのうち、まだかなえていない先頭の行を添える
+function maybePayoff(){
+  const T0=S.taverns.ours;if(ff||!T0.payoffScene||!$('digest').hidden||!$('payoff').hidden||!$('ending').hidden||!$('life').hidden)return;
+  const tk=T0.debtFree!=null?T0.debtFree:S.tick,P=t=>`<p>${keepText(t)}</p>`,done=(S.memo&&S.memo.done)||{},next=MEMO.find(m=>m.after&&!done[m.id]);
+  $('po-sub').textContent=`迷宮暦${calDate(tk).y}年・開店から${Math.floor(tk/TICKS_PER_DAY)+1}日目`;
+  $('po-body').innerHTML=[
+    P(`開店のときにセーレの両替商から借りた${DEBT0}Gを、すべて返した。両替商の使いは借用書を置いて帰っていった。`),
+    P(`返した額は、あわせて${T0.repaid||0}G（うち利息${T0.interestPaid||0}G）。`),
+    typeof T0.payClean==='number'?P(`返済日に、取り立て人を呼ばずに済んだのは${T0.payClean}回。`):'',
+    P(next?`帳場の覚え書きに、次の行を書き足した。まずは、${next.t}。`:'帳場の覚え書きに、次の行を書き足した。')
+  ].join('');
+  $('payoff').hidden=false;
+}
 // 踏破の夜のひと幕。どちらの店の客が王を討ったかで、祝われるか、嫌味を言われるかが変わる
 function maybeEnding(){
-  const c=S.conquered;if(ff||!c||!c.ending||!$('digest').hidden||!$('ending').hidden)return;
+  const c=S.conquered;if(ff||!c||!c.ending||!$('digest').hidden||!$('payoff').hidden||!$('ending').hidden)return;
   const RO=S.taverns.rival.owner||RIVAL_OWNER,pn=partyShown(c.party),who=c.names.join('・'),d=Math.floor(c.tk/TICKS_PER_DAY)+1;
   $('ed-sub').textContent=`迷宮暦${calDate(c.tk).y}年・解禁から${d}日目`;
   const P=(t,said)=>`<p${said?' class="said"':''}>${keepText(t)}</p>`;
@@ -3970,8 +4007,8 @@ function maybeEnding(){
 // 常連のひと幕。踏破のひと幕と同じく、留守のあいだのまとめと踏破のひと幕を閉じたあとに出す。
 // たまっていた分は1画面にまとめ、LIFE_MAX人までを地の文で並べる。それより多いときは名前だけを添え、生涯は記念碑に残る
 function maybeLife(){
-  const q=S.lifeQ||[];if(ff||!q.length||!$('digest').hidden||!$('ending').hidden||!$('life').hidden)return;
-  if(S.conquered&&S.conquered.ending)return;
+  const q=S.lifeQ||[];if(ff||!q.length||!$('digest').hidden||!$('payoff').hidden||!$('ending').hidden||!$('life').hidden)return;
+  if(S.taverns.ours.payoffScene||(S.conquered&&S.conquered.ending))return;
   const people=q.flatMap(e=>e.people.map(x=>Object.assign({k:e.k},x)));
   const show=people.slice(0,LIFE_MAX),rest=people.slice(LIFE_MAX),last=q[q.length-1];
   // 見出しの名前は語の途中で折らない。一行の名と紋章の読みは、それぞれ一続き
@@ -4112,7 +4149,7 @@ function render(){
   {const due=nextDue(S),pay=$('payw');if(pay){pay.hidden=!due;if(due){$('payday').textContent=due.days;$('paydue').textContent=G(due.due).slice(0,-1);}}}
   {const g=nearestMemo(S),el=$('memoline');if(el){el.hidden=!g;if(g)el.textContent='店主の覚え書き：'+g.t;}}
   {const md=(S.mineDeep||{}).ours||0;$('deep').textContent=FN(Math.max(S.deepest.ours,1))+(S.conquered?'・踏破済み':'')+(md?'／'+FN(MAXF+md)+(S.mineConq?'・踏破済み':''):'');}
-  renderCrystals();renderParties();renderSide();renderAdv();maybeEnding();maybeLife();
+  renderCrystals();renderParties();renderSide();renderAdv();maybePayoff();maybeEnding();maybeLife();
 }
 function stateText(p){
   if(p.state==='wiped'){
@@ -4549,9 +4586,10 @@ document.addEventListener('click',e=>{
   const act=b.dataset.act;
   if(act==='speed'){setSpeed(+b.dataset.v);return;}
   if(act==='skip'){fastForward(TICKS_PER_DAY,0);return;}
-  if(act==='closedigest'){if(ff)return;$('digest').hidden=true;maybeEnding();maybeLife();return;}
-  if(act==='closeending'){$('ending').hidden=true;if(S.conquered)S.conquered.ending=false;save();maybeLife();return;}
-  if(act==='closelife'){$('life').hidden=true;S.lifeQ=[];save();return;}
+  if(act==='closedigest'){if(ff)return;$('digest').hidden=true;maybePayoff();maybeEnding();maybeLife();return;}
+  if(act==='closepayoff'){$('payoff').hidden=true;delete S.taverns.ours.payoffScene;save();maybeEnding();maybeLife();return;}
+  if(act==='closeending'){$('ending').hidden=true;if(S.conquered)S.conquered.ending=false;save();maybePayoff();maybeLife();return;}
+  if(act==='closelife'){$('life').hidden=true;S.lifeQ=[];save();maybePayoff();return;}
   if(act==='adv'){advOpen=+b.dataset.a;$('advm').hidden=false;$('advbox').scrollTop=0;renderAdv();return;}
   if(act==='closeadv'){if(b.id==='advm'&&e.target!==b)return;advOpen=null;$('advm').hidden=true;return;}
   if(act==='memo'){reviveNote=null;tab='desk';$('tbody').scrollTop=0;render();focusSide();const memo=$('memo');if(memo&&!matchMedia('(max-width:900px)').matches)memo.scrollIntoView({block:'nearest',behavior:'instant'});return;}
