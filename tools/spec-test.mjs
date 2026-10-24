@@ -1937,6 +1937,45 @@ function checkLevelNews(){
   }
   check('知らせ：銀の杯亭の者の転職と二つ名は噂の色、黒猫亭の者は記録の色',kinds.ours.join()==='record,record'&&kinds.rival.join()==='rumor,rumor','転職と二つ名',JSON.stringify(kinds));
 }
+// 「死体回収の依頼」：見込みの言葉。知れている深さと、その深さの石碑まで届く一行の数と、巡回隊が届く浅さかで決まり、乱数を引かず、状態を変えない
+function checkBounty(){
+  // 乱数を引いた回数を数える。開店の抽選のあとで数え始める
+  let s=4242>>>0,draws=0;const M=Object.create(Math);M.random=()=>{draws++;s=(s+0x6D2B79F5)>>>0;let t=s;t=Math.imul(t^(t>>>15),t|1);t^=t+Math.imul(t^(t>>>7),t|61);return ((t^(t>>>14))>>>0)/4294967296;};
+  const scene=(floor,known)=>{const E=loadEngine(ENGINE,{Math:M}),S=E.newState();const ps=Object.values(S.parties);const p=ps.find(x=>x.tav==='ours')||ps[0];
+    ps.forEach(x=>{x.state='town';x.rest=99;x.reach=1;x.mineReach=0;});
+    p.members.forEach(id=>{const a=S.adv[id];a.status='missing';a.hp=0;a.party=p.id;});
+    Object.assign(p,{state:'wiped',retrieved:false,announced:true,knownWiped:false,causeTold:false,wipedAt:S.tick,floor,killer:'オーク',cause:'オークに倒れた',trip:Object.assign(p.trip||{},{known:{mine:false,f:known,reach:known,mineReach:0}})});
+    S.deepest.ours=known;S.deepest.rival=known;S.bounties={};
+    return {E,S,p,others:ps.filter(x=>x!==p)};};
+  const all=[];
+  {const {E,S,p,others}=scene(13,11);
+    const snap=JSON.stringify(S),d0=draws;const w1=E.bountyHint(S,p),w2=E.bountyHint(S,p);all.push(w1);
+    check('死体回収の見込み：乱数を引かず、状態を変えず、同じ状態なら同じ言葉',w1===w2&&draws===d0&&JSON.stringify(S)===snap&&typeof w1==='string'&&w1.length>0,'消息不明・知れている深さB11F',`${w1} / ${w2} 乱数${draws-d0}回`);
+    // 知れている深さが同じで、本当の階だけが違う二つの状態
+    const hidden=[];for(const f of [11,13,15,19,24]){p.floor=f;hidden.push(E.bountyHint(S,p));}
+    check('死体回収の見込み：死因と階が知れる前は、本当の階を変えても言葉が変わらない',hidden.every(t=>t===hidden[0]),'知れている深さB11F・本当の階B11〜24F',hidden.join(' / '));
+    others.forEach(q=>{q.reach=16;});const many=E.bountyHint(S,p);all.push(many);
+    others.forEach(q=>{q.reach=5;});const none=E.bountyHint(S,p);all.push(none);
+    others.forEach((q,i)=>{q.reach=i?5:12;});const few=E.bountyHint(S,p);all.push(few);
+    check('死体回収の見込み：その深さに届く一行が多いときと、いないときで言葉が違う',many===E.BOUNTY_WORDS.many&&none===E.BOUNTY_WORDS.none&&few===E.BOUNTY_WORDS.few&&new Set([many,none,few]).size===3,`ほかの一行${others.length}組・B11Fの石碑まで届くのが全部・なし・1組`,`${many} / ${none} / ${few}`);
+    // 全滅した一行は数えない
+    others.forEach(q=>{q.reach=16;q.state='wiped';});
+    check('死体回収の見込み：全滅した一行は、届く一行に数えない',E.bountyReachers(S,p)===0,'ほかの一行がみな全滅',E.bountyReachers(S,p));
+    others.forEach(q=>{q.state='town';q.reach=5;});
+    S.deepest.ours=20;const patrol=E.bountyHint(S,p);all.push(patrol);
+    check('死体回収の見込み：知れている深さが巡回隊の届く浅さなら、その言葉になる',patrol===E.BOUNTY_WORDS.patrol,'最深B20F・知れている深さB11F',patrol);
+    S.deepest.ours=11;p.knownWiped=true;p.causeTold=true;p.floor=24;others.forEach(q=>{q.reach=16;});
+    check('死体回収の見込み：死因と階が知れたあとは、倒れた階で決まる',E.bountyFloor(p)===24&&E.bountyHint(S,p)===E.BOUNTY_WORDS.none,'B24Fで倒れたと知れた',E.bountyHint(S,p));
+    check('死体回収の見込み：言葉に数字も割合も出ない',Object.values(E.BOUNTY_WORDS).concat(all).every(t=>!/[0-9０-９%％割]/.test(t)),'4段',Object.values(E.BOUNTY_WORDS).join(' / '));
+    // 預けると次の返済に足りなくなるときだけ、一言添える
+    p.knownWiped=false;p.causeTold=false;
+    const U=S.taverns.ours,due=E.nextDue(S).due,price=E.bountyPrice(p);
+    const at=g=>{U.gold=g;return E.bountyShort(S,p);};
+    const r=[at(price+due-1),at(price+due),at(price-1)];
+    const debt0=U.debt;U.debt=0;r.push(at(price));U.debt=debt0;
+    check('死体回収の依頼：預けると次の返済に足りなくなるときだけ一言添える',r.join()==='true,false,false,false',`依頼${price}G・返済${due}G：足りなくなる・足りる・払えない・借金なし`,r.join());}
+}
+
 function checkMissing(){
   const MAXF0=load(1).MAXF;
   const wipedScene=(seed,floor,opt={})=>{const E=load(seed),S=E.newState();const ps=Object.values(S.parties).filter(x=>x.tav==='ours');const p=ps[0],q=ps[1]||Object.values(S.parties).find(x=>x!==p);
@@ -2326,7 +2365,7 @@ function checkLife(){
 
 if(!isMainThread){const line=runSeed(workerData.seed);parentPort.postMessage({line,res:[...results]});}
 else{
-  if(SHARD.k===1){checkTables();checkScenes();checkLife();checkLetters();checkErrands();checkCrest();checkRowFallback();checkMine();checkAffinity();checkRevive();checkMemoNotes();checkOpening();checkCareer();checkIntro();checkAge();checkFoes();checkQuarrel();checkFlow();checkLedger();checkLevelNews();checkMissing();checkLastWords();checkHighSpells();checkOldSaves();}
+  if(SHARD.k===1){checkTables();checkScenes();checkLife();checkLetters();checkErrands();checkCrest();checkRowFallback();checkMine();checkAffinity();checkRevive();checkMemoNotes();checkOpening();checkCareer();checkIntro();checkAge();checkFoes();checkQuarrel();checkFlow();checkLedger();checkLevelNews();checkBounty();checkMissing();checkLastWords();checkHighSpells();checkOldSaves();}
   // 種ごとの結果は、種の順に重ねる。反例は、いちばん若い種の最初のものを残す。進捗の行も種の順に出す
   const out=new Array(SEEDS.length);let next=0,printed=0;
   const flush=()=>{while(printed<out.length&&out[printed]){if(out[printed].line)console.log(out[printed].line);printed++;}};

@@ -2914,6 +2914,35 @@ test('水晶の札：映せない一行を押すと、わけが一言出る',asy
   await ctx.close();
 });
 
+test('帳場の死体回収の依頼は、見つかる見込みを言葉で添え、預けると次の返済に足りなくなるときだけ一言出す',async()=>{
+  const {ctx,page,errors}=await open();
+  await page.locator('#sp0').click();
+  const prep=await page.evaluate(()=>{
+    const p=Object.values(S.parties).find(x=>x.tav==='ours');
+    p.members.forEach(id=>{const a=S.adv[id];a.status='missing';a.hp=0;a.party=p.id;});
+    Object.assign(p,{state:'wiped',retrieved:false,announced:true,knownWiped:false,causeTold:false,wipedAt:S.tick,floor:4,killer:'オーク',cause:'オークに倒れた'});
+    const U=S.taverns.ours;U.gold=bountyPrice(p)+nextDue(S).due+1000;
+    return {id:p.id,hint:bountyHint(S,p),price:bountyPrice(p),due:nextDue(S).due};
+  });
+  await page.locator('button[data-v="desk"]').click();
+  const row=()=>page.locator('#tbody .row').filter({hasText:prep.hint});
+  assert.doesNotMatch(prep.hint,/[0-9０-９%％]/,'見込みに数字が出ている');
+  assert.equal(await row().count(),1,'依頼の行に見込みの言葉が出ていない');
+  assert.doesNotMatch(await row().innerText(),/次の返済に足りなくなる/,'足りるのに一言が出ている');
+  await page.evaluate(({price,due})=>{S.taverns.ours.gold=price+due-1;render();},prep);
+  assert.match(await row().innerText(),/預けると、次の返済に足りなくなる/);
+  await row().locator('button[data-act="bounty"]').click();
+  const after=await row().innerText();
+  assert.match(after,/依頼中/);
+  assert.equal(after.includes(prep.hint),true,'依頼中の行に見込みの言葉が出ていない');
+  assert.doesNotMatch(after,/次の返済に足りなくなる/,'依頼中の行に一言が出ている');
+  // 状況が変われば言葉も変わる：ほかの一行がみな全滅すれば、その深さに届く一行はいない
+  const none=await page.evaluate(id=>{Object.values(S.parties).forEach(q=>{if(q.id!==id)q.state='wiped';});S.deepest.ours=1;S.deepest.rival=1;render();return bountyHint(S,S.parties[id]);},prep.id);
+  assert.equal(none,'いまその深さに届く一行は、ほとんどいない');
+  assert.match(await page.locator('#tbody').innerText(),/いまその深さに届く一行は、ほとんどいない/);
+  assert.deepEqual(errors,[]);await ctx.close();
+});
+
 // 画面全体で、押す所の大きさ・はみ出し・折れ目を確かめ、崩れを「何が・どこで」の一行ずつで返す（ページの中で動かす）
 //   押す所：押せるもの（ボタン・リンク・欄の開け閉め・data-act の付いたもの）は縦横44px以上
 //   はみ出し：ページが横に滑らない。要素は画面の外に出ず、字は入れ物の外に出ず、横に滑る枠もない
@@ -3053,6 +3082,18 @@ test('どのタブも、375px・768px・1280pxで押す所が44px以上あり、
   }
   await page.locator('#tabs button[data-v="desk"]').click();
   assert.match(await page.locator(`#tbody .row:has(button[data-act="revive"][data-a="${ids[0]}"])`).innerText(),/（寄進で上がっている。信心深く、成功しやすい）/);
+  // 死体回収の依頼の行。見込みの言葉と、預けると次の返済に足りなくなる一言が出ている状態と、依頼中の行
+  await page.evaluate(()=>{
+    const U=S.taverns.ours;if(!(U.debt>0))U.debt=60000;
+    const ps=Object.values(S.parties).filter(x=>x.state==='town'||x.state==='explore'||x.state==='return').slice(0,2);
+    ps.forEach((p,i)=>{p.members.forEach(id=>{const a=S.adv[id];a.status='missing';a.hp=0;a.party=p.id;});
+      Object.assign(p,{state:'wiped',retrieved:false,announced:true,knownWiped:false,causeTold:false,wipedAt:S.tick,floor:p.floor||5,killer:'オーク',cause:'オークに倒れた',carried:[]});
+      if(i)S.bounties[p.id]=bountyPrice(p);});
+    U.gold=bountyPrice(ps[0])+nextDue(S).due-1;render();
+  });
+  assert.match(await page.locator('#tbody').innerText(),/預けると、次の返済に足りなくなる/);
+  assert.match(await page.locator('#tbody').innerText(),/依頼中/);
+  for(const [width,height] of widths){await page.setViewportSize({width,height});await check(width,'帳場の死体回収の依頼');}
   // 完済の場面。300日のうちに返し終えていなければ、ここで返し終える
   await page.evaluate(()=>{const U=S.taverns.ours;if(U.debt>0){U.gold+=U.debt;repay(S,U.debt);}U.payoffScene=true;render();});
   assert.equal(await page.locator('#payoff').isVisible(),true,'完済の場面が出ていない');
