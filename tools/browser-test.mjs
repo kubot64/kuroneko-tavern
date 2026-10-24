@@ -1590,6 +1590,50 @@ test('酒場の掲示は段ごとに開き、見込みの人数も段で変わ�
   assert.deepEqual(errors,[]);await ctx.close();
 });
 
+test('掲示の主役選びで話を持ちかけると、本人が口調どおりに返し、断った者は選べない。375px・768px・1280pxで崩れない',async()=>{
+  const {ctx,page,errors}=await open();
+  await page.locator('#sp0').click();
+  const ids=await page.evaluate(()=>{
+    const T0=S.taverns.ours;T0.debt=0;T0.debtFree=S.tick;const E=errandsOf(S);E.stage=3;E.next=S.tick+99*TICKS_PER_DAY;
+    E.board=[{id:900,k:'bell',n:'鐘楼の光',from:'梟の地図屋',t:ERRANDS.find(x=>x.k==='bell').txt(8),f:8,until:S.tick+TICKS_PER_DAY*20,hero:null,refused:[],tk:S.tick}];
+    const ours=Object.values(S.adv).filter(x=>x.tav==='ours'&&x.status!=='lost'&&x.status!=='retired').slice(0,4);
+    const tones=['商人言葉','丁寧','陽気','田舎なまり'];
+    ours.forEach((a,i)=>{a.status='idle';a.fear=null;a.traits=[];a.race='人間';a.quirk='無口';a.cls='戦士';a.pers='普通';a.tone=tones[i];});
+    ours[0].fear='高い所';ours[1].traits=['俊足'];ours[3].traits=['鈍足'];
+    tab='bar';pickErr=900;render();
+    return ours.map(a=>a.id);
+  });
+  for(const id of ids)await page.locator(`button[data-act="ask"][data-a="${id}"]`).click();
+  const rows=await page.evaluate(ids=>ids.map(id=>{const b=document.querySelector(`.pick button[data-act="adv"][data-a="${id}"]`);const row=b&&b.closest('.row');
+    return {said:row&&row.querySelector('.does.ask')?row.querySelector('.does.ask').textContent:'',chip:row&&row.querySelector('.chip')?row.querySelector('.chip').textContent:'',ask:!!(row&&row.querySelector('[data-act="ask"]')),assign:!!(row&&row.querySelector('[data-act="assign"]'))};}),ids);
+  const kinds=await page.evaluate(ids=>ids.map(id=>errandsOf(S).board[0].asked[id].k),ids);
+  assert.deepEqual(kinds,['no','keen','vague','balk']);
+  rows.forEach((r,i)=>{assert.match(r.said,/^「.+」$/,`${i}の返し`);assert.equal(r.ask,false,`${i}はもう持ちかけられない`);});
+  assert.equal(rows[0].chip,'断られた');assert.equal(rows[0].assign,false);
+  const said0=await page.evaluate(id=>errandsOf(S).board[0].asked[id].t,ids[0]);
+  assert.ok(['堪忍や。鐘楼の光はよそを当たってんか','その話だけはあかん。よそに回してや'].includes(said0),said0);
+  assert.equal(rows[0].said,`「${said0}」`);
+  rows.slice(1).forEach((r,i)=>assert.equal(r.assign,true,`${i+1}は回せる`));
+  const pick=await page.locator('.quote.board .pick').innerText();
+  assert.doesNotMatch(pick,/[0-9０-９]+\s*[%％]|向いている|向かない|不向き|確率/);
+  // しくじったあとの、返しとつながる土産話も同じ幅で見る
+  await page.evaluate(ids=>{const h=S.adv[ids[3]],p=Object.values(S.parties).find(x=>x.tav==='ours');const m=Object.values(S.adv).find(x=>x.tav==='ours'&&x.id!==h.id);
+    p.trip=Object.assign(p.trip||{},{askMiss:{id:h.id,who:h.name,n:'鐘楼の光',k:'balk'}});askTale(S,p,[m]);render();},ids);
+  assert.match(await page.locator('#tbody').innerText(),/行く前から渋ってた/);
+  for(const [width,height] of [[375,740],[768,1024],[1280,800]]){
+    await page.setViewportSize({width,height});
+    await page.evaluate(()=>document.fonts.ready);
+    assert.deepEqual(await page.evaluate(screenAudit),[],`${width}px の主役選び`);
+  }
+  await page.locator('button[data-act="pickerr"][data-e=""]').click();
+  assert.match(await page.locator('.quote.board').innerText(),/断った者：/);
+  await page.locator('button[data-act="pickerr"][data-e="900"]').click();
+  await page.locator(`button[data-act="assign"][data-a="${ids[1]}"]`).click();
+  // 一行が迷宮に出ていれば、戻ったときに伝える
+  assert.equal(await page.evaluate(()=>{const e=errandsOf(S).board[0];return e.hero||e.pend;}),ids[1]);
+  assert.deepEqual(errors,[]);await ctx.close();
+});
+
 test('見込みが満員のときは理由が読め、見込むボタンはどの幅でも44px以上',async()=>{
   const {ctx,page,errors}=await open();
   await page.locator('#sp0').click();
