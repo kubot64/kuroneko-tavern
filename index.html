@@ -4506,7 +4506,7 @@ function banzuke(){
   const rows=rankRows(S);
   const aceP=S.parties[S.ace];const ace=aceP&&aceP.state!=='wiped'?aceP:null;const won=rows.filter(r=>r.lead>0).length;
   const lead=won>=6?'もう、黒猫亭を新参と呼ぶ者はいない。':won>=4?'黒猫亭は、銀の杯亭と肩を並べはじめている。':'黒猫亭は、まだ追いかける側だ。';
-  return `<div class="sect"><h3>番付　黒猫亭 対 銀の杯亭</h3><p class="note">銀の杯亭の主人は${esc(S.taverns.rival.owner||RIVAL_OWNER)}。看板の一行は${ace?partyHtml(ace.name):'いまはいない'}。${lead}（${rows.length}項目のうち${won}項目で上回る）</p>
+  return `<div class="sect"><h3>番付　黒猫亭 対 銀の杯亭</h3><p class="note">${keepText(`銀の杯亭の主人は${S.taverns.rival.owner||RIVAL_OWNER}。看板の一行は`)}${ace?partyHtml(ace.name)+'。':keepText('いまはいない。')}${keepText(`${lead}（${rows.length}項目のうち${won}項目で上回る）`)}</p>
   <div class="tblwrap"><table class="maptbl"><thead><tr><th></th><th>黒猫亭</th><th>銀の杯亭</th></tr></thead><tbody>${rows.map(r=>`<tr><td>${r.name}</td><td>${r.lead>0?'<b>'+r.ours+'</b>':r.ours}</td><td>${r.lead<0?'<b>'+r.rival+'</b>':r.rival}</td></tr>`).join('')}</tbody></table></div></div>${memoRecordHtml()}`;
 }
 function partyCount(s){return String(s||'').replace('二百人','200人').replace('五十人','50人').replace('四十人','40人').replace('三十人','30人').replace('二十人','20人').replace('百人','100人').replace(/調査隊(\d+人)(?:（([^）]*)）)?$/,(m,n,x)=>`調査隊（${n}${x?'・'+x:''}）`)}
