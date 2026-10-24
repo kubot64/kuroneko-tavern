@@ -3997,7 +3997,7 @@ function drawDigest(st){
 // 丸めて60分や24時間になるときは、上の単位で出す
 function fmtAway(s){const m=Math.round(s/60);if(m<60)return m+'分';const h=Math.round(s/3600);if(h<24)return h+'時間';return Math.round(s/86400)+'日'}
 function nw(s){return `<span class="nw">${s}</span>`}
-// 手帳の囲みの文。短いかっこ書き（「（店は儲かる）」「（麦の狐）」）は一続きの語として折らない
+// 手帳の文。短いかっこ書き（「（店は儲かる）」「（麦の狐）」）は一続きの語として折らない
 function parenNw(t){return String(t).split(/(（[^（）]{1,12}）)/).map((x,i)=>i%2?nw(esc(x)):esc(x)).join('')}
 function sexAgeHtml(a){return `${a.sex}・${nw(humanAge(a)+'歳'+(a.race==='人間'?'':'相当'))}`}
 function originBit(a){return a.origin&&ORIGINS[a.origin]?nw(ORIGINS[a.origin].short+'出身')+' ':''}
@@ -4456,7 +4456,7 @@ function chronItems(a){
 function kinNote(a){
   const bits=[];
   if(a.kin&&a.kin.id&&S.adv[a.kin.id])bits.push(`続柄は${esc(a.kin.name)}の${esc(a.kin.rel)}。<button class="nm-link" data-act="adv" data-a="${a.kin.id}">${esc(a.kin.name)}の手帳</button>`);
-  (a.kinOf||[]).forEach(k=>{const btn=S.adv[k.id]?`<button class="nm-link" data-act="adv" data-a="${k.id}">${esc(k.name)}</button>`:esc(k.name);bits.push(`${btn}（${esc(k.rel)}）が黒猫亭に来た`);});
+  (a.kinOf||[]).forEach(k=>{const btn=S.adv[k.id]?`<button class="nm-link" data-act="adv" data-a="${k.id}">${esc(k.name)}</button>`:esc(k.name);bits.push(`${btn}${nw('（'+esc(k.rel)+'）')}が黒猫亭に来た`);});
   return bits.length?`<div class="note">${bits.join('<br>')}</div>`:'';
 }
 // 仇が別の者に討たれた夢。印のない古い記録は、仇の名と、本人がその魔物を討っていないことから読む
@@ -4503,19 +4503,19 @@ function renderAdv(){
   ${markFull?`<p class="markwhy">${markFullLine()}</p>`:''}
   ${he?`<div class="dream"><small>引き受けている話</small>「${esc(he.n)}」${FN(he.f)}・あと${Math.max(1,Math.ceil((he.until-S.tick)/TICKS_PER_DAY))}日</div>`:''}
   ${pe?`<div class="dream"><small>回すつもりの話（次に酒場で会えたら伝える）</small>「${esc(pe.n)}」${FN(pe.f)}・掲示はあと${Math.max(1,Math.ceil((pe.until-S.tick)/TICKS_PER_DAY))}日</div>`:''}
-  <div class="adv-sub">${S.taverns[a.tav].name}の客・出身：${esc(originOf(a))}${a.origin&&ORIGINS[a.origin].far?'（大陸の外）':''}・${sexAgeHtml(a)}${a.race!=='人間'?nw('（実年齢'+a.age+'歳）'):''}・${nw('Lv'+a.lvl+'（'+rankOf(a.lvl)+'）')} ${nw(a.race+'の'+a.cls)}・${nw(esc(a.pers))}・${nw(esc(a.quirk))}・${nw('素質「'+esc(a.tal)+'」')}<br>${keepText(a.bg)}<br>${nw('口調：'+esc(a.tone||'普通'))}・${nw('口癖「'+esc(a.catch||'')+'」')}・${nw('好物：'+esc(a.food||''))}${a.fear?'・'+nw('怖いもの：'+esc(a.fear)):''}</div>
+  <div class="adv-sub">${S.taverns[a.tav].name}の客・出身：${esc(originOf(a))}${a.origin&&ORIGINS[a.origin].far?nw('（大陸の外）'):''}・${sexAgeHtml(a)}${a.race!=='人間'?nw('（実年齢'+a.age+'歳）'):''}・${nw('Lv'+a.lvl+'（'+rankOf(a.lvl)+'）')} ${nw(a.race+'の'+a.cls)}・${nw(esc(a.pers))}・${nw(esc(a.quirk))}・${nw('素質「'+esc(a.tal)+'」')}<br>${keepText(a.bg)}<br>${nw('口調：'+esc(a.tone||'普通'))}・${nw('口癖「'+esc(a.catch||'')+'」')}・${nw('好物：'+esc(a.food||''))}${a.fear?'・'+nw('怖いもの：'+esc(a.fear)):''}</div>
   ${kinNote(a)}
   ${(a.traits||[]).length?`<div class="dream${a.blessed?' odd':''}"><small>${a.blessed?'天に愛された者・':a.cursed?'星回りの悪い者・':''}得意と不得意</small>${trGood(a).map(t=>`<b>${t}</b>　${parenNw(TRAITS[t].d)}`).join('<br>')}${trGood(a).length&&trBad(a).length?'<br>':''}${trBad(a).map(t=>`<span style="opacity:.75">${t}</span>　${parenNw(TRAITS[t].d)}`).join('<br>')}</div>`:''}
   ${(a.changes||[]).length?`<div class="dream"><small>変わったこと</small>${a.changes.map(c=>`${Math.floor(c.tk/TICKS_PER_DAY)+1}日目　${parenNw(c.t)}`).join('<br>')}</div>`:''}
   ${a.odd?`<div class="dream odd"><small>異例の冒険者</small>${parenNw(ODD_PERK[a.race]||'')}</div>`:''}
   ${C(a).adv||C(a).rare?`<div class="dream cls"><small>${C(a).rare?'レア職業':'上級職（'+esc(a.promoted||C(a).adv)+'から転職）'}・${esc(a.cls)}</small>${parenNw(C(a).desc)}${a.beast?`<small>相棒：${esc(a.beast.kind)}の${esc(a.beast.name)}</small>`:''}</div>`:''}
-  <div class="note">${a.race}：得意　${esc(rc(a).good)}／苦手　${esc(rc(a).bad)}${a.odd?'（克服している）':''}</div>
+  <div class="note">${a.race}：得意　${parenNw(rc(a).good)}／苦手　${parenNw(rc(a).bad)}${a.odd?nw('（克服している）'):''}</div>
   ${d?`<div class="dream"><small>夢</small>${parenNw(dreamText(d))}${dreamProgress(a)?`<small>${parenNw(dreamProgress(a))}</small>`:''}</div>`:`<div class="dream"><small>夢</small>${a.status==='lost'||a.status==='retired'?'――':'次の夢を探している'}</div>`}
   ${(a.pastDreams||[]).map(x=>`<div class="dream done"><small>${dreamSeen(a,x)?'見届けた夢':'かなえた夢'}・${Math.floor(x.tk/TICKS_PER_DAY)+1}日目</small>${parenNw(x.t)}${x.note?`<small>${parenNw(x.note)}</small>`:''}</div>`).join('')}
   <div class="kv"><div><b>${a.kills}</b>討伐</div><div><b>${deepNow(a.deepest)}</b>最深到達</div><div><b>${a.revived}</b>蘇生</div><div><b>${a.disarms}</b>罠解除</div>${a.errandsDone?`<div><b>${a.errandsDone}</b>果たした話</div>`:''}<div><b>${a.gold}G</b>所持金</div>${(()=>{const hp=shownHp(a);return hp.hide?'':`<div><b>${esc(hp.label)}</b>HP</div>`;})()}</div>
   <div class="eqtab">${SLOTS.map(k=>{const it=a.eq&&a.eq[k];const two=k==='shield'&&a.eq&&a.eq.wpn&&a.eq.wpn.two;
     return `<div><span class="sl">${SLOT_N[k]}${k==='wpn'&&it?(it.two?'（両手）':'（片手）'):''}</span><span class="${it&&it.rare?'rare':''}">${it?esc(it.n):two?'――（両手持ち）':'<span class="none">ありあわせ</span>'}</span><span class="st">${it?esc(itemStat(it)):''}</span>${it&&it.lore?`<span class="lore">${esc(it.lore)}</span>`:''}</div>`}).join('')}</div>
-  <div class="note">攻撃 ${atkOf(a)}・守り ${acOf(a)}・MP ${mmpOf(a)}${a.loan?'・店から借りた装備あり':''}　所属：${esc(team)}${a.party&&S.parties[a.party]&&S.parties[a.party].leader===a.id?'（リーダー）':''}</div>
+  <div class="note">攻撃 ${atkOf(a)}・守り ${acOf(a)}・MP ${mmpOf(a)}${a.loan?'・店から借りた装備あり':''}　所属：${parenNw(team)}${a.party&&S.parties[a.party]&&S.parties[a.party].leader===a.id?nw('（リーダー）'):''}</div>
   <h3 class="h2" style="margin-top:14px">手帳</h3>
   <ul class="tl">${chronItems(a)}</ul>
   <div style="margin-top:14px;text-align:right"><button class="btn on" data-act="closeadv">閉じる</button></div>`);
