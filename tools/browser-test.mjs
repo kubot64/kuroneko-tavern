@@ -358,6 +358,28 @@ test('黒猫亭の出発は日報に出て、同じ日の迷宮と坑道は一�
   assert.deepEqual(errors,[]);await ctx.close();
 });
 
+test('同じ日の銀の杯亭のレベル到達は噂の色の一件にまとまり、375pxと1280pxで語の途中で折れない',async()=>{
+  const {ctx,page,errors}=await open();
+  await page.locator('#sp0').click();
+  const want=await page.evaluate(()=>{
+    // 名前の長い銀の杯亭の客から5人。折れ目が名前やLvの途中に来やすいようにする
+    const rv=Object.values(S.adv).filter(a=>a.tav==='rival').sort((x,y)=>y.name.length-x.name.length).slice(0,5);
+    rv.forEach((a,i)=>noteLevel(S,{tav:'rival',name:a.name,lvl:[20,30,40,30,20][i]}));
+    render();
+    return S.news.filter(n=>n.t.startsWith('噂：銀の杯亭では、')).map(n=>n.t);
+  });
+  assert.equal(want.length,1);
+  for(const [width,height] of [[375,740],[1280,800]]){
+    await page.setViewportSize({width,height});
+    await page.locator('#tabs button[data-v="news"]').click();
+    await page.evaluate(()=>document.fonts.ready);
+    const li=await page.evaluate(t=>[...document.querySelectorAll('.news li')].filter(li=>li.textContent.includes(t)).map(li=>li.querySelector('.rumor')?'rumor':'other'),want[0].slice(0,20));
+    assert.ok(li.length>=1&&li.every(k=>k==='rumor'),`${width}px：${li.join()}`);
+    assert.deepEqual(await page.evaluate(screenAudit),[],`${width}px の日報`);
+  }
+  assert.deepEqual(errors,[]);await ctx.close();
+});
+
 test('狭い画面ではタブが下にあり、帳場と地図屋が読めて、よく押す場所が44px以上ある',async()=>{
   const {ctx,page,errors}=await open();
   await page.locator('#sp0').click();
