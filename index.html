@@ -482,7 +482,7 @@ function promote(S,a){
   const [nk,nc]=pick(opts);const old=a.cls;a.cls=nk;a.promoted=old;
   const b=nc.bonus||{};a.mhp+=ri(3,8);a.atk=Math.max(1,a.atk+(b.atk||0));a.ac+=(b.ac||0);a.mmp+=(b.mmp||0);a.hp=a.mhp;a.mp=mmpOf(a);
   chron(S,a,`${old}から${nk}になる`);
-  news(S,`${S.taverns[a.tav].name}の${full(a)}が、${old}から${nk}へと道を進めた。`,'record');
+  news(S,`${S.taverns[a.tav].name}の${full(a)}が、${old}から${nk}へと道を進めた。`,a.tav==='ours'?'record':'rumor');
 }
 const PERS={
   '慎重':{th:.55,deep:0},
@@ -864,6 +864,22 @@ function noteDepart(S,p){if(!p||p.tav!=='ours')return;const where=p.mineTrip?'�
     if(n.k!=='info'||!n.t.endsWith('出発した。'))continue;const g=parseDepart(n.t);if(!g)continue;
     if(g[where].includes(p.name))return;g[where].push(p.name);S.news.splice(i,1);news(S,departLine(g),'info');return;}
   news(S,`${p.name}が${where}へ出発した。`,'info');}
+// レベルが10の倍数に届いた知らせ。黒猫亭の者は一人一件で記録の色。銀の杯亭の者は噂の色で、同じ日のものは一つにまとめ、新しい順の位置へ上げる
+const LV_NOTE={30:'英雄と呼ばれる域だ。',40:'もはや伝説の域だ。'};
+function rivalLvLine(list){
+  const notes=Object.keys(LV_NOTE).map(l=>[list.filter(x=>x.l===+l).map(x=>x.n),LV_NOTE[l]]).filter(([ns])=>ns.length);
+  if(list.length===1)return `噂：銀の杯亭の${list[0].n}がLv${list[0].l}に達した。${notes.length?notes[0][1]:''}`;
+  return `噂：銀の杯亭では、${list.map(x=>`${x.n}がLv${x.l}に`).join('、')}達した。${notes.map(([ns,t])=>ns.join('、')+'は'+t).join('')}`;}
+function parseRivalLv(t){const m=t.match(/^噂：銀の杯亭(?:の|では、)(.+?)達した。/);if(!m)return null;const out=[];
+  for(const c of m[1].split('に、')){const x=c.replace(/に$/,'').match(/^(.+)がLv(\d+)$/);if(!x)return null;out.push({n:x[1],l:+x[2]});}return out;}
+function noteLevel(S,a){
+  if(a.tav==='ours'){news(S,`${S.taverns[a.tav].name}の${a.name}がLv${a.lvl}に達した。${LV_NOTE[a.lvl]||''}`,'record');return;}
+  const day0=Math.floor(S.tick/TICKS_PER_DAY);
+  for(let i=S.news.length-1;i>=0;i--){const n=S.news[i];if(Math.floor(n.tk/TICKS_PER_DAY)!==day0)break;
+    if(n.k!=='rumor')continue;const list=parseRivalLv(n.t);if(!list)continue;
+    const same=list.find(x=>x.n===a.name);if(same)same.l=a.lvl;else list.push({n:a.name,l:a.lvl});
+    S.news.splice(i,1);news(S,rivalLvLine(list),'rumor');return;}
+  news(S,rivalLvLine([{n:a.name,l:a.lvl}]),'rumor');}
 const BAD_NAMES=new Set(['ボイン','バック','ベルト','サイン','ハイン','ガリア','セルド','カナ','タナ','マナ','ハナ','ハム','カム','ダム','ラム','ベル','タラン','マリア','ミルク']);
 const SYL_A=['ア','イ','エ','オ','カ','キ','ク','ケ','コ','サ','シ','セ','ソ','タ','テ','ト','ナ','ニ','ネ','ノ','ハ','フ','ヘ','ホ','マ','ミ','メ','モ','ラ','リ','ル','レ','ロ','ヴァ','ヴィ','ガ','ギ','グ','ゲ','ゴ','ザ','ジ','ゼ','ダ','ド','バ','ビ','ブ','ベ','ボ','ユ','ヨ'];
 const SYL_B=['ルド','ナ','エン','リカ','ルフ','リス','ルト','ルグ','ーゼ','レン','ーリ','ッツ','エラ','ーゲン','ルコ','クト','ラム','ロエ','スカ','ルガ','ルス','ルン','ルマ','ーラ','デル','ーゴ','イユ','ンナ','ッタ','デオン','ウラ','ニカ','ドルフ','ーダ','グダ','リオ','ミル','ネア','ザン','ベル','シュ','ティス','ヴァン','ルカ','ノン','リア','ッド','ラン'];
@@ -3160,7 +3176,7 @@ function arrive(S,p){
   p.trip.lv=[...new Set(lvls)].map(a=>({n:a.name,l:a.lvl}));
   if(al.length){tale(S,p,al);if(al.length>1&&chance(.35))tale(S,p,al,true);}
   if(p.tav==='ours'&&p.loot>=400) news(S,`${p.name}が ${p.loot}G の稼ぎを抱えて帰還。今夜の酒場は大にぎわいだ。`,'loot');
-  [...new Set(lvls)].filter(a=>a.lvl%10===0).forEach(a=>news(S,`${S.taverns[a.tav].name}の${a.name}がLv${a.lvl}に達した。${a.lvl===30?'英雄と呼ばれる域だ。':a.lvl===40?'もはや伝説の域だ。':''}`,'record'));
+  [...new Set(lvls)].filter(a=>a.lvl%10===0).forEach(a=>noteLevel(S,a));
   p.state='town';p.rest=p.tav==='ours'&&fac(S,'inn')?ri(8,14):ri(14,24);p.floor=0;
   quarrelCheck(S,p,al.filter(a=>a.status==='idle'));
 }
@@ -3368,7 +3384,7 @@ function title(S,a,quiet){
   if(!t){const adj=(a.traits||[]).map(x=>TITLE_ADJ[x]).filter(Boolean).concat([ORIGINS[a.origin]?ORIGINS[a.origin].short+'の':'']);kind=kinds[0];
     for(const c of titleCands(S,a,kind).sort(()=>R()-.5)){for(const ad of adj){if(ad&&!taken.has(ad+c[1])){t=ad+c[1];st=c[0]+'+'+ad;break;}}if(t)break;}}
   if(!t||(a.titleKind===kind&&a.title))return;
-  a.titleStem=st;a.title=t;a.titleKind=kind;a.titleTier=TITLE_TIER[kind];if(quiet)return;chron(S,a,`「${t}」と呼ばれはじめる`);news(S,`${S.taverns[a.tav].name}の${a.name}が「${t}」と呼ばれはじめた。`,'record');
+  a.titleStem=st;a.title=t;a.titleKind=kind;a.titleTier=TITLE_TIER[kind];if(quiet)return;chron(S,a,`「${t}」と呼ばれはじめる`);news(S,`${S.taverns[a.tav].name}の${a.name}が「${t}」と呼ばれはじめた。`,a.tav==='ours'?'record':'rumor');
 }
 
 /* ---- the tavern's debt, the rival and the small taverns ---- */
