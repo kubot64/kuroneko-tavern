@@ -259,6 +259,8 @@ button:focus-visible,[tabindex]:focus-visible{outline:2px solid var(--amber);out
 .tl li::before{content:"";position:absolute;left:-4px;top:10px;width:7px;height:7px;border-radius:50%;background:var(--amber-dim)}
 .tl .d{color:var(--muted);font-size:11px;margin-right:8px;font-variant-numeric:tabular-nums}
 .does{display:block;color:var(--muted);font-size:12px}
+/* 死体回収の依頼で、預けると次の返済に足りなくなるときの一言 */
+.does.short{color:var(--amber)}
 /* 右の列の行と碑、地図の札、迷宮日報、一行の様子、手帳。語の途中では折らない。行より長い語だけ、収まるところで折る */
 .row .who,.meta,.does,.stone,.mv,.news li>span:not(.d){word-break:keep-all;line-break:strict;overflow-wrap:anywhere}
 .nw,.tie{white-space:nowrap;overflow-wrap:normal}
@@ -846,6 +848,21 @@ function noteKnownDepth(p){const mine=!!p.mineTrip;
   const f=mine?(MINE_STONES.filter(x=>x<=(p.mineReach||0)).pop()||MINE_TOP):Math.max(STONES.filter(x=>x<=(p.reach||0)).pop()||1,p.pushTo||0);
   p.trip.known={mine,f,reach:p.reach||0,mineReach:p.mineReach||0};}
 function bountyPrice(p){return p?r100(incomeAt(dz(bountyFloor(p)))):500}
+// 死体回収の依頼の見込み。数字で出さず言葉にする。知れている深さ（bountyFloor）と、その深さの石碑まで届く一行の数と、巡回隊が届く浅さかで決める。乱数は引かず、状態も変えない
+const BOUNTY_WORDS={patrol:'巡回隊も届く浅さなら、いずれ連れ帰られるだろう',many:'その深さを歩く一行は多い。じきに見つかるだろう',few:'その深さまで潜れる一行は少ない',none:'いまその深さに届く一行は、ほとんどいない'},BOUNTY_MANY=3;
+function bountyReachers(S,p){const f=bountyFloor(p),mine=inMine(f);
+  const stoneOf=x=>mine?(MINE_STONES.filter(s=>s<=x).pop()||MINE_TOP):(STONES.filter(s=>s<=x).pop()||1);
+  const need=stoneOf(f);
+  return Object.values(S.parties).filter(q=>q!==p&&q.state!=='wiped'&&(mine?(q.mineReach||0)>=MINE_TOP&&stoneOf(q.mineReach)>=need:stoneOf(q.reach||0)>=need)).length;}
+// 段は上から：届く一行が BOUNTY_MANY 以上／巡回隊が届く浅さ（巡回隊と同じく、どちらの店かを問わない最深到達から PATROL_DEPTH 階上まで）／届く一行が1つ以上／いない
+function bountyOdds(S,p){const f=bountyFloor(p),n=bountyReachers(S,p);
+  if(n>=BOUNTY_MANY)return 'many';
+  const top=inMine(f)?MAXF+Math.max((S.mineDeep||{}).ours||0,(S.mineDeep||{}).rival||0):Math.max(S.deepest.ours,S.deepest.rival);
+  if(f<=top-PATROL_DEPTH)return 'patrol';
+  return n>0?'few':'none';}
+function bountyHint(S,p){return BOUNTY_WORDS[bountyOdds(S,p)]}
+// 預けると、次の返済の必要額に足りなくなるか（押せなくはしない）
+function bountyShort(S,p){const d=nextDue(S),g=S.taverns.ours.gold,c=bountyPrice(p);return !!d&&g>=c&&g-c<d.due;}
 function upkeep(a){const rep=eqList(a).reduce((s,it)=>s+SHOP_PRICE[Math.min(SHOP_TOP,Math.max(1,it.f||1))]*.025,0);return {repair:Math.round(rep),lodge:Math.round(incomeAt(depthOf(a))*.08)};}
 function templeCost(S,a){const base=Math.round(incomeAt(depthOf(a))*(a.status==='ash'?1.5:.5)/10)*10;const e=edict(S,'templeUp')||edict(S,'templeDown');return Math.round(base*(e?e.m:1));}
 function edictTick(S){
@@ -4399,8 +4416,8 @@ function sideDesk(){
   ${FACILITIES.map(([k,ts])=>facDeskRow(k,ts)).join('')}</div>
 <div class="sect"><h3>銀の杯亭の客を引き抜く</h3><p class="note">銀の杯亭で酒場にいる客を、借金を肩代わりして黒猫亭に迎え入れる。借金に加えて、腕に見合った支度金がかかる。席が空いているときだけ声をかけられる。</p>
   ${(()=>{const L=poachList(S);return L.length?L.map(a=>`<div class="row"><span class="who"><b>${esc(a.name)}</b> <span class="meta">${lvCls(a)}・借金${nw((a.debt||0)+'G')}</span></span><button class="btn sm" data-act="poach" data-a="${a.id}" ${T().gold<poachPrice(S,a)?'disabled':''}>迎え入れる ${poachPrice(S,a)}G</button></div>`).join(''):`<p class="note">${seatsUsed(S,'ours')>=seatCap(S,'ours')?'黒猫亭の席が埋まっている。':'いま声をかけられる客はいない。'}</p>`;})()}</div>
-<div class="sect"><h3>死体回収の依頼</h3><p class="note">依頼を出すと、同じ階を歩く一行が見つけやすくなり、欲深い者も遺体を連れ帰るようになる。報酬は、知れている探索先と深さで決まり、依頼を出すときに預ける。連れ帰った一行に払い、見つからなければ戻る。</p>
-  ${miss.map(p=>`<div class="row"><span class="who"><b>${partyHtml(p.name)}</b> <span class="meta">${S.taverns[p.tav].name}・${inMine(p.floor)?'坑道':'迷宮'}・${p.members.length}人${p.looted?'・装備が持ち去られた形跡':''}</span></span>${S.bounties[p.id]?`<span class="chip">依頼中 ${S.bounties[p.id]}G</span>`:`<button class="btn sm" data-act="bounty" data-p="${p.id}" ${T().gold<bountyPrice(p)?'disabled':''}>依頼を出す ${bountyPrice(p)}G</button>`}</div>`).join('')||'<p class="note">消息不明の一行はいない。</p>'}</div>
+<div class="sect"><h3>死体回収の依頼</h3><p class="note">依頼を出すと、同じ階を歩く一行が見つけやすくなり、欲深い者も遺体を連れ帰るようになる。報酬は、知れている探索先と深さで決まり、依頼を出すときに預ける。連れ帰った一行に払い、見つからなければ戻る。一行ごとに、知れている深さから見た見つかる見込みを添える。</p>
+  ${miss.map(p=>`<div class="row"><span class="who"><b>${partyHtml(p.name)}</b> <span class="meta">${S.taverns[p.tav].name}・${inMine(p.floor)?'坑道':'迷宮'}・${p.members.length}人${p.looted?'・装備が持ち去られた形跡':''}</span><span class="does">${keepText(bountyHint(S,p))}</span>${!S.bounties[p.id]&&bountyShort(S,p)?`<span class="does short">${keepText('預けると、次の返済に足りなくなる')}</span>`:''}</span>${S.bounties[p.id]?`<span class="chip">依頼中 ${S.bounties[p.id]}G</span>`:`<button class="btn sm" data-act="bounty" data-p="${p.id}" ${T().gold<bountyPrice(p)?'disabled':''}>依頼を出す ${bountyPrice(p)}G</button>`}</div>`).join('')||'<p class="note">消息不明の一行はいない。</p>'}</div>
   <div class="sect"><h3>店の帳簿</h3><div class="row"><span class="who">これまでの売上</span><span class="meta">${T().earned}G</span></div><div class="row"><span class="who">これまでの支援</span><span class="meta">${T().support||0}G</span></div></div>
   <div class="sect"><h3>記録</h3><div class="row"><span class="who"><b>最初から始める</b><span class="does">いまの記録を消して、若い店主が借金をして黒猫亭を開くところから始め直す。消した記録は戻らない。</span></span><button class="btn sm" data-act="reset">最初から始める</button></div></div></div>`;
 }
