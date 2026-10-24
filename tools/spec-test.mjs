@@ -391,6 +391,54 @@ function checkErrands(){
     check('持ち込まれる話：臆病な者は、怖いものに当たる話を断ることがある',r1==='refused','高い所を怖がる臆病者に鐘楼の話',r1);
     check('持ち込まれる話：断った者には、同じ話をもう回せない',r2===null,'断った者にもう一度',r2);
     check('持ち込まれる話：主役は1人で、引き受けたら5日は待ってもらえる',r3==='ok'&&e.hero===b.id&&e.until>=S.tick+5*E.TICKS_PER_DAY&&E.assignErrand(S,e,S.adv[p.members[2]])===null,'普通の者に回す',`${r3} 期限${e.until-S.tick}刻`);}
+  // 話を持ちかけると、本人が口調どおりにひと言返す。返し方は噛み合いで決まり、乱数は引かない
+  {let draws=0;const M=Object.create(Math);let r=1;M.random=()=>{draws++;r=(r*16807)%2147483647;return r/2147483647;};
+    const E=loadEngine(ENGINE,{Math:M}),S=E.newState();const {p,e}=errandScene(E,S,{k:'bell',f:8,n:'鐘楼の光'});
+    const [a,b,c,d]=p.members.map(id=>S.adv[id]);const def=E.errandDef(e);
+    const plain=x=>{x.fear=null;x.traits=[];x.race='人間';x.quirk='無口';x.cls='戦士';x.pers='普通';};
+    [a,b,c,d].forEach(plain);a.fear='高い所';b.fear='高い所';b.pers='無謀';c.traits=['俊足'];d.traits=['鈍足'];
+    const kinds=[a,b,c,d].map(x=>E.askKind(def,x));
+    const plainK=(()=>{const x=Object.assign({},a,{fear:null});return E.askKind(def,x);})();
+    check('話を持ちかける：大きな不向きは断り、無謀な者は渋る。中くらいの不向きは渋り、向きだけなら乗り気、どちらもなければ曖昧',kinds.join(',')==='no,balk,keen,balk'&&plainK==='vague','鐘楼の光',kinds.join(',')+' '+plainK);
+    const n0=draws,news0=S.news.length;
+    const ka=E.askErrand(S,e,a),kc=E.askErrand(S,e,c),again=E.askErrand(S,e,c);
+    check('話を持ちかける：乱数は引かない',draws===n0,'持ちかける',`${draws-n0}回`);
+    check('話を持ちかける：持ちかけられるのは一人一度',ka==='no'&&kc==='keen'&&again===null&&E.askBlock(S,e,c)==='持ちかけた','同じ者に二度',`${ka} ${kc} ${again}`);
+    const nw=S.news.slice(news0).map(x=>x.t);
+    check('話を持ちかける：断った者は主役に指定できず、知らせと手帳に残る',e.refused.includes(a.id)&&E.designateBlock(S,e,a)==='断られた'&&E.assignErrand(S,e,a)===null&&nw.length===1&&nw[0]===`黒猫亭の店主が「鐘楼の光」を${a.name}に持ちかけたが、断られた。「${e.asked[a.id].t}」`&&a.chron.slice(-1)[0].t==='店主に「鐘楼の光」を持ちかけられ、断る','高い所を怖がる者',nw.join(' / '));
+    check('話を持ちかける：乗り気・渋る・曖昧の返しは知らせに出ず、本人の言葉としてしまう',!S.news.slice(news0+1).length&&c.said.slice(-1)[0].t===e.asked[c.id].t,'乗り気',JSON.stringify(c.said));
+    check('話を持ちかける：持ちかけて断られなかった者は回せる',E.assignErrand(S,e,c)==='ok'&&e.hero===c.id,'乗り気の者',e.hero);
+    // 返しの文は口調8種×返し方4つ×2通り。数字や割合、向き不向きのラベルは出さない。返し方どうしで同じ文はない
+    const tones=['普通','丁寧','ぶっきらぼう','無口','陽気','古風','商人言葉','田舎なまり'];
+    const bad=[];for(const t of tones){const L=E.ASK_SAY[t];if(!L){bad.push(t+'がない');continue;}const all=[];
+      for(const k of ['keen','vague','balk','no']){if(!L[k]||L[k].length!==2)bad.push(`${t}の${k}`);else all.push(...L[k]);}
+      if(new Set(all).size!==all.length)bad.push(t+'に同じ文');if(all.some(x=>/[0-9０-９%％]|向いている|向かない|不向き|確率|[一二三四五六七八九十]割/.test(x)))bad.push(t+'に数字かラベル');}
+    check('話を持ちかける：返しの文は口調8種ぶんあり、数字やラベルを出さない',!bad.length&&Object.keys(E.ASK_SAY).length===8,'ASK_SAY',bad.join(' / '));
+    // 同じ話と同じ人なら同じ文。「俺」は一人称になる
+    const x=Object.assign({},d,{tone:'田舎なまり',sex:'女',pers:'普通',race:'人間',age:25});
+    const l1=E.askLine(x,e,'keen'),l2=E.askLine(x,e,'keen');
+    check('話を持ちかける：返しの文は話と本人の番号で決まり、一人称がかかる',l1===l2&&!l1.includes('俺')&&(l1.includes('あたし')||!E.ASK_SAY['田舎なまり'].keen[(e.id+x.id)%2].includes('俺')),'田舎なまりの女',l1);}
+  // 持ちかけた主役がしくじると、帰ったときの土産話に、返しとつながる一文が出る
+  {const F=load(1,0.99),T=F.newState();const {p:q,e}=errandScene(F,T,{k:'bell',f:8,n:'鐘楼の光'});const ms=q.members.map(id=>T.adv[id]);const h=ms[0];
+    ms.forEach(m=>{m.fear=null;m.traits=[];m.race='人間';m.quirk='無口';m.cls='戦士';m.pers='普通';m.tone='普通';});h.traits=['鈍足'];
+    const k=F.askErrand(T,e,h);F.assignErrand(T,e,h);
+    q.state='explore';q.floor=8;q.trip=F.newTrip();ms.forEach(m=>{m.status='party';});
+    F.errandEvent(T,q,e);const miss=q.trip.askMiss;
+    check('しくじったあと：持ちかけた返しを、帰りの土産話のために覚える',k==='balk'&&miss&&miss.id===h.id&&miss.k==='balk'&&miss.n==='鐘楼の光','渋った主役がしくじる',JSON.stringify(miss));
+    const n0=T.tales.length;F.askTale(T,q,ms);const t1=T.tales.slice(n0);
+    check('しくじったあと：主役が帰れば、本人が「だから言ったろう」とつなぐ',t1.length===1&&t1[0].whoId===h.id&&t1[0].t===`だから言ったろう。鐘楼の光は、${F.meOf(h)}には向いてないって`&&t1[0].k==='ask'&&!q.trip.askMiss,'主役が話す',JSON.stringify(t1));
+    q.trip.askMiss={id:h.id,who:h.name,n:'鐘楼の光',k:'keen'};const rest=ms.slice(1);const sp=rest.slice().sort((x,y)=>x.id-y.id)[0];sp.tone='普通';
+    F.askTale(T,q,rest);const t2=T.tales.slice(-1)[0];
+    check('しくじったあと：主役がいなければ、先に店に来た仲間が話す',t2.whoId===sp.id&&t2.t===`${h.name}は乗り気だったんだがな。鐘楼の光は、思ったようにはいかなかった`,'仲間が話す',JSON.stringify(t2));
+    // 持ちかけていない主役がしくじっても、つなぎの一文は出ない
+    const {p:q2,e:e2}=errandScene(F,T,{k:'bell',f:8,n:'鐘楼の光',id:901});const h2=T.adv[q2.members[0]];F.assignErrand(T,e2,h2);q2.trip=F.newTrip();F.errandEvent(T,q2,e2);
+    check('しくじったあと：持ちかけていなければ、つなぎの一文は出ない',!q2.trip.askMiss,'持ちかけずに回す',JSON.stringify(q2.trip.askMiss));}
+  // 帰ったときに、ふつうの土産話のあとに足される
+  {const F=load(7,0.99),T=F.newState();const {p:q,e}=errandScene(F,T,{k:'bell',f:8,n:'鐘楼の光'});const ms=q.members.map(id=>T.adv[id]);const h=ms[0];
+    ms.forEach(m=>{m.fear=null;m.traits=[];m.race='人間';m.quirk='無口';m.cls='戦士';m.pers='普通';m.tone='普通';});
+    F.askErrand(T,e,h);F.assignErrand(T,e,h);q.state='explore';q.floor=8;q.trip=F.newTrip();ms.forEach(m=>{m.status='party';});F.errandEvent(T,q,e);
+    const n0=T.tales.length;q.loot=0;q.carried=[];F.arrive(T,q);const got=T.tales.slice(n0);
+    check('しくじったあと：帰ると、ふつうの土産話のあとに曖昧な返しとつながる一文が出る',got.length>=2&&got.slice(-1)[0].t==='行ってみないと分からないと言ったろう。鐘楼の光は、やっぱり駄目だった'&&got.slice(0,-1).every(x=>x.k!=='ask'),'帰還',got.map(x=>x.t).join(' / '));}
   // 一行が迷宮にいる者も主役に指定でき、酒場にいて一行が街で休んでいるときに伝わる
   {const E=load(1),S=E.newState();const {p,e}=errandScene(E,S,{k:'kitten',f:2,n:'迷い込んだ子猫'});const a=S.adv[p.members[0]];a.pers='普通';
     p.state='explore';const r=E.assignErrand(S,e,a);E.tick(S);const waiting=e.pend===a.id&&!e.hero;
@@ -1714,7 +1762,8 @@ function checkOldSaves(){
     const stray=Object.values(S.parties).flatMap(p=>(p.members||[]).filter(id=>!S.adv[id]).map(id=>`${p.name}の${id}`));
     check('古いセーブ：一行の仲間がみな名簿にいる',!stray.length,at,stray.join('、'));
     const T0=S.taverns.ours;
-    check('古いセーブ：取り立て人を呼ばずに済んだ回数は持たず、完済の場面は待っていない',!('payClean' in T0)&&!T0.payoffScene,at,`回数${T0.payClean} 場面${T0.payoffScene}`);
+    // 版32からは回数を数えている
+    if(v0<32)check('古いセーブ：取り立て人を呼ばずに済んだ回数は持たず、完済の場面は待っていない',!('payClean' in T0)&&!T0.payoffScene,at,`回数${T0.payClean} 場面${T0.payoffScene}`);
     // 移行のあと、30日続けて回してもエラーで止まらない
     let run=null;try{for(let i=0;i<30*E.TICKS_PER_DAY;i++){E.tick(S);E.rivalTemple(S);}}catch(e){run=e;}
     check('古いセーブ：移行のあと30日続けて回せる',!run,at,()=>run&&run.stack.split('\n').slice(0,3).join(' / '));

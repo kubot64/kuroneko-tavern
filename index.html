@@ -155,6 +155,8 @@ button:focus-visible,[tabindex]:focus-visible{outline:2px solid var(--amber);out
 .markmark{color:var(--amber);font-size:11px;margin-left:4px}
 .quote.board{border-left:3px solid var(--amber-dim)}
 .quote.board .pick{margin-top:6px;border-top:1px dashed var(--line);padding-top:4px}
+/* 「話を持ちかける」と「回す」が並ぶ行は、名前の側を狭めすぎず、入らなければボタンを次の行に送る */
+.quote.board .pick .row .who{flex:1 1 13em}
 .quote.edict{border-left:3px solid var(--amber)}
 .note{color:var(--muted);font-size:12px;margin:0 0 10px}
 .boardhelp{margin:0 0 10px}
@@ -259,6 +261,7 @@ button:focus-visible,[tabindex]:focus-visible{outline:2px solid var(--amber);out
 .tl li::before{content:"";position:absolute;left:-4px;top:10px;width:7px;height:7px;border-radius:50%;background:var(--amber-dim)}
 .tl .d{color:var(--muted);font-size:11px;margin-right:8px;font-variant-numeric:tabular-nums}
 .does{display:block;color:var(--muted);font-size:12px}
+.does.ask{color:var(--fg);font-size:13px}
 /* 右の列の行と碑、地図の札、迷宮日報、一行の様子、手帳。語の途中では折らない。行より長い語だけ、収まるところで折る */
 .row .who,.meta,.does,.stone,.mv,.news li>span:not(.d){word-break:keep-all;line-break:strict;overflow-wrap:anywhere}
 .nw,.tie{white-space:nowrap;overflow-wrap:normal}
@@ -779,7 +782,7 @@ function assignOpeningDreams(S){
   });
 }
 // セーブの版。記録の形を変えたら上げ、migrate に移行の段を足す
-const SAVE_V=32;
+const SAVE_V=33;
 // 全滅した一行の扱い。予定帰還の刻を過ぎてから消息不明と知らせるまでの刻、巡回隊が届く深さ（最深階から何階上まで）、立て替えの借りの利息（消息不明の1日ごと・複利）と、帰還時に稼ぎから返す割合
 const MISSING_GRACE=150,PATROL_DEPTH=3,OWED_RATE=.02,OWED_REPAY=.25;
 function newState(){
@@ -1948,12 +1951,13 @@ function fearPen(a,t,p){const f=fearOf(a);if(!f)return 0;if(f.re&&f.re.test(t.ba
 const DA=/(?<!(?:[一-龠々]|[らそしころびみ]|[^一-龠々]く)ん)だ(な|よ|ぞ|ぜ)?(?=[。！？]|$)/g;
 // 仲間の死やつらい話。陽気な口調でも笑わない
 const SAD=/やられ|死|寺院|担いで|亡く|失っ|ロスト|灰に|墓|弔|記念碑|いいやつだった|放っておいて|そっとして|席が、ひとつ/;
-function toneT(a,t){const tn=a.tone||'普通';
+// fixed のときは乱数を引かない（陽気の「はは、」を付けない）
+function toneT(a,t,fixed){const tn=a.tone||'普通';
   if(tn==='丁寧')t=t.replace(/だろう(?=[。！？]|$)/g,'でしょう').replace(DA,(m,x)=>x==='な'?'ですね':x?'ですよ':'です').replace(/(?<=[^っ])(ぞ|ぜ|さ)(?=[。！？]|$)/g,'');
   else if(tn==='古風')t=t.replace(/だろう(?=[。！？]|$)/g,'じゃろう').replace(DA,(m,x)=>x==='な'?'じゃな':x?'じゃぞ':'じゃ');
   else if(tn==='商人言葉')t=t.replace(/だろう(?=[。！？]|$)/g,'やろ').replace(DA,(m,x)=>x==='な'?'やな':x?'やで':'や').replace(/じゃない/g,'やない');
   else if(tn==='田舎なまり')t=t.replace(/だろう(?=[。！？]|$)/g,'だべさ').replace(DA,(m,x)=>x==='な'?'だなや':x?'だべよ':'だべ');
-  else if(tn==='陽気'&&!SAD.test(t)){t=t.replace(/。$/,'！');if(chance(.3)&&!/^[はあ…]/.test(t))t='はは、'+t;}
+  else if(tn==='陽気'&&!SAD.test(t)){t=t.replace(/。$/,'！');if(!fixed&&chance(.3)&&!/^[はあ…]/.test(t))t='はは、'+t;}
   else if(tn==='無口'){t=t.replace(/^……/,'');if(t.length>16){t=t.match(/^[^。！？]*[。！？]?/)[0].replace(/[。]$/,'');}t='……'+t;}
   else if(tn==='ぶっきらぼう')t=t.replace(/(よ|ね)(?=[。！？]|$)/g,'');
   return t;}
@@ -1962,10 +1966,13 @@ function onLostFriend(S,o){Object.entries(S.bonds||{}).forEach(([k,v])=>{if(v.n<
   if(['無謀','強欲'].includes(a.pers)&&chance(.5))changeOf(S,a,`${o.name}を失ってから、無茶をしなくなった`,x=>x.pers='慎重');
   else if(a.tone!=='無口'&&chance(.3))changeOf(S,a,`${o.name}を失ってから、口数が減った`,x=>x.tone='無口');
   else if(chance(.3))changeOf(S,a,`${o.name}の口癖を、真似るようになった`,x=>x.catch=o.catch||x.catch);});}
-function voice(a,t){let me;const h=humanAge(a);
+function meOf(a){let me;const h=humanAge(a);
   if(a.race==='エルフ')me='私';else if(a.race==='ドワーフ'&&h>=40)me='わし';else if(a.sex==='女')me=(a.pers==='慎重'||a.pers==='臆病'||h>=40)?'私':'あたし';else if(h>=55)me='わし';else if(a.pers==='臆病')me='僕';else me='俺';
   if(a.tone==='丁寧'&&me!=='わし')me='私';if(a.tone==='古風'&&a.sex==='男'&&(a.cls==='侍'||a.cls==='剣聖'||a.origin==='東方の島国アズマ'))me='拙者';else if(a.tone==='古風'&&a.sex==='男')me='わし';
-  t=t.replace(/俺|僕/g,me).replace(/あたし(?=たち)/g,me);return toneT(a,t);}
+  return me;}
+// 文の「俺」「僕」（と「あたしたち」の「あたし」）を、話す者の一人称にする
+function withMe(a,t){const me=meOf(a);return t.replace(/俺|僕/g,me).replace(/あたし(?=たち)/g,me);}
+function voice(a,t,fixed){return toneT(a,withMe(a,t),fixed);}
 // 本人が酒場で口にした言葉を、新しいものから3件までしまう。ロストしたとき、いちばん新しい1件を記念碑に最後の言葉として刻む。乱数は引かない
 function remember(S,a,t){if(!a||!t)return;a.said=a.said||[];a.said.push({tk:S.tick,t});while(a.said.length>3)a.said.shift();}
 // 見送りの一行。ロストした者と絆3以上の、生きて店にいる黒猫亭の者の動きを、事実だけで一行にする。いなければ店の一行。店主の動きや心情は書かず、乱数は引かない
@@ -3191,7 +3198,7 @@ function arrive(S,p){
   deliverMats(S,p,al.filter(a=>a.status==='idle'));
   al.forEach(a=>shopVisit(S,a,al));
   p.trip.lv=[...new Set(lvls)].map(a=>({n:a.name,l:a.lvl}));
-  if(al.length){tale(S,p,al);if(al.length>1&&chance(.35))tale(S,p,al,true);}
+  if(al.length){tale(S,p,al);if(al.length>1&&chance(.35))tale(S,p,al,true);askTale(S,p,al);}
   if(p.tav==='ours'&&p.loot>=400) news(S,`${p.name}が ${p.loot}G の稼ぎを抱えて帰還。今夜の酒場は大にぎわいだ。`,'loot');
   [...new Set(lvls)].filter(a=>a.lvl%10===0).forEach(a=>noteLevel(S,a));
   p.state='town';p.rest=p.tav==='ours'&&fac(S,'inn')?ri(8,14):ri(14,24);p.floor=0;
@@ -3632,6 +3639,43 @@ function offerErrand(S,e,a){
   // 引き受けた話は、引き受けてから少なくとも5日は待ってもらえる
   e.hero=a.id;e.taken=S.tick;e.until=Math.max(e.until,S.tick+5*TICKS_PER_DAY);chron(S,a,`店主に「${def.n}」を回され、引き受ける`);
   news(S,`黒猫亭の店主が、「${def.n}」を${a.name}に回した。${p.name}が引き受け、次の探索で${FN(e.f)}に立ち寄る。`,'errand');return 'ok';}
+// 話を持ちかけたときの返し。向き不向きは噛み合い（fitOf）をそのまま使い、数字や条件は出さない
+// 不向きが大きければ断る（無謀な者は渋るだけで断らない）。不向きが中くらい以上か噛み合いが負なら渋る、向きだけなら乗り気、どちらもなければ曖昧
+function askKind(def,a){const f=fitOf(def,a);if(f.neg>=2&&a.pers!=='無謀')return 'no';if(f.neg>=1||f.s<0)return 'balk';if(f.s>0)return 'keen';return 'vague';}
+// 口調ごとの返し。{n} は話の名前。「俺」は話す者の一人称に置き換える
+const ASK_SAY={
+  '普通':{keen:['{n}か。それなら俺の出番だ','その話、俺に回してくれ。心当たりがある'],vague:['{n}ねえ。やれと言われればやるが','どうだろうな。行ってみないと分からない'],
+    balk:['……{n}か。あまり気は進まないな','正直、俺向きの話じゃない気がする'],no:['悪いが、{n}は断る。ほかを当たってくれ','その話だけは無理だ。ほかを当たってくれ']},
+  '丁寧':{keen:['{n}ですか。それなら、ぜひ私に','お任せください。心当たりがあります'],vague:['{n}ですか。お引き受けはしますが、どうでしょう','行ってみないと、何とも言えませんね'],
+    balk:['……{n}ですか。正直、あまり自信がありません','私に向いたお話とは、思えないのですが'],no:['申し訳ありません。{n}は、お断りします','そのお話だけは、ご勘弁ください']},
+  'ぶっきらぼう':{keen:['{n}か。俺がやる','回せ。そういうのは得意だ'],vague:['{n}？ 別に、やってもいい','さあな。行けば分かる'],
+    balk:['……{n}か。気が乗らない','俺向きじゃない。たぶんな'],no:['断る。{n}はほかに回せ','やらない。ほかを当たれ']},
+  '無口':{keen:['……やる','……{n}なら、任せろ'],vague:['……さあ','……行くだけなら'],balk:['……気が進まない','……{n}は、どうかな'],no:['……断る','……それは、無理だ']},
+  '陽気':{keen:['{n}？ いいねえ、俺にやらせてくれ！','待ってました！ そういうのは得意なんだ！'],vague:['{n}かあ。まあ、なんとかなるんじゃないか？','行ってみなきゃ分からないって！'],
+    balk:['{n}かあ……うーん、笑えない話だな','それ、俺じゃなきゃ駄目か？'],no:['ごめん、{n}だけは勘弁してくれ！','それは無理！ ほかを当たってくれ！']},
+  '古風':{keen:['{n}か。よかろう、引き受けよう','その話、願ってもない'],vague:['{n}とな。さて、どうであろうな','行ってみねば分からぬ'],
+    balk:['……{n}か。あまり気は進まぬ','俺の出る幕とは思えぬがな'],no:['すまぬが、{n}はお断りじゃ','その話ばかりは、勘弁願いたい']},
+  '商人言葉':{keen:['{n}？ それは儲け話や。任しとき','その話、こっちに回してんか。心当たりがあるんや'],vague:['{n}なあ。やれと言われたらやるけど','行ってみんと分からへんな'],
+    balk:['……{n}かいな。あんまり気が進まへん','それは割に合わん気がするわ'],no:['堪忍や。{n}はよそを当たってんか','その話だけはあかん。よそに回してや']},
+  '田舎なまり':{keen:['{n}だか。俺に任せてけろ','その話なら、俺の出番だべ'],vague:['{n}だか。やれって言うならやるけんど','行ってみねえと分がんねえべ'],
+    balk:['……{n}だか。あんまし気が進まねえな','俺向きの話でねえ気がするべ'],no:['わりいけんど、{n}は断るべ','その話だけは勘弁してけろ']}};
+// 返しの文は、話と本人の番号で決める。乱数は引かない
+function askLine(a,e,k){const L=(ASK_SAY[a.tone]||ASK_SAY['普通'])[k];return withMe(a,L[(e.id+a.id)%L.length].replace(/\{n\}/g,e.n));}
+// 持ちかけられないときは、その理由を返す。持ちかけられるのは、主役に指定できて、酒場にいる者に一度だけ
+function askBlock(S,e,a){const b=designateBlock(S,e,a);if(b)return b;if(a.status!=='idle')return '酒場にいない';if(e.asked&&e.asked[a.id])return '持ちかけた';return null;}
+// 話を持ちかける。本人がひと言返し、大きな不向きなら断る。断った者は、その話の主役に指定できない
+function askErrand(S,e,a){
+  if(!boardOpen(S)||!errandsOf(S).board.includes(e)||askBlock(S,e,a))return null;
+  const def=errandDef(e),k=askKind(def,a),t=askLine(a,e,k);e.asked=Object.assign({},e.asked,{[a.id]:{k,t}});remember(S,a,t);
+  if(k==='no'){e.refused=(e.refused||[]).concat(a.id);if(e.pend===a.id)e.pend=null;chron(S,a,`店主に「${def.n}」を持ちかけられ、断る`);news(S,`黒猫亭の店主が「${def.n}」を${a.name}に持ちかけたが、断られた。「${t}」`,'errand');}
+  return k;}
+// しくじったあとの土産話。持ちかけたときの返しとつなげる。本人が帰っていれば本人が、いなければ仲間が話す。乱数は引かない
+function askTale(S,p,al){const m=p.trip.askMiss;if(!m||!al.length)return;p.trip.askMiss=null;
+  const h=al.find(a=>a.id===m.id),sp=h||al.slice().sort((x,y)=>x.id-y.id)[0];
+  const T=h?{keen:`乗り気で出かけたんだがな。${m.n}は、思ったようにはいかなかった`,vague:`行ってみないと分からないと言ったろう。${m.n}は、やっぱり駄目だった`,balk:`だから言ったろう。${m.n}は、俺には向いてないって`}
+    :{keen:`${m.who}は乗り気だったんだがな。${m.n}は、思ったようにはいかなかった`,vague:`${m.who}も、どうだかなって顔をしてた。${m.n}は、やっぱり駄目だった`,balk:`${m.who}は、行く前から渋ってた。${m.n}は、だから言ったろうって話さ`};
+  const t=T[m.k];if(!t)return;const said=voice(sp,t,true);
+  S.tales.push({tk:S.tick,who:full(sp),whoId:sp.id,tav:p.tav,party:p.name,t:said,k:'ask',pers:sp.pers});remember(S,sp,said);if(S.tales.length>80)S.tales.shift();}
 function markAdv(S,a,on){
   if(on){if(markMax(S)<1||a.marked||a.tav!=='ours'||a.status==='lost'||a.status==='retired'||markedOf(S).length>=markMax(S))return false;a.marked=true;chron(S,a,'黒猫亭の店主に見込まれる');return true;}
   if(!a.marked)return false;a.marked=false;a.favor=Math.max(0,(a.favor||0)-1);chron(S,a,'店主の見込みを外される');
@@ -3697,6 +3741,8 @@ function errandEvent(S,p,e){
     if(e.arc)arcAdvance(S,e,a);
     return;}
   const why=errandFailLine(def,a,f);
+  // 持ちかけたときの返しは、帰ってからの土産話につなげる
+  const ak=e.asked&&e.asked[a.id];if(ak&&ak.k!=='no')p.trip.askMiss={id:a.id,who:a.name,n:def.n,k:ak.k};
   if(f.worst&&f.worst.fear)plog(p,`${a.name}「${FEAR_SAY[a.fear]}」`,'say');
   if(e.arc)S.arcs[e.arc].retryAt=S.tick+ri(3,6)*TICKS_PER_DAY;
   chron(S,a,`店主に回された「${def.n}」をしくじる。${why}`);errandLog(S,e,a,false,why);
@@ -3915,6 +3961,9 @@ function migrate(S){
   if(!(S.v>=32)){// 取り立て人を呼ばずに済んだ返済の回数と、完済の場面。回数は数えはじめる前の分が分からないので持たせない（場面に回数の行が出ない）。
     // すでに返し終えている記録には場面を出さない。返し終えたあとに追う覚え書きは、もう満たしている行に線だけ引き、評判は足さない。乱数は引かない
     checkMemo(S,true);S.v=32;
+  }
+  if(!(S.v>=33)){// 掲示の話を持ちかけたときの返しと、しくじったあとの土産話のつなぎ。古い話には返しがないままで、何も埋めない。乱数は引かない
+    S.v=33;
   }
   if(typeof S.taverns.ours.interestPaid!=='number')S.taverns.ours.interestPaid=inferInterestPaid(S);
   Object.values(S.adv).forEach(a=>{if(!a.tone)personalize(a);if(!a.traits)assignTraits(S,a,true);});
@@ -4320,7 +4369,9 @@ function sideBoard(){
       const rank=x=>!x.d?(x.b?1:0):2;
       const cs=Object.values(S.adv).filter(a=>a.tav==='ours'&&a.status!=='lost'&&a.status!=='retired').map(a=>({a,d:designateBlock(S,e,a),b:errandBlock(S,e,a)}))
         .sort((x,y)=>(rank(x)-rank(y))||(!!y.a.marked-!!x.a.marked)||byTeam(x.a,y.a));
-      foot=`<div class="pick"><p class="note" style="margin:4px 0">誰を主役にするか。名前を押すと手帳が開く。迷宮や寺院にいる者を選んだときは、次に酒場で会えたときに伝える。<button class="btn sm" data-act="pickerr" data-e="">やめる</button></p>${cs.map(({a,d,b})=>`<div class="row"><span class="who">${nmLink(a,true)}${markTag(a)}${teamTag(a)} <span class="meta">${lvCls(a)}・${a.pers}${b&&!d?'・'+esc(b):''}</span></span>${d?`<span class="chip">${d}</span>`:`<button class="btn sm" data-act="assign" data-e="${e.id}" data-a="${a.id}">${b?'戻ったら伝える':'回す'}</button>`}</div>`).join('')||'<p class="note">黒猫亭の常連がいない。</p>'}</div>`;}
+      // 持ちかけた者には、そのときの返しを本人の言葉として添える
+      const said=a=>{const r=e.asked&&e.asked[a.id];return r?`<span class="does ask">${keepText(`「${r.t}」`)}</span>`:'';};
+      foot=`<div class="pick"><p class="note" style="margin:4px 0">誰を主役にするか。名前を押すと手帳が開く。酒場にいる者には、話を持ちかけて返事を聞ける。迷宮や寺院にいる者を選んだときは、次に酒場で会えたときに伝える。<button class="btn sm" data-act="pickerr" data-e="">やめる</button></p>${cs.map(({a,d,b})=>`<div class="row"><span class="who">${nmLink(a,true)}${markTag(a)}${teamTag(a)} <span class="meta">${lvCls(a)}・${a.pers}${b&&!d?'・'+esc(b):''}</span>${said(a)}</span>${d?`<span class="chip">${d}</span>`:`${askBlock(S,e,a)?'':`<button class="btn sm" data-act="ask" data-e="${e.id}" data-a="${a.id}">話を持ちかける</button>`}<button class="btn sm" data-act="assign" data-e="${e.id}" data-a="${a.id}">${b?'戻ったら伝える':'回す'}</button>`}</div>`).join('')||'<p class="note">黒猫亭の常連がいない。</p>'}</div>`;}
     return `<div class="quote board"><b>${esc(e.n)}</b>${e.arc?`<span class="markmark">続きもの・${esc(ARCS[e.arc].n)}　${e.stage}/${ARCS[e.arc].stages.length}</span>`:''}<span class="by">${esc(e.from)}から・${h?'引き受け済み':`掲示はあと${dd(e.until)}日`}</span>「${esc(e.t)}」${foot}</div>`;};
   const log=E.log.slice(-5).reverse().map(l=>`<div class="row"><span class="who">${l.ok?'<span class="chip">果たした</span>':'<span class="chip ash">果たせず</span>'} ${esc(l.n)}${l.who?`・${l.id&&S.adv[l.id]?nmLink(S.adv[l.id]):esc(l.who)}`:''}<span class="does">${esc(l.t)}</span></span><span class="meta">${dayMark(l.tk)}</span></div>`).join('');
   const shallow=st===1?'<p class="note">いまは浅い頼みごとだけ。名が上がれば、もっと持ち込まれる。</p>':'';
@@ -4648,6 +4699,8 @@ document.addEventListener('click',e=>{
   if(act==='boardhelp'){boardHelpOpen=!boardHelpOpen;renderSide();return;}
   if(act==='assign'){const e=errandsOf(S).board.find(x=>x.id===+b.dataset.e),a=S.adv[b.dataset.a];const r=e&&a&&assignErrand(S,e,a);
     if(r==='ok'){pickErr=null;toast(`「${e.n}」を${a.name}に回した`);}else if(r==='pending'){pickErr=null;toast(`「${e.n}」は、次に酒場で会えたら${a.name}に伝える`);}else if(r==='refused')toast(`${a.name}は「${e.n}」を断った`);render();save();return;}
+  if(act==='ask'){const e=errandsOf(S).board.find(x=>x.id===+b.dataset.e),a=S.adv[b.dataset.a];const k=e&&a&&askErrand(S,e,a);
+    if(k==='no')toast(`${a.name}は「${e.n}」を断った`);render();save();return;}
   if(act==='unpend'){const e=errandsOf(S).board.find(x=>x.id===+b.dataset.e);if(e&&e.pend){e.pend=null;toast(`「${e.n}」の主役の指定を取り消した`);}render();save();return;}
   if(act==='mark'){const a=S.adv[b.dataset.a];if(a&&markAdv(S,a,!a.marked))toast(a.marked?`${a.name}を見込んだ`:`${a.name}の見込みを外した`);render();save();return;}
   if(act==='bounty'){const p=S.parties[b.dataset.p];if(!p||S.bounties[p.id])return;const c=bountyPrice(p);if(T().gold<c){toast('お金が足りない');return;}T().gold-=c;S.bounties[p.id]=c;toast(`掲示板に依頼を貼り出した（${c}Gを預けた）`);render();save();return;}
