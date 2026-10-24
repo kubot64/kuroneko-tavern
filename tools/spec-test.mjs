@@ -1255,6 +1255,60 @@ function checkRevive(){
     check('蘇生：灰から失敗するとロストする',E2.temple(S2,b,true)==='lost'&&b.status==='lost','灰から失敗',b.status);}
 }
 
+// 「借金と返済」の取り立て人を呼ばずに済んだ返済の回数と完済の場面、「店主の覚え書き」の返し終えたあとに追う行
+function checkPayoff(){
+  const AFTER=['top','rankHalf','stone21'];
+  {const E=load(21),S=E.newState(),U=S.taverns.ours;const after=E.MEMO.filter(m=>m.after);
+    check('覚え書き：返し終えたあとに追う行は3行で、表の最後に並ぶ',after.map(m=>m.id).join(',')===AFTER.join(',')&&E.MEMO.slice(-3).every(m=>m.after)&&after.every(m=>m.rep>=1&&m.rep<=3),'MEMO',after.map(m=>m.t+'+'+m.rep).join(' / '));
+    check('覚え書き：返し終えたあとに追う行に、店の金で夢をかなえる類の行はない',after.every(m=>!/夢|願い|後押し/.test(m.t)),'MEMO',after.map(m=>m.t).join(' / '));
+    check('取り立て人を呼ばずに済んだ返済：新しく始めると0回',U.payClean===0,'開店',U.payClean);
+    U.gold=999999;U.nextPay=S.tick;E.debtTick(S);
+    check('取り立て人を呼ばずに済んだ返済：不足なく払えた月に1足す',U.payClean===1&&U.late===0,'1回目の返済日',U.payClean);
+    U.gold=10;U.nextPay=S.tick;E.debtTick(S);
+    check('取り立て人を呼ばずに済んだ返済：足りなかった月は増えない',U.payClean===1&&U.late===1,'足りない返済日',`回数${U.payClean} 延滞${U.late}`);
+    U.gold=0;U.nextPay=S.tick;E.debtTick(S);
+    check('取り立て人を呼ばずに済んだ返済：1Gも払えなかった月も増えない',U.payClean===1,'所持金0',U.payClean);
+    U.gold=999999;E.repay(S,1000);
+    check('取り立て人を呼ばずに済んだ返済：手で返しても増えない',U.payClean===1,'手で1000G',U.payClean);
+    U.nextPay=S.tick;E.debtTick(S);
+    check('取り立て人を呼ばずに済んだ返済：また不足なく払えば1足す',U.payClean===2,'次の返済日',U.payClean);
+    // 返し終える前は、返し終えたあとに追う行を満たしていても出さず、かなえない
+    U.overtook=S.tick;S.deepest.ours=21;S.deepest.rival=1;E.checkMemo(S);const pre=E.memoState(S);
+    check('覚え書き：返し終える前は、あとに追う行は出ず、かなえない',!AFTER.some(id=>S.memo.done[id])&&!pre.show.some(m=>AFTER.includes(m.id))&&!pre.log.some(m=>AFTER.includes(m.id))&&!AFTER.includes((E.nearestMemo(S)||{}).id),'返す前',pre.show.map(m=>m.id).join(','));
+    check('完済の場面：返し終える前は出ない',!U.payoffScene,'返す前',String(U.payoffScene));
+    const rep=U.rep;U.gold=999999;E.repay(S,U.debt);
+    check('完済の場面：返し終えたその場で、場面を出す印が付く',U.payoffScene===true&&U.debtFree===S.tick&&U.debt===0,'完済',`${U.payoffScene} ${U.debtFree}`);
+    const st=E.memoState(S),add=E.MEMO.filter(m=>AFTER.includes(m.id)&&S.memo.done[m.id]).reduce((a,m)=>a+m.rep,0);
+    check('覚え書き：返し終えたときにもう満たしている行は、そのとき線が引かれ、評判が足される',!!(S.memo.done.top&&S.memo.done.top.tk===S.tick&&S.memo.done.stone21&&S.memo.done.stone21.tk===S.tick)&&add>=5&&U.rep>=rep+10+add,'完済',`${JSON.stringify(S.memo.done)} rep ${rep}→${U.rep}`);
+    check('覚え書き：返し終えたときにかなえた行は、帳場に返し終えた日の行として残る',['top','stone21','free'].every(id=>st.show.some(m=>m.id===id&&m.done&&m.tk===S.tick)),'完済',st.show.map(m=>m.id+(m.done?'済':'')).join(','));
+    const r2=U.rep,f2=U.debtFree;delete U.payoffScene;S.tick+=5;U.debt=0;E.debtNews(S);
+    check('完済の場面：一度閉じたら、二度と印は付かない',U.debtFree===f2&&U.rep===r2&&!U.payoffScene,'二度目',`${U.debtFree} ${U.payoffScene}`);}
+  // 返し終える前の行がみなかなっていれば、返し終えたとき、あとに追う3行が線のないまま出る。前の行が残っていれば、表の順にそちらが先に出る
+  {const E=load(22),S=E.newState(),U=S.taverns.ours;U.gold=999999;U.debt=1000;S.deepest.rival=30;
+    S.memo={done:Object.fromEntries(E.MEMO.filter(m=>!m.after&&!['bill','half','free'].includes(m.id)).map(m=>[m.id,{tk:0}]))};E.repay(S,1000);const st=E.memoState(S);
+    check('覚え書き：返し終えると、まだ満たしていない次の目標が3行出る',st.show.filter(m=>!m.done).map(m=>m.id).join(',')===AFTER.join(',')&&E.nearestMemo(S).id==='top','完済',st.show.map(m=>m.id+(m.done?'済':'')).join(','));}
+  // 回数を持たない古い記録。返済日に払っても数えはじめない。返し終えれば場面は出る（回数の行だけ出ない）
+  {const E=load(23),S=E.newState(),U=S.taverns.ours;delete U.payClean;S.v=31;E.migrate(S);
+    check('取り立て人を呼ばずに済んだ返済：回数を持たない古い記録は、移行しても回数を持たない',S.v===SAVE_V&&!('payClean' in U),'版31',String(U.payClean));
+    U.gold=999999;U.nextPay=S.tick;E.debtTick(S);
+    check('取り立て人を呼ばずに済んだ返済：回数を持たない記録は、払えた月も数えはじめない',!('payClean' in U),'版31の返済日',String(U.payClean));
+    E.repay(S,U.debt);
+    check('完済の場面：回数を持たない古い記録でも、返し終えれば場面を出す',U.payoffScene===true,'版31で完済',String(U.payoffScene));}
+  // すでに返し終えている古い記録。場面は出さず、あとに追う行のうち満たしているものに線だけ引く
+  {const E=load(24),S=E.newState(),U=S.taverns.ours,day=E.TICKS_PER_DAY;delete U.payClean;
+    const a=Object.values(S.adv).find(x=>x.tav==='ours');a.chron.push({tk:300*day,t:'はじめてB21Fに足を踏み入れる'});
+    S.tick=400*day;U.debt=0;U.debtFree=200*day;U.overtook=250*day;U.rep=300;S.deepest.ours=21;S.deepest.rival=30;
+    S.memo={done:{home:{tk:1},bill:{tk:30*day},seats:{tk:null},rare:{tk:null},stone:{tk:null},dream:{tk:null},rank:{tk:null},half:{tk:null},free:{tk:200*day}}};S.v=31;E.migrate(S);const m=S.memo.done;
+    check('覚え書き：返し終えた古い記録は、あとに追う行のうち満たしている行に線だけ引き、評判は増えない',S.v===SAVE_V&&m.top&&m.top.tk===250*day&&m.stone21&&m.stone21.tk===300*day&&!m.rankHalf&&U.rep===300,'版31・完済済み',`${JSON.stringify({top:m.top,stone21:m.stone21,rankHalf:m.rankHalf})} rep ${U.rep}`);
+    check('完済の場面：すでに返し終えている古い記録では出ない',!U.payoffScene,'版31・完済済み',String(U.payoffScene));
+    E.checkMemo(S);
+    check('覚え書き：返し終えた古い記録は、開いたあとの見直しでも評判が増えない',U.rep===300&&!U.payoffScene,'版31・完済済み',U.rep);
+    const st=E.memoState(S);
+    check('覚え書き：返し終えた古い記録は、帳場に残りのあとに追う行が出る',st.show.some(m=>m.id==='rankHalf'&&!m.done)&&!st.allDone,'版31・完済済み',st.show.map(m=>m.id+(m.done?'済':'')).join(','));}
+  // まだ返し終えていない古い記録は、あとに追う行に触れない
+  {const E=load(25),S=E.newState(),U=S.taverns.ours;delete U.payClean;U.overtook=10;S.deepest.ours=21;S.v=31;E.migrate(S);
+    check('覚え書き：返し終えていない古い記録は、あとに追う行に線を引かない',!AFTER.some(id=>S.memo&&S.memo.done&&S.memo.done[id]),'版31・借金あり',JSON.stringify(S.memo&&S.memo.done));}
+}
 function checkMemoNotes(){
   const texts=E=>E.MEMO.map(m=>m.t).join('|');
   {const E=load(1);const t=id=>E.MEMO.find(m=>m.id===id).t;
@@ -1292,12 +1346,13 @@ function checkMemoNotes(){
     check('覚え書き：返し終えると返済・半分・完済が同時にかなう',!!(S.memo.done.bill&&S.memo.done.half&&S.memo.done.free)&&U.rep===rep+10+1+3+3,'完済',`rep ${rep}→${U.rep}`);
     U.debt=50000;E.checkMemo(S);
     check('覚え書き：かなえた行は条件が戻っても消えない',!!S.memo.done.half,'利息で戻る','');}
-  {const E=load(8),S=E.newState(),adv=Object.values(S.adv).find(x=>x.tav==='ours');adv.trips=1;adv.pastDreams=[{k:'fame',t:'夢',tk:10}];S.stats.dreams.ours=1;S.taverns.ours.seats=18;S.taverns.ours.debt=0;S.taverns.ours.debtFree=20;S.taverns.ours.cleanPay=15;S.deepest.ours=6;S.rares={1:{killed:{tav:'ours',tk:12,party:'p',names:['a']}}};S.taverns.ours.rep=500;const rep=S.taverns.ours.rep;E.checkMemo(S);const st=E.memoState(S);const sum=E.MEMO.reduce((s,m)=>s+m.rep,0);
-    check('覚え書き：すべてかなえると帳場からは消え、評判は合計だけ一度増える',st.show.length===0&&st.allDone&&st.log.length===9&&S.taverns.ours.rep===rep+sum&&sum===17,'全達成',`show ${st.show.length} log ${st.log.length} rep +${S.taverns.ours.rep-rep}`);
+  {const E=load(8),S=E.newState(),adv=Object.values(S.adv).find(x=>x.tav==='ours');adv.trips=1;adv.pastDreams=[{k:'fame',t:'夢',tk:10}];S.stats.dreams.ours=1;S.taverns.ours.seats=18;S.taverns.ours.debt=0;S.taverns.ours.debtFree=20;S.taverns.ours.cleanPay=15;S.taverns.ours.overtook=18;S.deepest.ours=21;S.deepest.rival=1;S.rares={1:{killed:{tav:'ours',tk:12,party:'p',names:['a']}}};S.taverns.ours.rep=500;const rep=S.taverns.ours.rep;E.checkMemo(S);const st=E.memoState(S);const sum=E.MEMO.reduce((s,m)=>s+m.rep,0);
+    check('覚え書き：すべてかなえると帳場からは消え、評判は合計だけ一度増える',st.show.length===0&&st.allDone&&st.log.length===12&&S.taverns.ours.rep===rep+sum&&sum===25,'全達成',`show ${st.show.length} log ${st.log.length} rep +${S.taverns.ours.rep-rep}`);
     E.checkMemo(S);
     check('覚え書き：すべてかなえたあとは評判が増えない',S.taverns.ours.rep===rep+sum,'二度目',S.taverns.ours.rep);}
   {const E=load(9),S=E.newState(),a=Object.values(S.adv).find(x=>x.tav==='ours');a.trips=2;a.chron.push({tk:40,t:'はじめてB6Fに足を踏み入れる'});a.pastDreams=[{k:'fame',t:'夢',tk:50}];S.stats.dreams.ours=1;S.deepest.ours=8;S.rares={3:{killed:{tav:'ours',tk:33,party:'p',names:['b']}},4:{killed:{tav:'rival',tk:10,party:'q',names:['c']}}};S.taverns.ours.seats=18;S.taverns.ours.debt=10000;S.taverns.ours.rep=7;S.news.push({tk:21,t:'セーレの両替商に、今月の返済5600G（うち利息1600G）を払った。借金の残りは76000G。',k:'info'});S.v=22;delete S.memo;E.migrate(S);const m=S.memo.done;
     check('覚え書き：古い記録はかなえた行に線を引き、評判は増えない',S.v===SAVE_V&&S.taverns.ours.rep===7&&S.taverns.ours.cleanPay===21&&m.home&&m.home.tk==null&&m.bill&&m.bill.tk===21&&m.seats&&m.seats.tk==null&&m.rare&&m.rare.tk===33&&m.stone&&m.stone.tk===40&&m.dream&&m.dream.tk===50&&m.half&&m.half.tk==null&&m.rank&&m.rank.tk==null&&!m.free,'版22',JSON.stringify(m));}
+  checkPayoff();
   // 知らせが最新300件からこぼれていても、返した額があり延滞していなければ、直前の返済日を無事な返済とみなす
   {const E=load(11),S=E.newState(),U=S.taverns.ours;const day=E.TICKS_PER_DAY;
     U.repaid=12000;U.late=0;U.debt=60000;U.nextPay=200*day;S.tick=180*day;U.rep=4;
@@ -1616,7 +1671,7 @@ function checkOldSaves(){
   const files=readdirSync(dir).filter(f=>/^v\d+\.json\.gz$/.test(f)).sort((a,b)=>parseInt(a.slice(1))-parseInt(b.slice(1)));
   check('古いセーブ：見本がある',files.length>0,'tools/old-saves',files.join(','));
   // 今のコードで店を開いたときに、いつもある項目
-  const F=load(1).newState();const always=xs=>xs.reduce((k,x)=>k.filter(n=>n in x),Object.keys(xs[0]||{}));
+  const E0=load(1),F=E0.newState();const always=xs=>xs.reduce((k,x)=>k.filter(n=>n in x),Object.keys(xs[0]||{}));
   const topKeys=Object.keys(F),advKeys=always(Object.values(F.adv)),partyKeys=always(Object.values(F.parties));
   const read=f=>JSON.parse(gunzipSync(readFileSync(new URL(f,dir))).toString('utf8'));
   for(const f of files){
@@ -1634,10 +1689,18 @@ function checkOldSaves(){
     check('古いセーブ：今のコードで店を開いたときにいつもある項目が、移行のあとにもある',!miss.length,at,()=>miss.slice(0,8).join('、'));
     const stray=Object.values(S.parties).flatMap(p=>(p.members||[]).filter(id=>!S.adv[id]).map(id=>`${p.name}の${id}`));
     check('古いセーブ：一行の仲間がみな名簿にいる',!stray.length,at,stray.join('、'));
+    const T0=S.taverns.ours;
+    check('古いセーブ：取り立て人を呼ばずに済んだ回数は持たず、完済の場面は待っていない',!('payClean' in T0)&&!T0.payoffScene,at,`回数${T0.payClean} 場面${T0.payoffScene}`);
     // 移行のあと、30日続けて回してもエラーで止まらない
     let run=null;try{for(let i=0;i<30*E.TICKS_PER_DAY;i++){E.tick(S);E.rivalTemple(S);}}catch(e){run=e;}
     check('古いセーブ：移行のあと30日続けて回せる',!run,at,()=>run&&run.stack.split('\n').slice(0,3).join(' / '));
   }
+  // すでに返し終えている版31の記録。完済の場面は出さず、評判も変わらない
+  const v31=files.find(f=>f==='v31.json.gz');
+  if(v31){const S=read(v31).S,U=S.taverns.ours;U.debt=0;U.debtFree=S.tick-10*E0.TICKS_PER_DAY;U.overtook=S.tick-5*E0.TICKS_PER_DAY;const rep=U.rep;const E=load(1);E.migrate(S);
+    const ok1=!U.payoffScene&&U.rep===rep&&!!(S.memo.done.top&&S.memo.done.top.tk===U.overtook);
+    for(let i=0;i<E.TICKS_PER_DAY;i++){E.tick(S);E.rivalTemple(S);}
+    check('古いセーブ：すでに返し終えた版31の記録は、完済の場面を出さず、あとに追う行に線だけ引く',ok1&&!U.payoffScene,'版31の見本を完済にしたもの',`場面${U.payoffScene} 評判${rep}→${U.rep} ${JSON.stringify(S.memo.done.top)}`);}
   // 版22の記録（覚え書きのない記録）。版24の見本から覚え書きを外して版22に戻し、移行で覚え書きが埋まることを見る。
   // もうかなえている行には線だけ引き、評判は足さない
   const v24=files.find(f=>f==='v24.json.gz');
