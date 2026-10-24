@@ -331,10 +331,10 @@ button:focus-visible,[tabindex]:focus-visible{outline:2px solid var(--amber);out
   .mapfloors tr.flr td[data-label]::before{content:attr(data-label);color:var(--muted);font-size:11px;word-break:keep-all}
   .mapfloors tr.flr td[data-label] .mv{min-width:0;word-break:keep-all;line-break:strict;overflow-wrap:anywhere}
 }
-/* 右の列は370px。帳場の借金の行は、見出しを上、返すボタンを下に置く */
+/* 右の列は370px。帳場の借金の行と夢の後押しの行は、見出しを上、ボタンを下に置く */
 @media (min-width:901px){
-  .desk .row.debt{align-items:flex-start}
-  .desk .row.debt>.who{flex:1 0 100%;width:100%;min-width:100%}
+  .desk .row.debt,.desk .row.push{align-items:flex-start}
+  .desk .row.debt>.who,.desk .row.push>.who{flex:1 0 100%;width:100%;min-width:100%}
 }
 @media (prefers-reduced-motion:reduce){*{scroll-behavior:auto!important}}
 </style>
@@ -1494,11 +1494,14 @@ function checkDream(S,a){
   if(!a.dream){if(S.tick>=(a.nextDreamAt||0)){a.dream=makeDream(S,a);chron(S,a,`新たな夢を抱く――${dreamText(a.dream)}`);}return;}
   const d=a.dream,D=DREAMS[d.k];if(!D||d.done||!D.ok(S,a,d))return;
   if(D.pay)a.gold-=D.pay(d);if(D.act)D.act(S,a,d);
-  const msg=D.msg(a,d,S);const ret=D.ret?D.ret(d):null;
+  const msg=D.msg(a,d,S)+(d.push?`足りない${G(d.push)}は、黒猫亭の店主が出した。`:'');let ret=D.ret?D.ret(d):null;
+  // 店主が足りない分を出した夢で、去るかどうかが確率で決まるものは、去る目が出ても半分は「借りを返すまでは」と店に残る。必ず去る夢は変わらない
+  const stay=!!(ret&&d.push&&!PUSH_GO[d.k]&&chance(.5));if(stay)ret=null;
   // 仇がほかの者に討たれていたときは、かなえたのではなく見届けた夢にする
   const seen=d.k==='kinvenge'&&!(a.slain||{})[d.m];
   chron(S,a,seen?`仇の最期を見届ける――${dreamText(d)}`:`夢がかなう――${dreamText(d)}`);news(S,(a.tav==='rival'?'銀の杯亭の':'')+msg,'record');
-  fulfill(S,a);if(seen)a.pastDreams[a.pastDreams.length-1].seen=1;
+  fulfill(S,a);if(seen)a.pastDreams[a.pastDreams.length-1].seen=1;if(d.push)a.pastDreams[a.pastDreams.length-1].push=d.push;
+  if(stay)chron(S,a,'店主に借りを返すまでは、と店に残る');
   if(ret)retire(S,a,ret);
 }
 function kinEvent(S,p,a){
@@ -2481,6 +2484,36 @@ function supplyTeam(S,p){if(p.tav==='rival'&&p.mineTrip){const n=RIVAL_MINE_POTI
 function giftOffer(S,a){let best=null,sc=0;for(const o of shopOffers(S,a.cls)){const prev=Object.assign({for:o.b.for,slot:o.b.slot},o.b.two?{two:true}:{},o.b.st(o.t));const g=gainOf(a,prev);if(g<1.5)continue;const v=g/Math.sqrt(o.price);if(v>sc){sc=v;best=o;}}return best;}
 function giveGift(S,a,o,why){const T0=S.taverns.ours;if(!o||T0.gold<o.price)return null;T0.gold-=o.price;T0.support=(T0.support||0)+o.price;flowAdd(S,'s',o.price);const it=shopMake(S,o.b,o.t);
   const out=equip(a,it);out.forEach(x=>{a.gold+=Math.round((x.f||1)*30);});favor(a,2);chron(S,a,`${why}${it.n}を贈られる`);return it;}
+// 夢の後押し。開店の借金を返し終えたあと、酒場にいる常連の「お金を貯める」夢に、足りない分の全部か一部を店から出す。一つの夢に一度だけ
+// 貯金が減らない夢（財産・余生の蓄え）、金が店に戻る夢（恩を返す・おごる）、博打の夢には出せない
+const PUSH_NOT={wealth:1,pension:1,payback:1,feast:1,jackpot:1};
+// 後押しした夢のうち、かなえば必ず店を去るもの（去る判定が変わらない）
+const PUSH_GO={shop:1,temple:1,tour:1,sea:1,home:1};
+function pushNeed(S,a){const d=a&&a.dream;
+  if(S.taverns.ours.debtFree==null||a.tav!=='ours'||a.status!=='idle'||!d||d.done||d.push||d.pushNo||PUSH_NOT[d.k]||!DREAMS[d.k]||!DREAMS[d.k].pay||!(d.amt>0))return 0;
+  return Math.max(0,d.amt-Math.max(0,Math.floor(a.gold||0)));}
+// 一部を出すときの額。足りない分の半分を100G単位に切り上げる。足りない分より小さくならなければ出さない
+function pushHalf(n){const h=Math.ceil(n/200)*100;return h<n?h:0;}
+// 受け止め方。強欲な者は当てにして受け取り、誇り高い者（古風・ぶっきらぼうな口調）は断る。乱数は引かない
+function pushKind(a){return a.pers==='強欲'?'lean':(a.tone==='古風'||a.tone==='ぶっきらぼう')?'no':'ok';}
+const PUSH_SAY={
+  '普通':{ok:['助かる。この借りは、いつか必ず返す','いいのか？ ……ありがたく使わせてもらう'],lean:['そろそろ出してくれる頃だと思ってた','悪いな。店主なら、そう言ってくれると思ってた']},
+  '丁寧':{ok:['本当に、よろしいのですか。このご恩は忘れません','ありがとうございます。大切に使わせていただきます'],lean:['お言葉に甘えます。実は、当てにしておりました','そうおっしゃってくださると、思っておりました']},
+  'ぶっきらぼう':{ok:['……借りておく','……すまない。恩に着る'],lean:['遅かったな。待ってた','もらっとく。当てにしてた'],no:['いらない。自分の金で叶える','施しは受けない。気持ちだけもらっとく']},
+  '無口':{ok:['……恩に着る','……ありがとう'],lean:['……待ってた','……もらう']},
+  '陽気':{ok:['えっ、いいのか！？ 恩に着るよ、店主！','店主、最高だ！ この恩は一生忘れない！'],lean:['待ってました！ 店主ならそう言うと思ってたよ！','やっぱり店主だ！ 当てにしてて正解だった！']},
+  '古風':{ok:['かたじけない。この恩、決して忘れぬ','……ありがたく頂戴する'],lean:['うむ、そう来ると思うておった','遠慮はせぬ。ありがたく頂く'],no:['気持ちはありがたいが、施しは受けぬ','己の夢は、己の腕で叶えるものじゃ']},
+  '商人言葉':{ok:['ほんまにええんか。この借りは利子つけて返すで','おおきに。恩に着るわ'],lean:['待ってたで。店主なら出してくれる思てたわ','おおきに。当てにしてたんや']},
+  '田舎なまり':{ok:['ほんとにいいんだか。恩に着るべ','ありがてえ。この恩は忘れねえ'],lean:['待ってたべ。店主なら出してくれると思ってたんだ','もらっとくべ。当てにしてたんだ']},
+};
+function pushLine(a,k){const L=(PUSH_SAY[a.tone]||PUSH_SAY['普通'])[k]||PUSH_SAY['普通'][k]||PUSH_SAY['ぶっきらぼう'][k];return withMe(a,L[(a.id+(a.pastDreams||[]).length)%L.length]);}
+// 店から出す。断られたら金は動かず、その夢にはもう出せない。足りない分を全部出したら、その場で夢の判定をする
+function pushDream(S,a,g){const T0=S.taverns.ours,need=pushNeed(S,a);g=Math.floor(+g||0);if(!need||g<1||g>need||T0.gold<g)return null;
+  const d=a.dream,k=pushKind(a),t=pushLine(a,k);remember(S,a,t);
+  if(k==='no'){d.pushNo=1;chron(S,a,'夢に足りない分を出すと店主に言われ、断る');news(S,`黒猫亭の店主が${a.name}の夢に足りない分を出そうとしたが、断られた。「${t}」`,'info');return {k,t};}
+  T0.gold-=g;T0.support=(T0.support||0)+g;flowAdd(S,'s',g);a.gold+=g;d.push=g;favor(a,k==='lean'?1:2);
+  chron(S,a,`夢に足りない${G(g)}を、店主が出してくれる`);news(S,`黒猫亭の店主が、${a.name}の夢に足りない${G(g)}を出した。「${t}」`,'info');
+  checkDream(S,a);return {k,t,g};}
 // 大きな使い道。上限のないもの（特注・引き抜き・寄進）と、店の設備
 // 店の設備は段になっていて、下の段から順に建て増す。上の段ほど高く、よく効く。安い段は借金を返したころから手が届く
 const FACILITIES=[
@@ -2657,7 +2690,7 @@ function lifeLines(S,a,end){
   if((a.firsts||0)>0)add('功',8,`誰も踏み入れていない階に、${a.firsts}回一番乗りした。`);
   if(a.title)add('功',4,`「${a.title}」と呼ばれた。`);
   const pd=a.pastDreams||[];
-  if(pd.length)add('夢',6+pd.length,`かなえた夢は${pd.length}つ。最後にかなえたのは「${pd[pd.length-1].t}」。`);
+  if(pd.length)add('夢',6+pd.length,`かなえた夢は${pd.length}つ。最後にかなえたのは「${pd[pd.length-1].t}」。`+(pd[pd.length-1].push?'足りない分は、店主が出した。':''));
   const ashBack=(a.chron||[]).filter(c=>/^灰の中からよみがえる$/.test(c.t)).length;
   if(ashBack)add('命',5,`灰の中から${ashBack}回よみがえった。`);
   else if((a.revived||0)>0)add('命',3,`寺院で${a.revived}回、息を吹き返した。`);
@@ -4465,10 +4498,12 @@ function sideDesk(){
 <div class="sect"><h3>常連への手当て</h3>
   ${(()=>{const dead=Object.values(S.adv).filter(a=>a.tav==='ours'&&(a.status==='dead'||a.status==='ash'));const idle=Object.values(S.adv).filter(a=>a.tav==='ours'&&a.status==='idle');
     const gifts=idle.map(a=>({a,o:giftOffer(S,a)})).filter(x=>x.o).sort((x,y)=>x.o.price-y.o.price);
+    const pushes=idle.map(a=>({a,n:pushNeed(S,a)})).filter(x=>x.n>0).sort((x,y)=>x.n-y.n||x.a.id-y.a.id);
     const note=reviveNote&&S.adv[reviveNote.id]&&S.adv[reviveNote.id].status===reviveNote.status?reviveNote:null;
     const gone=note&&!dead.some(a=>a.id===note.id)?`<p class="quote revive revive-result ${note.kind}">${esc(note.t)}</p>`:'';
     return gone+(dead.length?dead.map(a=>{const c=templeCost(S,a);const hit=note&&note.id===a.id;return `<div class="row"><span class="who"><span class="chip ${a.status}">${a.status==='ash'?'寺院・灰':'寺院・死'}</span>${nmLink(a,true)}${teamTag(a)} <span class="meta">${lvCls(a)}</span><span class="does">${esc(reviveHint(S,a)).replace(/（[^（）]*）$/,m=>kw(m))}</span>${hit?`<span class="does revive revive-result ${note.kind}">${esc(note.t)}</span>`:''}</span><button class="btn sm" data-act="revive" data-a="${a.id}" ${T().gold<c?'disabled':''}>蘇生を頼む ${c}G</button></div>`}).join(''):'<p class="note">寺院で眠っている常連はいない。</p>')+
-    (gifts.length?`<p class="note" style="margin-top:8px">酒場にいる常連に、店の金で武具屋の品を贈れる。贈られた者は恩を感じ、帰還のたびに店でよく飲むようになる。</p>`+gifts.map(({a,o})=>`<div class="row"><span class="who">${nmLink(a,true)}${teamTag(a)} <span class="meta">${lvCls(a)}</span></span><button class="btn sm" data-act="gift" data-a="${a.id}" ${T().gold<o.price?'disabled':''}>${SHOP_MAT[o.b.m][o.t-1]}の${o.b.t}を贈る ${o.price}G</button></div>`).join(''):'');})()}
+    (gifts.length?`<p class="note" style="margin-top:8px">酒場にいる常連に、店の金で武具屋の品を贈れる。贈られた者は恩を感じ、帰還のたびに店でよく飲むようになる。</p>`+gifts.map(({a,o})=>`<div class="row"><span class="who">${nmLink(a,true)}${teamTag(a)} <span class="meta">${lvCls(a)}</span></span><button class="btn sm" data-act="gift" data-a="${a.id}" ${T().gold<o.price?'disabled':''}>${SHOP_MAT[o.b.m][o.t-1]}の${o.b.t}を贈る ${o.price}G</button></div>`).join(''):'')+
+    (pushes.length?`<p class="note" style="margin-top:8px">借金を返し終えた今なら、酒場にいる常連の、お金を貯める夢に足りない分を店から出せる。かなえば、店を去る者もいる。</p>`+pushes.map(({a,n})=>{const h=pushHalf(n);return `<div class="row push"><span class="who">${nmLink(a,true)}${teamTag(a)} <span class="meta">${lvCls(a)}</span><span class="does">${keepText(dreamText(a.dream))}</span><span class="does">${nw(esc(DREAMS[a.dream.k].prog(a,a.dream)))} ${nw('足りない分 '+G(n))}</span></span><button class="btn sm" data-act="push" data-a="${a.id}" data-v="${n}" ${T().gold<n?'disabled':''}>足りない分を出す ${G(n)}</button>${h?`<button class="btn sm" data-act="push" data-a="${a.id}" data-v="${h}" ${T().gold<h?'disabled':''}>半分を出す ${G(h)}</button>`:''}</div>`}).join(''):'');})()}
   </div>
 <div class="sect"><h3>寺院への寄進</h3><p class="note">灰の寺院に寄進すると、30日のあいだ黒猫亭の常連の蘇生に司祭たちが念を入れ、死からも灰からも生き返りやすくなる。重ねて寄進すれば、そのぶん日が延びる。額は${nw('黒猫亭')}の最深到達の深さで決まる。</p>
   <div class="row"><span class="who"><b>${(S.blessUntil||0)>S.tick?`寄進の効き目 あと${Math.ceil((S.blessUntil-S.tick)/TICKS_PER_DAY)}日`:'いまは寄進していない'}</b></span><button class="btn sm" data-act="donate" ${T().gold<donatePrice(S)?'disabled':''}>寄進する ${donatePrice(S)}G</button></div></div>
@@ -4705,6 +4740,7 @@ document.addEventListener('click',e=>{
   if(act==='repay'){const x=repay(S,+b.dataset.v);if(x)toast(`両替商に${x}Gを返した`);render();save();return;}
   if(act==='seats'){const ns=nextSeats(S);if(ns&&T().gold>=ns[2]){T().gold-=ns[2];T().seats=ns[1];news(S,`黒猫亭が店を広げた。常連の席は${ns[1]}席になった。`,'record');toast(`常連の席は${ns[1]}席になった`);}render();save();return;}
   if(act==='pol'){const k=b.dataset.k,v=+b.dataset.v;policy(S)[k]=k==='potion'?v:!!v;renderSide();save();return;}
+  if(act==='push'){const a=S.adv[b.dataset.a];const r=a&&pushDream(S,a,+b.dataset.v);if(r)toast(`${a.name}「${r.t}」`);render();save();return;}
   if(act==='gift'){const a=S.adv[b.dataset.a];const o=a&&giftOffer(S,a);const it=o&&giveGift(S,a,o,'店主から');if(it){toast(`${a.name}に${it.n}を贈った`);news(S,`黒猫亭の店主が${a.name}に${it.n}を贈った。`,'info');}render();save();return;}
   if(act==='donate'){if(donate(S))toast('灰の寺院に寄進した');render();save();return;}
   if(act==='fac'){{const t=nextFac(S,b.dataset.k);if(buildFac(S,b.dataset.k))toast(`${t[0]}を建てた`);};render();save();return;}
