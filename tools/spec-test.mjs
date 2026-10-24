@@ -1077,7 +1077,7 @@ function runSeed(seed){
   };
   noteNames(`種${seed}・開店`);
   for(let i=0;i<6;i++){E.tick(S);noteNames(`種${seed}・開店直後${i+1}刻`);}// 画面側の開店と同じ
-  const prevState={},killed={},lore={},owedSeen={};let conquered=null,arcStage=0,mineConq=null,errandSt=E.errandStage(S);
+  const prevState={},killed={},lore={},owedSeen={},inParty={},quitAt={};let conquered=null,arcStage=0,mineConq=null,errandSt=E.errandStage(S);
   let lifeM=S.memorial.length,lifeF=(S.farewells||[]).length;const lifeSeen=new Set();
   // 種の半分では、店主が借金を返し、話を回し、常連を見込む（話の仕組みを動かすため）
   const owner=seed%2===1;
@@ -1142,6 +1142,17 @@ function runSeed(seed){
       if(p.state==='wiped')owedSeen[p.id]=p.owed||0;else delete owedSeen[p.id];
       prevState[p.id]=p.state;
     }
+    // 「仲間割れ」：口論で一行を抜けた者は、60日のあいだ同じリーダーの一行に加わらない（空いた席を埋めるときも、新しく組むときも）。
+    // 60日を過ぎて同じリーダーの一行に加わるときは、手帳に「（リーダー）とよりを戻し」と残る
+    for(const a of advs){const was=inParty[a.id],q=a.party!=null&&S.parties[a.party],L=q&&S.adv[q.leader];
+      if(was&&a.party!==was.party){const W=S.adv[was.leader];
+        if(W&&W!==a&&(a.chron||[]).some(c=>c.tk===S.tick&&c.t.startsWith(`リーダーの${W.name}と揉めて、`)))quitAt[a.id+'-'+W.id]=S.tick;}
+      if(q&&L&&L!==a&&(!was||was.party!==a.party)){const k=a.id+'-'+L.id;
+        if(quitAt[k]!=null){
+          check('仲間割れ：口論で抜けた者は、60日のあいだ同じリーダーの一行に加わらない',S.tick-quitAt[k]>=60*E.TICKS_PER_DAY,at,()=>`${a.name}が${L.name}の${q.name}に、抜けてから${Math.floor((S.tick-quitAt[k])/E.TICKS_PER_DAY)}日で加わる`);
+          check('仲間割れ：抜けたリーダーの一行にまた加わるときは、手帳に「よりを戻し」と残る',(a.chron||[]).some(c=>c.tk===S.tick&&c.t.startsWith(`${L.name}とよりを戻し、${q.name}に`)),at,()=>`${a.name}（${L.name}の${q.name}）`);
+          delete quitAt[k];}}
+      inParty[a.id]=q?{party:a.party,leader:q.leader}:null;}
     for(const n of S.news){
       if(n.tk!==S.tick)continue;
       if(n.t.includes('最期を映した')||n.t.includes('遺体が街に届いた')){
@@ -2133,6 +2144,36 @@ function checkLastWords(){
     const m=E.memorialize(S,lost,{by:'オーク',floor:2});
     check('見送りの一行：友を失って変わるより前の性格で決める',b.pers==='慎重'&&E.FAREWELL_ACTS['無謀'].some(t=>m.farewell===t.replace(/\{n\}/g,b.name).replace(/\{o\}/g,lost.name)),'無謀→慎重',`${b.pers} ${m.farewell}`);}
 }
+// 「仲間割れ」：口論で一行を抜けた者は、60日のあいだそのリーダーに誘われない。空いた席を埋めるときも、新しく組むときも。
+// 60日を過ぎて戻るときは手帳に「よりを戻し」と残る。抜けたかどうかや日付を持たない古い口論では、誘いを止めない
+function checkQuarrel(){
+  const D=load(1).TICKS_PER_DAY;
+  // 乱数を小さく固定すると、リーダーの次の者が必ず揉めて抜ける
+  const scene=()=>{const E=load(1,1e-9),S=E.newState();const p=Object.values(S.parties).find(x=>x.tav==='ours');const L=S.adv[p.leader];
+    const al=p.members.map(id=>S.adv[id]);al.forEach(a=>{a.status='idle';});E.quarrelCheck(S,p,al);
+    const m=al.find(a=>a!==L&&a.party==null);
+    // 抜けた者のほかに、誘える者を置かない
+    Object.values(S.adv).forEach(a=>{if(a.tav==='ours'&&a!==m&&a.party==null&&a.status==='idle')a.status='dead';});
+    return {E,S,p,L,m};};
+  const toTown=(S,p)=>{p.state='town';p.rest=1;Object.values(S.adv).forEach(a=>{if(a.party===p.id)a.status='idle';});};
+  {const {E,S,p,L,m}=scene();
+    check('仲間割れ：口論で抜けたことは、日付と一緒に二人の絆に残る',!!m&&E.quitCool(S,m,L),'開店',()=>JSON.stringify((E.bondOf(S,m,L)||{}).ev));
+    if(m){toTown(S,p);E.stepParty(S,p);
+      check('仲間割れ：口論で抜けた者は、60日のあいだ同じリーダーの空いた席に誘われない',m.party!==p.id,'抜けた直後',()=>`${m.name} 一行${m.party}`);
+      S.tick+=60*D;toTown(S,p);E.stepParty(S,p);
+      check('仲間割れ：60日を過ぎると、同じリーダーの一行に戻り、手帳に「よりを戻し」と残る',m.party===p.id&&(m.chron||[]).at(-1).t===`${L.name}とよりを戻し、${p.name}に戻る`,'60日後',()=>`${m.name} 一行${m.party} ${(m.chron||[]).at(-1).t}`);
+      check('仲間割れ：よりを戻したあとは、抜けた記憶で誘う順を後ろに回さない',!E.quitMemo(S,m,L)&&E.pullOf(S,L,m)===((E.bondOf(S,L,m)||{}).n||0),'60日後',()=>E.pullOf(S,L,m));}}
+  for(const [days,joins] of [[0,false],[60,true]]){const {E,S,p,L,m}=scene();if(!m)continue;
+    const mem=Object.values(S.adv).filter(a=>a.party===p.id||a===m);mem.forEach(a=>{a.party=null;a.status='idle';});delete S.parties[p.id];S.tick+=days*D;
+    E.formParties(S,'ours',true,mem);const q=Object.values(S.parties).find(x=>x.tav==='ours'&&x.leader===L.id);
+    check(joins?'仲間割れ：60日を過ぎれば、同じリーダーが新しく組む一行に加わり、手帳に「よりを戻し」と残る':'仲間割れ：口論で抜けた者は、60日のあいだ同じリーダーが新しく組む一行にも加わらない',
+      !!q&&(m.party===q.id)===joins&&(!joins||(m.chron||[]).at(-1).t===`${L.name}とよりを戻し、${q.name}に加わる`),`${days}日後`,()=>`${m.name} 一行${m.party} ${q&&q.id} ${(m.chron||[]).at(-1).t}`);}
+  {const {E,S,L,m}=scene();if(m){const B=E.bondOf(S,m,L),e=B.ev.at(-1);
+    delete e.left;delete e.p;
+    check('仲間割れ：抜けたかどうかを持たない古い口論では、誘いを止めない',!E.quitCool(S,m,L)&&!E.quitMemo(S,m,L),'古い記録',JSON.stringify(e));
+    e.left=1;delete e.tk;
+    check('仲間割れ：日付のない古い口論は、冷める期間を過ぎたものとする',!E.quitCool(S,m,L),'古い記録',JSON.stringify(e));}}
+}
 function checkFlow(){
   const E=load(1),S=E.newState();
   const z=E.flowView(S);
@@ -2324,7 +2365,7 @@ function checkLife(){
 
 if(!isMainThread){const line=runSeed(workerData.seed);parentPort.postMessage({line,res:[...results]});}
 else{
-  if(SHARD.k===1){checkTables();checkScenes();checkLife();checkLetters();checkErrands();checkCrest();checkRowFallback();checkMine();checkAffinity();checkRevive();checkMemoNotes();checkOpening();checkCareer();checkIntro();checkAge();checkFoes();checkFlow();checkLedger();checkLevelNews();checkBounty();checkMissing();checkLastWords();checkHighSpells();checkOldSaves();}
+  if(SHARD.k===1){checkTables();checkScenes();checkLife();checkLetters();checkErrands();checkCrest();checkRowFallback();checkMine();checkAffinity();checkRevive();checkMemoNotes();checkOpening();checkCareer();checkIntro();checkAge();checkFoes();checkQuarrel();checkFlow();checkLedger();checkLevelNews();checkBounty();checkMissing();checkLastWords();checkHighSpells();checkOldSaves();}
   // 種ごとの結果は、種の順に重ねる。反例は、いちばん若い種の最初のものを残す。進捗の行も種の順に出す
   const out=new Array(SEEDS.length);let next=0,printed=0;
   const flush=()=>{while(printed<out.length&&out[printed]){if(out[printed].line)console.log(out[printed].line);printed++;}};
