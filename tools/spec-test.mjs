@@ -1766,6 +1766,41 @@ function checkHighSpells(){
 }
 
 // 「全滅」「他の一行の発見」「後継ぎ」「寺院の費用と店の立て替え」：消息不明の期間、遺体の搬送、巡回隊、一行の借り、看板を継ぐかどうか
+// 「知らせ（迷宮日報）」：レベル到達の知らせ。銀の杯亭の者は噂の色で、同じ日のものは一件にまとめる。黒猫亭の者は一人一件で記録の色
+function checkLevelNews(){
+  const E=load(1),S=E.newState(),D=E.TICKS_PER_DAY;
+  S.tick=10*D+5;S.news=[];
+  const R=(name,lvl)=>({tav:'rival',name,lvl}),O=(name,lvl)=>({tav:'ours',name,lvl});
+  E.noteLevel(S,R('アルド',20));
+  E.news(S,'噂：銀の杯亭の主人が笑った。','rumor');
+  E.noteLevel(S,O('ベルナ',30));
+  E.noteLevel(S,R('カイ',30));
+  E.noteLevel(S,O('ドーラ',20));
+  E.noteLevel(S,R('エミル',40));
+  E.noteLevel(S,R('フィン',30));
+  const rv=S.news.filter(n=>n.t.includes('銀の杯亭')&&n.t.includes('達した'));
+  const want='噂：銀の杯亭では、アルドがLv20に、カイがLv30に、エミルがLv40に、フィンがLv30に達した。カイ、フィンは英雄と呼ばれる域だ。エミルはもはや伝説の域だ。';
+  check('知らせ：同じ日の銀の杯亭のレベル到達は、噂の色の一件にまとまり、新しい側へ上がる',rv.length===1&&rv[0].t===want&&rv[0].k==='rumor'&&S.news[S.news.length-1]===rv[0],'同じ日に4人',S.news.map(n=>`${n.k}:${n.t}`).join(' / '));
+  const ours=S.news.filter(n=>n.t.startsWith('黒猫亭の'));
+  check('知らせ：黒猫亭の者のレベル到達は、一人一件で記録の色',ours.length===2&&ours.every(n=>n.k==='record')&&ours[0].t==='黒猫亭のベルナがLv30に達した。英雄と呼ばれる域だ。'&&ours[1].t==='黒猫亭のドーラがLv20に達した。','黒猫亭の2人',ours.map(n=>`${n.k}:${n.t}`).join(' / '));
+  S.tick+=D;E.noteLevel(S,R('ギル',30));
+  const next=S.news[S.news.length-1];
+  check('知らせ：次の日の銀の杯亭のレベル到達は、別の一件になる',next.t==='噂：銀の杯亭のギルがLv30に達した。英雄と呼ばれる域だ。'&&next.k==='rumor'&&S.news.filter(n=>n.t.includes('銀の杯亭')&&n.t.includes('達した')).length===2,'次の日',next.t);
+  E.noteLevel(S,R('ギル',40));E.noteLevel(S,R('ハンナ',20));
+  const last=S.news[S.news.length-1];
+  check('知らせ：同じ者が同じ日にもう一度届いたら、その者のレベルを書き換える',last.t==='噂：銀の杯亭では、ギルがLv40に、ハンナがLv20に達した。ギルはもはや伝説の域だ。'&&S.news.filter(n=>n.t.includes('ギル')).length===1,'同じ日に2度',last.t);
+  // 転職と二つ名：銀の杯亭の者は噂の色、黒猫亭の者は記録の色（乱数を小さく固定して、転職と二つ名を起こす）
+  const F=load(1,.01),T=F.newState();T.news=[];
+  const kinds={};
+  for(const tav of ['ours','rival']){
+    const a=Object.values(T.adv).find(x=>x.tav===tav&&x.status==='idle');
+    a.cls='魔術師';a.lvl=24;a.kills=400;T.news=[];
+    F.promote(T,a);const pn=T.news.find(n=>n.t.includes('道を進めた'));
+    T.news=[];F.title(T,a);const tn=T.news.find(n=>n.t.includes('と呼ばれはじめた'));
+    kinds[tav]=[pn&&pn.k,tn&&tn.k];
+  }
+  check('知らせ：銀の杯亭の者の転職と二つ名は噂の色、黒猫亭の者は記録の色',kinds.ours.join()==='record,record'&&kinds.rival.join()==='rumor,rumor','転職と二つ名',JSON.stringify(kinds));
+}
 function checkMissing(){
   const MAXF0=load(1).MAXF;
   const wipedScene=(seed,floor,opt={})=>{const E=load(seed),S=E.newState();const ps=Object.values(S.parties).filter(x=>x.tav==='ours');const p=ps[0],q=ps[1]||Object.values(S.parties).find(x=>x!==p);
@@ -2125,7 +2160,7 @@ function checkLife(){
 
 if(!isMainThread){const line=runSeed(workerData.seed);parentPort.postMessage({line,res:[...results]});}
 else{
-  if(SHARD.k===1){checkTables();checkScenes();checkLife();checkLetters();checkErrands();checkCrest();checkRowFallback();checkMine();checkAffinity();checkRevive();checkMemoNotes();checkOpening();checkCareer();checkIntro();checkAge();checkFoes();checkFlow();checkLedger();checkMissing();checkLastWords();checkHighSpells();checkOldSaves();}
+  if(SHARD.k===1){checkTables();checkScenes();checkLife();checkLetters();checkErrands();checkCrest();checkRowFallback();checkMine();checkAffinity();checkRevive();checkMemoNotes();checkOpening();checkCareer();checkIntro();checkAge();checkFoes();checkFlow();checkLedger();checkLevelNews();checkMissing();checkLastWords();checkHighSpells();checkOldSaves();}
   // 種ごとの結果は、種の順に重ねる。反例は、いちばん若い種の最初のものを残す。進捗の行も種の順に出す
   const out=new Array(SEEDS.length);let next=0,printed=0;
   const flush=()=>{while(printed<out.length&&out[printed]){if(out[printed].line)console.log(out[printed].line);printed++;}};
