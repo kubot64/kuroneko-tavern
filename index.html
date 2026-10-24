@@ -576,7 +576,7 @@ const MON=[
   {n:'レイス',u:'ゆらめく かげ',f:6,hp:28,atk:8,sp:'drain',xb:1.13},
   {n:'ミノタウロス',u:'おおきな ひとかげ',f:7,hp:50,atk:13,xb:1.13},
   {n:'溺れた衛兵',u:'ずぶぬれの ひとかげ',f:7.5,hp:48,atk:12,xb:1.13},
-  {n:'キメラ',u:'きみょうな けもの',f:8,hp:55,atk:12,sp:'breath',w:.6},
+  {n:'キメラ',u:'きみょうな けもの',f:8,hp:55,atk:12,sp:'breath',w:.6,br:.8},
   {n:'水路の大蛇',u:'みずの なかの ながい かげ',f:8.5,hp:65,atk:14,sp:'poison',xb:1.13},
   {n:'堕ちた騎士',u:'よろいの ひとかげ',f:9,hp:70,atk:16,xb:1.13},
   {n:'石の巨像',u:'うごく いしの すがた',f:10,hp:120,atk:20,xb:1.13},
@@ -2762,7 +2762,7 @@ function encounterFlavor(S,p,t,big){const al=alive(S,p);if(!al.length)return;
   const fr=al.find(a=>fearsFoe(a,t));if(fr&&chance(.7)){plog(p,`${fr.name} は ${t.n}を みて あおざめた`,'move');plog(p,`${fr.name}「${FEAR_SAY[fr.fear]}」`,'say');return;}
   if(chance(big?.6:.08)){const a=pick(al);if(a.catch)plog(p,`${a.name}「${pick(CRIES).replace('{catch}',a.catch)}」`,'say');}}
 function foeName(p){return p.ident?p.etype.n:p.etype.u}
-// 炎の息の強さ。番犬と炉の番人ゴーレムの息は竜より弱い。古い記録で戦いの途中だった魔物にも効くよう、名で引く
+// 炎の息の強さ。キメラと番犬と炉の番人ゴーレムの息は竜より弱い。古い記録で戦いの途中だった魔物にも効くよう、名で引く
 function breathScale(t){const m=t.br!=null?t:MON.find(x=>x.n===(t.base||t.n));return m&&m.br||1}
 function combat(S,p){
   p.rareBy=null;
