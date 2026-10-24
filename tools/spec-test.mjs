@@ -314,6 +314,36 @@ function errandScene(E,S,o){S.taverns.ours.debt=0;S.taverns.ours.debtFree=S.tick
   const p=Object.values(S.parties).find(x=>x.tav==='ours');p.state='town';p.rest=99;
   p.members.forEach(id=>{const a=S.adv[id];a.status='idle';a.hp=a.mhp;});
   const e=Object.assign({id:900,hero:null,refused:[],tk:S.tick,until:S.tick+2*E.TICKS_PER_DAY},o);B.board.push(e);return {p,e,B};}
+// 夢の後押し（docs/spec.md「夢の後押し」）
+function checkPush(){
+  const setup=(E,S,o)=>{const a=Object.values(S.adv).find(x=>x.tav==='ours'&&!x.used);a.used=1;Object.assign(a,{status:'idle',pers:'普通',tone:'普通',gold:1000,favor:0,pastDreams:[]},o.a||{});a.dream=Object.assign({},o.d);return a;};
+  const free=S=>{const U=S.taverns.ours;U.debt=0;U.debtFree=S.tick;U.gold=999999;};
+  {const E=load(3),S=E.newState(),a=setup(E,S,{d:{k:'sendhome',amt:5000,who:'病気の母'}});
+    check('夢の後押し：借金を返し終えるまでは出せない',E.pushNeed(S,a)===0&&E.pushDream(S,a,4000)===null&&a.gold===1000,'返す前',E.pushNeed(S,a));
+    free(S);const U=S.taverns.ours,g0=U.gold;
+    check('夢の後押し：返し終えたあと、足りない分が分かる',E.pushNeed(S,a)===4000&&E.pushHalf(4000)===2000,'返したあと',E.pushNeed(S,a));
+    check('夢の後押し：足りない額を超えては出せない',E.pushDream(S,a,4100)===null&&U.gold===g0&&a.gold===1000,'4100G',a.gold);
+    const r=E.pushDream(S,a,2000);
+    check('夢の後押し：一部を出すと貯金に入り、恩が2付く',!!r&&a.gold===3000&&U.gold===g0-2000&&a.favor===2&&a.dream&&a.dream.push===2000,'半分',JSON.stringify(r));
+    check('夢の後押し：一つの夢に一度だけ',E.pushNeed(S,a)===0&&E.pushDream(S,a,2000)===null,'二度目',E.pushNeed(S,a));
+    a.gold=5000;E.checkDream(S,a);const last=S.news[S.news.length-1].t;
+    check('夢の後押し：叶った知らせに、店主が出したことが残る',/足りない2,000Gは、黒猫亭の店主が出した。$/.test(last)&&a.pastDreams.at(-1).push===2000,'叶ったとき',last);
+    a.trips=5;const life=E.lifeLines(S,a,{k:'retired',tk:S.tick,why:'旅に出る'}).join('');
+    check('夢の後押し：ひと幕の夢の文にも残る',life.includes('足りない分は、店主が出した。'),'ひと幕',life);}
+  {const E=load(4),S=E.newState();free(S);
+    const g=setup(E,S,{a:{pers:'強欲'},d:{k:'sendhome',amt:3000,who:'病気の母'}});const r=E.pushDream(S,g,2000);
+    check('夢の後押し：強欲な者は当てにして受け取り、恩は1',!!r&&r.k==='lean'&&g.favor===1&&!g.dream&&g.pastDreams.at(-1).push===2000,'強欲',JSON.stringify(r));
+    const p=setup(E,S,{a:{tone:'古風'},d:{k:'sendhome',amt:3000,who:'病気の母'}}),gold=S.taverns.ours.gold;const r2=E.pushDream(S,p,2000);
+    check('夢の後押し：誇り高い者は断り、金は動かず、もう出せない',!!r2&&r2.k==='no'&&p.gold===1000&&S.taverns.ours.gold===gold&&p.favor===0&&E.pushNeed(S,p)===0,'古風',JSON.stringify(r2));
+    const w=setup(E,S,{d:{k:'wealth',amt:30000}});
+    check('夢の後押し：貯金が減らない夢には出せない',E.pushNeed(S,w)===0,'財産',E.pushNeed(S,w));
+    const sh=setup(E,S,{d:{k:'shop',amt:12000,what:'パン屋'}});E.pushDream(S,sh,11000);
+    check('夢の後押し：足りない分を全部出すと、その場で叶い、必ず去る夢では去る',sh.status==='retired'&&sh.pastDreams.at(-1).push===11000,'店を構える',sh.status);}
+  // 確率で去る夢。去る目が出ても、半分は店に残る
+  for(const [u,stay] of [[.3,true],[.55,false]]){const E=load(5,u),S=E.newState();free(S);
+    const m=setup(E,S,{d:{k:'marry',amt:6000,who:'ロウエンの花売り'}});E.pushDream(S,m,5000);
+    check('夢の後押し：確率で去る夢は、去る目が出ても半分は残る',stay?(m.status==='idle'&&m.chron.some(c=>c.t==='店主に借りを返すまでは、と店に残る')):m.status==='retired','乱数'+u,m.status);}
+}
 function checkErrands(){
   const nail='掲示板に、釘がひとつ打たれた',second='掲示の釘がもうひとつ増えた',third='持ち込まれる話の質が変わった';
   const shallow=['kitten','ledger','ring'],deeper=['mushroom','bell','letter','barge','scale','grave','tome'];
@@ -2365,7 +2395,7 @@ function checkLife(){
 
 if(!isMainThread){const line=runSeed(workerData.seed);parentPort.postMessage({line,res:[...results]});}
 else{
-  if(SHARD.k===1){checkTables();checkScenes();checkLife();checkLetters();checkErrands();checkCrest();checkRowFallback();checkMine();checkAffinity();checkRevive();checkMemoNotes();checkOpening();checkCareer();checkIntro();checkAge();checkFoes();checkQuarrel();checkFlow();checkLedger();checkLevelNews();checkBounty();checkMissing();checkLastWords();checkHighSpells();checkOldSaves();}
+  if(SHARD.k===1){checkTables();checkScenes();checkLife();checkLetters();checkErrands();checkCrest();checkRowFallback();checkMine();checkAffinity();checkRevive();checkMemoNotes();checkOpening();checkCareer();checkIntro();checkAge();checkFoes();checkQuarrel();checkFlow();checkLedger();checkLevelNews();checkBounty();checkMissing();checkLastWords();checkHighSpells();checkPush();checkOldSaves();}
   // 種ごとの結果は、種の順に重ねる。反例は、いちばん若い種の最初のものを残す。進捗の行も種の順に出す
   const out=new Array(SEEDS.length);let next=0,printed=0;
   const flush=()=>{while(printed<out.length&&out[printed]){if(out[printed].line)console.log(out[printed].line);printed++;}};

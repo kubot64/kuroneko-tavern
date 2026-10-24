@@ -33,7 +33,7 @@ const PAY_MARGIN=2000;
 const PAY_PAUSE_DAYS=22;
 
 // 支援ありの店主。毎日1度、帳場と武具屋でできる支援を、手元に蓄えを残しながら使う。
-// 引き抜き・裏通りの酒場・持ち込まれる話・見込みは使わない（常連を支える支援だけを測る）
+// 借金を返し終えたあとは、夢の後押しも使う。引き抜き・裏通りの酒場・持ち込まれる話・見込みは使わない（常連を支える支援だけを測る）
 // 借金が残っているあいだは、次の返済額に余裕を足した分を残す。返済日が近づけば、蘇生・地図・薬の店負担を止める。
 function supportOwner(E,S,day){
   const T0=S.taverns.ours,pol=E.policy(S);
@@ -49,6 +49,8 @@ function supportOwner(E,S,day){
   const idle=Object.values(S.adv).filter(a=>a.tav==='ours'&&a.status==='idle').sort((x,y)=>y.lvl-x.lvl);let n=0;
   for(const a of idle){if(n>=3)break;const c=E.customOffer(S,a);if(c&&spare()>=c.price){E.orderCustom(S,a,c);n++;continue;}
     const o=E.giftOffer(S,a);if(o&&spare()>=o.price){E.giveGift(S,a,o,'店主から');n++;}}
+  // 夢の後押し（借金を返し終えたあと）。足りない分の少ない者から、1日1人まで、全部を出す。この仕組みのない古いエンジンでは使わない
+  if(E.pushNeed){const c=idle.map(a=>[a,E.pushNeed(S,a)]).filter(x=>x[1]>0&&spare()>=x[1]).sort((x,y)=>x[1]-y[1]||x[0].id-y[0].id)[0];if(c)E.pushDream(S,c[0],c[1]);}
 }
 
 // 死因を数えるためだけに、倒れた瞬間を受け取る。乱数は引かない。手帳は90件で消えるので、終わってから数えると足りない

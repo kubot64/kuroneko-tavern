@@ -1634,6 +1634,38 @@ test('掲示の主役選びで話を持ちかけると、本人が口調どお�
   assert.deepEqual(errors,[]);await ctx.close();
 });
 
+test('帳場の夢の後押しは、借金を返し終えたあとだけ出て、出すと本人がひと言返す。375px・768px・1280pxで崩れない',async()=>{
+  const {ctx,page,errors}=await open();
+  await page.locator('#sp0').click();
+  const ids=await page.evaluate(()=>{
+    const T0=S.taverns.ours;T0.gold=500000;
+    const ours=Object.values(S.adv).filter(x=>x.tav==='ours'&&x.status!=='lost'&&x.status!=='retired').slice(0,3);
+    ours.forEach((a,i)=>{a.status='idle';a.party=null;a.pers='普通';a.tone=['丁寧','古風','陽気'][i];a.gold=6873;a.favor=0;a.dream={k:'marry',amt:31000,who:'ロウエンの花売り'};});
+    ours[2].dream={k:'wealth',amt:31000};
+    tab='desk';render();return ours.map(a=>a.id);
+  });
+  assert.equal(await page.locator('[data-act="push"]').count(),0,'返し終える前は出ない');
+  await page.evaluate(()=>{const T0=S.taverns.ours;T0.debt=0;T0.debtFree=S.tick;T0.payoffScene=false;render();});
+  assert.equal(await page.locator(`[data-act="push"][data-a="${ids[2]}"]`).count(),0,'財産の夢には出せない');
+  const row=page.locator(`.row.push:has([data-a="${ids[0]}"])`);
+  assert.match(await row.innerText(),/貯金 6,873G \/ 31,000G/);
+  assert.match(await row.innerText(),/足りない分 24,127G/);
+  assert.doesNotMatch((await page.locator('.row.push').allInnerTexts()).join('\n'),/恩|断|[0-9]+\s*[%％]/);
+  for(const [width,height] of [[375,740],[768,1024],[1280,800]]){
+    await page.setViewportSize({width,height});
+    await page.evaluate(()=>document.fonts.ready);
+    await page.locator('.row.push').first().scrollIntoViewIfNeeded();
+    assert.deepEqual(await page.evaluate(screenAudit),[],`${width}px の夢の後押し`);
+  }
+  await page.locator(`button[data-act="push"][data-a="${ids[1]}"][data-v="24127"]`).click();
+  await page.locator(`button[data-act="push"][data-a="${ids[0]}"][data-v="12100"]`).click();
+  const r=await page.evaluate(ids=>({no:S.adv[ids[1]].gold,yes:S.adv[ids[0]].gold,news:S.news.slice(-2).map(x=>x.t),left:[...document.querySelectorAll('[data-act="push"]')].map(b=>+b.dataset.a).filter(x=>ids.includes(x))}),ids);
+  assert.equal(r.no,6873,'古風な者は断る');assert.equal(r.yes,6873+12100,'丁寧な者は受け取る');
+  assert.match(r.news[0],/断られた。「.+」$/);assert.match(r.news[1],/足りない12,100Gを出した。「.+」$/);
+  assert.deepEqual(r.left,[],'一つの夢に一度だけ');
+  assert.deepEqual(errors,[]);await ctx.close();
+});
+
 test('見込みが満員のときは理由が読め、見込むボタンはどの幅でも44px以上',async()=>{
   const {ctx,page,errors}=await open();
   await page.locator('#sp0').click();
