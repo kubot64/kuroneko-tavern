@@ -11,7 +11,7 @@ import {fileURLToPath} from 'node:url';
 import {engineOf,loadEngine} from '../engine.mjs';
 
 // 版 → その版で最後のコミット。リポジトリの履歴は版24から始まるので、それより古い版の見本は作れない
-const COMMITS={24:'5bbab35',25:'4e40e0f',26:'1f1cbc8',27:'4055fc6',28:'9550d66',29:'2134a24',30:'0d534ea',31:'414464b',32:'8a1f458',33:'3f5d986'};
+const COMMITS={24:'5bbab35',25:'4e40e0f',26:'1f1cbc8',27:'4055fc6',28:'9550d66',29:'2134a24',30:'0d534ea',31:'414464b',32:'8a1f458',33:'3f5d986',34:'5a03295'};
 const SEED=4242,DAYS=300,AT=Date.UTC(2026,9,1);
 
 const ROOT=fileURLToPath(new URL('../..',import.meta.url));

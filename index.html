@@ -439,55 +439,58 @@ const NAMES_M=["ガルド", "ローエン", "ドルフ", "バルト", "ザック
 const NAMES_F=["ミナ", "セリカ", "イリス", "フィオ", "ネル", "リーゼ", "ティア", "シエラ", "ルゥ", "エダ", "ペトラ", "キリエ", "メル", "クロエ", "レア", "ヘルガ", "ナナ", "ソフィ", "エルマ", "モーラ", "ミレイユ", "ドーラ", "ハンナ", "ロッタ", "パウラ", "スー", "ヴェラ", "イーダ", "マグダ", "ベアトリス", "カミラ", "ゲルダ", "ヒルデ", "カタリナ", "ニーナ", "オフェリア", "ロザリンド", "ステラ", "ウルスラ", "ヴァレリア", "ヴィルマ", "アガタ", "エスター", "フリーダ", "イルゼ", "リーナ", "オリガ", "サビーネ", "ヤスミン", "ゾフィア", "ブリギッテ", "ドロテア", "エッダ", "ヘレナ", "ユッタ", "ルイーゼ", "マルタ", "プリシラ", "テレーゼ", "アニカ", "クララ", "フローラ", "インガ", "カリン", "モニカ", "ローザ", "ティルダ", "アストリッド", "ツェツィーリエ", "ダグマル", "ギーゼラ", "レナ", "ジゼル", "マリエ", "エリン", "アデーレ", "ノエミ", "オルガ", "ザビーナ", "リディア", "ミリアム", "ハイジ", "グレタ", "エミリア", "ベルタ", "イングリト", "アンナ", "ルチア", "セラ", "ヨハンナ", "フェリシア", "マーヤ", "カティア", "ヴィオラ", "テア", "ロミ"];
 const NAMES=NAMES_M.concat(NAMES_F);
 const RACE={
-  '人間':{w:7.5,hp:0,hd:0,mp:0,ac:0,atk:0,xp:1.1,hit:0,spell:0,dodge:0,trap:0,crit:0,pois:0,
-    cls:{'戦士':2,'侍':1.5,'盗賊':1.5,'僧侶':2,'魔術師':2},odd:null,
+  'human':{n:'人間',w:7.5,hp:0,hd:0,mp:0,ac:0,atk:0,xp:1.1,hit:0,spell:0,dodge:0,trap:0,crit:0,pois:0,
+    cls:{'warrior':2,'samurai':1.5,'thief':1.5,'priest':2,'mage':2},odd:null,
     good:'経験を積むのが早い',bad:'これといった強みもない'},
-  'エルフ':{w:1,hp:-2,hd:-1,mp:1,ac:0,atk:0,xp:1,hit:.05,spell:2,dodge:0,trap:0,crit:0,pois:0,
-    cls:{'侍':1.5,'盗賊':1.2,'僧侶':2.5,'魔術師':4},odd:'戦士',
+  'elf':{n:'エルフ',w:1,hp:-2,hd:-1,mp:1,ac:0,atk:0,xp:1,hit:.05,spell:2,dodge:0,trap:0,crit:0,pois:0,
+    cls:{'samurai':1.5,'thief':1.2,'priest':2.5,'mage':4},odd:'warrior',
     good:'呪文の威力と命中に長ける',bad:'打たれ弱い'},
-  'ドワーフ':{w:2,hp:3,hd:1,mp:-1,ac:1,atk:0,xp:1,hit:0,spell:0,dodge:0,trap:0,crit:0,pois:.7,
-    cls:{'戦士':5,'侍':1.5,'盗賊':.8,'僧侶':2.5},odd:'魔術師',
+  'dwarf':{n:'ドワーフ',w:2,hp:3,hd:1,mp:-1,ac:1,atk:0,xp:1,hit:0,spell:0,dodge:0,trap:0,crit:0,pois:.7,
+    cls:{'warrior':5,'samurai':1.5,'thief':.8,'priest':2.5},odd:'mage',
     good:'頑丈で守りが固く、毒も効きにくい',bad:'呪文の力（MP）が少ない'},
-  'ホビット':{w:2,hp:-1,hd:0,mp:0,ac:0,atk:-1,xp:1,hit:0,spell:0,dodge:.08,trap:.15,crit:.03,pois:0,
-    cls:{'戦士':.8,'盗賊':5,'僧侶':1.5,'魔術師':1},odd:'侍',
+  'hobbit':{n:'ホビット',w:2,hp:-1,hd:0,mp:0,ac:0,atk:-1,xp:1,hit:0,spell:0,dodge:.08,trap:.15,crit:.03,pois:0,
+    cls:{'warrior':.8,'thief':5,'priest':1.5,'mage':1},odd:'samurai',
     good:'すばしこく、罠外しと急所突きの名手',bad:'非力で攻撃が軽い'},
 };
-const ODD_PERK={'エルフ':'エルフの身で重い剣を振るう。打たれ弱さを克服している','ドワーフ':'ドワーフには珍しい呪文使い。呪文の力の乏しさを克服している','ホビット':'ホビットには珍しい侍。非力さを克服し、急所を突く腕は並外れている'};
-function rc(a){return RACE[a.race]||RACE['人間']}
+const ODD_PERK={'elf':'エルフの身で重い剣を振るう。打たれ弱さを克服している','dwarf':'ドワーフには珍しい呪文使い。呪文の力の乏しさを克服している','hobbit':'ホビットには珍しい侍。非力さを克服し、急所を突く腕は並外れている'};
+function rc(a){return RACE[a.race]||RACE['human']}
 function wpick(obj){let x=R()*Object.values(obj).reduce((s,v)=>s+v,0);for(const [k,v] of Object.entries(obj)){x-=v;if(x<=0)return k;}return Object.keys(obj)[0];}
 const CLS={
-  '戦士':{hp:[10,14],atk:[4,6],ac:2,mp:0,front:true,hd:8,eq:['戦士'],mpg:0},
-  '侍':{hp:[9,12],atk:[4,7],ac:1,mp:0,front:true,hd:7,eq:['侍'],mpg:.5,mage:true,mageLv:3,crit:.03},
-  '盗賊':{hp:[6,9],atk:[3,4],ac:1,mp:0,hd:5,eq:['盗賊'],mpg:0,thief:true,crit:.03},
-  '僧侶':{hp:[7,10],atk:[2,3],ac:1,mp:3,hd:6,eq:['僧侶'],mpg:1,heal:true},
-  '魔術師':{hp:[4,6],atk:[1,2],ac:0,mp:3,hd:3,eq:['魔術師'],mpg:1,mage:true},
+  'warrior':{n:'戦士',hp:[10,14],atk:[4,6],ac:2,mp:0,front:true,hd:8,eq:['warrior'],mpg:0},
+  'samurai':{n:'侍',hp:[9,12],atk:[4,7],ac:1,mp:0,front:true,hd:7,eq:['samurai'],mpg:.5,mage:true,mageLv:3,crit:.03},
+  'thief':{n:'盗賊',hp:[6,9],atk:[3,4],ac:1,mp:0,hd:5,eq:['thief'],mpg:0,thief:true,crit:.03},
+  'priest':{n:'僧侶',hp:[7,10],atk:[2,3],ac:1,mp:3,hd:6,eq:['priest'],mpg:1,heal:true},
+  'mage':{n:'魔術師',hp:[4,6],atk:[1,2],ac:0,mp:3,hd:3,eq:['mage'],mpg:1,mage:true},
   // 上級職（転職でなる）
-  '聖騎士':{adv:'戦士',lv:20,cond:a=>!['無謀','強欲'].includes(a.pers),req:'レベル20・無謀でも強欲でもない',front:true,hd:8,eq:['戦士','僧侶'],mpg:.5,heal:true,healTh:.35,bonus:{mmp:2,ac:1},
+  'paladin':{n:'聖騎士',adv:'warrior',lv:20,cond:a=>!['無謀','強欲'].includes(a.pers),req:'レベル20・無謀でも強欲でもない',front:true,hd:8,eq:['warrior','priest'],mpg:.5,heal:true,healTh:.35,bonus:{mmp:2,ac:1},
     desc:'祈りを身につけた戦士。前に立ちながら、仲間の傷を癒やす'},
-  '狂戦士':{adv:'戦士',lv:20,cond:a=>['無謀','強欲'].includes(a.pers),req:'レベル20・無謀か強欲',front:true,hd:9,eq:['戦士'],mpg:0,berserk:true,bonus:{atk:3,ac:-1},
+  'berserker':{n:'狂戦士',adv:'warrior',lv:20,cond:a=>['無謀','強欲'].includes(a.pers),req:'レベル20・無謀か強欲',front:true,hd:9,eq:['warrior'],mpg:0,berserk:true,bonus:{atk:3,ac:-1},
     desc:'守りを捨てた戦士。一撃は重く、ときに二度斬りかかる'},
-  '剣聖':{adv:'侍',lv:24,cond:a=>a.kills>=200,req:'レベル24・討伐200',front:true,hd:8,eq:['侍'],mpg:.5,mage:true,mageLv:1,crit:.09,bonus:{atk:2},
+  'kensei':{n:'剣聖',adv:'samurai',lv:24,cond:a=>a.kills>=200,req:'レベル24・討伐200',front:true,hd:8,eq:['samurai'],mpg:.5,mage:true,mageLv:1,crit:.09,bonus:{atk:2},
     desc:'剣の道を極めた侍。首をはねる太刀筋は神業の域'},
-  '忍者':{adv:'盗賊',lv:22,cond:a=>a.disarms>=15,req:'レベル22・罠解除15',front:true,hd:6,eq:['盗賊','侍'],mpg:0,thief:true,crit:.1,dodge:.08,bonus:{atk:2,ac:1},
+  'ninja':{n:'忍者',adv:'thief',lv:22,cond:a=>a.disarms>=15,req:'レベル22・罠解除15',front:true,hd:6,eq:['thief','samurai'],mpg:0,thief:true,crit:.1,dodge:.08,bonus:{atk:2,ac:1},
     desc:'影に生きる者。罠を外し、前に立ち、急所を突く'},
-  '司教':{adv:'僧侶',lv:22,cond:a=>a.revived<3,req:'レベル22',hd:6,eq:['僧侶','魔術師'],mpg:1,heal:true,mage:true,bonus:{mmp:3},
+  'bishop':{n:'司教',adv:'priest',lv:22,cond:a=>a.revived<3,req:'レベル22',hd:6,eq:['priest','mage'],mpg:1,heal:true,mage:true,bonus:{mmp:3},
     desc:'癒やしと攻撃、両方の呪文を修めた聖職者'},
-  '魔導士':{adv:'魔術師',lv:24,cond:()=>true,req:'レベル24',hd:4,eq:['魔術師'],mpg:1,mage:true,spell:3,bonus:{mmp:3},
+  'sorcerer':{n:'魔導士',adv:'mage',lv:24,cond:()=>true,req:'レベル24',hd:4,eq:['mage'],mpg:1,mage:true,spell:3,bonus:{mmp:3},
     desc:'呪文の深奥に触れた魔術師。ゴウカを自在に操り、やがてゴウエンの炎に至る'},
   // レア職業（ごくまれに店に現れる）
-  '竜騎士':{rare:true,hp:[11,14],atk:[5,7],ac:2,mp:0,front:true,hd:8,eq:['戦士'],mpg:0,breath:true,
+  'dragoon':{n:'竜騎士',rare:true,hp:[11,14],atk:[5,7],ac:2,mp:0,front:true,hd:8,eq:['warrior'],mpg:0,breath:true,
     desc:'竜の血を引く騎士。ときに炎の息吹で敵を焼き払う。竜には効きにくい'},
-  '吟遊詩人':{rare:true,hp:[6,9],atk:[2,4],ac:1,mp:3,hd:5,eq:['盗賊','魔術師'],mpg:1,song:true,
+  'bard':{n:'吟遊詩人',rare:true,hp:[6,9],atk:[2,4],ac:1,mp:3,hd:5,eq:['thief','mage'],mpg:1,song:true,
     desc:'勇ましい歌で仲間を奮い立たせ、子守歌で敵を眠らせる'},
-  '錬金術師':{rare:true,hp:[6,8],atk:[2,3],ac:1,mp:3,hd:5,eq:['魔術師','盗賊'],mpg:1,bomb:true,
+  'alchemist':{n:'錬金術師',rare:true,hp:[6,8],atk:[2,3],ac:1,mp:3,hd:5,eq:['mage','thief'],mpg:1,bomb:true,
     desc:'炎の爆薬を投げつけ、戦いのあとは秘薬で仲間を癒やす'},
-  '獣使い':{rare:true,hp:[8,11],atk:[3,5],ac:1,mp:0,hd:6,eq:['盗賊','戦士'],mpg:0,beast:true,
+  'tamer':{n:'獣使い',rare:true,hp:[8,11],atk:[3,5],ac:1,mp:0,hd:6,eq:['thief','warrior'],mpg:0,beast:true,
     desc:'相棒の獣とともに戦う。獣は毎ターン敵に飛びかかる'},
 };
 const RARE_CLS=Object.keys(CLS).filter(k=>CLS[k].rare);
 const BEAST_KIND=['狼','鷹','大山猫','熊','大蜥蜴','山犬'];
 const BEAST_NAMES=['ハヤテ','クロ','シロガネ','ツムジ','モミジ','イナズマ','ノワール','ブラン','ゴロウ','ヒバナ','アラシ','コハク','ソラ','ヨミ'];
-function C(a){return CLS[a.cls]||CLS['戦士']}
+function C(a){return CLS[a.cls]||CLS['warrior']}
+// 職業と種族は、記録にも判定にも内部の鍵（warrior・human など）を使う。画面と文に出すときは、この2つで表の名前に直す（#195）
+function clsName(k){return (CLS[k]&&CLS[k].n)||k||''}
+function raceName(k){return (RACE[k]&&RACE[k].n)||k||''}
 // 冒険者の居どころ（status）は直に比べず、次の関数を通す（tools/lint.mjs で禁じている）。
 // idle：酒場にいる／party：一行に加わって街の外にいる／dead・ash：寺院で眠る（死・灰）／missing：全滅した一行にいて、まだ見つかっていない／lost：ロスト／retired：店を去った
 /* eslint-disable no-restricted-syntax */
@@ -502,14 +505,14 @@ function isMissing(a){return a.status==='missing'}
 function isLost(a){return a.status==='lost'}
 function isRetired(a){return a.status==='retired'}
 /* eslint-enable no-restricted-syntax */
-function canUse(cls,it){const g=(CLS[cls]||CLS['戦士']).eq;return it.for.some(c=>g.includes(c));}
+function canUse(cls,it){const g=(CLS[cls]||CLS['warrior']).eq;return it.for.some(c=>g.includes(c));}
 function promote(S,a){
   const opts=Object.entries(CLS).filter(([,c])=>c.adv===a.cls&&a.lvl>=c.lv&&c.cond(a));
   if(!opts.length||!chance(.3))return;
   const [nk,nc]=pick(opts);const old=a.cls;a.cls=nk;a.promoted=old;
   const b=nc.bonus||{};a.mhp+=ri(3,8);a.atk=Math.max(1,a.atk+(b.atk||0));a.ac+=(b.ac||0);a.mmp+=(b.mmp||0);a.hp=a.mhp;a.mp=mmpOf(a);
-  chron(S,a,`${old}から${nk}になる`);
-  news(S,`${S.taverns[a.tav].name}の${full(a)}が、${old}から${nk}へと道を進めた。`,a.tav==='ours'?'record':'rumor');
+  chron(S,a,`${clsName(old)}から${clsName(nk)}になる`);
+  news(S,`${S.taverns[a.tav].name}の${full(a)}が、${clsName(old)}から${clsName(nk)}へと道を進めた。`,a.tav==='ours'?'record':'rumor');
 }
 const PERS={
   '慎重':{th:.55,deep:0},
@@ -529,38 +532,38 @@ const ORIGIN_LANG={
   '東方の島国アズマ':'アズマ','砂の大陸ザハル':'ザハル','北の氷海ノルデン':'ノルデン'};
 function wd(t,ja,lang,race,cls){return {t,ja,lang,race:race||[],cls:cls||[]}}
 const PT_A=[
-  wd('ナハト','夜',['大陸'],['エルフ']),wd('ゴルト','金',['大陸'],['ドワーフ']),wd('ローゼ','薔薇',['大陸'],['エルフ']),wd('ドルン','茨',['大陸']),
+  wd('ナハト','夜',['大陸'],['elf']),wd('ゴルト','金',['大陸'],['dwarf']),wd('ローゼ','薔薇',['大陸'],['elf']),wd('ドルン','茨',['大陸']),
   wd('ロート','赤',['大陸']),wd('ブラウ','青',['大陸']),wd('ゾンネ','太陽',['大陸']),wd('フラム','炎',['大陸']),
-  wd('シルバ','銀',['大陸'],['エルフ']),wd('アシェ','灰',['大陸','荒野']),wd('ルーネ','ルーン',['大陸']),wd('ブルク','城',['大陸']),
+  wd('シルバ','銀',['大陸'],['elf']),wd('アシェ','灰',['大陸','荒野']),wd('ルーネ','ルーン',['大陸']),wd('ブルク','城',['大陸']),
   wd('ベルク','山',['大陸','山','鉱']),wd('ホルン','角',['大陸']),wd('ターク','昼',['大陸']),wd('トーア','門',['大陸']),
   wd('アルト','古',['大陸','荒野']),wd('ホーフ','宮廷',['大陸']),wd('エーア','誉れ',['大陸']),
-  wd('シュタール','鋼',['帝国'],['ドワーフ']),wd('アイゼン','鉄',['山','鉱'],['ドワーフ']),wd('フェルゼン','岩',['山','鉱'],['ドワーフ']),wd('グルート','炉',['山'],['ドワーフ']),
-  wd('ステルン','星',['森'],['エルフ']),wd('ヴァルト','森',['森','森国'],['エルフ']),wd('ルクス','光',['教']),wd('ザンクト','聖',['教']),
-  wd('コルン','麦',['丘','麦'],['ホビット']),wd('ヒューゲル','丘',['丘'],['ホビット']),wd('ガルベ','穂',['麦']),
+  wd('シュタール','鋼',['帝国'],['dwarf']),wd('アイゼン','鉄',['山','鉱'],['dwarf']),wd('フェルゼン','岩',['山','鉱'],['dwarf']),wd('グルート','炉',['山'],['dwarf']),
+  wd('ステルン','星',['森'],['elf']),wd('ヴァルト','森',['森','森国'],['elf']),wd('ルクス','光',['教']),wd('ザンクト','聖',['教']),
+  wd('コルン','麦',['丘','麦'],['hobbit']),wd('ヒューゲル','丘',['丘'],['hobbit']),wd('ガルベ','穂',['麦']),
   wd('ハフェン','港',['港']),wd('ヴェレ','波',['港']),wd('ムンツ','貨幣',['港']),
-  wd('ヤークト','狩',['森国']),wd('アイベン','樫',['森国'],['エルフ']),wd('ツェヘ','坑',['鉱'],['ドワーフ']),wd('エルツ','鉱',['鉱'],['ドワーフ']),
+  wd('ヤークト','狩',['森国']),wd('アイベン','樫',['森国'],['elf']),wd('ツェヘ','坑',['鉱'],['dwarf']),wd('エルツ','鉱',['鉱'],['dwarf']),
   wd('ステップ','草原',['草原']),wd('トルガ','疾風',['草原']),wd('ヨルト','天幕',['草原']),
   wd('ルーイン','廃墟',['荒野']),wd('シュタウブ','塵',['荒野']),
   wd('ヤミ','闇',['アズマ']),wd('サクラ','桜',['アズマ']),wd('カゼ','風',['アズマ']),wd('ユキ','雪',['アズマ']),wd('アサヒ','朝日',['アズマ']),
   wd('アイス','氷',['ノルデン']),wd('フロスト','霜',['ノルデン']),wd('ノール','北',['ノルデン']),
   wd('ラムル','砂',['ザハル']),wd('シャムス','灼日',['ザハル']),wd('ナジュム','明星',['ザハル']),wd('ワハ','泉',['ザハル'])];
 const PT_B=[
-  wd('クロウ','鴉',['大陸'],null,['魔術師']),wd('グリフ','グリフォン',['大陸']),wd('レーヴ','獅子',['大陸'],null,['戦士']),wd('ラーベ','大鴉',['大陸'],null,['魔術師']),
-  wd('オイレ','梟',['大陸','教'],null,['僧侶']),wd('シルト','盾',['大陸'],null,['戦士']),wd('クラウ','爪',['大陸'],null,['獣使い']),wd('ランス','槍',['大陸'],null,['侍','戦士']),
-  wd('ヘルム','兜',['大陸'],null,['戦士']),wd('フクス','狐',['大陸','丘'],['ホビット'],['盗賊']),wd('ヴルム','地竜',['大陸'],null,['竜騎士']),wd('ガルム','番犬',['大陸','ノルデン']),
-  wd('ベーレ','熊',['大陸'],['ドワーフ'],['獣使い']),wd('ドラコ','竜',['大陸','ザハル'],null,['竜騎士']),wd('リート','歌',['大陸'],null,['吟遊詩人']),
-  wd('ネスト','巣',['大陸'],['エルフ']),wd('ルナ','月',['大陸','森'],['エルフ']),wd('ムート','勇気',['大陸']),
-  wd('ヤイバ','刃',['アズマ'],null,['侍']),wd('カタナ','太刀',['アズマ'],null,['侍']),wd('ツルギ','剣',['アズマ'],null,['戦士']),wd('カゲ','影',['アズマ'],null,['盗賊']),
-  wd('ラッテ','鼠',['大陸'],null,['盗賊']),wd('ランペ','灯',['教'],null,['僧侶']),wd('グロッケ','鐘',['教'],null,['僧侶']),
-  wd('ハープ','竪琴',['大陸'],null,['吟遊詩人']),wd('ナハティガル','小夜鳴鳥',['大陸'],null,['吟遊詩人']),
-  wd('ハンマー','槌',['山','鉱'],['ドワーフ'],['戦士']),wd('アンボス','金床',['山','鉱'],['ドワーフ']),
-  wd('ウルフ','狼',['ノルデン'],null,['獣使い']),wd('レイヴン','渡鴉',['ノルデン'],null,['魔術師']),wd('アクス','斧',['ノルデン','山'],['ドワーフ'],['戦士']),
-  wd('アドラー','鷲',['帝国'],null,['戦士']),wd('シュヴェルト','長剣',['帝国'],null,['戦士']),
-  wd('ボーゲン','弓',['森国'],['エルフ'],['戦士']),wd('ヒルシュ','鹿',['森国'],null,['獣使い']),
+  wd('クロウ','鴉',['大陸'],null,['mage']),wd('グリフ','グリフォン',['大陸']),wd('レーヴ','獅子',['大陸'],null,['warrior']),wd('ラーベ','大鴉',['大陸'],null,['mage']),
+  wd('オイレ','梟',['大陸','教'],null,['priest']),wd('シルト','盾',['大陸'],null,['warrior']),wd('クラウ','爪',['大陸'],null,['tamer']),wd('ランス','槍',['大陸'],null,['samurai','warrior']),
+  wd('ヘルム','兜',['大陸'],null,['warrior']),wd('フクス','狐',['大陸','丘'],['hobbit'],['thief']),wd('ヴルム','地竜',['大陸'],null,['dragoon']),wd('ガルム','番犬',['大陸','ノルデン']),
+  wd('ベーレ','熊',['大陸'],['dwarf'],['tamer']),wd('ドラコ','竜',['大陸','ザハル'],null,['dragoon']),wd('リート','歌',['大陸'],null,['bard']),
+  wd('ネスト','巣',['大陸'],['elf']),wd('ルナ','月',['大陸','森'],['elf']),wd('ムート','勇気',['大陸']),
+  wd('ヤイバ','刃',['アズマ'],null,['samurai']),wd('カタナ','太刀',['アズマ'],null,['samurai']),wd('ツルギ','剣',['アズマ'],null,['warrior']),wd('カゲ','影',['アズマ'],null,['thief']),
+  wd('ラッテ','鼠',['大陸'],null,['thief']),wd('ランペ','灯',['教'],null,['priest']),wd('グロッケ','鐘',['教'],null,['priest']),
+  wd('ハープ','竪琴',['大陸'],null,['bard']),wd('ナハティガル','小夜鳴鳥',['大陸'],null,['bard']),
+  wd('ハンマー','槌',['山','鉱'],['dwarf'],['warrior']),wd('アンボス','金床',['山','鉱'],['dwarf']),
+  wd('ウルフ','狼',['ノルデン'],null,['tamer']),wd('レイヴン','渡鴉',['ノルデン'],null,['mage']),wd('アクス','斧',['ノルデン','山'],['dwarf'],['warrior']),
+  wd('アドラー','鷲',['帝国'],null,['warrior']),wd('シュヴェルト','長剣',['帝国'],null,['warrior']),
+  wd('ボーゲン','弓',['森国'],['elf'],['warrior']),wd('ヒルシュ','鹿',['森国'],null,['tamer']),
   wd('アンカー','錨',['港']),wd('ゼーゲル','帆',['港']),
-  wd('ウマ','駿馬',['草原'],null,['戦士']),wd('タカ','鷹',['草原'],null,['獣使い']),wd('ヤタガ','曲刀',['草原'],null,['侍']),
-  wd('サイフ','湾刀',['ザハル'],null,['侍','戦士']),wd('アクラブ','蠍',['ザハル']),wd('ジン','魔神',['ザハル'],null,['魔術師']),wd('タニン','蛇竜',['ザハル'],null,['竜騎士']),wd('フラスコ','薬瓶',['ザハル'],null,['錬金術師']),
-  wd('ダックス','穴熊',['丘'],['ホビット']),wd('リス','栗鼠',['丘'],['ホビット']),wd('ガイスト','亡霊',['荒野'])];
+  wd('ウマ','駿馬',['草原'],null,['warrior']),wd('タカ','鷹',['草原'],null,['tamer']),wd('ヤタガ','曲刀',['草原'],null,['samurai']),
+  wd('サイフ','湾刀',['ザハル'],null,['samurai','warrior']),wd('アクラブ','蠍',['ザハル']),wd('ジン','魔神',['ザハル'],null,['mage']),wd('タニン','蛇竜',['ザハル'],null,['dragoon']),wd('フラスコ','薬瓶',['ザハル'],null,['alchemist']),
+  wd('ダックス','穴熊',['丘'],['hobbit']),wd('リス','栗鼠',['丘'],['hobbit']),wd('ガイスト','亡霊',['荒野'])];
 const PT_A_JA=Object.fromEntries(PT_A.map(w=>[w.t,w.ja]));
 const PT_B_JA=Object.fromEntries(PT_B.map(w=>[w.t,w.ja]));
 function crestJa(name){
@@ -641,28 +644,28 @@ const MON=[
   {n:'坑道王の親衛',u:'かんむりの もんしょうの よろい',f:30,hp:540,atk:53,mine:true},
   {n:'澱呑みの坑道王',u:'いわの ぎょくざの ひとかげ',f:31,hp:2400,atk:61,sp:'boss',boss:true,mboss:true,mine:true,fire:[30,48]},
 ];
-const ALLC=['戦士','侍','盗賊','僧侶','魔術師'];
+const ALLC=['warrior','samurai','thief','priest','mage'];
 const ITEM_BASES=[
-  {t:'長剣',slot:'wpn',m:'metal',for:['戦士','侍','盗賊'],st:t=>({atk:2*t+2})},
-  {t:'短剣',slot:'wpn',m:'metal',for:['盗賊','魔術師','戦士','侍'],st:t=>({atk:2*t,hit:.03*t,crit:.01*t})},
-  {t:'鎚矛',slot:'wpn',m:'metal',for:['僧侶','戦士'],st:t=>({atk:2*t+2})},
-  {t:'刀',slot:'wpn',m:'metal',for:['侍'],st:t=>({atk:2*t+3,crit:.01*t})},
-  {t:'大剣',slot:'wpn',two:true,m:'metal',for:['戦士','侍'],st:t=>({atk:3*t+4})},
-  {t:'戦斧',slot:'wpn',two:true,m:'metal',for:['戦士'],st:t=>({atk:3*t+6,hit:-.05})},
-  {t:'槍',slot:'wpn',two:true,m:'metal',for:['戦士','侍'],st:t=>({atk:3*t+3,hit:.05})},
-  {t:'杖',slot:'wpn',two:true,m:'wood',for:['魔術師','僧侶'],st:t=>({atk:t+1,mp:t+1,spell:t})},
-  {t:'小盾',slot:'shield',m:'metal',for:['戦士','侍','僧侶','盗賊'],st:t=>({ac:t+1})},
-  {t:'大盾',slot:'shield',m:'metal',for:['戦士','僧侶'],st:t=>({ac:2*t+1,dodge:-.02})},
-  {t:'兜',slot:'head',m:'metal',for:['戦士','侍','僧侶'],st:t=>({ac:t+1})},
+  {t:'長剣',slot:'wpn',m:'metal',for:['warrior','samurai','thief'],st:t=>({atk:2*t+2})},
+  {t:'短剣',slot:'wpn',m:'metal',for:['thief','mage','warrior','samurai'],st:t=>({atk:2*t,hit:.03*t,crit:.01*t})},
+  {t:'鎚矛',slot:'wpn',m:'metal',for:['priest','warrior'],st:t=>({atk:2*t+2})},
+  {t:'刀',slot:'wpn',m:'metal',for:['samurai'],st:t=>({atk:2*t+3,crit:.01*t})},
+  {t:'大剣',slot:'wpn',two:true,m:'metal',for:['warrior','samurai'],st:t=>({atk:3*t+4})},
+  {t:'戦斧',slot:'wpn',two:true,m:'metal',for:['warrior'],st:t=>({atk:3*t+6,hit:-.05})},
+  {t:'槍',slot:'wpn',two:true,m:'metal',for:['warrior','samurai'],st:t=>({atk:3*t+3,hit:.05})},
+  {t:'杖',slot:'wpn',two:true,m:'wood',for:['mage','priest'],st:t=>({atk:t+1,mp:t+1,spell:t})},
+  {t:'小盾',slot:'shield',m:'metal',for:['warrior','samurai','priest','thief'],st:t=>({ac:t+1})},
+  {t:'大盾',slot:'shield',m:'metal',for:['warrior','priest'],st:t=>({ac:2*t+1,dodge:-.02})},
+  {t:'兜',slot:'head',m:'metal',for:['warrior','samurai','priest'],st:t=>({ac:t+1})},
   {t:'頭巾',slot:'head',m:'cloth',for:ALLC,st:t=>({ac:t,dodge:.015*t})},
-  {t:'帽子',slot:'head',m:'cloth',for:['魔術師','僧侶'],st:t=>({ac:Math.ceil(t/2),mp:t+1})},
-  {t:'鎧',slot:'body',m:'metal',for:['戦士','侍'],st:t=>({ac:2*t+2,dodge:-.03})},
-  {t:'鎖帷子',slot:'body',m:'metal',for:['戦士','侍','僧侶'],st:t=>({ac:2*t+1})},
-  {t:'革鎧',slot:'body',m:'leather',for:['盗賊','戦士','侍','僧侶'],st:t=>({ac:t+1,dodge:.015*t})},
-  {t:'法衣',slot:'body',m:'cloth',for:['僧侶','魔術師'],st:t=>({ac:t,mp:t+1})},
+  {t:'帽子',slot:'head',m:'cloth',for:['mage','priest'],st:t=>({ac:Math.ceil(t/2),mp:t+1})},
+  {t:'鎧',slot:'body',m:'metal',for:['warrior','samurai'],st:t=>({ac:2*t+2,dodge:-.03})},
+  {t:'鎖帷子',slot:'body',m:'metal',for:['warrior','samurai','priest'],st:t=>({ac:2*t+1})},
+  {t:'革鎧',slot:'body',m:'leather',for:['thief','warrior','samurai','priest'],st:t=>({ac:t+1,dodge:.015*t})},
+  {t:'法衣',slot:'body',m:'cloth',for:['priest','mage'],st:t=>({ac:t,mp:t+1})},
   {t:'指輪',slot:'acc',m:'jewel',for:ALLC,st:t=>chance(.5)?{hit:.04*t}:{atk:t+1}},
   {t:'腕輪',slot:'acc',m:'jewel',for:ALLC,st:t=>({dodge:.03*t})},
-  {t:'首飾り',slot:'acc',m:'jewel',for:['魔術師','僧侶','侍'],st:t=>({mp:t+2})},
+  {t:'首飾り',slot:'acc',m:'jewel',for:['mage','priest','samurai'],st:t=>({mp:t+2})},
   {t:'お守り',slot:'acc',m:'charm',for:ALLC,st:t=>chance(.5)?{pois:.3+.1*t}:{trap:.06*t}},
 ];
 const MATS_BY={metal:[['青銅','鉄'],['鋼','銀'],['ミスリル','黒鉄'],['竜骨','星鉄'],['神銀','月長石'],['アダマン','冥銀'],['澱鉄','古王金'],['黒曜鉄','坑王鋼'],['澱金','山心鋼']],
@@ -677,13 +680,13 @@ const EPITHETS=['灰鴉','三日月','夜霧','狼牙','残り火','初雪','名
 const EP_SUF=['の牙','の誓い','の残響','の涙','の守り','の囁き','の灯','の爪痕','の祈り','の影','の歌','の眠り','の目覚め','の翼','の棘','の夢'];
 const EP_ALL=EPITHETS.flatMap(e=>EP_SUF.map(x=>e+x)),EP_KEYS=EP_ALL.map(e=>'ep:'+e),EPITHET_KEYS=EPITHETS.map(e=>'ep:'+e);
 const UNIQUES=[
-  {n:'銘刀「夜啼」',slot:'wpn',atk:18,hit:.1,crit:.06,minF:7,f:6,for:['侍'],rare:true,lore:'夜ごとに泣くという妖刀。首を落とすたびに声が止む'},
-  {n:'影縫いの短剣',slot:'wpn',atk:13,hit:.1,crit:.08,trap:.2,minF:7,f:6,for:['盗賊'],rare:true,lore:'影を床に縫い止める短剣。持ち主は罠にも縫い止められない'},
-  {n:'竜殺しの大剣',slot:'wpn',two:true,atk:28,slayer:'竜',minF:9,f:6,for:['戦士','侍'],rare:true,lore:'竜の血を吸った大剣。竜とキメラには倍の傷を負わせる'},
-  {n:'星詠みの杖「千夜」',slot:'wpn',two:true,atk:6,mp:10,spell:8,minF:8,f:6,for:['魔術師'],rare:true,lore:'千の夜を詠んだ杖。呪文の威力を大きく引き上げる'},
-  {n:'竜鱗の大鎧',slot:'body',ac:18,fire:.5,minF:9,f:6,for:['戦士','侍'],rare:true,lore:'黒竜の古い鱗で編んだ鎧。炎の息を半分に防ぐ'},
-  {n:'獅子王の兜',slot:'head',ac:10,hit:.08,atk:3,minF:8,f:6,for:['戦士','侍','僧侶'],rare:true,lore:'旧エスタリア王家の兜。かぶる者の太刀筋を正す'},
-  {n:'聖者の円環',slot:'acc',ac:6,mp:6,heal:.5,minF:8,f:6,for:['僧侶'],rare:true,lore:'聖者が身につけた円環。イヤシの効き目が五割増す'},
+  {n:'銘刀「夜啼」',slot:'wpn',atk:18,hit:.1,crit:.06,minF:7,f:6,for:['samurai'],rare:true,lore:'夜ごとに泣くという妖刀。首を落とすたびに声が止む'},
+  {n:'影縫いの短剣',slot:'wpn',atk:13,hit:.1,crit:.08,trap:.2,minF:7,f:6,for:['thief'],rare:true,lore:'影を床に縫い止める短剣。持ち主は罠にも縫い止められない'},
+  {n:'竜殺しの大剣',slot:'wpn',two:true,atk:28,slayer:'竜',minF:9,f:6,for:['warrior','samurai'],rare:true,lore:'竜の血を吸った大剣。竜とキメラには倍の傷を負わせる'},
+  {n:'星詠みの杖「千夜」',slot:'wpn',two:true,atk:6,mp:10,spell:8,minF:8,f:6,for:['mage'],rare:true,lore:'千の夜を詠んだ杖。呪文の威力を大きく引き上げる'},
+  {n:'竜鱗の大鎧',slot:'body',ac:18,fire:.5,minF:9,f:6,for:['warrior','samurai'],rare:true,lore:'黒竜の古い鱗で編んだ鎧。炎の息を半分に防ぐ'},
+  {n:'獅子王の兜',slot:'head',ac:10,hit:.08,atk:3,minF:8,f:6,for:['warrior','samurai','priest'],rare:true,lore:'旧エスタリア王家の兜。かぶる者の太刀筋を正す'},
+  {n:'聖者の円環',slot:'acc',ac:6,mp:6,heal:.5,minF:8,f:6,for:['priest'],rare:true,lore:'聖者が身につけた円環。イヤシの効き目が五割増す'},
   {n:'風詠みの腕輪',slot:'acc',dodge:.2,minF:7,f:6,for:ALLC,rare:true,lore:'風の声を聞く腕輪。攻撃が肌をかすめて逸れていく'},
   {n:'不死鳥の羽根',slot:'acc',phoenix:true,minF:8,f:6,for:ALLC,rare:true,lore:'倒れたとき一度だけ燃え上がり、持ち主を立ち上がらせる'},
 ];
@@ -798,7 +801,7 @@ function assignOpeningDreams(S){
   });
 }
 // セーブの版。記録の形を変えたら上げ、migrate に移行の段を足す
-const SAVE_V=34;
+const SAVE_V=35;
 // 全滅した一行の扱い。予定帰還の刻を過ぎてから消息不明と知らせるまでの刻、巡回隊が届く深さ（最深階から何階上まで）、立て替えの借りの利息（消息不明の1日ごと・複利）と、帰還時に稼ぎから返す割合
 const MISSING_GRACE=150,PATROL_DEPTH=3,OWED_RATE=.02,OWED_REPAY=.25;
 function newState(){
@@ -806,7 +809,7 @@ function newState(){
     taverns:{ours:{name:'黒猫亭',gold:400,rep:0,crystals:1,earned:0,debt:DEBT0,seats:12,nextPay:30*TICKS_PER_DAY,late:0,payClean:0},rival:{name:'銀の杯亭',gold:99999,rep:60,owner:RIVAL_OWNER}},
     bounties:{},deepest:{ours:1,rival:GATE_F},usedNames:{[RIVAL_OWNER]:1},usedParty:{'鉄の誓い':1,'黄金の剣':1,'七つ星':1,'夜鷹':1,'鉄の誓い傭兵団':1,'黄金の剣団':1},usedItems:{},uniqFound:{},farewells:[],edicts:[],v:SAVE_V,loreFound:{},shop:{tiers:{1:true},mats:{},serial:0,log:[]},watch:[null,null],sel:0,stats:{dreams:{ours:0,rival:0}},small:SMALL_TAV.slice(0,5)};
   const cast=[];
-  for(const cls of ['戦士','僧侶','盗賊','魔術師'])cast.push(makeAdv(S,'ours',{lvl:OPENING_LVL(),cls,race:raceForCls(cls),opening:true}));
+  for(const cls of ['warrior','priest','thief','mage'])cast.push(makeAdv(S,'ours',{lvl:OPENING_LVL(),cls,race:raceForCls(cls),opening:true}));
   for(let i=0;i<3;i++)cast.push(makeAdv(S,'ours',{lvl:OPENING_LVL(),opening:true}));
   assignOpeningTies(S,cast);
   const vets=[];for(let i=0;i<6;i++) vets.push(makeAdv(S,'rival',{lvl:ri(12,17)}));
@@ -936,15 +939,15 @@ function uname(S,g){
   if(!n){let i=1;do{n=pick(pool)+'・'+(++i)}while(used[n]);}
   used[n]=1; return n;
 }
-const AGE2={'人間':{n:[15,30],o:[31,62]},'ホビット':{n:[18,40],o:[41,95]},'ドワーフ':{n:[25,90],o:[91,190]},'エルフ':{n:[30,180],o:[181,420]}};
+const AGE2={'human':{n:[15,30],o:[31,62]},'hobbit':{n:[18,40],o:[41,95]},'dwarf':{n:[25,90],o:[91,190]},'elf':{n:[30,180],o:[181,420]}};
 const AGE=Object.fromEntries(Object.entries(AGE2).map(([k,v])=>[k,[v.n[0],v.o[1]]]));
 // 年長枠は来店時レベルで 3% / 8% / 15%（レベルの半分を切り上げて 5 以下、6〜8、9 以上）。枠の中の寄り方は変えない
-function rollAge(race,lv0){const lvl=Math.ceil(lv0/2);const r=AGE2[race]||AGE2['人間'];const oldP=lvl>=9?.15:lvl>=6?.08:.03;const old=chance(oldP);const rg=old?r.o:r.n;const t=old?clamp(R()**2*(.5+lvl*.04),0,1):clamp((lvl-1)/10*.4+R()*.6,0,1);return Math.round(rg[0]+(rg[1]-rg[0])*t);}
+function rollAge(race,lv0){const lvl=Math.ceil(lv0/2);const r=AGE2[race]||AGE2['human'];const oldP=lvl>=9?.15:lvl>=6?.08:.03;const old=chance(oldP);const rg=old?r.o:r.n;const t=old?clamp(R()**2*(.5+lvl*.04),0,1):clamp((lvl-1)/10*.4+R()*.6,0,1);return Math.round(rg[0]+(rg[1]-rg[0])*t);}
 const KIN_G={'兄':'男','弟':'男','父':'男','姉':'女'};
 const KIN_AGE={'父':[20,32],'兄':[1,8],'姉':[1,8],'弟':[-7,-1],'師匠':[15,40],'幼なじみ':[-2,2]};
-function humanAge(a){if(a.race==='人間'||!AGE2[a.race])return a.age;const r=AGE2[a.race];
+function humanAge(a){if(a.race==='human'||!AGE2[a.race])return a.age;const r=AGE2[a.race];
   const v=a.age<=r.n[1]?15+(a.age-r.n[0])/(r.n[1]-r.n[0])*15:31+(a.age-r.o[0])/(r.o[1]-r.o[0])*31;return Math.max(13,Math.round(v));}
-function ageWords(a){return a.race==='人間'?`${a.age}歳`:`人間でいえば${humanAge(a)}歳ほど（実年齢${a.age}歳）`}
+function ageWords(a){return a.race==='human'?`${a.age}歳`:`人間でいえば${humanAge(a)}歳ほど（実年齢${a.age}歳）`}
 function originOf(a){return a.origin&&ORIGINS[a.origin]?a.origin:'不明'}
 const TAL={'凡庸':{g:.8,hp:0,w:3},'並':{g:1,hp:0,w:5},'有望':{g:1.25,hp:1,w:2},'天賦':{g:1.5,hp:2,atk:1,w:.6}};
 function pickTal(){let x=R()*Object.values(TAL).reduce((s,t)=>s+t.w,0);for(const [k,t] of Object.entries(TAL)){x-=t.w;if(x<=0)return k;}return '並';}
@@ -963,37 +966,37 @@ const QUIRKS={
   '読書家':{d:['{n}は かべの もじを よみとこうとしている'],t:['分厚い本を読みふけっている','古い迷宮誌を写している']},
 };
 const ORIGINS={
-  'ラウレンツ王国':{short:'王国',w:{'人間':4,'ホビット':.6,'ドワーフ':.3,'エルフ':.2},bg:[['王都の下町育ち',{m:'辺境の農家の三男坊',f:'辺境の農家の三女'},'没落した騎士家の末子'],['王国軍の元衛兵','王都の自警団あがり'],['元王国騎士団員','辺境の元守備隊長']],
+  'ラウレンツ王国':{short:'王国',w:{'human':4,'hobbit':.6,'dwarf':.3,'elf':.2},bg:[['王都の下町育ち',{m:'辺境の農家の三男坊',f:'辺境の農家の三女'},'没落した騎士家の末子'],['王国軍の元衛兵','王都の自警団あがり'],['元王国騎士団員','辺境の元守備隊長']],
     tale:['王都の連中は、この穴の底のことなんて何も知らない','騎士団の連中に見せてやりたいよ、{deep}の景色を']},
-  'グラウ帝国':{short:'帝国',w:{'人間':2,'ドワーフ':.8},bg:[['帝国の徴兵から逃げてきた若者','鉱山労働者の子'],['帝国の脱走兵','帝国から流れてきた傭兵'],['帝国の元百人隊長','帝国の戦場帰り']],
+  'グラウ帝国':{short:'帝国',w:{'human':2,'dwarf':.8},bg:[['帝国の徴兵から逃げてきた若者','鉱山労働者の子'],['帝国の脱走兵','帝国から流れてきた傭兵'],['帝国の元百人隊長','帝国の戦場帰り']],
     tale:['帝国の行軍に比べりゃ、迷宮なんて散歩だ','帝国の将軍どもも、この穴は欲しがるだろうな']},
-  'セーレ自由都市同盟':{short:'同盟',w:{'人間':2,'ホビット':1,'エルフ':.3},bg:[['家出した商家の子',{m:'港の荷運び人夫',f:'港の荷運び'}],['密輸船の元用心棒','借金を抱えた元商人'],['同盟の私掠船の元船長']],
+  'セーレ自由都市同盟':{short:'同盟',w:{'human':2,'hobbit':1,'elf':.3},bg:[['家出した商家の子',{m:'港の荷運び人夫',f:'港の荷運び'}],['密輸船の元用心棒','借金を抱えた元商人'],['同盟の私掠船の元船長']],
     tale:['今回の獲物、セーレの港ならもっと高く売れるんだがな','商人どもは潜らない。潜るのはいつも俺たちだ']},
-  '聖オルド教国':{short:'教国',w:{'人間':1.2,'エルフ':.3},bg:[['神学校の落ちこぼれ','教国の巡礼者'],[{m:'破門された僧',f:'破門された尼僧'},'異端審問から逃げてきた者'],['元聖堂騎士']],
+  '聖オルド教国':{short:'教国',w:{'human':1.2,'elf':.3},bg:[['神学校の落ちこぼれ','教国の巡礼者'],[{m:'破門された僧',f:'破門された尼僧'},'異端審問から逃げてきた者'],['元聖堂騎士']],
     tale:['寺院の連中は、祈りより先に値段を言う。故郷でもそうだった','教国の教えじゃ、ロストした魂は迷宮に召されるんだとさ。……冗談じゃない']},
-  'カルセ王国':{short:'カルセ',w:{'人間':2.2,'ホビット':.5},bg:[[{m:'小作農の次男',f:'小作農の次女'},'飢饉で畑を手放した若者','粉屋の見習い'],['麦の隊商の元護衛','カルセの国境警備隊あがり'],['カルセ王家の元近衛']],
+  'カルセ王国':{short:'カルセ',w:{'human':2.2,'hobbit':.5},bg:[[{m:'小作農の次男',f:'小作農の次女'},'飢饉で畑を手放した若者','粉屋の見習い'],['麦の隊商の元護衛','カルセの国境警備隊あがり'],['カルセ王家の元近衛']],
     tale:['ロウエンのパンはカルセの麦だ。故郷の畑の味がする','カルセじゃ、麦が実れば誰も剣なんか握らない。……ここは違う']},
-  'リンデ公国':{short:'リンデ',w:{'人間':1,'エルフ':.6},bg:[['森番の子','公国の猟師見習い'],['公国の弓兵あがり','森の街道の用心棒'],['公爵家の私生児','元公国弓兵隊長']],
+  'リンデ公国':{short:'リンデ',w:{'human':1,'elf':.6},bg:[['森番の子','公国の猟師見習い'],['公国の弓兵あがり','森の街道の用心棒'],['公爵家の私生児','元公国弓兵隊長']],
     tale:['リンデの森なら、獣の足跡で道がわかる。ここは石しかない','公爵さまは王国の顔色ばかり見てる。俺は自分の顔で稼ぐ']},
-  'ベルクラント鉱山諸侯領':{short:'ベルク',w:{'人間':1,'ドワーフ':1},bg:[['落盤で職を失った鉱夫',{m:'坑夫頭の息子',f:'坑夫頭の娘'}],[{m:'鉱山主の放蕩息子',f:'鉱山主の放蕩娘'},'鉱山の元用心棒'],[{m:'ベルクの坑道を三つ潰した男',f:'ベルクの坑道を三つ潰した女'}]],
+  'ベルクラント鉱山諸侯領':{short:'ベルク',w:{'human':1,'dwarf':1},bg:[['落盤で職を失った鉱夫',{m:'坑夫頭の息子',f:'坑夫頭の娘'}],[{m:'鉱山主の放蕩息子',f:'鉱山主の放蕩娘'},'鉱山の元用心棒'],[{m:'ベルクの坑道を三つ潰した男',f:'ベルクの坑道を三つ潰した女'}]],
     tale:['{deep}の鉱石、ベルクの親方衆が見たら目の色を変えるぞ','坑道で死ぬか、迷宮で死ぬか。稼げるほうを選んだだけさ']},
-  'ハザン草原':{short:'ハザン',w:{'人間':.5},bg:[['氏族を出た若い騎手'],['氏族を追われた馬泥棒','草原の隊商の案内人'],['ハザンの元氏族長']],
+  'ハザン草原':{short:'ハザン',w:{'human':.5},bg:[['氏族を出た若い騎手'],['氏族を追われた馬泥棒','草原の隊商の案内人'],['ハザンの元氏族長']],
     tale:['馬で駆けられない場所は好きじゃない。……金になるなら別だが','草原の風が恋しい。ここの風は死人の匂いがする']},
-  '灰の荒野':{short:'荒野',w:{'人間':1,'ドワーフ':.3},bg:[['荒野の流民の子'],['旧王国の遺物を掘る墓荒らし'],['滅んだ王国の生き残り','エスタリア騎士の末裔']],
+  '灰の荒野':{short:'荒野',w:{'human':1,'dwarf':.3},bg:[['荒野の流民の子'],['旧王国の遺物を掘る墓荒らし'],['滅んだ王国の生き残り','エスタリア騎士の末裔']],
     tale:['{deep}で旧王国の紋章を見た。……故郷の紋だ','あの穴の底に、俺たちの国が眠ってる']},
-  'ロウエン':{short:'ロウエン',w:{'人間':1,'ホビット':.4,'ドワーフ':.4,'エルフ':.4},bg:[['ロウエンの孤児','寺院の下働き'],['ロウエン生まれの冒険者の二世'],['ロウエンの生き字引']],
+  'ロウエン':{short:'ロウエン',w:{'human':1,'hobbit':.4,'dwarf':.4,'elf':.4},bg:[['ロウエンの孤児','寺院の下働き'],['ロウエン生まれの冒険者の二世'],['ロウエンの生き字引']],
     tale:['この街で生まれて、この穴で死ぬ。それだけさ','親父もこの穴に潜ってた。帰ってこなかったがな']},
-  '霧の森':{short:'森',w:{'エルフ':8},bg:[['森を飛び出した若いエルフ'],['森を追放されたエルフ'],['森の長老会を去った賢者']],
+  '霧の森':{short:'森',w:{'elf':8},bg:[['森を飛び出した若いエルフ'],['森を追放されたエルフ'],['森の長老会を去った賢者']],
     tale:['森の連中が見たら卒倒するだろうな、あの穴の底は','大地の傷、か。……長老たちの言うことも、わからなくはない']},
-  '鉄の山脈':{short:'山脈',w:{'ドワーフ':8},bg:[['坑道の見習い鉱夫'],['封鎖された坑道の元番人'],['坑道都市の元鍛冶頭']],
+  '鉄の山脈':{short:'山脈',w:{'dwarf':8},bg:[['坑道の見習い鉱夫'],['封鎖された坑道の元番人'],['坑道都市の元鍛冶頭']],
     tale:['石の積み方が坑道と同じだ。誰かが掘ったんだよ、あれは','{deep}の岩は質がいい。故郷の親方に見せたいね']},
-  '麦穂の丘':{short:'丘',w:{'ホビット':8},bg:[['麦畑を抜け出したホビット','粉挽き小屋の子'],['丘の自警団あがり'],['丘で一番の物知り']],
+  '麦穂の丘':{short:'丘',w:{'hobbit':8},bg:[['麦畑を抜け出したホビット','粉挽き小屋の子'],['丘の自警団あがり'],['丘で一番の物知り']],
     tale:['丘のみんなにこの話をしたら、誰も信じないだろうな','麦の穂が恋しい。迷宮には風が吹かない']},
-  '東方の島国アズマ':{short:'アズマ',far:true,w:{'人間':.12},cls:{'侍':12,'剣聖':12},bg:[['海を渡ってきた若い剣士'],[{m:'主家を失った浪人',f:'主家を失った女浪人'}],['アズマで名を馳せた剣客']],
+  '東方の島国アズマ':{short:'アズマ',far:true,w:{'human':.12},cls:{'samurai':12,'kensei':12},bg:[['海を渡ってきた若い剣士'],[{m:'主家を失った浪人',f:'主家を失った女浪人'}],['アズマで名を馳せた剣客']],
     tale:['故郷の海が見たい。……いや、今のは忘れてくれ','アズマの剣は、こんな穴の底で錆びさせるものじゃない']},
-  '砂の大陸ザハル':{short:'ザハル',far:true,w:{'人間':.08,'エルフ':.03},cls:{'錬金術師':20,'竜騎士':20},bg:[['ザハルの隊商から逃げた見習い'],['ザハルの錬金術師の弟子'],['ザハルの竜騎兵団の生き残り']],
+  '砂の大陸ザハル':{short:'ザハル',far:true,w:{'human':.08,'elf':.03},cls:{'alchemist':20,'dragoon':20},bg:[['ザハルの隊商から逃げた見習い'],['ザハルの錬金術師の弟子'],['ザハルの竜騎兵団の生き残り']],
     tale:['砂漠の夜よりは、迷宮のほうがまだ暖かい','ザハルの市場なら、この遺物に三倍の値がつく']},
-  '北の氷海ノルデン':{short:'ノルデン',far:true,w:{'人間':.08,'ドワーフ':.04},cls:{'獣使い':20},bg:[['ノルデンの漁師の子'],['ノルデンの海賊あがり'],['氷海の狩人の頭']],
+  '北の氷海ノルデン':{short:'ノルデン',far:true,w:{'human':.08,'dwarf':.04},cls:{'tamer':20},bg:[['ノルデンの漁師の子'],['ノルデンの海賊あがり'],['氷海の狩人の頭']],
     tale:['氷海の嵐に比べれば、こんなもの','相棒の故郷も氷の島だ。迷宮は暑すぎるとさ']},
 };
 function pickOrigin(race,cls){
@@ -1016,13 +1019,13 @@ function originIntro(origin,bg){
 }
 function newcomerClause(origin,bg){return originIntro(origin,bg).news+(bg||'')+(bg&&String(bg).endsWith('だった')?'という':'だという');}
 function doorLine(S,a){
-  return `${originIntro(a.origin,a.bg).door}${a.bg}。${ageWords(a)}、${a.sex==='女'?'女の':''}${a.race}の${a.cls}（レベル${a.lvl}）として${S.taverns[a.tav].name}の扉をくぐる。夢は「${dreamText(a.dream)}」`;
+  return `${originIntro(a.origin,a.bg).door}${a.bg}。${ageWords(a)}、${a.sex==='女'?'女の':''}${raceName(a.race)}の${clsName(a.cls)}（レベル${a.lvl}）として${S.taverns[a.tav].name}の扉をくぐる。夢は「${dreamText(a.dream)}」`;
 }
 function ourNewcomerNews(a){
-  const age=a.race==='人間'?a.age+'歳の':'人間でいえば'+humanAge(a)+'歳ほどの';
-  const tail=`${a.odd?a.race+'の'+a.cls+'とは珍しい。':''}${CLS[a.cls].rare?a.cls+'とは、めったに見ない職業だ。':''}${a.blessed?'生まれながらに'+a.traits.join('・')+'を備えた、天に愛された者らしい。':''}${a.cursed?'見るからに星回りが悪い。'+a.traits.join('・')+'と、不得手ばかりだという。':''}`;
+  const age=a.race==='human'?a.age+'歳の':'人間でいえば'+humanAge(a)+'歳ほどの';
+  const tail=`${a.odd?raceName(a.race)+'の'+clsName(a.cls)+'とは珍しい。':''}${CLS[a.cls].rare?clsName(a.cls)+'とは、めったに見ない職業だ。':''}${a.blessed?'生まれながらに'+a.traits.join('・')+'を備えた、天に愛された者らしい。':''}${a.cursed?'見るからに星回りが悪い。'+a.traits.join('・')+'と、不得手ばかりだという。':''}`;
   const rare=a.odd||CLS[a.cls].rare||ORIGINS[a.origin].far||a.blessed||a.cursed;
-  return {t:`新顔がやってきた。${newcomerClause(a.origin,a.bg)}${age}${a.sex==='女'?'女':''}${a.race}の${a.cls}、${a.name}（Lv${a.lvl}）。${tail}`,k:rare?'record':'info'};
+  return {t:`新顔がやってきた。${newcomerClause(a.origin,a.bg)}${age}${a.sex==='女'?'女':''}${raceName(a.race)}の${clsName(a.cls)}、${a.name}（Lv${a.lvl}）。${tail}`,k:rare?'record':'info'};
 }
 function PL(a){return Math.ceil(a.lvl/2)}
 function rankOf(l){return l>=50?'神話':l>=40?'伝説':l>=30?'英雄':l>=20?'ベテラン':l>=10?'一人前':'駆け出し'}
@@ -1032,7 +1035,7 @@ function lvlUp(a){a.lvl++;const c=CLS[a.cls];const t=TAL[a.tal]||TAL['並'];
   if(a.lvl%2===1){const k=(a.lvl+1)/2;if(k%2===0||(t.atk&&k%3===0))a.atk++;if(c.mpg>=1||(c.mpg===.5&&k>=(c.mageLv||3)&&k%2===1))a.mmp++;}}
 function chron(S,a,t){a.chron=a.chron||[];a.chron.push({tk:S.tick,t});if(a.chron.length>90)a.chron.splice(1,1);}
 const DREAMS={
-  conquer:{w:.6,cw:{'戦士':1,'侍':1,'聖騎士':1.5,'剣聖':1.5,'竜騎士':1.2},mk:()=>({}),txt:()=>'迷宮の主を討ち、踏破者として名を残したい',
+  conquer:{w:.6,cw:{'warrior':1,'samurai':1,'paladin':1.5,'kensei':1.5,'dragoon':1.2},mk:()=>({}),txt:()=>'迷宮の主を討ち、踏破者として名を残したい',
     ok:(S,a)=>a.conq,msg:a=>`${a.name}が迷宮の主を討ち、踏破者として名を残した。`,prog:a=>`これまでの最深 ${deepNow(a.deepest)}`},
   truth:{w:0,ow:{'灰の荒野':3},mk:()=>({}),txt:()=>'故国エスタリアが沈んだ真相を、この目で確かめたい',
     ok:(S,a)=>a.deepest>=MAXF,msg:a=>`${a.name}が迷宮の最下層にたどり着き、故国が沈んだ地の底をその目で見た。`,prog:a=>`これまでの最深 ${deepNow(a.deepest)}`},
@@ -1044,7 +1047,7 @@ const DREAMS={
     ok:(S,a,d)=>a.gold>=d.amt,msg:(a,d)=>`${a.name}が${d.amt}Gの財を成した。`,ret:d=>d.vi===1&&d.place?`${d.place}に屋敷を構える`:'財を成し、悠々自適の暮らしに入る',prog:(a,d)=>`貯金 ${G(a.gold)} / ${G(d.amt)}`},
   shop:{w:1,mk:a=>({amt:r100(Math.max(12000,incomeAt(depthOf(a)+3)*ri(20,30))),what:pick(['パン屋','鍛冶屋','宿屋','薬屋','本屋','花屋','酒場','武具屋'])}),txt:d=>`王都の大通りに${d.what}を構えたい（${d.amt}G）`,
     ok:(S,a,d)=>a.gold>=d.amt,pay:d=>d.amt,msg:(a,d)=>`${a.name}が貯めた金で、${d.place||'王都の大通り'}に${d.what}を構えることになった。`,ret:d=>`${d.place||'王都'}に${d.what}を構える`,prog:(a,d)=>`貯金 ${G(a.gold)} / ${G(d.amt)}`},
-  temple:{w:.3,cw:{'僧侶':2.5,'司教':2.5},mk:a=>({amt:r100(Math.max(10000,incomeAt(depthOf(a)+3)*ri(15,25)))}),txt:d=>`故郷の村に寺院を建てたい（${d.amt}G）`,
+  temple:{w:.3,cw:{'priest':2.5,'bishop':2.5},mk:a=>({amt:r100(Math.max(10000,incomeAt(depthOf(a)+3)*ri(15,25)))}),txt:d=>`故郷の村に寺院を建てたい（${d.amt}G）`,
     ok:(S,a,d)=>a.gold>=d.amt,pay:d=>d.amt,msg:(a,d)=>`${a.name}の寄進で、故郷の村に${d.what||'寺院'}が建つことになった。`,ret:d=>`故郷に建てた${d.what||'寺院'}を守る`,prog:(a,d)=>`貯金 ${G(a.gold)} / ${G(d.amt)}`},
   abyss:{w:1.2,mk:a=>({f:MAXF}),txt:()=>`迷宮の最下層、${FN(MAXF)}にたどり着きたい`,
     ok:(S,a,d)=>a.deepest>=MAXF,msg:a=>`${a.name}が迷宮の最下層${FN(MAXF)}にたどり着き、長年の夢を果たした。`,prog:a=>`これまでの最深 ${deepNow(a.deepest)}`},
@@ -1052,7 +1055,7 @@ const DREAMS={
     ok:(S,a,d)=>a.deepest>=d.f,msg:(a,d)=>`${a.name}が${FN(d.f)}の景色を見るという夢を果たした。`,prog:a=>`これまでの最深 ${deepNow(a.deepest)}`},
   kin:{w:1,mk:(a,S)=>{const who=pick(['兄','姉','師匠','幼なじみ','父','弟']);const g=KIN_G[who]||pick(['男','女']);return {who,g,f:ri(GATE_F+1,GATE_F+6),name:uname(S,g)}},
     txt:d=>`封じの門を密かに越えて消えた${d.who}の${d.name}を探している（${FN(d.f)}付近）`,ok:()=>false,prog:a=>`これまでの最深 ${deepNow(a.deepest)}`},
-  dragon:{w:.8,cw:{'戦士':1.3,'侍':1.6,'竜騎士':4},mk:()=>({m:'黒竜'}),txt:()=>'黒竜を討ち、竜殺しと呼ばれたい',
+  dragon:{w:.8,cw:{'warrior':1.3,'samurai':1.6,'dragoon':4},mk:()=>({m:'黒竜'}),txt:()=>'黒竜を討ち、竜殺しと呼ばれたい',
     ok:(S,a,d)=>(a.slain||{})['黒竜'],msg:a=>`${a.name}が黒竜を討ち果たした！ 竜殺しの名が街じゅうに響く。`,prog:a=>`これまでの最深 ${deepNow(a.deepest)}`},
   slay:{w:1,mk:()=>({}),txt:d=>`故郷を滅ぼした${d.m}を討ちたい`,
     ok:(S,a,d)=>(a.slain||{})[d.m],msg:(a,d)=>`${a.name}が、${d.why||'故郷を滅ぼした'}${d.m}への仇を討った。`,ret:()=>chance(.4)?'仇を討ち、剣を置く':null,prog:a=>`これまでの最深 ${deepNow(a.deepest)}`},
@@ -1062,11 +1065,11 @@ const DREAMS={
     ok:(S,a)=>eqList(a).some(i=>i.rare),msg:a=>`${a.name}が伝説の${eqList(a).find(i=>i.rare).n}を手にし、夢を果たした。`,prog:()=>'伝説の武具は、この世にひとつずつしかない'},
   fame:{w:1,mk:()=>({}),txt:()=>'吟遊詩人に歌われるほどの英雄になりたい',
     ok:(S,a)=>(a.titleTier||0)>=3,msg:(a,d)=>`「${a.title}」${a.name}`+[`の武勇が、ついに吟遊詩人に歌われはじめた。`,`の真似をして遊ぶ子どもが、街に現れはじめた。`,`の役が、ついに王都の芝居に登場した。`,`の名を、ロウエンで知らぬ者はいなくなった。`][d&&d.vi||0],prog:a=>a.title?`いまは「${a.title}」と呼ばれている`:'まだ二つ名もない'},
-  knight:{w:.4,cw:{'戦士':1.5,'侍':1.2,'僧侶':1,'聖騎士':3,'竜騎士':2},mk:()=>({}),txt:()=>'王国の騎士に取り立てられたい',
+  knight:{w:.4,cw:{'warrior':1.5,'samurai':1.2,'priest':1,'paladin':3,'dragoon':2},mk:()=>({}),txt:()=>'王国の騎士に取り立てられたい',
     ok:(S,a)=>a.lvl>=28&&a.kills>=150,msg:(a,d)=>d.vi===1&&d.who&&d.who!=='王国'?`${a.name}の名声が${d.who}の耳に届き、騎士として召し抱えられることになった。`:`${a.name}の名声が王都に届き、騎士として召し抱えられることになった。`,ret:d=>d.vi===1&&d.who&&d.who!=='王国'?`${d.who}に仕える騎士となる`:'王国の騎士に取り立てられる',prog:a=>`Lv${a.lvl}・討伐${a.kills}（騎士の目に留まるには、もっと名を上げねば）`},
-  archmage:{w:0,cw:{'魔術師':3,'魔導士':3,'司教':1},mk:()=>({}),txt:()=>'あらゆる呪文を極め、大魔導士と呼ばれたい',
+  archmage:{w:0,cw:{'mage':3,'sorcerer':3,'bishop':1},mk:()=>({}),txt:()=>'あらゆる呪文を極め、大魔導士と呼ばれたい',
     ok:(S,a)=>a.lvl>=32,msg:a=>`${a.name}があらゆる呪文を極め、大魔導士と呼ばれるようになった。`,prog:a=>`いまLv${a.lvl}`},
-  map:{w:.4,cw:{'盗賊':1.5,'忍者':1.5},mk:()=>({}),txt:()=>'迷宮の完全な地図を描き上げたい',
+  map:{w:.4,cw:{'thief':1.5,'ninja':1.5},mk:()=>({}),txt:()=>'迷宮の完全な地図を描き上げたい',
     ok:(S,a)=>a.deepest>=MAXF&&(a.trips||0)>=40,msg:a=>`${a.name}が、迷宮の完全な地図を描き上げた。写しは高値で売れるだろう。`,prog:a=>`探索${a.trips||0}回・最深${deepNow(a.deepest)}`},
   sendhome:{w:.8,aw:a=>humanAge(a)<22?2:humanAge(a)>40?.4:1,mk:a=>({amt:r100(Math.max(2000,incomeAt(depthOf(a)+2)*ri(5,9))),who:pick(['弟や妹たち','病気の母','年老いた両親','村の孤児院','戦で片腕をなくした兄'])}),txt:d=>`${d.who}への仕送り（${d.amt}G）を貯めて送りたい`,
     ok:(S,a,d)=>a.gold>=d.amt,pay:d=>d.amt,msg:(a,d)=>`${a.name}が、${d.who}へ${d.amt}Gを送り届けた。`,prog:(a,d)=>`貯金 ${G(a.gold)} / ${G(d.amt)}`},
@@ -1083,18 +1086,18 @@ const DREAMS={
     ok:(S,a,d)=>a.lvl>=d.l,msg:(a,d)=>`${a.name}がレベル${d.l}に達した。子ども扱いしていた連中も、もう笑わない。`,prog:a=>`いまLv${a.lvl}`},
   defy:{w:.6,mk:a=>({l:Math.max(20,a.lvl+12),g:a.sex}),txt:d=>d.g==='女'?`「女に剣は振れない」と言った故郷の連中を、レベル${d.l}になって見返したい`:`家業を継げと言う父に、レベル${d.l}になって自分の生き方を認めさせたい`,
     ok:(S,a,d)=>a.lvl>=d.l,msg:(a,d)=>d.g==='女'?`${a.name}がレベル${d.l}に達した。故郷に届いた噂に、かつて笑った連中は黙り込んだという。`:`${a.name}がレベル${d.l}に達し、故郷の父から「好きにしろ」とだけ書いた手紙が届いた。`,prog:a=>`いまLv${a.lvl}`},
-  elfsong:{w:1.5,can:a=>a.race==='エルフ',mk:()=>({}),txt:()=>'森へ帰る前に、人の世の英雄譚をこの目で見届けたい',
+  elfsong:{w:1.5,can:a=>a.race==='elf',mk:()=>({}),txt:()=>'森へ帰る前に、人の世の英雄譚をこの目で見届けたい',
     ok:(S,a)=>(a.trips||0)>=25&&a.deepest>=GATE_F+5,msg:a=>`${a.name}が、森へ持ち帰る英雄譚をいくつも見届けた。`,ret:()=>chance(.5)?'人の世の歌を携えて森へ帰る':null,prog:a=>`探索${a.trips||0}回・最深${deepNow(a.deepest)}`},
-  elfrelic:{w:1.2,can:a=>a.race==='エルフ',mk:()=>({f:ri(GATE_F+4,GATE_F+12)}),txt:d=>`${FN(d.f)}あたりに沈んだという、古いエルフの弓を見つけて森へ返したい`,
+  elfrelic:{w:1.2,can:a=>a.race==='elf',mk:()=>({f:ri(GATE_F+4,GATE_F+12)}),txt:d=>`${FN(d.f)}あたりに沈んだという、古いエルフの弓を見つけて森へ返したい`,
     ok:(S,a,d)=>a.deepest>=d.f,msg:(a,d)=>`${a.name}が${FN(d.f)}で古いエルフの弓を見つけ出した。森の長老たちに届けるという。`,prog:a=>`これまでの最深 ${deepNow(a.deepest)}`},
-  dwarfaxe:{w:1.5,can:a=>a.race==='ドワーフ'||a.origin==='ベルクラント鉱山諸侯領',mk:()=>{const t=ri(4,6);return {t,mat:SHOP_MAT.metal[t-1],amt:SHOP_PRICE[t]*2}},txt:d=>`グンター親方に、${d.mat}で自分だけの得物を打たせたい（${d.amt}G）`,
+  dwarfaxe:{w:1.5,can:a=>a.race==='dwarf'||a.origin==='ベルクラント鉱山諸侯領',mk:()=>{const t=ri(4,6);return {t,mat:SHOP_MAT.metal[t-1],amt:SHOP_PRICE[t]*2}},txt:d=>`グンター親方に、${d.mat}で自分だけの得物を打たせたい（${d.amt}G）`,
     ok:(S,a,d)=>!!(S.shop&&S.shop.tiers&&S.shop.tiers[d.t])&&a.gold>=d.amt,pay:d=>d.amt,act:(S,a,d)=>{const o=shopOffers(S,a.cls).filter(x=>x.t===d.t&&x.b.slot==='wpn')[0];if(o){const it=shopMake(S,o.b,o.t);it.n=`${a.name}の${d.mat}の${o.b.t}`;it.atk=(it.atk||0)+2;equip(a,it);}},
     msg:(a,d)=>`${a.name}が、グンター親方に打たせた${d.mat}の得物を手にした。`,prog:(a,d)=>`貯金 ${G(a.gold)} / ${G(d.amt)}${S.shop&&S.shop.tiers&&S.shop.tiers[d.t]?'':'（武具屋にまだ'+d.mat+'の品がない）'}`},
   mine:{w:0,ow:{'鉄の山脈':2,'ベルクラント鉱山諸侯領':2.5},mk:a=>({amt:r100(Math.max(20000,incomeAt(depthOf(a)+3)*ri(30,45)))}),txt:d=>`一族が手放した坑道を買い戻したい（${d.amt}G）`,
     ok:(S,a,d)=>a.gold>=d.amt,pay:d=>d.amt,msg:(a,d)=>`${a.name}が、一族の坑道を買い戻した。`,ret:()=>chance(.5)?'買い戻した坑道へ帰る':null,prog:(a,d)=>`貯金 ${G(a.gold)} / ${G(d.amt)}`},
-  hobbithome:{w:1.6,can:a=>a.race==='ホビット',mk:a=>({amt:r100(Math.max(8000,incomeAt(depthOf(a)+3)*ri(18,26)))}),txt:d=>`麦穂の丘に、丸い窓のある大きな家を建てたい（${d.amt}G）`,
+  hobbithome:{w:1.6,can:a=>a.race==='hobbit',mk:a=>({amt:r100(Math.max(8000,incomeAt(depthOf(a)+3)*ri(18,26)))}),txt:d=>`麦穂の丘に、丸い窓のある大きな家を建てたい（${d.amt}G）`,
     ok:(S,a,d)=>a.gold>=d.amt,pay:d=>d.amt,msg:(a,d)=>`${a.name}が、麦穂の丘に丸い窓の家を建てる金を送った。`,ret:()=>chance(.5)?'丘に帰って、丸い窓の家で暮らす':null,prog:(a,d)=>`貯金 ${G(a.gold)} / ${G(d.amt)}`},
-  book:{w:.3,aw:a=>(a.race==='ホビット'?3:1)*(a.quirk==='読書家'?3:1),mk:()=>({}),txt:()=>'迷宮での冒険を、一冊の本に書き上げたい',
+  book:{w:.3,aw:a=>(a.race==='hobbit'?3:1)*(a.quirk==='読書家'?3:1),mk:()=>({}),txt:()=>'迷宮での冒険を、一冊の本に書き上げたい',
     ok:(S,a)=>(a.trips||0)>=30&&a.deepest>=GATE_F+3,msg:a=>`${a.name}が、迷宮での冒険を一冊の本に書き上げた。ロウエンの本屋に並ぶらしい。`,prog:a=>`探索${a.trips||0}回・最深${deepNow(a.deepest)}`},
   ship:{w:0,ow:{'セーレ自由都市同盟':2.5},mk:a=>({amt:r100(Math.max(25000,incomeAt(depthOf(a)+3)*ri(35,50)))}),txt:d=>`自分の船を一隻持ちたい（${d.amt}G）`,
     ok:(S,a,d)=>a.gold>=d.amt,pay:d=>d.amt,msg:(a,d)=>`${a.name}が、セーレの港で自分の船を買った。`,ret:()=>chance(.6)?'自分の船で海に出る':null,prog:(a,d)=>`貯金 ${G(a.gold)} / ${G(d.amt)}`},
@@ -1114,21 +1117,21 @@ const DREAMS={
     ok:(S,a,d)=>a.deepest>=d.f,msg:(a,d)=>`${a.name}が、父が目指した${FN(d.f)}に立った。`,prog:a=>`これまでの最深 ${deepNow(a.deepest)}`},
   lord:{w:0,ow:{'東方の島国アズマ':3},mk:()=>({}),txt:()=>'亡き主君の墓前に、迷宮の名品を供えたい',
     ok:(S,a)=>eqList(a).some(i=>i.rare),msg:a=>`${a.name}が、亡き主君の墓前に供える名品を手に入れた。`,ret:()=>chance(.5)?'主君の墓前へ帰る':null,prog:()=>'伝説の品を探している'},
-  elixir:{w:0,ow:{'砂の大陸ザハル':3},cw:{'錬金術師':4},mk:()=>({}),txt:()=>'澱が結晶した「澱晶」を持ち帰り、師の錬金術を完成させたい',
+  elixir:{w:0,ow:{'砂の大陸ザハル':3},cw:{'alchemist':4},mk:()=>({}),txt:()=>'澱が結晶した「澱晶」を持ち帰り、師の錬金術を完成させたい',
     ok:(S,a)=>a.deepest>=24,msg:a=>`${a.name}が澱晶を手に入れ、師の研究を完成させた。`,ret:()=>chance(.5)?'澱晶を携えてザハルへ帰る':null,prog:a=>`これまでの最深 ${deepNow(a.deepest)}`},
-  trapper:{w:0,cw:{'盗賊':2,'忍者':2},mk:a=>({n:Math.max(30,(a.disarms||0)+20)}),txt:d=>`迷宮一の罠外しと呼ばれたい（罠${d.n}個）`,
+  trapper:{w:0,cw:{'thief':2,'ninja':2},mk:a=>({n:Math.max(30,(a.disarms||0)+20)}),txt:d=>`迷宮一の罠外しと呼ばれたい（罠${d.n}個）`,
     ok:(S,a,d)=>(a.disarms||0)>=d.n,msg:(a,d)=>`${a.name}が外した罠が${d.n}個に達した。ロウエンで一番の罠外しだ。`,prog:a=>`外した罠 ${a.disarms||0}個`},
-  thousand:{w:0,cw:{'戦士':1.2,'侍':1.2,'剣聖':2,'忍者':1},mk:a=>({n:Math.max(500,(a.kills||0)+300)}),txt:d=>`魔物を${d.n}体斬り伏せたい`,
+  thousand:{w:0,cw:{'warrior':1.2,'samurai':1.2,'kensei':2,'ninja':1},mk:a=>({n:Math.max(500,(a.kills||0)+300)}),txt:d=>`魔物を${d.n}体斬り伏せたい`,
     ok:(S,a,d)=>a.kills>=d.n,msg:(a,d)=>`${a.name}が斬った魔物が${d.n}体に達した。`,prog:a=>`討伐 ${a.kills}`},
-  yomi:{w:0,cw:{'僧侶':1.5,'司教':1.5},mk:()=>({}),txt:()=>'寺院に頼らず、迷宮の中で仲間を蘇らせたい（ヨミガエリ）',
+  yomi:{w:0,cw:{'priest':1.5,'bishop':1.5},mk:()=>({}),txt:()=>'寺院に頼らず、迷宮の中で仲間を蘇らせたい（ヨミガエリ）',
     ok:(S,a)=>(a.yomiN||0)>=1,msg:a=>`${a.name}が、迷宮の中でヨミガエリを成功させた。`,prog:a=>`いまLv${a.lvl}`},
-  ballad:{w:0,cw:{'吟遊詩人':4},mk:()=>({}),txt:()=>'迷宮の英雄たちの歌を、一曲に仕上げたい',
+  ballad:{w:0,cw:{'bard':4},mk:()=>({}),txt:()=>'迷宮の英雄たちの歌を、一曲に仕上げたい',
     ok:(S,a)=>(a.trips||0)>=25&&a.deepest>=GATE_F+5,msg:a=>`${a.name}の新しい歌「沈んだ都の英雄たち」が、ロウエンじゅうの酒場で歌われはじめた。`,prog:a=>`探索${a.trips||0}回・最深${deepNow(a.deepest)}`},
-  partner:{w:0,cw:{'獣使い':4},mk:()=>({f:ri(GATE_F+3,GATE_F+10)}),txt:d=>`相棒と一緒に、${FN(d.f)}の景色を見たい`,
+  partner:{w:0,cw:{'tamer':4},mk:()=>({f:ri(GATE_F+3,GATE_F+10)}),txt:d=>`相棒と一緒に、${FN(d.f)}の景色を見たい`,
     ok:(S,a,d)=>a.deepest>=d.f,msg:(a,d)=>`${a.name}と相棒の${a.beast?a.beast.kind+'の'+a.beast.name:'獣'}が、${FN(d.f)}の景色を見た。`,prog:a=>`これまでの最深 ${deepNow(a.deepest)}`},
 
 
-  minebottom:{w:0,can:(a,S)=>mineOpen(S),aw:a=>a.race==='ドワーフ'||a.origin==='鉄の山脈'||a.origin==='ベルクラント鉱山諸侯領'?4:1.5,mk:()=>({}),txt:()=>'鉄の山脈の坑道の底を、この目で見たい',
+  minebottom:{w:0,can:(a,S)=>mineOpen(S),aw:a=>a.race==='dwarf'||a.origin==='鉄の山脈'||a.origin==='ベルクラント鉱山諸侯領'?4:1.5,mk:()=>({}),txt:()=>'鉄の山脈の坑道の底を、この目で見たい',
     ok:(S,a)=>(a.mineDeep||0)>=MINE_N,msg:a=>`${a.name}が坑道の底にたどり着き、澱の湧く岩の玉座をその目で見た。`,prog:a=>a.mineDeep?`これまでの坑道の最深 ${FN(MAXF+a.mineDeep)}`:'まだ坑道に入っていない'},
   rarehunt:{w:.7,mk:a=>({n:(a.rareKills||0)+ri(2,3)}),txt:d=>`名のある魔物を${d.n}体、この手で討ちたい`,
     ok:(S,a,d)=>(a.rareKills||0)>=d.n,msg:(a,d)=>`${a.name}が討った名のある魔物が${d.n}体になった。`,prog:a=>`名のある魔物の討伐 ${a.rareKills||0}体`},
@@ -1140,7 +1143,7 @@ const DREAMS={
     ok:(S,a)=>S.deepest.ours>S.deepest.rival&&a.deepest>=S.deepest.ours,msg:a=>`${a.name}が、銀の杯亭の看板より深い階に立った。`,prog:()=>`最深到達 黒猫亭 ${FN(S.deepest.ours)} / 銀の杯亭 ${FN(S.deepest.rival)}`},
   letters:{w:.6,can:a=>humanAge(a)<26&&a.lvl<14,mk:()=>({n:ri(8,14)}),txt:()=>'読み書きを覚えて、自分で故郷に手紙を書きたい',
     ok:(S,a,d)=>(a.trips||0)>=d.n,msg:a=>`${a.name}が、初めて自分の手で故郷へ手紙を書いた。`,prog:a=>`酒場の隅で、文字を練習している（探索${a.trips||0}回）`},
-  pilgrim:{w:0,ow:{'聖オルド教国':1.5},cw:{'僧侶':1,'司教':1.2,'聖騎士':1},mk:a=>({amt:r100(Math.max(3000,incomeAt(depthOf(a)+2)*ri(6,9)))}),txt:d=>`聖都へ巡礼する旅費（${d.amt}G）を貯めたい`,
+  pilgrim:{w:0,ow:{'聖オルド教国':1.5},cw:{'priest':1,'bishop':1.2,'paladin':1},mk:a=>({amt:r100(Math.max(3000,incomeAt(depthOf(a)+2)*ri(6,9)))}),txt:d=>`聖都へ巡礼する旅費（${d.amt}G）を貯めたい`,
     ok:(S,a,d)=>a.gold>=d.amt,pay:d=>d.amt,msg:a=>`${a.name}が、聖都への巡礼に旅立つ支度を整えた。`,ret:()=>chance(.5)?'聖都へ巡礼に出る':null,prog:(a,d)=>`貯金 ${G(a.gold)} / ${G(d.amt)}`},
   library:{w:0,aw:a=>a.quirk==='読書家'?1:0,mk:()=>({}),txt:()=>'迷宮で拾った古文書を、王都の図書館に寄贈したい',
     ok:(S,a)=>a.deepest>=GATE_F+6&&(a.trips||0)>=15,msg:a=>`${a.name}が集めた古文書が、王都の図書館に収められた。`,prog:a=>`これまでの最深 ${deepNow(a.deepest)}`},
@@ -1252,12 +1255,12 @@ function makeAdv(S,tav,o){
   a.origin=o.origin||pickOrigin(race,cls);
   a.bg=o.bg||originBg(a.origin,a.lvl,a.sex);
   if(o.opening)a.opening=true;
-  a.age=o.age?Math.max((AGE[race]||AGE['人間'])[0]-2,o.age):rollAge(race,a.lvl);
+  a.age=o.age?Math.max((AGE[race]||AGE['human'])[0]-2,o.age):rollAge(race,a.lvl);
   personalize(a);assignTraits(S,a);
   a.dream=o.dream||makeDream(S,a);
   if(tav==='rival'&&!o.noLoan){const it=makeItem(S,Math.min(10,PL(a)+2),cls);if(giveBest(S,[a],it,null)){a.debt=r100(incomeAt(depthOf(a))*ri(3,6));a.loanItem=it.n;}}
   if(odd)chron(S,a,`${ODD_PERK[race]}`);
-  if(c.rare)chron(S,a,`めったに見ない${cls}。${c.desc}`);
+  if(c.rare)chron(S,a,`めったに見ない${clsName(cls)}。${c.desc}`);
   if(c.beast){a.beast={kind:pick(BEAST_KIND),name:pick(BEAST_NAMES)};chron(S,a,`相棒は${a.beast.kind}の${a.beast.name}`);}
   chron(S,a,doorLine(S,a));
   if(a.debt)chron(S,a,`銀の杯亭から${a.loanItem}を借りる。借金${a.debt}G`);
@@ -1298,7 +1301,7 @@ function buyPrice(S,t){const m=t.score<=-2?.5:t.score<0?.8:t.score===0?1:t.score
 function buySmall(S,t){const T0=S.taverns.ours,c=buyPrice(S,t);if(t.owned||T0.gold<c)return false;T0.gold-=c;t.owned=S.tick;t.patron=true;
   smallLog(S,t,'黒猫亭に買い取られ、支店になった',0);
   news(S,`黒猫亭が、裏通りの${t.n}を${c}Gで買い取った。${t.n}は黒猫亭の支店になり、主人の${t.owner}がそのまま店を任される。常連の席が${BRANCH_SEATS}増えた。`,'record');
-  const n=ri(1,3);for(let i=0;i<n&&seatsUsed(S,'ours')<seatCap(S,'ours');i++){const lv=newcomerLvl(S,'ours');const a=makeAdv(S,'ours',Object.assign({bg:`${t.n}の常連`},lv?{lvl:lv}:{}));news(S,`${t.n}の常連だった${a.name}（${a.race}の${a.cls}・Lv${a.lvl}）が、黒猫亭に籍を移した。`,'info');}
+  const n=ri(1,3);for(let i=0;i<n&&seatsUsed(S,'ours')<seatCap(S,'ours');i++){const lv=newcomerLvl(S,'ours');const a=makeAdv(S,'ours',Object.assign({bg:`${t.n}の常連`},lv?{lvl:lv}:{}));news(S,`${t.n}の常連だった${a.name}（${raceName(a.race)}の${clsName(a.cls)}・Lv${a.lvl}）が、黒猫亭に籍を移した。`,'info');}
   news(S,`噂：銀の杯亭の${S.taverns.rival.owner||RIVAL_OWNER}「裏通りの店まで買い集めるとは。黒猫亭さんも、ずいぶん偉くなったものですね」`,'rumor');return true;}
 function seatsUsed(S,tav){return Object.values(S.adv).filter(a=>a.tav===tav&&isActive(a)).length}
 function freeAdv(S,tav){return Object.values(S.adv).filter(a=>a.tav===tav&&isIdle(a)&&(!a.party||!S.parties[a.party]||(S.parties[a.party].state==='wiped'&&!wipeFound(S.parties[a.party]))))}
@@ -1322,9 +1325,9 @@ function farewellGift(a){if(a.tav!=='ours'||(a.favor||0)<2)return 0;
   let g=Math.min(a.gold*.6,incomeAt(depthOf(a)+2)*Math.min(10,2+a.favor))*(repaid?.5:1);
   g=Math.round(g/100)*100;return g>=300?g:0;}
 // 人間換算の年齢を、その種族の若い側の実年齢に戻す。15歳が若い側の始まり、30歳が若い側の終わり
-function ageForHuman(race,h){h=clamp(h,15,30);if(!race||race==='人間'||!AGE2[race])return h;const r=AGE2[race];const t=(h-15)/15;return Math.round(r.n[0]+(r.n[1]-r.n[0])*t);}
+function ageForHuman(race,h){h=clamp(h,15,30);if(!race||race==='human'||!AGE2[race])return h;const r=AGE2[race];const t=(h-15)/15;return Math.round(r.n[0]+(r.n[1]-r.n[0])*t);}
 // 子が店に来うるいちばん早い刻。from は子が生まれた刻。人間は15年、長命な種族は若い側の始まりまで延ばす。乱数は使わない
-function childAtOf(a,from){const years=a.race==='エルフ'?30:a.race==='ドワーフ'?25:a.race==='ホビット'?18:15;const span=a.race==='エルフ'?20:a.race==='ドワーフ'?10:a.race==='ホビット'?4:3;
+function childAtOf(a,from){const years=a.race==='elf'?30:a.race==='dwarf'?25:a.race==='hobbit'?18:15;const span=a.race==='elf'?20:a.race==='dwarf'?10:a.race==='hobbit'?4:3;
   return from+(years*365+((a.id*17)%(span*365)))*TICKS_PER_DAY;}
 // 子が生まれた刻。2通目の便り（子が生まれた）を出した刻。記録がなければその便りの刻、便りがまだなら去った刻（暦の日から戻す）
 function childBornOf(a){
@@ -1415,7 +1418,7 @@ function giveLetterGift(S,from,to){
   if(!to||!isIdle(to)||(to.eq&&to.eq.acc))return null;
   const n=letterGoods(from);
   to.eq=to.eq||{};
-  to.eq.acc={n,slot:'acc',for:['戦士','侍','盗賊','僧侶','魔術師'],ac:1,f:1,lore:`${from.name}が故郷から送った品`};
+  to.eq.acc={n,slot:'acc',for:['warrior','samurai','thief','priest','mage'],ac:1,f:1,lore:`${from.name}が故郷から送った品`};
   chron(S,to,`${from.name}の便りに添えられた${n}を受け取る`);
   return n;
 }
@@ -1488,7 +1491,7 @@ function arriveKin(S,parent,due){
   else if(due.kind==='ysib')msg=`${k.name}が黒猫亭に来た。${parent.name}の歳の離れた${kr.rel}だという。「${kr.elder}は、黒猫亭の話ばかりしていた」`;
   else msg=`${k.name}が黒猫亭に来た。${parent.name}の${kr.rel}だという。便りで生まれたと知らされていた子だ。「${kr.uncle}のいた店は、ここですか」`;
   const rare=k.odd||CLS[k.cls].rare||ORIGINS[k.origin].far||k.blessed||k.cursed;
-  news(S,msg+(rare?` ${k.race}の${k.cls}、Lv${k.lvl}。`:''),rare?'record':'info');
+  news(S,msg+(rare?` ${raceName(k.race)}の${clsName(k.cls)}、Lv${k.lvl}。`:''),rare?'record':'info');
 }
 // 来る予定の刻だけを見る。予定がなければ乱数は引かない。席が埋まっていれば、その回は来ない
 function kinTick(S){
@@ -1756,14 +1759,14 @@ const QUIRK_MORE={
   '博打好き':['カード遊びの相手を探している','勝った金でまた賭けている','負けを取り返すまで帰らないと言い張っている'],
   '読書家':['燭台を引き寄せて、古書の頁をめくっている','迷宮の古い記録を書き写している','難しい顔で辞書を引いている'],
 };
-const CLS_DOING={'戦士':['剣を研いでいる','盾のへこみを叩いて直している'],'侍':['刀の手入れをしている','目を閉じて座っている'],
-  '盗賊':['錠前をいじって遊んでいる','財布を数えている。自分のものだと言い張っている'],'僧侶':['小声で祈っている','寺院の値段表を睨んでいる'],
-  '魔術師':['呪文書を読み返している','指先に小さな火を灯して遊んでいる'],'聖騎士':['聖印を磨いている','若い冒険者の祈りを聞いてやっている'],
-  '狂戦士':['酒樽を片手で持ち上げて見せている','腕相撲の相手を探している'],'剣聖':['一日中、同じ型を繰り返している','誰とも目を合わせずに座っている'],
-  '忍者':['いつの間にか天井の梁に座っている','気づくと背後に立っている'],'司教':['持ち込まれた品を鑑定している','説教を始めて客に逃げられている'],
-  '魔導士':['卓の上に小さな星図を描いている','誰にも読めない文字で何か書いている'],'竜騎士':['竜の言葉で何か呟いている','竜の鱗を指でなぞっている'],
-  '吟遊詩人':['新しい歌を試している','客から投げ銭をもらっている'],'錬金術師':['怪しい色の液体を混ぜている','小瓶の匂いを嗅いで顔をしかめている'],
-  '獣使い':['相棒の{beast}に干し肉をやっている','相棒の{beast}の毛並みを整えている']};
+const CLS_DOING={'warrior':['剣を研いでいる','盾のへこみを叩いて直している'],'samurai':['刀の手入れをしている','目を閉じて座っている'],
+  'thief':['錠前をいじって遊んでいる','財布を数えている。自分のものだと言い張っている'],'priest':['小声で祈っている','寺院の値段表を睨んでいる'],
+  'mage':['呪文書を読み返している','指先に小さな火を灯して遊んでいる'],'paladin':['聖印を磨いている','若い冒険者の祈りを聞いてやっている'],
+  'berserker':['酒樽を片手で持ち上げて見せている','腕相撲の相手を探している'],'kensei':['一日中、同じ型を繰り返している','誰とも目を合わせずに座っている'],
+  'ninja':['いつの間にか天井の梁に座っている','気づくと背後に立っている'],'bishop':['持ち込まれた品を鑑定している','説教を始めて客に逃げられている'],
+  'sorcerer':['卓の上に小さな星図を描いている','誰にも読めない文字で何か書いている'],'dragoon':['竜の言葉で何か呟いている','竜の鱗を指でなぞっている'],
+  'bard':['新しい歌を試している','客から投げ銭をもらっている'],'alchemist':['怪しい色の液体を混ぜている','小瓶の匂いを嗅いで顔をしかめている'],
+  'tamer':['相棒の{beast}に干し肉をやっている','相棒の{beast}の毛並みを整えている']};
 const REACT={
   '慎重':['油断はするなよ','……用心に越したことはない','焦ることはない。生きて帰るのが一番だ'],
   '普通':['そうだな','へえ、そいつは大したもんだ','まあ、なんとかなるさ'],
@@ -1802,13 +1805,13 @@ const ORIGIN_TALK={
   '麦穂の丘':[['丘では一日六回、食事をする',['六回！？','だからそんなに食べるのか']],['丘の連中は、誰も迷宮の話を信じない',['信じたら来ちまうからだろう','話してやれよ']]],
 };
 const RACE_TALK=[
-  [(A,B)=>A.race==='エルフ'&&B.race==='人間',(A,B)=>[`お前は今年で${B.age}か。……私が森を出たころには、生まれてもいないな`,pick(['年寄りくさいことを言うな','見た目は俺より若いくせに'])]],
-  [(A,B)=>A.race==='人間'&&B.race==='エルフ',(A,B)=>['エルフって、本当は何歳なんだ？',`${B.age}だ。森ではまだ若いほうだ`]],
-  [(A,B)=>A.race==='ホビット'&&B.race!=='ホビット',(A,B)=>['その皿、食べないなら貰っていい？',pick(['……もう三皿目だろう','好きにしろ'])]],
-  [(A,B)=>A.race!=='ホビット'&&B.race==='ホビット',(A,B)=>['お前、背が低いから天井の低い通路でも楽そうだな',pick(['そっちが勝手に頭をぶつけてるだけだよ','その代わり宝箱の中まで手が届かない'])]],
-  [(A,B)=>A.race==='ドワーフ'&&B.race==='ドワーフ',(A,B)=>['お前の髭、また伸びたな',pick(['迷宮は髭が伸びるのが早い','お前のには負ける'])]],
-  [(A,B)=>A.race==='ドワーフ'&&B.race!=='ドワーフ',(A,B)=>['この酒、薄いな。水で割ってあるのか？',pick(['割ってない。お前が強すぎるんだ','店主に聞こえるぞ'])]],
-  [(A,B)=>A.race==='エルフ'&&B.race==='エルフ',(A,B)=>['人間たちと潜るのにも、もう慣れたか',pick(['騒がしいが、退屈はしない','あと五十年もすれば慣れる'])]],
+  [(A,B)=>A.race==='elf'&&B.race==='human',(A,B)=>[`お前は今年で${B.age}か。……私が森を出たころには、生まれてもいないな`,pick(['年寄りくさいことを言うな','見た目は俺より若いくせに'])]],
+  [(A,B)=>A.race==='human'&&B.race==='elf',(A,B)=>['エルフって、本当は何歳なんだ？',`${B.age}だ。森ではまだ若いほうだ`]],
+  [(A,B)=>A.race==='hobbit'&&B.race!=='hobbit',(A,B)=>['その皿、食べないなら貰っていい？',pick(['……もう三皿目だろう','好きにしろ'])]],
+  [(A,B)=>A.race!=='hobbit'&&B.race==='hobbit',(A,B)=>['お前、背が低いから天井の低い通路でも楽そうだな',pick(['そっちが勝手に頭をぶつけてるだけだよ','その代わり宝箱の中まで手が届かない'])]],
+  [(A,B)=>A.race==='dwarf'&&B.race==='dwarf',(A,B)=>['お前の髭、また伸びたな',pick(['迷宮は髭が伸びるのが早い','お前のには負ける'])]],
+  [(A,B)=>A.race==='dwarf'&&B.race!=='dwarf',(A,B)=>['この酒、薄いな。水で割ってあるのか？',pick(['割ってない。お前が強すぎるんだ','店主に聞こえるぞ'])]],
+  [(A,B)=>A.race==='elf'&&B.race==='elf',(A,B)=>['人間たちと潜るのにも、もう慣れたか',pick(['騒がしいが、退屈はしない','あと五十年もすれば慣れる'])]],
 ];
 const PP=(L)=>{const t=pick(L);return [t[0],pick(t[1])];};
 const AGE_TALK=[
@@ -1824,13 +1827,13 @@ const SEX_TALK=[
   [(A,B)=>A.sex==='男'&&B.sex==='男',(A,B)=>PP([['腕相撲で決めようぜ。次の宝箱を開ける順番',['望むところだ','盗賊に任せろよ']],['お前のいびき、隣の部屋まで聞こえてたぞ',['お前の寝言よりはましだ','迷宮じゃ静かにしてるさ']]])],
 ];
 const CLS_TALK=[
-  [(A,B)=>['戦士','侍','聖騎士','剣聖'].includes(A.cls)&&['僧侶','司教'].includes(B.cls),(A,B)=>['次もイヤシを頼むぜ',pick(['怪我をしない努力もしてくれ','呪文にも限りがあるんだよ'])]],
-  [(A,B)=>['魔術師','魔導士'].includes(A.cls)&&['戦士','侍'].includes(B.cls),(A,B)=>['前を頼むよ。呪文を唱えるあいだは無防備なんだ',pick(['任せとけ','その代わり、群れはまとめて焼いてくれ'])]],
-  [(A,B)=>['盗賊','忍者'].includes(A.cls),(A,B)=>PP([['この前の宝箱、罠が三重だった',['よく外したな','よく生きてたな']],['錠前を見ると、つい開けたくなる',['店の金庫には手を出すなよ','職業病だな']]])],
-  [(A,B)=>A.cls==='侍'||A.cls==='剣聖',(A,B)=>['刀は毎晩手入れしないと、すぐ錆びる',pick(['迷宮の湿気はひどいからな','俺の剣はもう錆びだらけだ'])]],
-  [(A,B)=>A.cls==='吟遊詩人',(A,B)=>['新しい歌ができた。聴くか？',pick(['短いのにしてくれ','俺のことは歌うなよ'])]],
-  [(A,B)=>A.cls==='錬金術師',(A,B)=>['この薬、試してみないか。たぶん毒じゃない',pick(['たぶん、ってなんだ','お前が先に飲め'])]],
-  [(A,B)=>A.cls==='僧侶'||A.cls==='司教',(A,B)=>PP([['寺院の蘇生代、また上がるらしい',['神様も商売上手だな','死ぬのも金次第か']],['祈っても、灰になる者は灰になる',['だから祈るのさ','それでも祈るのか']]])],
+  [(A,B)=>['warrior','samurai','paladin','kensei'].includes(A.cls)&&['priest','bishop'].includes(B.cls),(A,B)=>['次もイヤシを頼むぜ',pick(['怪我をしない努力もしてくれ','呪文にも限りがあるんだよ'])]],
+  [(A,B)=>['mage','sorcerer'].includes(A.cls)&&['warrior','samurai'].includes(B.cls),(A,B)=>['前を頼むよ。呪文を唱えるあいだは無防備なんだ',pick(['任せとけ','その代わり、群れはまとめて焼いてくれ'])]],
+  [(A,B)=>['thief','ninja'].includes(A.cls),(A,B)=>PP([['この前の宝箱、罠が三重だった',['よく外したな','よく生きてたな']],['錠前を見ると、つい開けたくなる',['店の金庫には手を出すなよ','職業病だな']]])],
+  [(A,B)=>A.cls==='samurai'||A.cls==='kensei',(A,B)=>['刀は毎晩手入れしないと、すぐ錆びる',pick(['迷宮の湿気はひどいからな','俺の剣はもう錆びだらけだ'])]],
+  [(A,B)=>A.cls==='bard',(A,B)=>['新しい歌ができた。聴くか？',pick(['短いのにしてくれ','俺のことは歌うなよ'])]],
+  [(A,B)=>A.cls==='alchemist',(A,B)=>['この薬、試してみないか。たぶん毒じゃない',pick(['たぶん、ってなんだ','お前が先に飲め'])]],
+  [(A,B)=>A.cls==='priest'||A.cls==='bishop',(A,B)=>PP([['寺院の蘇生代、また上がるらしい',['神様も商売上手だな','死ぬのも金次第か']],['祈っても、灰になる者は灰になる',['だから祈るのさ','それでも祈るのか']]])],
 ];
 
 /* ---- bonds between regulars, and templated chatter ---- */
@@ -1931,8 +1934,8 @@ const TRAITS={
   '不運':{g:0,d:'罠にかかりやすく、魔物に狙われやすい'},'病弱':{g:0,d:'毒を受けやすい'},'覚えが悪い':{g:0,d:'育つのが遅い'},'浪費家':{g:0,d:'稼ぎをすぐ使ってしまう（店は儲かる）'},
 };
 const TR_OPP=[['俊足','鈍足'],['頑健','虚弱'],['器用','不器用'],['鷹の目','近眼'],['強運','不運'],['毒に強い','病弱'],['早熟','大器晩成'],['早熟','覚えが悪い'],['大器晩成','覚えが悪い']];
-const TR_BIAS={'ドワーフ':{'頑健':3,'毒に強い':2,'俊足':.3,'虚弱':.3,'鈍足':2},'エルフ':{'鷹の目':3,'博識':2,'夜目':2,'頑健':.4,'虚弱':2},'ホビット':{'器用':3,'強運':2,'俊足':2,'怪力':.2,'料理上手':2},'人間':{'早熟':1.5,'人望':1.5}};
-const TR_CLS={'僧侶':{'信心深い':3},'司教':{'信心深い':2,'博識':2},'魔術師':{'博識':2.5},'魔導士':{'博識':2},'盗賊':{'器用':2.5,'俊足':1.5},'忍者':{'俊足':2,'器用':2},'戦士':{'怪力':2,'頑健':1.5},'侍':{'鷹の目':1.5,'不屈':1.5},'聖騎士':{'信心深い':2,'不屈':1.5},'吟遊詩人':{'人望':3},'錬金術師':{'博識':2},'狂戦士':{'不屈':2.5,'怪力':2}};
+const TR_BIAS={'dwarf':{'頑健':3,'毒に強い':2,'俊足':.3,'虚弱':.3,'鈍足':2},'elf':{'鷹の目':3,'博識':2,'夜目':2,'頑健':.4,'虚弱':2},'hobbit':{'器用':3,'強運':2,'俊足':2,'怪力':.2,'料理上手':2},'human':{'早熟':1.5,'人望':1.5}};
+const TR_CLS={'priest':{'信心深い':3},'bishop':{'信心深い':2,'博識':2},'mage':{'博識':2.5},'sorcerer':{'博識':2},'thief':{'器用':2.5,'俊足':1.5},'ninja':{'俊足':2,'器用':2},'warrior':{'怪力':2,'頑健':1.5},'samurai':{'鷹の目':1.5,'不屈':1.5},'paladin':{'信心深い':2,'不屈':1.5},'bard':{'人望':3},'alchemist':{'博識':2},'berserker':{'不屈':2.5,'怪力':2}};
 function has(a,t){return !!(a&&a.traits&&a.traits.includes(t))}
 function pickTraits(a,g,n){const out=[];for(let i=0;i<n;i++){const w={};Object.entries(TRAITS).forEach(([k,v])=>{if(v.g!==g||out.includes(k)||(a.traits||[]).includes(k))return;
   if(TR_OPP.some(([x,y])=>(k===x&&((a.traits||[]).includes(y)||out.includes(y)))||(k===y&&((a.traits||[]).includes(x)||out.includes(x)))))return;
@@ -1968,8 +1971,8 @@ function trTrap(a){return (has(a,'器用')?.12:0)+(has(a,'強運')?.1:0)-(has(a,
 function trXp(a){let x=1;if(has(a,'早熟'))x*=a.lvl<20?1.25:.95;if(has(a,'大器晩成'))x*=a.lvl<20?.9:1.3;if(has(a,'覚えが悪い'))x*=.85;return x;}
 /* ---- personality: speech, catchphrases, fears, favourite food, change ---- */
 function pickTone(a){const h=humanAge(a);const w={'普通':4,'丁寧':1.5,'ぶっきらぼう':2,'無口':.5,'陽気':1.5,'古風':.5,'商人言葉':.4,'田舎なまり':.4};
-  if(a.origin==='セーレ自由都市同盟')w['商人言葉']*=8;if(['カルセ王国','麦穂の丘','ハザン草原'].includes(a.origin))w['田舎なまり']*=6;if(a.origin==='聖オルド教国'||a.cls==='僧侶'||a.cls==='司教')w['丁寧']*=2.5;
-  if(h>=50||a.cls==='侍'||a.cls==='剣聖'||a.origin==='東方の島国アズマ')w['古風']*=6;if(a.quirk==='無口')w['無口']*=4;if(a.pers==='無謀')w['陽気']*=2,w['ぶっきらぼう']*=2;if(a.pers==='臆病')w['丁寧']*=2;if(h<18)w['陽気']*=2;if(a.race==='エルフ')w['丁寧']*=2;
+  if(a.origin==='セーレ自由都市同盟')w['商人言葉']*=8;if(['カルセ王国','麦穂の丘','ハザン草原'].includes(a.origin))w['田舎なまり']*=6;if(a.origin==='聖オルド教国'||a.cls==='priest'||a.cls==='bishop')w['丁寧']*=2.5;
+  if(h>=50||a.cls==='samurai'||a.cls==='kensei'||a.origin==='東方の島国アズマ')w['古風']*=6;if(a.quirk==='無口')w['無口']*=4;if(a.pers==='無謀')w['陽気']*=2,w['ぶっきらぼう']*=2;if(a.pers==='臆病')w['丁寧']*=2;if(h<18)w['陽気']*=2;if(a.race==='elf')w['丁寧']*=2;
   return wpick(w);}
 const CATCH=['まあ、なんとかなる','やれやれ','上等だ','神のご加護を','金にならないことはしない','面白くなってきた','……悪くない','生きて帰るぞ','ついてないな','腹が減った','今日はいい日だ','運も実力のうち','死ぬにはいい日だ','これも修行','話が違う','任せとけ','ああ、面倒だ','見てろよ','一歩ずつだ','焦るな','明日は明日の風が吹く','借りは返す','笑って死ねるか','酒が待ってる'];
 const LAST_WORDS=['……あとは、頼む','まだ、夢が……','ちくしょう……','……寒いな','ここまで、か','……{catch}','故郷の……空が……'];
@@ -2001,8 +2004,8 @@ function onLostFriend(S,o){Object.entries(S.bonds||{}).forEach(([k,v])=>{if(v.n<
   else if(a.tone!=='無口'&&chance(.3))changeOf(S,a,`${o.name}を失ってから、口数が減った`,x=>x.tone='無口');
   else if(chance(.3))changeOf(S,a,`${o.name}の口癖を、真似るようになった`,x=>x.catch=o.catch||x.catch);});}
 function meOf(a){let me;const h=humanAge(a);
-  if(a.race==='エルフ')me='私';else if(a.race==='ドワーフ'&&h>=40)me='わし';else if(a.sex==='女')me=(a.pers==='慎重'||a.pers==='臆病'||h>=40)?'私':'あたし';else if(h>=55)me='わし';else if(a.pers==='臆病')me='僕';else me='俺';
-  if(a.tone==='丁寧'&&me!=='わし')me='私';if(a.tone==='古風'&&a.sex==='男'&&(a.cls==='侍'||a.cls==='剣聖'||a.origin==='東方の島国アズマ'))me='拙者';else if(a.tone==='古風'&&a.sex==='男')me='わし';
+  if(a.race==='elf')me='私';else if(a.race==='dwarf'&&h>=40)me='わし';else if(a.sex==='女')me=(a.pers==='慎重'||a.pers==='臆病'||h>=40)?'私':'あたし';else if(h>=55)me='わし';else if(a.pers==='臆病')me='僕';else me='俺';
+  if(a.tone==='丁寧'&&me!=='わし')me='私';if(a.tone==='古風'&&a.sex==='男'&&(a.cls==='samurai'||a.cls==='kensei'||a.origin==='東方の島国アズマ'))me='拙者';else if(a.tone==='古風'&&a.sex==='男')me='わし';
   return me;}
 // 文の「俺」「僕」（と「あたしたち」の「あたし」）を、話す者の一人称にする
 function withMe(a,t){const me=meOf(a);return t.replace(/俺|僕/g,me).replace(/あたし(?=たち)/g,me);}
@@ -2064,7 +2067,7 @@ function chatterTick(S){
   if(S.dragon&&S.dragon.kills)topics.push([1,()=>{say2(A,dragonAlive(S)?'黒竜がまた階段を塞いでるらしい':'黒竜が討たれたってよ');say2(B,pick(REACT[B.pers]));}]);
   const rk=Object.entries(S.rares||{}).filter(([,v])=>v.killed&&recent(v.killed.tk));
   if(rk.length)topics.push([2.5,()=>{const [f,v]=pick(rk);const R0=rareDef(+f);say2(A,`${v.killed.party}が「${R0.n}」を仕留めたらしい`);say2(B,pick(['見てみたかったな','運のいい連中だ',...REACT[B.pers]]));}]);
-  if(A.race!==B.race&&['エルフ','ドワーフ'].includes(A.race)&&['エルフ','ドワーフ'].includes(B.race))topics.push([2,()=>{say2(A,A.race==='ドワーフ'?'エルフは酒の飲み方も知らんのか':'ドワーフは、もう少し静かに飲めないのか');say2(B,B.race==='エルフ'?'樽ごと飲むのを飲み方とは呼ばない':'森の水でも飲んでろ');}]);
+  if(A.race!==B.race&&['elf','dwarf'].includes(A.race)&&['elf','dwarf'].includes(B.race))topics.push([2,()=>{say2(A,A.race==='dwarf'?'エルフは酒の飲み方も知らんのか':'ドワーフは、もう少し静かに飲めないのか');say2(B,B.race==='elf'?'樽ごと飲むのを飲み方とは呼ばない':'森の水でも飲んでろ');}]);
   if(A.origin&&A.origin===B.origin)topics.push([1.5,()=>{say2(A,`お前も${A.origin}の出か`);say2(B,pick(['ああ。もう何年も帰ってない','懐かしいな、あそこの飯','帰る理由もないがな']));}]);
   topics.push([1.5,()=>{const g=pick(GOSSIP);say2(A,g[0]);say2(B,g[1]);}]);
   const To=S.taverns.ours,RO=S.taverns.rival.owner||RIVAL_OWNER,ace=S.parties[S.ace];
@@ -2096,9 +2099,9 @@ function tick(S){
   for(const tav of ['ours','rival']){
     if(chance(.12)) formParties(S,tav);
     const rate=(tav==='ours'?0.016+Math.min(S.taverns.ours.rep,200)*0.00008:0.018)*(edict(S,'mercs')?1.8:1);
-    if(seatsUsed(S,tav)<seatCap(S,tav)&&chance(rate)){const a=makeAdv(S,tav,Object.assign({lvl:newcomerLvl(S,tav)},edict(S,'mercs')&&chance(.5)?{origin:'グラウ帝国',race:'人間'}:{})); if(tav==='ours'&&policy(S).rookie&&a.lvl<10){for(let k=0;k<2;k++){const o=giftOffer(S,a);if(!o||o.price>incomeAt(depthOf(a)+2)*3)break;giveGift(S,a,o,'店主から支度の品として');}}
+    if(seatsUsed(S,tav)<seatCap(S,tav)&&chance(rate)){const a=makeAdv(S,tav,Object.assign({lvl:newcomerLvl(S,tav)},edict(S,'mercs')&&chance(.5)?{origin:'グラウ帝国',race:'human'}:{})); if(tav==='ours'&&policy(S).rookie&&a.lvl<10){for(let k=0;k<2;k++){const o=giftOffer(S,a);if(!o||o.price>incomeAt(depthOf(a)+2)*3)break;giveGift(S,a,o,'店主から支度の品として');}}
       if(tav==='ours'){const ev=ourNewcomerNews(a);news(S,ev.t,ev.k);}
-      else if(a.odd||CLS[a.cls].rare) news(S,`噂：銀の杯亭に${a.race}の${a.cls}が現れたらしい。`,'rumor');}
+      else if(a.odd||CLS[a.cls].rare) news(S,`噂：銀の杯亭に${raceName(a.race)}の${clsName(a.cls)}が現れたらしい。`,'rumor');}
   }
   if(S.tick%(TICKS_PER_DAY*365)===0){
     Object.values(S.adv).forEach(a=>{if(isActive(a)&&a.age)a.age++;});
@@ -2374,7 +2377,7 @@ function mineTick(S){
 // 出発のとき、坑道に潜るかどうか。坑道の入口に見合う強さの一行だけが行く。性格や出身、引き受けた話でも変わる
 function wantsMine(S,p){if(!mineOpen(S)||partyErrands(S,p).length)return false;const safe=safeFloor(S,p);if(safe<MINE_E0)return false;
   const al=alive(S,p),L=leader(S,p);let pr=.7+Math.min(.2,(safe-MINE_E0)*.04);
-  if(al.some(a=>a.race==='ドワーフ'||a.origin==='鉄の山脈'||a.origin==='ベルクラント鉱山諸侯領'))pr+=.1;
+  if(al.some(a=>a.race==='dwarf'||a.origin==='鉄の山脈'||a.origin==='ベルクラント鉱山諸侯領'))pr+=.1;
   if(L.pers==='強欲'||L.pers==='無謀')pr+=.1;if((L.pers==='慎重'||L.pers==='臆病')&&safe<MINE_E0+4)pr-=.25;
   return chance(clamp(pr,.05,.95));}
 // 坑道の底の主を討つ。迷宮の踏破と同じく、一度きり
@@ -2554,7 +2557,7 @@ function poachPrice(S,a){return r100((a.debt||0)+incomeAt(depthOf(a))*25);}
 function poachList(S){if(seatsUsed(S,'ours')>=seatCap(S,'ours'))return [];return Object.values(S.adv).filter(a=>a.tav==='rival'&&isIdle(a)&&(!a.party||!S.parties[a.party]||S.parties[a.party].state==='town')).sort((x,y)=>y.lvl-x.lvl).slice(0,5);}
 function poach(S,a){const T0=S.taverns.ours,c=poachPrice(S,a),d=a.debt||0;if(T0.gold<c||!poachList(S).includes(a))return false;if(!moveTav(S,a,'ours'))return false;T0.gold-=c;a.debt=0;favor(a,1);
   chron(S,a,`黒猫亭の店主が銀の杯亭への借金${d}Gを肩代わりしてくれる`);
-  news(S,`黒猫亭の店主が、銀の杯亭の${a.name}（${a.race}の${a.cls}・Lv${a.lvl}）を迎え入れた。${d?`銀の杯亭への借金${d}Gは、店主が肩代わりした。`:''}`,'record');
+  news(S,`黒猫亭の店主が、銀の杯亭の${a.name}（${raceName(a.race)}の${clsName(a.cls)}・Lv${a.lvl}）を迎え入れた。${d?`銀の杯亭への借金${d}Gは、店主が肩代わりした。`:''}`,'record');
   news(S,`噂：銀の杯亭の${S.taverns.rival.owner||RIVAL_OWNER}「客を金で買うとは、黒猫亭さんも品がなくなりましたね」`,'rumor');return true;}
 function useMap(S,p){const F=floorsInit(S);const f=p.floor;if(!F[f]||!F[f].map)return;p.maps=p.maps||{};if(p.maps[f])return;
   const price=mapPrice(f);const al=alive(S,p);
@@ -2567,15 +2570,15 @@ function useMap(S,p){const F=floorsInit(S);const f=p.floor;if(!F[f]||!F[f].map)r
 const RARES=[
   {f:1,n:'ドブ王',u:'やけに おおきな ネズミ',rw:'gold',lore:'下水を統べる太った大ネズミ。腹に金貨を溜め込んでいるという'},
   {f:2,n:'片耳のコボルド王',u:'かんむりの コボルド',rw:'gold',lore:'冒険者から盗んだ金貨を溶かして冠にしたコボルドの王'},
-  {f:3,n:'首狩りコボルド',u:'くびかざりの コボルド',rw:'item',lore:'倒した冒険者の耳を切り取り、首飾りに通して歩くコボルド。首飾りは今も長くなり続けている',item:{n:'首狩りの小刀',slot:'wpn',atk:9,hit:.08,crit:.06,for:['盗賊','魔術師','戦士','侍'],lore:'首飾りにされた耳の持ち主たちの恨みが染みた小刀'}},
+  {f:3,n:'首狩りコボルド',u:'くびかざりの コボルド',rw:'item',lore:'倒した冒険者の耳を切り取り、首飾りに通して歩くコボルド。首飾りは今も長くなり続けている',item:{n:'首狩りの小刀',slot:'wpn',atk:9,hit:.08,crit:.06,for:['thief','mage','warrior','samurai'],lore:'首飾りにされた耳の持ち主たちの恨みが染みた小刀'}},
   {f:4,n:'泣き女の亡霊',u:'すすりなく ひとかげ',rw:'xp',lore:'地下牢で夫を待ち続ける亡霊。泣き声を聞いた者は道に迷う'},
   {f:5,n:'牢番の亡霊',u:'かぎたばの ひとかげ',rw:'xp',lore:'地下牢の鍵束を今も鳴らして歩く牢番。囚人を逃がした者を許さない'},
   {f:6,n:'大蜘蛛の女王',u:'おおきすぎる むし',rw:'mat',sp:'poison',lore:'巣の奥に銀鉱石を溜め込む女王蜘蛛'},
-  {f:7,n:'鎖つきのオーガ',u:'くさりを ひきずる ひとかげ',rw:'item',lore:'地下牢に繋がれていたオーガ。鎖を引きちぎり、鉄球ごと振り回して暴れている',item:{n:'鎖つきの鉄球',slot:'wpn',two:true,atk:20,hit:-.05,for:['戦士'],lore:'オーガを地下牢に繋いでいた鎖と鉄球。今度は振るう側に回る'}},
+  {f:7,n:'鎖つきのオーガ',u:'くさりを ひきずる ひとかげ',rw:'item',lore:'地下牢に繋がれていたオーガ。鎖を引きちぎり、鉄球ごと振り回して暴れている',item:{n:'鎖つきの鉄球',slot:'wpn',two:true,atk:20,hit:-.05,for:['warrior'],lore:'オーガを地下牢に繋いでいた鎖と鉄球。今度は振るう側に回る'}},
   {f:8,n:'市場の大ガーゴイル',u:'やねの うえの いしの すがた',rw:'mat',lore:'市場の屋根に止まり続ける巨大なガーゴイル。腹の中に鉱石を溜めている'},
   {f:9,n:'首なし騎士',u:'くびの ない よろい',rw:'xp',lore:'街区を巡回し続ける首のない騎士。自分の首を探しているらしい'},
   {f:10,n:'迷い牛の古株',u:'きずだらけの ひとかげ',rw:'gold',lore:'何十年も迷宮をさまよう老いたミノタウロス。食った冒険者の財布を角に下げている'},
-  {f:11,n:'水路の主',u:'みずの なかの おおきな かげ',rw:'item',sp:'poison',lore:'水路の底に棲む大蛇。脱皮を繰り返すたびに大きくなるという',item:{n:'大蛇の鱗鎧',slot:'body',ac:13,pois:.5,dodge:.03,for:['戦士','侍','盗賊'],lore:'水路の主の抜け殻で編んだ鎧。毒が肌まで届かない'}},
+  {f:11,n:'水路の主',u:'みずの なかの おおきな かげ',rw:'item',sp:'poison',lore:'水路の底に棲む大蛇。脱皮を繰り返すたびに大きくなるという',item:{n:'大蛇の鱗鎧',slot:'body',ac:13,pois:.5,dodge:.03,for:['warrior','samurai','thief'],lore:'水路の主の抜け殻で編んだ鎧。毒が肌まで届かない'}},
   {f:12,n:'双頭のキメラ',u:'ふたつ くびの けもの',rw:'mat',sp:'breath',lore:'竜骨を寝床にする双頭のキメラ'},
   {f:13,n:'暴走した鉄の巨人',u:'はしりまわる てつの すがた',rw:'mat',lore:'水門を守るために造られた鉄の巨人。都が沈んでからも、水路に近づく者を見境なく叩き潰す。骨組みに竜骨が使われている'},
   {f:14,n:'溺れた水門番',u:'さびた よろいの ひとかげ',rw:'gold',lore:'王都が沈んだ夜、水門を閉じたまま溺れた番人。税として集めた金貨を今も抱えている'},
@@ -2585,15 +2588,15 @@ const RARES=[
   {f:18,n:'生贄たちの群れ',u:'たくさんの ちいさな かげ',rw:'xp',sp:'drain',lore:'儀式を待つあいだ、宮廷の地下に閉じ込められていた人々の影が寄り集まったもの。誰かの名を呼び続けている'},
   {f:19,n:'番犬の母',u:'とても おおきな けもの',rw:'gold',sp:'breath',lore:'墓所の番犬たちの母。墓荒らしの財宝を寝床に敷いている'},
   {f:20,n:'屍の王',u:'かんむりの したい',rw:'mat',sp:'poison',lore:'屍喰らいたちを従える王。冥銀の冠をかぶっている'},
-  {f:21,n:'塔の主の使い魔',u:'はねの ある かげ',rw:'item',sp:'blast',lore:'主のいなくなった塔を飛び回る使い魔。侵入者を見張り続けている',item:{n:'使い魔の眼',slot:'acc',ac:3,hit:.08,dodge:.05,spell:3,for:['盗賊','魔術師','侍'],lore:'塔の主が遠くを見るために飼っていた使い魔の眼。持ち主にも先が見える'}},
-  {f:22,n:'吸魂の大司祭',u:'ひかる めの おおきな ひとかげ',rw:'item',sp:'drain',lore:'祈りの代わりに魂を吸うようになった大司祭。聖印だけは今も光っている',item:{n:'大司祭の聖印',slot:'acc',ac:4,mp:6,heal:.3,for:['僧侶'],lore:'魂を吸った司祭の聖印。皮肉にも癒やしの力を強める'}},
-  {f:23,n:'宮廷魔術師長の影',u:'くろい ローブの かげ',rw:'item',sp:'blast',lore:'体を失い、影だけで呪文を唱え続ける宮廷魔術師長',item:{n:'魔術師長の影衣',slot:'body',ac:10,mp:8,spell:4,for:['魔術師','僧侶'],lore:'影だけになっても呪文を唱え続けた魔術師長の衣'}},
+  {f:21,n:'塔の主の使い魔',u:'はねの ある かげ',rw:'item',sp:'blast',lore:'主のいなくなった塔を飛び回る使い魔。侵入者を見張り続けている',item:{n:'使い魔の眼',slot:'acc',ac:3,hit:.08,dodge:.05,spell:3,for:['thief','mage','samurai'],lore:'塔の主が遠くを見るために飼っていた使い魔の眼。持ち主にも先が見える'}},
+  {f:22,n:'吸魂の大司祭',u:'ひかる めの おおきな ひとかげ',rw:'item',sp:'drain',lore:'祈りの代わりに魂を吸うようになった大司祭。聖印だけは今も光っている',item:{n:'大司祭の聖印',slot:'acc',ac:4,mp:6,heal:.3,for:['priest'],lore:'魂を吸った司祭の聖印。皮肉にも癒やしの力を強める'}},
+  {f:23,n:'宮廷魔術師長の影',u:'くろい ローブの かげ',rw:'item',sp:'blast',lore:'体を失い、影だけで呪文を唱え続ける宮廷魔術師長',item:{n:'魔術師長の影衣',slot:'body',ac:10,mp:8,spell:4,for:['mage','priest'],lore:'影だけになっても呪文を唱え続けた魔術師長の衣'}},
   {f:24,n:'近衛の旗手',u:'はたを かかげた よろい',rw:'xp',lore:'近衛騎士団の旗を今も掲げ続ける旗手'},
   {f:25,n:'澱の母胎',u:'うごめく おおきな かたまり',rw:'mat',sp:'poison',lore:'澱の落とし子を産み続ける塊。体の芯に澱晶がある'},
-  {f:26,n:'黒衣の騎士団長',u:'くろい よろいの ひとかげ',rw:'item',lore:'王の不死の儀式を最後まで守り抜いた騎士団長。今も儀式の間の入り口に立ち、黒い盾で行く手を塞ぐ',item:{n:'騎士団長の黒盾',slot:'shield',ac:14,hit:.04,for:['戦士','侍','僧侶','盗賊'],lore:'エスタリア騎士団長の盾。主を失っても傷ひとつない'}},
+  {f:26,n:'黒衣の騎士団長',u:'くろい よろいの ひとかげ',rw:'item',lore:'王の不死の儀式を最後まで守り抜いた騎士団長。今も儀式の間の入り口に立ち、黒い盾で行く手を塞ぐ',item:{n:'騎士団長の黒盾',slot:'shield',ac:14,hit:.04,for:['warrior','samurai','priest','thief'],lore:'エスタリア騎士団長の盾。主を失っても傷ひとつない'}},
   {f:27,n:'黒竜の落とし仔',u:'ちいさな くろい りゅう',rw:'gold',sp:'breath',lore:'黒竜が澱から産み落とした仔竜。財宝を集める習性だけは親譲り'},
   {f:28,n:'竜番の骸',u:'くさりを もった ほね',rw:'gold',lore:'黒竜に餌をやり続けた竜番の骸。竜の寝床からこぼれた財宝を拾い集めている'},
-  {f:29,n:'仮面の司祭長',u:'きんの かめんの ひとかげ',rw:'item',sp:'drain',lore:'王の不死の儀式を執り行った司祭長。金の仮面の下を見た者はいない',item:{n:'司祭長の金仮面',slot:'head',ac:12,dodge:.1,mp:4,for:['戦士','侍','盗賊','僧侶','魔術師'],lore:'儀式を執り行った司祭長の仮面。素顔を見た者はいない'}},
+  {f:29,n:'仮面の司祭長',u:'きんの かめんの ひとかげ',rw:'item',sp:'drain',lore:'王の不死の儀式を執り行った司祭長。金の仮面の下を見た者はいない',item:{n:'司祭長の金仮面',slot:'head',ac:12,dodge:.1,mp:4,for:['warrior','samurai','thief','priest','mage'],lore:'儀式を執り行った司祭長の仮面。素顔を見た者はいない'}},
   {f:30,n:'玉座の影',u:'ぎょくざに のこる かげ',rw:'xp',lore:'王が去った玉座に残った影。王の記憶をなぞるように剣を振るう'},
 ];
 // 坑道の名のある魔物。f は内部の階（坑道B1F＝31）
@@ -2601,12 +2604,12 @@ const MINE_RARES=[
   {f:MINE_TOP+1,n:'金歯のトロール',u:'きんばの おおきな ひとかげ',rw:'gold',lore:'坑夫から奪った金を歯に打ち込んだトロール。笑うと坑道が明るくなる'},
   {f:MINE_TOP+3,n:'ランプ持ちの坑夫頭',u:'ランプの ひとかげ',rw:'xp',lore:'崩落の日に部下を見捨てた坑夫頭の亡霊。いまも部下を探して坑道を回る'},
   {f:MINE_TOP+5,n:'天井の母蜘蛛',u:'てんじょうを おおう むし',rw:'mat',sp:'poison',lore:'坑道の天井一面に巣を張る大蜘蛛。巣に黒曜鉄の欠片を貼りつけて飾る'},
-  {f:MINE_TOP+8,n:'石の鍛冶頭',u:'かなづちを ふる いしの すがた',rw:'item',lore:'坑道都市の鍛冶頭が、死ぬ間際に自分を石の像に打ち直したものという',item:{n:'鍛冶頭の大槌',slot:'wpn',two:true,atk:38,hit:.05,for:['戦士','僧侶'],lore:'坑道都市の鍛冶頭が最後に振るった大槌。打つたびに火花が散る'}},
+  {f:MINE_TOP+8,n:'石の鍛冶頭',u:'かなづちを ふる いしの すがた',rw:'item',lore:'坑道都市の鍛冶頭が、死ぬ間際に自分を石の像に打ち直したものという',item:{n:'鍛冶頭の大槌',slot:'wpn',two:true,atk:38,hit:.05,for:['warrior','priest'],lore:'坑道都市の鍛冶頭が最後に振るった大槌。打つたびに火花が散る'}},
   {f:MINE_TOP+10,n:'酒蔵の主',u:'たるを かかえた ひとかげ',rw:'gold',lore:'坑道都市の酒蔵を守り続けるドワーフの亡霊。樽の底に金貨を沈めている'},
   {f:MINE_TOP+13,n:'鉱脈喰らい',u:'いわを のむ ながい かげ',rw:'mat',sp:'poison',lore:'鉱脈ごと岩を呑み込む大蛇。腹の中で澱金が育つ'},
-  {f:MINE_TOP+15,n:'黒曜の騎士',u:'くろく ひかる よろい',rw:'item',lore:'坑道王に仕えた騎士。鎧が澱を吸って黒曜石に変わった',item:{n:'黒曜の鎧',slot:'body',ac:24,dodge:.02,for:['戦士','侍'],lore:'澱を吸って黒曜石に変わった騎士の鎧。刃がすべって通らない'}},
+  {f:MINE_TOP+15,n:'黒曜の騎士',u:'くろく ひかる よろい',rw:'item',lore:'坑道王に仕えた騎士。鎧が澱を吸って黒曜石に変わった',item:{n:'黒曜の鎧',slot:'body',ac:24,dodge:.02,for:['warrior','samurai'],lore:'澱を吸って黒曜石に変わった騎士の鎧。刃がすべって通らない'}},
   {f:MINE_TOP+18,n:'溶鉱炉の竜',u:'ほのおを はく いわの りゅう',rw:'xp',sp:'breath',lore:'坑道都市の溶鉱炉に棲みついた竜。炉の火を今も絶やさない'},
-  {f:MINE_TOP+21,n:'澱の乳母',u:'こどもを だく ひとかげ',rw:'item',sp:'drain',lore:'澱を呑んで死ねなくなった子らを抱き続けるドワーフの乳母',item:{n:'乳母の護符',slot:'acc',ac:6,mp:8,heal:.4,pois:.5,for:['僧侶','魔術師','侍'],lore:'死ねなくなった子らに乳母がかけた護符。持ち主の傷をふさぐ'}},
+  {f:MINE_TOP+21,n:'澱の乳母',u:'こどもを だく ひとかげ',rw:'item',sp:'drain',lore:'澱を呑んで死ねなくなった子らを抱き続けるドワーフの乳母',item:{n:'乳母の護符',slot:'acc',ac:6,mp:8,heal:.4,pois:.5,for:['priest','mage','samurai'],lore:'死ねなくなった子らに乳母がかけた護符。持ち主の傷をふさぐ'}},
   {f:MINE_TOP+23,n:'坑道王の盾持ち',u:'おおきな たてを もつ よろい',rw:'mat',lore:'坑道王の前に立ち、王の代わりに千の刃を受けた盾持ち。盾は澱金で打たれている'},
 ];
 function rareDef(f){return RARES.find(r=>r.f===f)||MINE_RARES.find(r=>r.f===f)||null;}
@@ -2751,7 +2754,7 @@ const SLEEP_TABLE=[[/ガーゴイル|巨像|ゴーレム|鉄の巨人|鍛冶頭/
   [/黒竜|キメラ|番犬|竜|スライム|澱/,.5],[/ネズミ|コウモリ|蜘蛛|虫|蛇|獣|犬|狼/,1.3]];
 function sleepMul(t){const n=t.base||t.n;for(const [re,m] of SLEEP_TABLE){if(re.test(n))return m;}return 1;}
 // ネムリが届く深さ（強さで見た深さ）。術者のレベルの半分＋6。魔導士はさらに4深く
-function sleepReach(a){return 6+a.lvl/2+(a.cls==='魔導士'?4:0)}
+function sleepReach(a){return 6+a.lvl/2+(a.cls==='sorcerer'?4:0)}
 function elemTag(m){return m>1?'（よく きいた）':m<1?'（あまり きかない）':'';}
 function elemNote(t){const nm={fire:'炎',ice:'氷',bolt:'雷'};const parts=[];let cur=null;
   for(const k of ['fire','ice','bolt']){const m=elemMul(t,k);const sign=m>1?'弱':m<1?'強':null;if(!sign){cur=null;continue;}
@@ -2762,32 +2765,32 @@ function elemNote(t){const nm={fire:'炎',ice:'氷',bolt:'雷'};const parts=[];l
 // turn：戦いのひと巡りで、各自が上から試す順（spec.md「一行の動き」の番号）。step：同じ番号の呪文をまとめて選ぶとき、その手の名
 // hi：坑道で育つ者のための、レベル30〜60の呪文。はじめて覚えたときに、水晶のログと手帳へ残す
 const SPELLS=[
-  {k:'iyashi',n:'イヤシ',d:'いちばん傷の深い仲間ひとりの傷を癒やす',lv:{'僧侶':1,'司教':1,'聖騎士':1},mp:1,turn:5},
-  {k:'zenkai',n:'ゼンカイ',d:'3人以上が傷ついたとき、仲間全員の傷をまとめて癒やす',lv:{'僧侶':17,'司教':15},mp:2,turn:1},
-  {k:'dokukeshi',n:'ドクケシ',d:'毒を受けた仲間ひとりの毒を消す',lv:{'僧侶':1,'司教':1,'聖騎士':1},mp:1,turn:7},
-  {k:'mamori',n:'マモリ',d:'強敵が相手のとき、その戦闘のあいだ全員の守りを上げる',lv:{'僧侶':7,'司教':7,'聖騎士':7},mp:1,turn:2},
-  {k:'dasshutsu',n:'ダッシュツ',d:'迷宮のどこからでも、一行を地上へ戻す',lv:{'僧侶':19,'司教':15,'聖騎士':23},mp:3},
-  {k:'yomi',n:'ヨミガエリ',d:'B16Fから先の澱の中でだけ、倒れた仲間をその場で蘇らせる。失敗すると灰になる',lv:{'僧侶':27,'司教':23},mp:4},
-  {k:'hono',n:'ホノオ',d:'敵の群れを炎で焼く。亡霊や虫によく効き、竜にはほとんど効かず、溶岩にも効きにくい',lv:{'魔術師':1,'魔導士':1,'司教':1,'侍':5,'剣聖':1},mp:1,turn:14,step:'attack'},
-  {k:'goka',n:'ゴウカ',d:'ホノオの強力版。炎の相性はホノオと同じ',lv:{'魔術師':13,'司教':23,'魔導士':1},mp:1,turn:14,step:'attack'},
-  {k:'koori',n:'コオリ',d:'敵の群れを凍らせる。威力は控えめだが、ときどき1ラウンド動きを止める（主と門番は止まらない）。竜や溶岩、澱の魔物によく効く',lv:{'魔術師':5,'司教':9,'魔導士':1},mp:1,turn:14,step:'attack'},
-  {k:'ikazuchi',n:'イカズチ',d:'いちばん体力の多い敵1体に雷を落とす。石や鉄の魔物、鎧を着た者によく効く',lv:{'魔術師':9,'司教':13,'魔導士':1},mp:1,turn:14,step:'attack'},
-  {k:'nemuri',n:'ネムリ',d:'3体以上の群れを眠らせる。届く深さは術者のレベルで伸びる。作り物と不死は眠らない',lv:{'魔術師':1,'魔導士':1},mp:1,turn:13},
-  {k:'mitooshi',n:'ミトオシ',d:'地図のない階で、その探索のあいだ道筋を見通す',lv:{'魔術師':15,'司教':19,'魔導士':1},mp:3},
-  {k:'kiyome',n:'キヨメ',d:'2人以上が毒を受けたとき、仲間全員の毒をまとめて消す',lv:{'僧侶':33,'司教':29,'聖騎士':39},mp:2,turn:6,hi:1},
-  {k:'goen',n:'ゴウエン',d:'ゴウカをしのぐ炎で敵の群れを焼く。炎の相性はホノオと同じ',lv:{'魔術師':37,'魔導士':33,'司教':43},mp:1,turn:14,step:'attack',hi:1},
-  {k:'tamayobi',n:'タマヨビ',d:'ヨミガエリの上位。B16Fから先で、倒れた仲間を高い見込みで蘇らせる。失敗しても灰にはならない',lv:{'僧侶':41,'司教':37},mp:6,hi:1},
-  {k:'orihara',n:'オリハライ',d:'その戦闘のあいだ、レベルを吸い取る攻撃から一行を守る。沈んだ王や坑道王にも効く',lv:{'僧侶':45,'司教':41,'聖騎士':49},mp:3,turn:3,hi:1},
-  {k:'hoshi',n:'ホシオトシ',d:'一戦に一度だけの大呪文。敵すべてに、相性のない大きな傷を負わせる。主・黒竜・名のある魔物にも効く',lv:{'魔術師':53,'魔導士':49,'司教':57},mp:8,turn:12,hi:1},
-  {k:'ishi',n:'イシガタメ',d:'敵一体を石に変えて止める。主・名のある魔物・門番の黒竜には効かない',lv:{'魔術師':45,'魔導士':41,'司教':49},mp:3,turn:14,step:'attack',hi:1},
-  {k:'utsushi',n:'ウツシエ',d:'ミトオシの上位。道筋を見通し、まだ地図の出ていない階なら写しを持ち帰って地図屋に売る',lv:{'魔術師':41,'魔導士':37,'司教':45},mp:4,hi:1},
-  {k:'watari',n:'イシワタリ',d:'ダッシュツの上位。帰り道で、いちばん近い転移の石碑が2階以上うえにあれば、そこまで一行を運ぶ',lv:{'僧侶':47,'司教':43,'聖騎士':51},mp:4,hi:1},
+  {k:'iyashi',n:'イヤシ',d:'いちばん傷の深い仲間ひとりの傷を癒やす',lv:{'priest':1,'bishop':1,'paladin':1},mp:1,turn:5},
+  {k:'zenkai',n:'ゼンカイ',d:'3人以上が傷ついたとき、仲間全員の傷をまとめて癒やす',lv:{'priest':17,'bishop':15},mp:2,turn:1},
+  {k:'dokukeshi',n:'ドクケシ',d:'毒を受けた仲間ひとりの毒を消す',lv:{'priest':1,'bishop':1,'paladin':1},mp:1,turn:7},
+  {k:'mamori',n:'マモリ',d:'強敵が相手のとき、その戦闘のあいだ全員の守りを上げる',lv:{'priest':7,'bishop':7,'paladin':7},mp:1,turn:2},
+  {k:'dasshutsu',n:'ダッシュツ',d:'迷宮のどこからでも、一行を地上へ戻す',lv:{'priest':19,'bishop':15,'paladin':23},mp:3},
+  {k:'yomi',n:'ヨミガエリ',d:'B16Fから先の澱の中でだけ、倒れた仲間をその場で蘇らせる。失敗すると灰になる',lv:{'priest':27,'bishop':23},mp:4},
+  {k:'hono',n:'ホノオ',d:'敵の群れを炎で焼く。亡霊や虫によく効き、竜にはほとんど効かず、溶岩にも効きにくい',lv:{'mage':1,'sorcerer':1,'bishop':1,'samurai':5,'kensei':1},mp:1,turn:14,step:'attack'},
+  {k:'goka',n:'ゴウカ',d:'ホノオの強力版。炎の相性はホノオと同じ',lv:{'mage':13,'bishop':23,'sorcerer':1},mp:1,turn:14,step:'attack'},
+  {k:'koori',n:'コオリ',d:'敵の群れを凍らせる。威力は控えめだが、ときどき1ラウンド動きを止める（主と門番は止まらない）。竜や溶岩、澱の魔物によく効く',lv:{'mage':5,'bishop':9,'sorcerer':1},mp:1,turn:14,step:'attack'},
+  {k:'ikazuchi',n:'イカズチ',d:'いちばん体力の多い敵1体に雷を落とす。石や鉄の魔物、鎧を着た者によく効く',lv:{'mage':9,'bishop':13,'sorcerer':1},mp:1,turn:14,step:'attack'},
+  {k:'nemuri',n:'ネムリ',d:'3体以上の群れを眠らせる。届く深さは術者のレベルで伸びる。作り物と不死は眠らない',lv:{'mage':1,'sorcerer':1},mp:1,turn:13},
+  {k:'mitooshi',n:'ミトオシ',d:'地図のない階で、その探索のあいだ道筋を見通す',lv:{'mage':15,'bishop':19,'sorcerer':1},mp:3},
+  {k:'kiyome',n:'キヨメ',d:'2人以上が毒を受けたとき、仲間全員の毒をまとめて消す',lv:{'priest':33,'bishop':29,'paladin':39},mp:2,turn:6,hi:1},
+  {k:'goen',n:'ゴウエン',d:'ゴウカをしのぐ炎で敵の群れを焼く。炎の相性はホノオと同じ',lv:{'mage':37,'sorcerer':33,'bishop':43},mp:1,turn:14,step:'attack',hi:1},
+  {k:'tamayobi',n:'タマヨビ',d:'ヨミガエリの上位。B16Fから先で、倒れた仲間を高い見込みで蘇らせる。失敗しても灰にはならない',lv:{'priest':41,'bishop':37},mp:6,hi:1},
+  {k:'orihara',n:'オリハライ',d:'その戦闘のあいだ、レベルを吸い取る攻撃から一行を守る。沈んだ王や坑道王にも効く',lv:{'priest':45,'bishop':41,'paladin':49},mp:3,turn:3,hi:1},
+  {k:'hoshi',n:'ホシオトシ',d:'一戦に一度だけの大呪文。敵すべてに、相性のない大きな傷を負わせる。主・黒竜・名のある魔物にも効く',lv:{'mage':53,'sorcerer':49,'bishop':57},mp:8,turn:12,hi:1},
+  {k:'ishi',n:'イシガタメ',d:'敵一体を石に変えて止める。主・名のある魔物・門番の黒竜には効かない',lv:{'mage':45,'sorcerer':41,'bishop':49},mp:3,turn:14,step:'attack',hi:1},
+  {k:'utsushi',n:'ウツシエ',d:'ミトオシの上位。道筋を見通し、まだ地図の出ていない階なら写しを持ち帰って地図屋に売る',lv:{'mage':41,'sorcerer':37,'bishop':45},mp:4,hi:1},
+  {k:'watari',n:'イシワタリ',d:'ダッシュツの上位。帰り道で、いちばん近い転移の石碑が2階以上うえにあれば、そこまで一行を運ぶ',lv:{'priest':47,'bishop':43,'paladin':51},mp:4,hi:1},
 ];
 const SP=Object.fromEntries(SPELLS.map(x=>[x.k,x]));
 // 覚える条件。表のレベルに届いていれば唱えられる。レベルを吸い取られて下がれば、また唱えられなくなる
 const CAN=Object.fromEntries(SPELLS.map(x=>[x.k,a=>a.lvl>=(x.lv[a.cls]??Infinity)]));
 // 使える者の書き方。レベル1から使えるなら職業の名だけ、そうでなければ「僧侶Lv17〜」
-function spellWho(x){return Object.entries(x.lv).map(([c,l])=>l>1?`${c}Lv${l}〜`:c).join('・');}
+function spellWho(x){return Object.entries(x.lv).map(([c,l])=>l>1?`${clsName(c)}Lv${l}〜`:clsName(c)).join('・');}
 // 戦いのひと巡りで、各自が上から試す手。呪文は表の turn から、呪文でない手はここで番号を決める
 const TURN_ACTS={potion:4,song:8,lullaby:9,bomb:10,breath:11};
 const TURN=[...new Set([...SPELLS.filter(x=>x.turn).map(x=>[x.turn,x.step||x.k]),...Object.entries(TURN_ACTS).map(([k,n])=>[n,k])].sort((x,y)=>x[0]-y[0]).map(([,k])=>k))];
@@ -2995,9 +2998,9 @@ function combat(S,p){
       const fs=living();if(!fs.length)break;
       const e=pick(fs);const pre=sw?'さらに ':'';
       if(sw===0&&fearsFoe(a,t)&&chance(.15)){plog(p,`${a.name} は すくんで うごけない`,'move');break;}
-      const hit=clamp(.72+(mapped?.03:0)+PL(a)*.02-f*.015+(e.sleep?.2:0)+rc(a).hit+eqSum(a,'hit')+trHit(a,mapped)+(a.odd&&a.race==='エルフ'?.05:0)-fearPen(a,t,p),.4,.97);
+      const hit=clamp(.72+(mapped?.03:0)+PL(a)*.02-f*.015+(e.sleep?.2:0)+rc(a).hit+eqSum(a,'hit')+trHit(a,mapped)+(a.odd&&a.race==='elf'?.05:0)-fearPen(a,t,p),.4,.97);
       const verb=pick(['きりつけた','つきさした','なぐりつけた','たたきつけた']);
-      if((c.crit||eqSum(a,'crit'))&&chance(((c.crit||0)+eqSum(a,'crit')+PL(a)*.004+rc(a).crit+(has(a,'器用')||has(a,'強運')?.02:0))*(a.odd&&a.race==='ホビット'?2:1))&&!t.boss&&!t.rare&&t.n!=='黒竜'){
+      if((c.crit||eqSum(a,'crit'))&&chance(((c.crit||0)+eqSum(a,'crit')+PL(a)*.004+rc(a).crit+(has(a,'器用')||has(a,'強運')?.02:0))*(a.odd&&a.race==='hobbit'?2:1))&&!t.boss&&!t.rare&&t.n!=='黒竜'){
         e.hp=0;plog(p,`${pre}${a.name} は ${foeName(p)} の くびを はねた！`,'loot');kill(p,a);(p.trip.crits=p.trip.crits||[]).push({n:a.name,m:t.n});continue;
       }
       if(chance(hit)){
@@ -3582,7 +3585,7 @@ function titleCands(S,a,kind){const sl=Object.entries(a.slain||{}).filter(([k])=
   const rk=Object.entries(S.rares||{}).filter(([,v])=>{const k=v.killed;if(!k)return false;if(k.by)return k.by===a.name;if('by' in k)return false;return !!(k.names&&k.names.includes(a.name));}).map(([f])=>(rareDef(+f)||{}).n).filter(Boolean);
   const it=eqList(a).find(x=>x.rare);const P=(st,t)=>[st,t];
   const PER={'無謀':[P('命知らず','命知らず'),P('向こう見ず','向こう見ず')],'慎重':[P('石橋','石橋叩き'),P('しんがり','しんがり')],'強欲':[P('金の亡者','金の亡者'),P('宝箱荒らし','宝箱荒らし')],'臆病':[P('逃げ足','逃げ足'),P('震える刃','震える刃')],'普通':[P('職人','迷宮職人')]}[a.pers]||[];
-  const CL={'侍':[P('人斬り','人斬り'),P('居合','居合の'+(g?'姫':'鬼'))],'僧侶':[P('癒し手','癒し手'),P('祈り','祈りの盾')],'魔術師':[P('火の手','火の手'),P('雷鳴','雷鳴')],'盗賊':[P('影','影法師'),P('早業','早業')],'戦士':[P('壁','動く壁'),P('鉄塊','鉄塊')],'忍者':[P('朧','朧'),P('音無し','音無し')],'司教':[P('鑑定眼','鑑定眼'),P('説教','説教屋')],'聖騎士':[P('光の盾','光の盾')],'剣聖':[P('一閃','一閃')],'狂戦士':[P('狂犬','狂犬')],'吟遊詩人':[P('歌う剣','歌う剣')],'錬金術師':[P('爆炎','爆炎')],'獣使い':[P('獣連れ','獣連れ')],'竜騎士':[P('竜の友','竜の友')],'魔導士':[P('星読み','星読み')]}[a.cls]||[];
+  const CL={'samurai':[P('人斬り','人斬り'),P('居合','居合の'+(g?'姫':'鬼'))],'priest':[P('癒し手','癒し手'),P('祈り','祈りの盾')],'mage':[P('火の手','火の手'),P('雷鳴','雷鳴')],'thief':[P('影','影法師'),P('早業','早業')],'warrior':[P('壁','動く壁'),P('鉄塊','鉄塊')],'ninja':[P('朧','朧'),P('音無し','音無し')],'bishop':[P('鑑定眼','鑑定眼'),P('説教','説教屋')],'paladin':[P('光の盾','光の盾')],'kensei':[P('一閃','一閃')],'berserker':[P('狂犬','狂犬')],'bard':[P('歌う剣','歌う剣')],'alchemist':[P('爆炎','爆炎')],'tamer':[P('獣連れ','獣連れ')],'dragoon':[P('竜の友','竜の友')],'sorcerer':[P('星読み','星読み')]}[a.cls]||[];
   const TR=(a.traits||[]).map(t=>({'怪力':P('剛力','剛力'),'俊足':P('疾風','疾風'),'鷹の目':P('鷹の目','鷹の目'),'強運':P('幸運児','幸運児'),'頑健':P('鉄身','鉄身'),'不屈':P('不屈','不屈'),'博識':P('物知り','物知り'),'器用':P('千手','千手'),'夜目':P('猫目','猫目'),'料理上手':P('鍋奉行','鍋奉行'),'人望':P('親分','親分肌'),'不運':P('貧乏籤','貧乏籤'),'鈍足':P('亀','鉄の亀')})[t]).filter(Boolean);
   const OR=os?[P('狼',`${os}の狼`),P('刃',`${os}の刃`)]:[];
   return ({
@@ -3714,7 +3717,7 @@ function smallEvent(S){const list=smallOf(S);
     const [why,past]=SMALL_WHY[bad?bad.bad:'debt'];
     S.small=list.filter(x=>x!==t);S.smallClosed.push({n:t.n,owner:t.owner,tk:S.tick,why:past});
     news(S,`裏通りの${t.n}が、${why}、店をたたんだ。`,'info');
-    if(seatsUsed(S,'ours')<seatCap(S,'ours')&&chance(.3+Math.min(.4,S.taverns.ours.rep*.003))){const a=makeAdv(S,'ours',{lvl:ri(3,10),bg:`店をたたんだ${t.n}の元常連`});news(S,`店をたたんだ${t.n}から、${a.name}（${a.race}の${a.cls}・Lv${a.lvl}）が黒猫亭に流れてきた。`,'record');}
+    if(seatsUsed(S,'ours')<seatCap(S,'ours')&&chance(.3+Math.min(.4,S.taverns.ours.rep*.003))){const a=makeAdv(S,'ours',{lvl:ri(3,10),bg:`店をたたんだ${t.n}の元常連`});news(S,`店をたたんだ${t.n}から、${a.name}（${raceName(a.race)}の${clsName(a.cls)}・Lv${a.lvl}）が黒猫亭に流れてきた。`,'record');}
     return;}
   const nn=list.length<6?smallName(S,list):null;
   const canOpen=!!nn;let k=R();if(k<.15&&!canOpen)k=.15+R()*.85;
@@ -3738,7 +3741,7 @@ function rivalTick(S){
       else{favor(c,1);chron(S,c,`銀の杯亭の${RO}に誘われたが、断る`);news(S,`噂：銀の杯亭の${RO}が黒猫亭の${c.name}に声をかけたが、断られたらしい。「${pick(['黒猫亭には借りがある','あの店の酒のほうが口に合う','金で動く安い剣じゃない','借りた装備で潜るのは性に合わない'])}」`,'rumor');}}}
   if(d%12===0&&seatsUsed(S,'ours')<seatCap(S,'ours')&&chance(.15+.25*Math.min(1.4,To.rep/Math.max(1,Tr.rep)))){
     const c=pick(Object.values(S.adv).filter(a=>a.tav==='rival'&&isIdle(a)&&(a.debt||0)>0&&a.party!==S.ace&&(!a.party||!S.parties[a.party]||S.parties[a.party].state==='town')));
-    if(c&&moveTav(S,c,'ours')){news(S,`銀の杯亭の${c.name}（${c.race}の${c.cls}・Lv${c.lvl}）が、取り立てに嫌気がさして黒猫亭に移ってきた。借金${c.debt}Gは踏み倒したらしい。`,'record');c.debt=0;}}
+    if(c&&moveTav(S,c,'ours')){news(S,`銀の杯亭の${c.name}（${raceName(c.race)}の${clsName(c.cls)}・Lv${c.lvl}）が、取り立てに嫌気がさして黒猫亭に移ってきた。借金${c.debt}Gは踏み倒したらしい。`,'record');c.debt=0;}}
   if(!To.overtook&&To.rep>Tr.rep){To.overtook=S.tick;news(S,`ロウエンでいちばんの酒場は、もう銀の杯亭ではない。黒猫亭だ、という声が街に出はじめた。`,'record');}
   if(d%40===0&&chance(.5))news(S,pick([`銀の杯亭の${RO}が、また装備の貸付の値を上げたらしい。`,`噂：銀の杯亭の看板「${S.parties[S.ace]?S.parties[S.ace].name:'白銀の牙'}」の連中は、全員が${RO}に借りがあるらしい。`,`銀の杯亭の${RO}が、黒猫亭の前をわざわざ通って帰っていった。`,`噂：銀の杯亭の地下には、冒険者の借用書が山と積まれているらしい。`]),'rumor');}
 // rival temple runs automatically for its own dead
@@ -3762,27 +3765,27 @@ const ERRANDS=[
   {k:'ledger',n:'牢番の名簿',from:'灰の寺院の書記',f:[2,5],at:'牢の抜け道',txt:f=>`${FN(f)}の牢番部屋に、昔の囚人の名簿が残っているという。狭いところを苦にしない、字の読める者なら`,got:'名簿は寺院の書庫に収められた',
     fit:[FIT.fear('狭い所',-2,n=>`狭いところを怖がる${n}が、牢の抜け道で息を詰まらせた`),FIT.tr('博識',1,n=>`物知りの${n}が、すすけた名簿の文字を読み解いた`),FIT.qk('読書家',.8,n=>`本の虫の${n}が、崩れた書棚から名簿を探し当てた`),FIT.qk('几帳面',.5,n=>`几帳面な${n}が、牢番部屋を端から順に調べ上げた`),FIT.qk('方向音痴',-1,n=>`方向音痴の${n}が、牢の迷路で道を見失った`)]},
   {k:'ring',n:'蜘蛛の巣の指輪',from:'ロウエンの花売り',f:[3,9],at:'大蜘蛛の巣',txt:f=>`${FN(f)}の大蜘蛛の巣に、求婚の指輪が引っかかっているという。蜘蛛を平気で払いのけられる、手先の器用な者なら`,got:'指輪は花売りの手に戻り、ひと月後に式が挙がった',
-    fit:[FIT.fear('蜘蛛',-2,n=>`蜘蛛を怖がる${n}が、巣の前で立ちすくんだ`),FIT.tr('器用',1,n=>`手先の器用な${n}が、糸を切らずに指輪を外した`),FIT.cls(['盗賊','忍者'],.6,n=>`${n}が盗賊の手つきで、巣から指輪をすくい取った`),FIT.tr('不器用',-1,n=>`不器用な${n}が糸を引きちぎり、指輪は巣の奥へ落ちた`)]},
+    fit:[FIT.fear('蜘蛛',-2,n=>`蜘蛛を怖がる${n}が、巣の前で立ちすくんだ`),FIT.tr('器用',1,n=>`手先の器用な${n}が、糸を切らずに指輪を外した`),FIT.cls(['thief','ninja'],.6,n=>`${n}が盗賊の手つきで、巣から指輪をすくい取った`),FIT.tr('不器用',-1,n=>`不器用な${n}が糸を引きちぎり、指輪は巣の奥へ落ちた`)]},
   {k:'mushroom',n:'光る茸',from:'裏通りの料理屋',f:[6,12],at:'茸の群れ',txt:f=>`${FN(f)}の暗がりに生える光る茸を、籠いっぱいに。食べられる茸を見分けられる、暗がりを怖がらない者なら`,got:'その夜、裏通りの料理屋に光る茸の煮込みが出た',
     fit:[FIT.tr('料理上手',1,n=>`料理上手の${n}が、毒のない茸だけを選り分けた`),FIT.tr('夜目',.7,n=>`夜目の利く${n}が、光の薄い茸まで見つけた`),FIT.qk('大食い',.4,n=>`食い意地の張った${n}が、味見で毒茸を見分けた`),FIT.fear('暗闇',-1.5,n=>`暗がりを怖がる${n}が、茸の群れまで進めなかった`),FIT.tr('病弱',-1,n=>`体の弱い${n}が、胞子を吸って寝込んだ`)]},
   {k:'bell',n:'鐘楼の光',from:'梟の地図屋',f:[6,10],at:'崩れた鐘楼',txt:f=>`${FN(f)}の崩れた鐘楼の上で、何かが光る。高いところを怖がらない、身の軽い者なら`,got:'光っていたのは、封鎖の前に誰かが鐘の中へ隠した金貨の袋だった',
-    fit:[FIT.fear('高い所',-2,n=>`高いところを怖がる${n}が、鐘楼の途中で足をすくませた`),FIT.tr('俊足',1,n=>`身の軽い${n}が、崩れた鐘楼を駆け上がった`),FIT.race('ホビット',.6,n=>`小柄な${n}が、鐘の中まで潜り込んだ`),FIT.tr('鈍足',-1,n=>`足の重い${n}は、崩れかけた階段を登りきれなかった`)]},
+    fit:[FIT.fear('高い所',-2,n=>`高いところを怖がる${n}が、鐘楼の途中で足をすくませた`),FIT.tr('俊足',1,n=>`身の軽い${n}が、崩れた鐘楼を駆け上がった`),FIT.race('hobbit',.6,n=>`小柄な${n}が、鐘の中まで潜り込んだ`),FIT.tr('鈍足',-1,n=>`足の重い${n}は、崩れかけた階段を登りきれなかった`)]},
   {k:'letter',n:'帝国兵の手紙',from:'帝国くずれの傭兵',f:[6,12],at:'崩れた兵舎',txt:f=>`${FN(f)}で消えた帝国の兵が、故郷への手紙を隠したという。帝国の兵の隠し方を知る者なら`,got:'手紙は傭兵の手で、帝国の村へ送られた',
     fit:[FIT.og('グラウ帝国',1.2,n=>`帝国の出の${n}が、兵の隠し場所の見当をつけた`),FIT.qk('几帳面',.5,n=>`几帳面な${n}が、兵舎の床板を一枚ずつ剥がした`),FIT.og('ラウレンツ王国',-.8,n=>`王国の出の${n}には、帝国の兵の隠し場所の見当がつかなかった`),FIT.qk('方向音痴',-1,n=>`方向音痴の${n}が、兵舎にたどり着けなかった`)]},
   {k:'barge',n:'渡し場の沈んだ荷',from:'セーレの荷主',f:[11,15],at:'水路の渡し場',txt:f=>`${FN(f)}の水路の渡し場に、運びそこねた荷が沈んでいる。水を怖がらない、力のある者なら`,got:'引き上げた荷は、セーレの荷主が言い値で引き取った',
     fit:[FIT.fear('水',-2,n=>`水を怖がる${n}が、渡し場で足をすくませた`),FIT.tr('怪力',1,n=>`力自慢の${n}が、沈んだ荷をひとりで引き上げた`),FIT.tr('頑健',.5,n=>`体の丈夫な${n}が、冷たい水に長く浸かっていられた`),FIT.tr('虚弱',-1,n=>`体の弱い${n}が、冷たい水に体を持っていかれた`)]},
   {k:'scale',n:'竜の古い鱗',from:'鉄床通りの武具屋',f:[11,15],at:'キメラの巣',txt:f=>`${FN(f)}のキメラの巣に、竜の古い鱗が落ちているという。竜のたぐいを怖がらない、炎に焼かれても倒れない者なら`,got:'グンター親方は鱗を炉にくべ、ひと晩じっと火を見ていた',
-    fit:[FIT.fear('竜',-2,n=>`竜を怖がる${n}が、巣の前で動けなくなった`),FIT.cls(['竜騎士'],1.2,n=>`竜の血を引く${n}を、巣の主は襲わなかった`),FIT.tr('頑健',.7,n=>`頑丈な${n}が、炎をくぐって鱗を拾った`),FIT.tr('不屈',.5,n=>`焼かれても退かない${n}が、鱗を抱えて戻った`),FIT.tr('虚弱',-1,n=>`体の弱い${n}が、巣の熱気に倒れかけた`)]},
+    fit:[FIT.fear('竜',-2,n=>`竜を怖がる${n}が、巣の前で動けなくなった`),FIT.cls(['dragoon'],1.2,n=>`竜の血を引く${n}を、巣の主は襲わなかった`),FIT.tr('頑健',.7,n=>`頑丈な${n}が、炎をくぐって鱗を拾った`),FIT.tr('不屈',.5,n=>`焼かれても退かない${n}が、鱗を抱えて戻った`),FIT.tr('虚弱',-1,n=>`体の弱い${n}が、巣の熱気に倒れかけた`)]},
   {k:'grave',n:'墓所への祈り',from:'荒野の流民',f:[16,20],at:'宮廷の墓所',txt:f=>`宮廷の墓所（${FN(f)}）に眠る先祖へ、祈りを届けてほしいという。亡霊にひるまない、祈りを知る者なら`,got:'流民の老人は、祈りの言葉を聞いて泣いた',
-    fit:[FIT.fear('亡霊',-2,n=>`亡霊を怖がる${n}が、墓所の入口から先へ進めなかった`),FIT.tr('信心深い',1,n=>`信心深い${n}の祈りに、墓所の亡霊たちが道を空けた`),FIT.cls(['僧侶','司教','聖騎士'],.6,n=>`${n}が墓所で、正しい祈りの言葉を唱えた`),FIT.og('灰の荒野',.6,n=>`荒野の出の${n}が、エスタリアの古い祈りを知っていた`),FIT.ps('臆病',-1,n=>`臆病な${n}は、墓所の奥の物音に逃げ帰った`)]},
+    fit:[FIT.fear('亡霊',-2,n=>`亡霊を怖がる${n}が、墓所の入口から先へ進めなかった`),FIT.tr('信心深い',1,n=>`信心深い${n}の祈りに、墓所の亡霊たちが道を空けた`),FIT.cls(['priest','bishop','paladin'],.6,n=>`${n}が墓所で、正しい祈りの言葉を唱えた`),FIT.og('灰の荒野',.6,n=>`荒野の出の${n}が、エスタリアの古い祈りを知っていた`),FIT.ps('臆病',-1,n=>`臆病な${n}は、墓所の奥の物音に逃げ帰った`)]},
   {k:'tome',n:'塔の呪文書',from:'王都の学者',f:[21,25],at:'塔の吹き抜け',txt:f=>`魔術師の塔の${FN(f)}の書庫から、焼け残った呪文書を一冊。高いところを怖がらない、呪文に通じた者なら`,got:'呪文書を受け取った王都の学者は、ひと月ほど誰とも口をきかなくなったという',
-    fit:[FIT.fear('高い所',-2,n=>`高いところを怖がる${n}が、塔の吹き抜けで足をすくませた`),FIT.cls(['魔術師','魔導士','司教'],1,n=>`呪文に通じた${n}が、封じの呪文を解いて書庫を開けた`),FIT.tr('博識',.7,n=>`物知りの${n}が、焼け残りの中から目当ての一冊を選んだ`),FIT.tr('不器用',-1,n=>`不器用な${n}が、焼けた頁を崩してしまった`)]},
+    fit:[FIT.fear('高い所',-2,n=>`高いところを怖がる${n}が、塔の吹き抜けで足をすくませた`),FIT.cls(['mage','sorcerer','bishop'],1,n=>`呪文に通じた${n}が、封じの呪文を解いて書庫を開けた`),FIT.tr('博識',.7,n=>`物知りの${n}が、焼け残りの中から目当ての一冊を選んだ`),FIT.tr('不器用',-1,n=>`不器用な${n}が、焼けた頁を崩してしまった`)]},
 ];
 // 続きものの筋。段を果たすと次の段が来る。最後の段だけ、主役の出身で中身が変わる
 const ARCS={gate:{n:'封じの門の抜け穴',stages:[
   {n:'抜け穴の印',from:'荒野の流民の老婆',f:[7,10],at:'崩れた井戸',txt:f=>`封鎖のあいだに門の抜け穴から潜った息子の消息を知りたい、と老婆が言う。${FN(f)}の崩れた井戸のそばに、抜け穴を使った者の印があるらしい。暗がりを怖がらず、地べたを這える者なら`,
     got:'井戸の底の壁に、矢印と日付と、知らない名前がいくつも刻まれていた。日付はどれも封鎖のあいだのものだった',
-    fit:[FIT.fear('暗闇',-2,n=>`暗がりを怖がる${n}が、井戸の底へ降りられなかった`),FIT.tr('夜目',1,n=>`夜目の利く${n}が、井戸の底に刻まれた印を見つけた`),FIT.race('ホビット',.6,n=>`小柄な${n}が、井戸の脇の狭い穴を這い進んだ`),FIT.cls(['盗賊','忍者'],.6,n=>`身軽な${n}が、崩れた石組みをすり抜けた`),FIT.fear('狭い所',-1,n=>`狭いところを怖がる${n}が、穴の手前で引き返した`)]},
+    fit:[FIT.fear('暗闇',-2,n=>`暗がりを怖がる${n}が、井戸の底へ降りられなかった`),FIT.tr('夜目',1,n=>`夜目の利く${n}が、井戸の底に刻まれた印を見つけた`),FIT.race('hobbit',.6,n=>`小柄な${n}が、井戸の脇の狭い穴を這い進んだ`),FIT.cls(['thief','ninja'],.6,n=>`身軽な${n}が、崩れた石組みをすり抜けた`),FIT.fear('狭い所',-1,n=>`狭いところを怖がる${n}が、穴の手前で引き返した`)]},
   {n:'封じの門の裏',from:'荒野の流民の老婆',f:[11,11],at:'調査隊の骨の山',txt:f=>`印の矢印は、${FN(f)}を指していた。200人の調査隊が消えた階だ。抜け穴の出口がそこにあるという。死体を怖がらず、古い文字の読める者なら`,
     got:'抜け穴の出口には、縄と梯子が残っていた。梯子の脇の柱に、王国の探索管理所の焼き印が押してあった',
     fit:[FIT.fear('死体',-2,n=>`死体を怖がる${n}が、調査隊の骨の山の前で動けなくなった`),FIT.tr('博識',1,n=>`物知りの${n}が、壁の古い文字から出口の場所を割り出した`),FIT.qk('読書家',.7,n=>`本の虫の${n}が、調査隊の日誌から出口の場所を読み取った`),FIT.ps('臆病',-1,n=>`臆病な${n}は、骨の山を見て逃げ帰った`)]},
@@ -3791,7 +3794,7 @@ const ARCS={gate:{n:'封じの門の抜け穴',stages:[
     fit:[FIT.fear('水',-2,n=>`水を怖がる${n}が、水路の手前で足をすくませた`),FIT.tr('毒に強い',1,n=>`毒に強い${n}が、澱んだ水の底を歩いて隠れ家に着いた`),FIT.tr('頑健',.5,n=>`体の丈夫な${n}が、冷たい水を泳ぎ切った`),FIT.tr('病弱',-1,n=>`体の弱い${n}が、澱んだ水にあたって倒れた`)]},
   {n:'流民の言葉',from:'荒野の流民の老婆',f:[15,16],at:'隠れ家の奥',txt:f=>`隠れ家の奥、${FN(f)}の壁に、流民の言葉で何かが刻まれているという。エスタリアの言葉がわかる者がいれば`,
     got:'壁には、潜った者たちの名と、ひとつの言葉が刻まれていた。「我らは故郷へ帰る。金を払って、己の国の墓へ」',
-    fit:[FIT.og('灰の荒野',1.2,n=>`荒野の出の${n}が、エスタリアの言葉を読み上げた`),FIT.tr('博識',.7,n=>`物知りの${n}が、古い言葉を少しずつ読み解いた`),FIT.race('エルフ',.5,n=>`長く生きた${n}が、沈む前のエスタリアの言葉を覚えていた`),FIT.fear('暗闇',-1,n=>`暗がりを怖がる${n}が、隠れ家の奥へ進めなかった`)]},
+    fit:[FIT.og('灰の荒野',1.2,n=>`荒野の出の${n}が、エスタリアの言葉を読み上げた`),FIT.tr('博識',.7,n=>`物知りの${n}が、古い言葉を少しずつ読み解いた`),FIT.race('elf',.5,n=>`長く生きた${n}が、沈む前のエスタリアの言葉を覚えていた`),FIT.fear('暗闇',-1,n=>`暗がりを怖がる${n}が、隠れ家の奥へ進めなかった`)]},
 ],
   lore:['封鎖のあいだも、門の抜け穴を通って潜った者たちがいた。',
     '抜け穴の出口には、王国の探索管理所の焼き印があった。',
@@ -3996,6 +3999,21 @@ function inferCleanPay(S){
 // 移行は古い形の記録を読み書きするので、一行の状態と古いフラグを直に扱ってよい
 /* eslint-disable no-restricted-syntax */
 function migrate(S){
+  // 版35：職業と種族の内部の鍵（#195）。記録に入っている職業と種族の名前（冒険者の cls・race・promoted、記念碑と去った者の cls・race・race2、品の for）を鍵に写す。
+  // ほかの移行がエンジンの関数（鍵で職業を引く）を呼ぶので、いちばん先に写す
+  const keyed=!(S.v>=35);
+  if(keyed){
+    // 文の中の名前（手帳・知らせ・夢の文など）はそのまま。知らない名前は触らない。乱数は引かない
+    const KEY={'戦士':'warrior','侍':'samurai','盗賊':'thief','僧侶':'priest','魔術師':'mage','聖騎士':'paladin','狂戦士':'berserker','剣聖':'kensei','忍者':'ninja','司教':'bishop','魔導士':'sorcerer','竜騎士':'dragoon','吟遊詩人':'bard','錬金術師':'alchemist','獣使い':'tamer',
+      '人間':'human','エルフ':'elf','ドワーフ':'dwarf','ホビット':'hobbit'};
+    const FIELD={cls:1,race:1,race2:1,promoted:1};
+    const walk=o=>{if(!o||typeof o!=='object')return;if(Array.isArray(o)){o.forEach(walk);return;}
+      for(const k of Object.keys(o)){const v=o[k];
+        if(FIELD[k]&&typeof v==='string'&&KEY[v])o[k]=KEY[v];
+        else if(k==='for'&&Array.isArray(v))o[k]=v.map(x=>KEY[x]||x);
+        else if(v&&typeof v==='object')walk(v);}};
+    walk(S);
+  }
   if(!(S.v>=2)){migrateV2(S);}
   if(!(S.v>=3)){
     Object.values(S.adv).forEach(a=>{
@@ -4007,9 +4025,9 @@ function migrate(S){
     S.farewells=S.farewells||[];S.v=3;
   }
   if(!(S.v>=4)){
-    Object.values(S.adv).forEach(a=>{if(a.race==='ノーム'){a.race='ホビット';if(a.chron)chron(S,a,'（この日から、ノームはホビットとして記録される）');}
+    Object.values(S.adv).forEach(a=>{if(a.race==='ノーム'){a.race='hobbit';if(a.chron)chron(S,a,'（この日から、ノームはホビットとして記録される）');}
       if(a.odd==null)a.odd=!!(RACE[a.race]&&RACE[a.race].odd===a.cls);});
-    (S.memorial||[]).forEach(m=>{if(m.race==='ノーム')m.race='ホビット';});(S.farewells||[]).forEach(m=>{if(m.race==='ノーム')m.race='ホビット';});
+    (S.memorial||[]).forEach(m=>{if(m.race==='ノーム')m.race='hobbit';});(S.farewells||[]).forEach(m=>{if(m.race==='ノーム')m.race='hobbit';});
     S.v=4;
   }
   if(!(S.v>=5)){
@@ -4187,6 +4205,7 @@ function migrate(S){
     });
     S.v=34;
   }
+  if(keyed)S.v=35;
   if(typeof S.taverns.ours.interestPaid!=='number')S.taverns.ours.interestPaid=inferInterestPaid(S);
   Object.values(S.adv).forEach(a=>{if(!a.tone)personalize(a);if(!a.traits)assignTraits(S,a,true);});
   smallOf(S);
@@ -4333,10 +4352,10 @@ function fmtAway(s){const m=Math.round(s/60);if(m<60)return m+'分';const h=Math
 function nw(s){return `<span class="nw">${s}</span>`}
 // 手帳の文。短いかっこ書き（「（店は儲かる）」「（麦の狐）」）は一続きの語として折らない
 function parenNw(t){return String(t).split(/(（[^（）]{1,12}）)/).map((x,i)=>i%2?nw(esc(x)):esc(x)).join('')}
-function sexAgeHtml(a){return `${a.sex}・${nw(humanAge(a)+'歳'+(a.race==='人間'?'':'相当'))}`}
+function sexAgeHtml(a){return `${a.sex}・${nw(humanAge(a)+'歳'+(a.race==='human'?'':'相当'))}`}
 function originBit(a){return a.origin&&ORIGINS[a.origin]?nw(ORIGINS[a.origin].short+'出身')+' ':''}
 // 「Lv20 ホビットの盗賊」は、Lvと種族と職業をまとめて一続きにする
-function lvCls(a){return nw('Lv'+a.lvl+' '+a.race+'の'+a.cls)}
+function lvCls(a){return nw('Lv'+a.lvl+' '+raceName(a.race)+'の'+clsName(a.cls))}
 function dayMark(tk){return nw((Math.floor(tk/TICKS_PER_DAY)+1)+'日目')}
 // 知らせの人名・店名・地名と、Lv○・○歳・○日目・○部・○回・○体・金額・B○F・○%と、中が12字までのかっこ書きを一続きにする。記録の文そのものは変えない
 function newsTerms(){
@@ -4470,7 +4489,7 @@ function renderParties(){
     // 伏せ中は探索中と同じ帯。消息不明（死因未判明）は帯を出さない
     const showHp=p.tav==='ours'&&ms.length&&!(v.lost&&!v.seen);
     const hp=showHp?`<div class="hpstrip">${ms.map(a=>{const sh=hpView(S,a);const r=sh.mhp?sh.hp/sh.mhp:0;const b=sh.band;return `<i style="--w:${Math.round(Math.max(0,r)*100)}%;--c:${b==='dead'?'var(--ash)':b==='crit'?'var(--blood)':b==='low'?'var(--amber)':'var(--heal)'}"></i>`}).join('')}</div>`:'';
-    const roster=ms.length?`<div class="roster">${ms.map(a=>{const mark=rosterMark(a);return `<span class="who${a.id===p.leader?' lead':''}${mark==='不明'?' gone':mark?' down':''}"><span class="nm">${a.id===p.leader?'★':''}${esc(a.name)}</span><span class="cls">${esc(a.cls)} Lv${a.lvl}${mark?' '+mark:''}</span></span>`}).join('')}</div>`:'';
+    const roster=ms.length?`<div class="roster">${ms.map(a=>{const mark=rosterMark(a);return `<span class="who${a.id===p.leader?' lead':''}${mark==='不明'?' gone':mark?' down':''}"><span class="nm">${a.id===p.leader?'★':''}${esc(a.name)}</span><span class="cls">${esc(clsName(a.cls))} Lv${a.lvl}${mark?' '+mark:''}</span></span>`}).join('')}</div>`:'';
     return `<button class="pcard${p.tav==='rival'?' rival':''}${S.watch.includes(p.id)?' watching':''}" data-act="watch" data-p="${p.id}" ${vis?'':'aria-disabled="true"'}>
       <div class="top"><span class="pn">${partyHtml(p.name)}</span><span class="tag ${p.tav}">${S.taverns[p.tav].name}${p.ace?'の看板':''}</span></div>
       <div class="facts">${ms.length?`<span>平均<b>Lv${avg}</b></span><span>最高<b>Lv${max}</b></span><span><b>${ms.length}</b>人</span>`:''}<span>到達<b>${esc(reachText(p))}</b></span></div>
@@ -4639,7 +4658,7 @@ function sideSmall(){const list=smallOf(S);const day=tk=>Math.floor(tk/TICKS_PER
 function sideRef(){
   return `<div class="sect"><h3>呪文の一覧</h3>${SPELLS.map(x=>`<div class="cl"><b>${x.n}</b><span>${keepText(x.d+'。')}<br>使える者：${keepText(spellWho(x))}</span></div>`).join('')}</div>
   <div class="sect"><h3>職業の一覧</h3>
-  ${Object.entries(CLS).map(([k,c])=>`<div class="cl"><b>${k}</b><span>${keepText((c.adv?`上級職：${c.adv}から（${c.req}）。`:c.rare?'レア職業：ごくまれに店に現れる。':'基本職。')+(c.desc||''))}</span></div>`).join('')}</div>`;
+  ${Object.values(CLS).map(c=>`<div class="cl"><b>${c.n}</b><span>${keepText((c.adv?`上級職：${clsName(c.adv)}から（${c.req}）。`:c.rare?'レア職業：ごくまれに店に現れる。':'基本職。')+(c.desc||''))}</span></div>`).join('')}</div>`;
 }
 function banzuke(){
   const rows=rankRows(S);
@@ -4704,7 +4723,7 @@ function lifeEp(r){return r.life&&r.life.length?`<details class="life"><summary>
 function sideStone(){
   const fw=(S.farewells||[]).slice().reverse();
   const ln=(id,name)=>id&&S.adv[id]?`<button class="nm-link" data-act="adv" data-a="${id}">${esc(name)}</button>`:`<b>${esc(name)}</b>`;
-  return `<div class="sect"><h3>店を去った者　${fw.length}人</h3>${fw.map(f=>`<div class="stone">${ln(f.id,f.name)} <span class="meta">${f.age?f.sex+'・'+nw((f.hage||f.age)+'歳'+(f.race&&f.race!=='人間'?'相当':''))+' ':''}${lvCls(f)}</span><div class="ep">${openingEp(f.id)}${f.tav==='ours'?'黒猫亭':'銀の杯亭'}の客。${keepText(`${Math.floor(f.tk/TICKS_PER_DAY)+1}日目、${f.why}ため旅立った。`)}</div>${ledgerHtml(ledgerLine(S,S.adv[f.id],'end'))}${letterEp(f)}${lifeEp(f)}</div>`).join('')||'<p class="note">まだ誰も去っていない。</p>'}</div>
+  return `<div class="sect"><h3>店を去った者　${fw.length}人</h3>${fw.map(f=>`<div class="stone">${ln(f.id,f.name)} <span class="meta">${f.age?f.sex+'・'+nw((f.hage||f.age)+'歳'+(f.race&&f.race!=='human'?'相当':''))+' ':''}${lvCls(f)}</span><div class="ep">${openingEp(f.id)}${f.tav==='ours'?'黒猫亭':'銀の杯亭'}の客。${keepText(`${Math.floor(f.tk/TICKS_PER_DAY)+1}日目、${f.why}ため旅立った。`)}</div>${ledgerHtml(ledgerLine(S,S.adv[f.id],'end'))}${letterEp(f)}${lifeEp(f)}</div>`).join('')||'<p class="note">まだ誰も去っていない。</p>'}</div>
   <div class="sect"><h3>ロストした者　${S.memorial.length}人</h3>`+(S.memorial.slice().reverse().map(m=>`<div class="stone">${ln(m.id,m.name)} <span class="meta">${lvCls(m)}</span>${lastEp(m)}<div class="ep">${openingEp(m.id)}${m.marked?'店主が見込んだ者。':''}${m.tav==='ours'?'黒猫亭':'銀の杯亭'}の客。${nw(FN(m.floor))}にて${esc(m.by)}に倒れ、蘇ることなく${dayMark(m.tk)}に眠る。${rareEp(m)}討伐${m.kills}。</div>${ledgerHtml(ledgerLine(S,S.adv[m.id],'end'))}${farewellEp(m)}${lifeEp(m)}</div>`).join('')||'<p class="note">まだ誰の名も刻まれていない。</p>')+'</div>';
 }
 // 帳面の一行。「九人に一人」「六百日ほど」「在籍は百七十日ほど」は語の途中で折らない
@@ -4742,7 +4761,7 @@ function doing(a){
   if(a.gold<100)opts.push('ツケで飲んでいる','水だけ頼んで粘っている');
   if(a.food)opts.push(`好物の${a.food}を頼んでいる`,`${a.food}がないと聞いて肩を落としている`);
   const ha=humanAge(a);if(ha<18)opts.push('背伸びして酒を頼み、店主に牛乳を出されている','年上の冒険者の武勇伝に聞き入っている');else if(ha>=45)opts.push('膝をさすりながら、ゆっくり杯を傾けている','若い連中の話を黙って聞いている','昔の仲間の名を、指で卓に書いている');
-  ({'エルフ':['窓辺で月を眺めている','人間の歌を書き留めている'],'ドワーフ':['樽の酒を飲み比べている','斧の刃を研いでいる'],'ホビット':['三皿目の料理に取りかかっている','ポケットから何か取り出しては眺めている']}[a.race]||[]).forEach(x=>opts.push(x));
+  ({'elf':['窓辺で月を眺めている','人間の歌を書き留めている'],'dwarf':['樽の酒を飲み比べている','斧の刃を研いでいる'],'hobbit':['三皿目の料理に取りかかっている','ポケットから何か取り出しては眺めている']}[a.race]||[]).forEach(x=>opts.push(x));
   ({'ハザン草原':['馬具の手入れをしている'],'東方の島国アズマ':['海の方角を向いて、静かに茶を飲んでいる'],'セーレ自由都市同盟':['帳面に稼ぎをつけている'],'聖オルド教国':['食前の祈りを長々と唱えている'],'灰の荒野':['荒野の古い歌を口ずさんでいる'],'グラウ帝国':['背筋を伸ばして、黙々と食べている']}[a.origin]||[]).forEach(x=>opts.push(x));
   if((a.favor||0)>=2)opts.push('店主に贈られた装備を磨いている','店主に礼を言って、多めに注文している');
   if(a.gold>20000)opts.push('金貨を積み上げて眺めている','皆に一杯おごっている');
@@ -4769,13 +4788,13 @@ function renderAdv(){
   ${markFull?`<p class="markwhy">${markFullLine()}</p>`:''}
   ${he?`<div class="dream"><small>引き受けている話</small>「${esc(he.n)}」${FN(he.f)}・あと${Math.max(1,Math.ceil((he.until-S.tick)/TICKS_PER_DAY))}日</div>`:''}
   ${pe?`<div class="dream"><small>回すつもりの話（次に酒場で会えたら伝える）</small>「${esc(pe.n)}」${FN(pe.f)}・掲示はあと${Math.max(1,Math.ceil((pe.until-S.tick)/TICKS_PER_DAY))}日</div>`:''}
-  <div class="adv-sub">${S.taverns[a.tav].name}の客・出身：${esc(originOf(a))}${a.origin&&ORIGINS[a.origin].far?nw('（大陸の外）'):''}・${sexAgeHtml(a)}${a.race!=='人間'?nw('（実年齢'+a.age+'歳）'):''}・${nw('Lv'+a.lvl+'（'+rankOf(a.lvl)+'）')} ${nw(a.race+'の'+a.cls)}・${nw(esc(a.pers))}・${nw(esc(a.quirk))}・${nw('素質「'+esc(a.tal)+'」')}<br>${keepText(a.bg)}<br>${nw('口調：'+esc(a.tone||'普通'))}・${nw('口癖「'+esc(a.catch||'')+'」')}・${nw('好物：'+esc(a.food||''))}${a.fear?'・'+nw('怖いもの：'+esc(a.fear)):''}</div>
+  <div class="adv-sub">${S.taverns[a.tav].name}の客・出身：${esc(originOf(a))}${a.origin&&ORIGINS[a.origin].far?nw('（大陸の外）'):''}・${sexAgeHtml(a)}${a.race!=='human'?nw('（実年齢'+a.age+'歳）'):''}・${nw('Lv'+a.lvl+'（'+rankOf(a.lvl)+'）')} ${nw(raceName(a.race)+'の'+clsName(a.cls))}・${nw(esc(a.pers))}・${nw(esc(a.quirk))}・${nw('素質「'+esc(a.tal)+'」')}<br>${keepText(a.bg)}<br>${nw('口調：'+esc(a.tone||'普通'))}・${nw('口癖「'+esc(a.catch||'')+'」')}・${nw('好物：'+esc(a.food||''))}${a.fear?'・'+nw('怖いもの：'+esc(a.fear)):''}</div>
   ${kinNote(a)}
   ${(a.traits||[]).length?`<div class="dream${a.blessed?' odd':''}"><small>${a.blessed?'天に愛された者・':a.cursed?'星回りの悪い者・':''}得意と不得意</small>${trGood(a).map(t=>`<b>${t}</b>　${parenNw(TRAITS[t].d)}`).join('<br>')}${trGood(a).length&&trBad(a).length?'<br>':''}${trBad(a).map(t=>`<span style="opacity:.75">${t}</span>　${parenNw(TRAITS[t].d)}`).join('<br>')}</div>`:''}
   ${(a.changes||[]).length?`<div class="dream"><small>変わったこと</small>${a.changes.map(c=>`${Math.floor(c.tk/TICKS_PER_DAY)+1}日目　${parenNw(c.t)}`).join('<br>')}</div>`:''}
   ${a.odd?`<div class="dream odd"><small>異例の冒険者</small>${parenNw(ODD_PERK[a.race]||'')}</div>`:''}
-  ${C(a).adv||C(a).rare?`<div class="dream cls"><small>${C(a).rare?'レア職業':'上級職（'+esc(a.promoted||C(a).adv)+'から転職）'}・${esc(a.cls)}</small>${parenNw(C(a).desc)}${a.beast?`<small>相棒：${esc(a.beast.kind)}の${esc(a.beast.name)}</small>`:''}</div>`:''}
-  <div class="note">${a.race}：得意　${parenNw(rc(a).good)}／苦手　${parenNw(rc(a).bad)}${a.odd?nw('（克服している）'):''}</div>
+  ${C(a).adv||C(a).rare?`<div class="dream cls"><small>${C(a).rare?'レア職業':'上級職（'+esc(clsName(a.promoted||C(a).adv))+'から転職）'}・${esc(clsName(a.cls))}</small>${parenNw(C(a).desc)}${a.beast?`<small>相棒：${esc(a.beast.kind)}の${esc(a.beast.name)}</small>`:''}</div>`:''}
+  <div class="note">${raceName(a.race)}：得意　${parenNw(rc(a).good)}／苦手　${parenNw(rc(a).bad)}${a.odd?nw('（克服している）'):''}</div>
   ${d?`<div class="dream"><small>夢</small>${parenNw(dreamText(d))}${dreamProgress(a)?`<small>${parenNw(dreamProgress(a))}</small>`:''}</div>`:`<div class="dream"><small>夢</small>${!isActive(a)?'――':'次の夢を探している'}</div>`}
   ${(a.pastDreams||[]).map(x=>`<div class="dream done"><small>${dreamSeen(a,x)?'見届けた夢':'かなえた夢'}・${Math.floor(x.tk/TICKS_PER_DAY)+1}日目</small>${parenNw(x.t)}${x.note?`<small>${parenNw(x.note)}</small>`:''}</div>`).join('')}
   <div class="kv"><div><b>${a.kills}</b>討伐</div><div><b>${deepNow(a.deepest)}</b>最深到達</div><div><b>${a.revived}</b>蘇生</div><div><b>${a.disarms}</b>罠解除</div>${a.errandsDone?`<div><b>${a.errandsDone}</b>果たした話</div>`:''}<div><b>${a.gold}G</b>所持金</div>${(()=>{const hp=hpView(S,a);return hp.hide?'':`<div><b>${esc(hp.label)}</b>HP</div>`;})()}</div>
