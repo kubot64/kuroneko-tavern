@@ -896,6 +896,32 @@ function checkAffinity(){
       const n20=S2.news.length;E2.corpsesHome(S2,p2,'巡回隊が見つけ、',null);
       const home=S2.news.slice(n20).filter(x=>x.t.includes('遺体が街に届いた'));
       check('全滅：水晶で見ていた一行の遺体が届いても、死因と階は繰り返さない',home.length===1&&home[0].t===`巡回隊が見つけ、${p2.name}の遺体が街に届いた。`&&!/B\d+F/.test(home[0].t),'見ていた・届く',home.map(x=>x.t).join(' / '));}
+    // #194：画面は viewOf（と hpView・shownStatus・chronShown）だけを通して一行を見る。#174 で直した漏れ（水晶・名簿・手帳・札・依頼額）が出ないこと
+    {const {E,S,p}=scene();prep(E,S,p,{floor:9});p.reach=6;p.pushTo=0;p.mineTrip=false;E.noteKnownDepth(p);p.reach=9;p.steps=30;
+      p.calmLc=p.lc||0;p.calmHp=p.members.map(id=>S.adv[id].hp);
+      const before=E.viewOf(S,p),hpB=p.members.map(id=>E.hpView(S,S.adv[id]).label);
+      p.members.forEach(id=>{const a=S.adv[id];a.hp=0;E.dieInDungeon(S,p,a,'オーク');});E.wipe(S,p,'オーク');
+      Object.values(S.parties).forEach(q=>{if(q!==p){q.state='town';q.rest=99;}});
+      const v=E.viewOf(S,p),ms=p.members.map(id=>S.adv[id]);
+      check('見え方：まだ知れていない全滅は、札と水晶の様子・到達が全滅の前と同じで、水晶に映り、伝書鳩も飛ばせる',v.hidden&&!v.lost&&!v.missing&&v.label[0]===before.label[0]&&v.depth.key===before.depth.key&&v.visible&&v.canRecall,'伏せ中',`${v.label[0]} / ${before.label[0]} 到達${v.depth.key}/${before.depth.key}`);
+      check('見え方：まだ知れていない全滅の札に、全滅・消息不明・まだ戻らないは出ない',!/全滅|消息不明|まだ戻らない/.test(v.card[0]),'伏せ中',v.card[0]);
+      check('見え方：まだ知れていない全滅の仲間は、名簿で探索中、体力は全滅の前のまま',ms.every(a=>E.shownStatus(S,a)==='party')&&ms.map(a=>E.hpView(S,a).label).join(',')===hpB.join(','),'伏せ中',ms.map(a=>E.shownStatus(S,a)+':'+E.hpView(S,a).label).join(','));
+      check('見え方：まだ知れていない全滅の水晶の記録に、倒れた行と全滅の行は出ない',v.log.length>0&&!v.log.some(l=>l.k==='death'||/しんだ|ぜんめつ|たおれ/.test(l.t)),'伏せ中',v.log.slice(-3).map(l=>l.t).join(' / '));
+      {const a=ms[0];E.chron(S,a,'B9Fでオークに倒れる');E.chron(S,a,'全滅した。オークに倒れた');const last=a.chron.slice(-2);
+        check('見え方：まだ知れていない全滅の手帳に、倒れた階と相手・全滅の一文は出ない',last.every(c=>!E.chronShown(S,a,c)),'伏せ中',last.map(c=>c.t).join(' / '));a.chron.splice(-2);}
+      S.tick=p.dueAt;
+      check('見え方：予定帰還の刻を過ぎると、伏せたまま札に「まだ戻らない」が出る',E.viewOf(S,p).hidden&&E.viewOf(S,p).card[0].includes('まだ戻らない'),'予定の刻',E.viewOf(S,p).card[0]);
+      S.tick=p.dueAt+E.MISSING_GRACE-1;E.tick(S);
+      const m=E.viewOf(S,p);
+      check('見え方：知れたあとの消息不明は、札に階も死因も出さず、到達は出発のときの深さ',m.missing&&m.lost&&!m.seen&&m.label[0]===`消息不明（迷宮）`&&!/B\d+F|オーク/.test(m.card[0])&&m.depth.lab===6,'消息不明',`${m.label[0]} / ${m.card[0]} 到達${m.depth.lab}`);
+      check('見え方：消息不明の仲間は、名簿で行方不明、体力の数は出さず、水晶には映らない',ms.every(a=>E.shownStatus(S,a)==='missing'&&E.hpView(S,a).hide)&&!m.visible,'消息不明',ms.map(a=>E.shownStatus(S,a)).join(','));
+      check('見え方：消息不明のあいだは死体回収を頼め、依頼額は出発のときの深さで決まる',m.waiting&&E.bountyFloor(p)===6,'消息不明',`回収${m.waiting} 依頼階${E.bountyFloor(p)}`);}
+    {const {E,S,p}=scene();prep(E,S,p,{floor:9,watch:true});E.wipe(S,p,'オーク');const v=E.viewOf(S,p);
+      check('見え方：水晶で最期を見ていた全滅は、その場で全滅と階が札に出て、水晶にも映る',v.seen&&v.lost&&!v.hidden&&!v.missing&&v.label[0]==='全滅（B9F）'&&v.visible,'見ていた',`${v.label[0]} 映る${v.visible}`);}
+    // 銀の杯亭の全滅は、噂になるまで札に出さない
+    {const E=load(1),S=E.newState();const q=Object.values(S.parties).find(x=>x.tav==='rival');q.state='wiped';q.announced=false;
+      check('見え方：銀の杯亭の全滅は、噂になるまで札に出さない',E.viewOf(S,q).rumor&&!E.viewOf(S,q).visible,'銀の杯亭・全滅',String(E.viewOf(S,q).rumor));
+      q.announced=true;check('見え方：銀の杯亭の全滅は、噂になると札に出る',!E.viewOf(S,q).rumor,'銀の杯亭・噂',String(E.viewOf(S,q).rumor));}
     {const {E,S,p}=scene();prep(E,S,p,{watch:true});E.wipe(S,p,'オーク');
       const n=S.news.slice(-1)[0].t;
       check('全滅：癒し手がいなければ、その一文を水晶の知らせに添える',p.cause==='癒し手がひとりもいなかった'&&n.includes('癒し手がひとりもいなかった')&&n.includes('オークに倒れる'),'戦士だけ',n);}

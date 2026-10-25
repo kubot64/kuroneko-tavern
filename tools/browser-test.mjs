@@ -2731,8 +2731,8 @@ test('まだ知れていない全滅の水晶は、生きている一行と見�
       if(T().gold!==g1-50)out.push('伝書鳩の代金 '+(g1-T().gold));
       if(!cr3.innerText.includes('でんしょばとが まいおりた'))out.push('伝書鳩の行がない');
       if(!cr3.innerText.includes('帰路についている')||cr3.querySelector('[data-act="recall"]'))out.push('撤退のあとの足元 '+cr3.querySelector('.c-foot').innerText);
-      if(!stateText(p)[0].includes('帰還中'))out.push('撤退のあとの札 '+stateText(p)[0]);
-      if(!wipeHidden(p))out.push('撤退で全滅が知れた');
+      if(!viewOf(S,p).label[0].includes('帰還中'))out.push('撤退のあとの札 '+viewOf(S,p).label[0]);
+      if(!viewOf(S,p).hidden)out.push('撤退で全滅が知れた');
       return {out,calm};
     });
     assert.deepEqual(r.out,[],`幅${w}`);
