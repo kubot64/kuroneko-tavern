@@ -3087,13 +3087,14 @@ test('資料タブの呪文の一覧は、呪文の表 SPELLS と同じ文を、
 test('職業と種族の内部の鍵は、どのタブにも手帳にも出ない',async()=>{
   const {ctx,page,errors}=await open();
   await page.locator('#sp0').click();
-  await page.evaluate(()=>{for(let i=0;i<200*TICKS_PER_DAY;i++){tick(S);rivalTemple(S);}render();});
+  // 200日回したあとに出るひと幕・完済の場面・踏破の場面は閉じておく（タブを見るのに邪魔になる）
+  await page.evaluate(()=>{for(let i=0;i<200*TICKS_PER_DAY;i++){tick(S);rivalTemple(S);}S.lifeQ=[];delete S.taverns.ours.payoffScene;if(S.conquered)S.conquered.ending=false;render();
+    for(const id of ['life','payoff','ending','digest'])document.getElementById(id).hidden=true;});
   const KEYRE=/\b(warrior|samurai|thief|priest|mage|paladin|berserker|kensei|ninja|bishop|sorcerer|dragoon|bard|alchemist|tamer|human|elf|dwarf|hobbit)\b/;
   const tabs=await page.locator('#tabs button[data-act="tab"]').evaluateAll(bs=>bs.map(b=>b.dataset.v));
   const leaks=[];
   for(const v of tabs){
-    await page.locator(`#tabs button[data-act="tab"][data-v="${v}"]`).click();
-    const txt=await page.evaluate(()=>document.body.innerText);
+    const txt=await page.evaluate(v=>{tab=v;renderSide();return document.body.innerText;},v);
     const m=txt.match(KEYRE);if(m)leaks.push(`${v}：${m[0]}`);
   }
   // 手帳は、職業と種族の違う者を選んで開く（黒猫亭と銀の杯亭の両方）
