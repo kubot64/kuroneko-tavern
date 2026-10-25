@@ -3070,6 +3070,20 @@ function screenAudit(){
   return [...new Set(bad)];
 }
 
+test('資料タブの呪文の一覧は、呪文の表 SPELLS と同じ文を、同じ並びで出す',async()=>{
+  const {ctx,page,errors}=await open();
+  await page.locator('#sp0').click();
+  await page.locator('button[data-v="ref"]').click();
+  const r=await page.evaluate(()=>{
+    const h=[...document.querySelectorAll('#tbody h3')].find(x=>x.textContent==='呪文の一覧');
+    const got=[...h.parentElement.querySelectorAll('.cl')].map(el=>el.querySelector('b').textContent+'｜'+el.querySelector('span').textContent);
+    const want=SPELLS.map(x=>x.n+'｜'+x.d+'。使える者：'+spellWho(x));
+    return {got,want};
+  });
+  assert.deepEqual(r.got,r.want);
+  assert.deepEqual(errors,[]);await ctx.close();
+});
+
 test('どのタブも、375px・768px・1280pxで押す所が44px以上あり、横にはみ出さず、語の途中で折れない',async()=>{
   const {ctx,page,errors}=await open();
   await page.locator('#sp0').click();

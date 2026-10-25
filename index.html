@@ -460,7 +460,7 @@ const CLS={
   '侍':{hp:[9,12],atk:[4,7],ac:1,mp:0,front:true,hd:7,eq:['侍'],mpg:.5,mage:true,mageLv:3,crit:.03},
   '盗賊':{hp:[6,9],atk:[3,4],ac:1,mp:0,hd:5,eq:['盗賊'],mpg:0,thief:true,crit:.03},
   '僧侶':{hp:[7,10],atk:[2,3],ac:1,mp:3,hd:6,eq:['僧侶'],mpg:1,heal:true},
-  '魔術師':{hp:[4,6],atk:[1,2],ac:0,mp:3,hd:3,eq:['魔術師'],mpg:1,mage:true,sleep:true,big:7},
+  '魔術師':{hp:[4,6],atk:[1,2],ac:0,mp:3,hd:3,eq:['魔術師'],mpg:1,mage:true},
   // 上級職（転職でなる）
   '聖騎士':{adv:'戦士',lv:20,cond:a=>!['無謀','強欲'].includes(a.pers),req:'レベル20・無謀でも強欲でもない',front:true,hd:8,eq:['戦士','僧侶'],mpg:.5,heal:true,healTh:.35,bonus:{mmp:2,ac:1},
     desc:'祈りを身につけた戦士。前に立ちながら、仲間の傷を癒やす'},
@@ -470,9 +470,9 @@ const CLS={
     desc:'剣の道を極めた侍。首をはねる太刀筋は神業の域'},
   '忍者':{adv:'盗賊',lv:22,cond:a=>a.disarms>=15,req:'レベル22・罠解除15',front:true,hd:6,eq:['盗賊','侍'],mpg:0,thief:true,crit:.1,dodge:.08,bonus:{atk:2,ac:1},
     desc:'影に生きる者。罠を外し、前に立ち、急所を突く'},
-  '司教':{adv:'僧侶',lv:22,cond:a=>a.revived<3,req:'レベル22',hd:6,eq:['僧侶','魔術師'],mpg:1,heal:true,mage:true,big:12,bonus:{mmp:3},
+  '司教':{adv:'僧侶',lv:22,cond:a=>a.revived<3,req:'レベル22',hd:6,eq:['僧侶','魔術師'],mpg:1,heal:true,mage:true,bonus:{mmp:3},
     desc:'癒やしと攻撃、両方の呪文を修めた聖職者'},
-  '魔導士':{adv:'魔術師',lv:24,cond:()=>true,req:'レベル24',hd:4,eq:['魔術師'],mpg:1,mage:true,sleep:true,big:1,spell:3,bonus:{mmp:3},
+  '魔導士':{adv:'魔術師',lv:24,cond:()=>true,req:'レベル24',hd:4,eq:['魔術師'],mpg:1,mage:true,spell:3,bonus:{mmp:3},
     desc:'呪文の深奥に触れた魔術師。ゴウカを自在に操り、やがてゴウエンの炎に至る'},
   // レア職業（ごくまれに店に現れる）
   '竜騎士':{rare:true,hp:[11,14],atk:[5,7],ac:2,mp:0,front:true,hd:8,eq:['戦士'],mpg:0,breath:true,
@@ -2181,10 +2181,10 @@ function stepParty(S,p){
   if(p.tav==='ours'){p.calmLc=p.lc||0;p.calmHp=p.members.map(id=>{const a=A(S,id);return a?a.hp:0;});}
   p.steps++;
   if(p.state==='return'){
-    if(p.floor>=6&&hpRatio(S,p)<.35){const c=alive(S,p).find(a=>CAN.dasshutsu(a)&&a.mp>=3);if(c){escape(S,p,c);return;}}
+    if(p.floor>=6&&hpRatio(S,p)<.35){const c=alive(S,p).find(a=>CAN.dasshutsu(a)&&a.mp>=SP.dasshutsu.mp);if(c){escape(S,p,c);return;}}
     // イシワタリは、いちばん近い転移の石碑が2階以上うえにあれば、そこまで一行を運ぶ。1階うえなら唱えない。着いた階で石碑に触れて地上へ戻る
-    {const f=p.floor,st=(inMine(f)?[MINE_TOP,...MINE_STONES]:STONES).filter(x=>x<=f).pop();const c=st&&f-st>=2&&alive(S,p).find(a=>CAN.watari(a)&&a.mp>=4);
-      if(c){c.mp-=4;p.floor=st;p.trip.watari=c.name;plog(p,`${c.name} は イシワタリ を となえた\n　いっこうは ${FN(st)}の てんいの せきひの まえに たっていた`,'loot');
+    {const f=p.floor,st=(inMine(f)?[MINE_TOP,...MINE_STONES]:STONES).filter(x=>x<=f).pop();const c=st&&f-st>=2&&alive(S,p).find(a=>CAN.watari(a)&&a.mp>=SP.watari.mp);
+      if(c){c.mp-=SP.watari.mp;p.floor=st;p.trip.watari=c.name;plog(p,`${c.name} は イシワタリ を となえた\n　いっこうは ${FN(st)}の てんいの せきひの まえに たっていた`,'loot');
         if(!c.watariN)chron(S,c,`${FN(f)}でイシワタリを唱え、一行を${FN(st)}の石碑まで運ぶ`);c.watariN=(c.watariN||0)+1;return;}}
     if(chance(.18)){encounter(S,p);return;}
     findCorpses(S,p,.02);
@@ -2414,7 +2414,7 @@ function floorArrive(S,p,byTrap){const F=floorsInit(S);const f=p.floor;if(f<1)re
   useMap(S,p);
   {const fz=alive(S,p).find(a=>{const fo=fearOf(a);return fo&&((fo.zone&&zoneOf(f)===fo.zone)||(fo.nomap&&!((p.maps&&p.maps[f])||(p.tmap&&p.tmap[f]))));});if(fz&&chance(.3))plog(p,`${fz.name}「${FEAR_SAY[fz.fear]}」`,'say');}
   // ウツシエを唱えられる者がいれば、ミトオシより先にそちらを使う。地図がまだ出ていない階なら、写しを持ち帰る
-  if(!hasMap(p)&&f>3){const al=alive(S,p),cu=al.find(a=>CAN.utsushi(a)&&a.mp>=4),c=cu||al.find(a=>CAN.mitooshi(a)&&a.mp>=3);if(c&&chance(.6)){c.mp-=cu?4:3;p.tmap=p.tmap||{};p.tmap[f]=1;
+  if(!hasMap(p)&&f>3){const al=alive(S,p),cu=al.find(a=>CAN.utsushi(a)&&a.mp>=SP.utsushi.mp),c=cu||al.find(a=>CAN.mitooshi(a)&&a.mp>=SP.mitooshi.mp);if(c&&chance(.6)){c.mp-=cu?SP.utsushi.mp:SP.mitooshi.mp;p.tmap=p.tmap||{};p.tmap[f]=1;
     if(cu){const cp=!F[f].map;if(cp)(p.trip.copies=p.trip.copies||[]).push(f);plog(p,`${c.name} は ウツシエ を となえた。${FN(f)}の みちすじが うかびあがる${cp?'\n　みちすじを かみに うつしとった':''}`,'loot');}
     else plog(p,`${c.name} は ミトオシ を となえた。${FN(f)}の みちすじが うかびあがる`,'loot');}}}
 function floorThrough(S,p,f){const F=floorsInit(S);F[f]=F[f]||{};if(F[f].through)return;
@@ -2743,56 +2743,55 @@ function elemNote(t){const nm={fire:'炎',ice:'氷',bolt:'雷'};const parts=[];l
   for(const k of ['fire','ice','bolt']){const m=elemMul(t,k);const sign=m>1?'弱':m<1?'強':null;if(!sign){cur=null;continue;}
     if(cur&&cur.sign===sign)cur.names.push(nm[k]);else{cur={sign,names:[nm[k]]};parts.push(cur);}}
   return parts.map((p,i)=>p.names.join('と')+'に'+p.sign+(i===parts.length-1?'い':'く')).join('、');}
-const CAN={
-  zenkai:a=>(a.cls==='僧侶'&&PL(a)>=9)||(a.cls==='司教'&&PL(a)>=8),
-  mamori:a=>C(a).heal&&PL(a)>=4,
-  dasshutsu:a=>(a.cls==='僧侶'&&PL(a)>=10)||(a.cls==='司教'&&PL(a)>=8)||(a.cls==='聖騎士'&&PL(a)>=12),
-  yomi:a=>(a.cls==='僧侶'&&PL(a)>=14)||(a.cls==='司教'&&PL(a)>=12),
-  mitooshi:a=>(a.cls==='魔術師'&&PL(a)>=8)||a.cls==='魔導士'||(a.cls==='司教'&&PL(a)>=10),
-  koori:a=>(a.cls==='魔術師'&&PL(a)>=3)||a.cls==='魔導士'||(a.cls==='司教'&&PL(a)>=5),
-  ikazuchi:a=>(a.cls==='魔術師'&&PL(a)>=5)||a.cls==='魔導士'||(a.cls==='司教'&&PL(a)>=7),
-  // 坑道で育った者のための、レベル30〜60の呪文。上級職のほうが早く覚える
-  kiyome:a=>(a.cls==='僧侶'&&PL(a)>=17)||(a.cls==='司教'&&PL(a)>=15)||(a.cls==='聖騎士'&&PL(a)>=20),
-  goen:a=>(a.cls==='魔術師'&&PL(a)>=19)||(a.cls==='魔導士'&&PL(a)>=17)||(a.cls==='司教'&&PL(a)>=22),
-  tamayobi:a=>(a.cls==='僧侶'&&PL(a)>=21)||(a.cls==='司教'&&PL(a)>=19),
-  orihara:a=>(a.cls==='僧侶'&&PL(a)>=23)||(a.cls==='司教'&&PL(a)>=21)||(a.cls==='聖騎士'&&PL(a)>=25),
-  hoshi:a=>(a.cls==='魔術師'&&PL(a)>=27)||(a.cls==='魔導士'&&PL(a)>=25)||(a.cls==='司教'&&PL(a)>=29),
-  ishi:a=>(a.cls==='魔術師'&&PL(a)>=23)||(a.cls==='魔導士'&&PL(a)>=21)||(a.cls==='司教'&&PL(a)>=25),
-  utsushi:a=>(a.cls==='魔術師'&&PL(a)>=21)||(a.cls==='魔導士'&&PL(a)>=19)||(a.cls==='司教'&&PL(a)>=23),
-  watari:a=>(a.cls==='僧侶'&&PL(a)>=24)||(a.cls==='司教'&&PL(a)>=22)||(a.cls==='聖騎士'&&PL(a)>=26),
-};
-// レベルの高い呪文の名。はじめて覚えたときに、水晶のログと手帳へ残す。吸い取られて覚え直しても、二度は残さない
-const HI_SPELLS=[['kiyome','キヨメ'],['goen','ゴウエン'],['tamayobi','タマヨビ'],['orihara','オリハライ'],['hoshi','ホシオトシ'],['ishi','イシガタメ'],['utsushi','ウツシエ'],['watari','イシワタリ']];
-function learnHi(S,p,a){for(const [k,n] of HI_SPELLS){if(!CAN[k](a)||(a.hiSp||[]).includes(k))continue;(a.hiSp=a.hiSp||[]).push(k);
-  plog(p,`${a.name} は あたらしい じゅもん ${n} を おぼえた`,'lvl');chron(S,a,`新しい呪文${n}を覚える`);}}
-const SPELL_LIST=[
-  ['イヤシ','仲間ひとりの傷を癒やす','僧侶・司教・聖騎士'],['ゼンカイ','仲間全員の傷をまとめて癒やす','僧侶Lv17〜・司教Lv15〜'],
-  ['ドクケシ','仲間ひとりの毒を消す','僧侶・司教・聖騎士'],['マモリ','その戦闘のあいだ、全員の守りを上げる','僧侶・司教・聖騎士（Lv7〜）'],
-  ['ダッシュツ','迷宮のどこからでも、一行を地上へ戻す','僧侶Lv19〜・司教Lv15〜・聖騎士Lv23〜'],['ヨミガエリ','B16Fから先の澱の中でだけ、倒れた仲間をその場で蘇らせる。失敗すると灰になる','僧侶Lv27〜・司教Lv23〜'],
-  ['ホノオ','敵の群れを炎で焼く。亡霊や虫によく効き、竜にはほとんど効かず、溶岩にも効きにくい','魔術師・魔導士・司教・侍・剣聖'],['ゴウカ','ホノオの強力版','魔術師Lv13〜・司教Lv23〜・魔導士'],
-  ['コオリ','敵の群れを凍らせる。威力は控えめだが、しばらく動きを止めることがある。竜や溶岩、澱の魔物によく効く','魔術師Lv5〜・司教Lv9〜・魔導士'],
-  ['イカズチ','敵一体に雷を落とす大技。石や鉄の魔物、鎧を着た者によく効く','魔術師Lv9〜・司教Lv13〜・魔導士'],
-  ['ネムリ','敵の群れを眠らせる。届く深さは術者のレベルで伸びる。作り物と不死は眠らない','魔術師・魔導士'],['ミトオシ','地図のない階でも、その探索のあいだ道筋を見通す','魔術師Lv15〜・司教Lv19〜・魔導士'],
-  ['キヨメ','仲間全員の毒をまとめて消す','僧侶Lv33〜・司教Lv29〜・聖騎士Lv39〜'],
-  ['ゴウエン','ゴウカをしのぐ炎で敵の群れを焼く。炎の相性はホノオと同じ','魔術師Lv37〜・魔導士Lv33〜・司教Lv43〜'],
-  ['タマヨビ','ヨミガエリの上位。B16Fから先で、倒れた仲間を高い見込みで蘇らせる。失敗しても灰にはならない','僧侶Lv41〜・司教Lv37〜'],
-  ['オリハライ','その戦闘のあいだ、レベルを吸い取る攻撃から一行を守る。沈んだ王や坑道王にも効く','僧侶Lv45〜・司教Lv41〜・聖騎士Lv49〜'],
-  ['ホシオトシ','一戦に一度だけの大呪文。敵すべてに、相性のない大きな傷を負わせる。主や名のある魔物にも効く','魔術師Lv53〜・魔導士Lv49〜・司教Lv57〜'],
-  ['イシガタメ','敵一体を石に変えて止める。主や名のある魔物、門番には効かない','魔術師Lv45〜・魔導士Lv41〜・司教Lv49〜'],
-  ['ウツシエ','ミトオシの上位。道筋を見通し、まだ地図の出ていない階なら写しを持ち帰って地図屋に売る','魔術師Lv41〜・魔導士Lv37〜・司教Lv45〜'],
-  ['イシワタリ','ダッシュツの上位。帰り道で、いちばん近い転移の石碑が2階以上うえにあれば、そこまで一行を運ぶ','僧侶Lv47〜・司教Lv43〜・聖騎士Lv51〜'],
+// 呪文の表。資料タブ、覚える条件（CAN）、戦いで唱える順（TURN）、docs/spec.md の呪文の表は、すべてここから作る
+// lv：職業ごとの覚えるレベル（載っていない職業は覚えない）。mp：唱えるのに使うMP。d：資料タブと spec.md の効果の文（遊ぶ人が読むので、確率の数字は書かない）
+// turn：戦いのひと巡りで、各自が上から試す順（spec.md「一行の動き」の番号）。step：同じ番号の呪文をまとめて選ぶとき、その手の名
+// hi：坑道で育つ者のための、レベル30〜60の呪文。はじめて覚えたときに、水晶のログと手帳へ残す
+const SPELLS=[
+  {k:'iyashi',n:'イヤシ',d:'いちばん傷の深い仲間ひとりの傷を癒やす',lv:{'僧侶':1,'司教':1,'聖騎士':1},mp:1,turn:5},
+  {k:'zenkai',n:'ゼンカイ',d:'3人以上が傷ついたとき、仲間全員の傷をまとめて癒やす',lv:{'僧侶':17,'司教':15},mp:2,turn:1},
+  {k:'dokukeshi',n:'ドクケシ',d:'毒を受けた仲間ひとりの毒を消す',lv:{'僧侶':1,'司教':1,'聖騎士':1},mp:1,turn:7},
+  {k:'mamori',n:'マモリ',d:'強敵が相手のとき、その戦闘のあいだ全員の守りを上げる',lv:{'僧侶':7,'司教':7,'聖騎士':7},mp:1,turn:2},
+  {k:'dasshutsu',n:'ダッシュツ',d:'迷宮のどこからでも、一行を地上へ戻す',lv:{'僧侶':19,'司教':15,'聖騎士':23},mp:3},
+  {k:'yomi',n:'ヨミガエリ',d:'B16Fから先の澱の中でだけ、倒れた仲間をその場で蘇らせる。失敗すると灰になる',lv:{'僧侶':27,'司教':23},mp:4},
+  {k:'hono',n:'ホノオ',d:'敵の群れを炎で焼く。亡霊や虫によく効き、竜にはほとんど効かず、溶岩にも効きにくい',lv:{'魔術師':1,'魔導士':1,'司教':1,'侍':5,'剣聖':1},mp:1,turn:14,step:'attack'},
+  {k:'goka',n:'ゴウカ',d:'ホノオの強力版。炎の相性はホノオと同じ',lv:{'魔術師':13,'司教':23,'魔導士':1},mp:1,turn:14,step:'attack'},
+  {k:'koori',n:'コオリ',d:'敵の群れを凍らせる。威力は控えめだが、ときどき1ラウンド動きを止める（主と門番は止まらない）。竜や溶岩、澱の魔物によく効く',lv:{'魔術師':5,'司教':9,'魔導士':1},mp:1,turn:14,step:'attack'},
+  {k:'ikazuchi',n:'イカズチ',d:'いちばん体力の多い敵1体に雷を落とす。石や鉄の魔物、鎧を着た者によく効く',lv:{'魔術師':9,'司教':13,'魔導士':1},mp:1,turn:14,step:'attack'},
+  {k:'nemuri',n:'ネムリ',d:'3体以上の群れを眠らせる。届く深さは術者のレベルで伸びる。作り物と不死は眠らない',lv:{'魔術師':1,'魔導士':1},mp:1,turn:13},
+  {k:'mitooshi',n:'ミトオシ',d:'地図のない階で、その探索のあいだ道筋を見通す',lv:{'魔術師':15,'司教':19,'魔導士':1},mp:3},
+  {k:'kiyome',n:'キヨメ',d:'2人以上が毒を受けたとき、仲間全員の毒をまとめて消す',lv:{'僧侶':33,'司教':29,'聖騎士':39},mp:2,turn:6,hi:1},
+  {k:'goen',n:'ゴウエン',d:'ゴウカをしのぐ炎で敵の群れを焼く。炎の相性はホノオと同じ',lv:{'魔術師':37,'魔導士':33,'司教':43},mp:1,turn:14,step:'attack',hi:1},
+  {k:'tamayobi',n:'タマヨビ',d:'ヨミガエリの上位。B16Fから先で、倒れた仲間を高い見込みで蘇らせる。失敗しても灰にはならない',lv:{'僧侶':41,'司教':37},mp:6,hi:1},
+  {k:'orihara',n:'オリハライ',d:'その戦闘のあいだ、レベルを吸い取る攻撃から一行を守る。沈んだ王や坑道王にも効く',lv:{'僧侶':45,'司教':41,'聖騎士':49},mp:3,turn:3,hi:1},
+  {k:'hoshi',n:'ホシオトシ',d:'一戦に一度だけの大呪文。敵すべてに、相性のない大きな傷を負わせる。主・黒竜・名のある魔物にも効く',lv:{'魔術師':53,'魔導士':49,'司教':57},mp:8,turn:12,hi:1},
+  {k:'ishi',n:'イシガタメ',d:'敵一体を石に変えて止める。主・名のある魔物・門番の黒竜には効かない',lv:{'魔術師':45,'魔導士':41,'司教':49},mp:3,turn:14,step:'attack',hi:1},
+  {k:'utsushi',n:'ウツシエ',d:'ミトオシの上位。道筋を見通し、まだ地図の出ていない階なら写しを持ち帰って地図屋に売る',lv:{'魔術師':41,'魔導士':37,'司教':45},mp:4,hi:1},
+  {k:'watari',n:'イシワタリ',d:'ダッシュツの上位。帰り道で、いちばん近い転移の石碑が2階以上うえにあれば、そこまで一行を運ぶ',lv:{'僧侶':47,'司教':43,'聖騎士':51},mp:4,hi:1},
 ];
-function escape(S,p,a){a.mp-=3;plog(p,`${a.name} は ダッシュツ を となえた！\n　いっこうは ひかりに つつまれ ちじょうへ`,'loot');p.trip.escaped=a.name;p.enemies=null;p.buff=0;p.guard=0;p.ward=0;p.star=0;
+const SP=Object.fromEntries(SPELLS.map(x=>[x.k,x]));
+// 覚える条件。表のレベルに届いていれば唱えられる。レベルを吸い取られて下がれば、また唱えられなくなる
+const CAN=Object.fromEntries(SPELLS.map(x=>[x.k,a=>a.lvl>=(x.lv[a.cls]??Infinity)]));
+// 使える者の書き方。レベル1から使えるなら職業の名だけ、そうでなければ「僧侶Lv17〜」
+function spellWho(x){return Object.entries(x.lv).map(([c,l])=>l>1?`${c}Lv${l}〜`:c).join('・');}
+// 戦いのひと巡りで、各自が上から試す手。呪文は表の turn から、呪文でない手はここで番号を決める
+const TURN_ACTS={potion:4,song:8,lullaby:9,bomb:10,breath:11};
+const TURN=[...new Set([...SPELLS.filter(x=>x.turn).map(x=>[x.turn,x.step||x.k]),...Object.entries(TURN_ACTS).map(([k,n])=>[n,k])].sort((x,y)=>x[0]-y[0]).map(([,k])=>k))];
+// レベルの高い呪文。はじめて覚えたときに、水晶のログと手帳へ残す。吸い取られて覚え直しても、二度は残さない
+const HI_SPELLS=SPELLS.filter(x=>x.hi);
+function learnHi(S,p,a){for(const {k,n} of HI_SPELLS){if(!CAN[k](a)||(a.hiSp||[]).includes(k))continue;(a.hiSp=a.hiSp||[]).push(k);
+  plog(p,`${a.name} は あたらしい じゅもん ${n} を おぼえた`,'lvl');chron(S,a,`新しい呪文${n}を覚える`);}}
+function escape(S,p,a){a.mp-=SP.dasshutsu.mp;plog(p,`${a.name} は ダッシュツ を となえた！\n　いっこうは ひかりに つつまれ ちじょうへ`,'loot');p.trip.escaped=a.name;p.enemies=null;p.buff=0;p.guard=0;p.ward=0;p.star=0;
   chron(S,a,`${FN(p.floor)}でダッシュツを唱え、一行を地上へ逃がす`);p.floor=0;arrive(S,p);}
 // タマヨビを唱えられる者がいれば、ヨミガエリより先にそちらを使う。タマヨビは失敗しても灰にならない
 // そのかわり、タマヨビは同じ死者に一探索一度。魂が戻らなかった者には、灰になる危険を承知でヨミガエリを唱える
 function tryYomi(S,p){if(p.floor<YOMI_F)return;
   const al=alive(S,p),gone=p.trip.soulGone||[],dead=p.members.map(id=>A(S,id)).filter(a=>a.hp<=0&&!a.dungeonAsh);if(!dead.length)return;
-  let ct=al.find(a=>CAN.tamayobi(a)&&a.mp>=6),d=ct&&dead.find(a=>!gone.includes(a.id));
+  let ct=al.find(a=>CAN.tamayobi(a)&&a.mp>=SP.tamayobi.mp),d=ct&&dead.find(a=>!gone.includes(a.id));
   if(!d){ct=null;d=dead[0];}
-  const c=ct||al.find(a=>CAN.yomi(a)&&a.mp>=4);if(!c)return;
+  const c=ct||al.find(a=>CAN.yomi(a)&&a.mp>=SP.yomi.mp);if(!c)return;
   const nm=ct?'タマヨビ':'ヨミガエリ';
-  c.mp-=ct?6:4;plog(p,`${c.name} は ${nm} を となえた……`,'sys');
+  c.mp-=ct?SP.tamayobi.mp:SP.yomi.mp;plog(p,`${c.name} は ${nm} を となえた……`,'sys');
   if(chance(ct?Math.min(.95,.7+PL(c)*.008):Math.min(.85,.45+PL(c)*.015))){flushDeathChron(S,d);d.hp=Math.ceil(d.mhp/(ct?2:3));d.status='party';d.poison=0;d.lastBy=null;
     plog(p,`　${d.name} は いきを ふきかえした！`,'loot');chron(S,d,`${FN(p.floor)}で${c.name}の${nm}により息を吹き返す`);chron(S,c,`${FN(p.floor)}で${nm}を唱え、${d.name}を蘇らせる`);c.yomiN=(c.yomiN||0)+1;
     if(p.trip.deaths)p.trip.deaths=p.trip.deaths.filter(x=>x.n!==d.name);p.trip.yomi={c:c.name,d:d.name,s:nm};}
@@ -2904,75 +2903,79 @@ function combat(S,p){
   }
   };
   if(p.ambush){p.ambush=false;plog(p,'ふいうちを うけた！','death');enemyTurn();if(!alive(S,p).length){wipe(S,p,t.n);return;}}
-  {const al0=alive(S,p);if(!t.boss&&(al0.length<=Math.ceil(p.members.length/2)||hpRatio(S,p)<.25)){const c=al0.find(a=>CAN.dasshutsu(a)&&a.mp>=3);if(c){escape(S,p,c);return;}}}
-  for(const a of alive(S,p)){
-    const foes=living(); if(!foes.length)break;
-    const c=C(a);
-    const allies=alive(S,p);
-    const low=allies.reduce((m,x)=>x.hp/x.mhp<m.hp/m.mhp?x:m,allies[0]);
-    if(CAN.zenkai(a)&&a.mp>=2&&allies.filter(x=>x.hp/x.mhp<.6).length>=3){
-      a.mp-=2;const h=Math.round((ri(6,12)+PL(a))*(1+eqSum(a,'heal')+(has(a,'信心深い')?.2:0)));allies.forEach(x=>x.hp=Math.min(x.mhp,x.hp+h));p.trip.heals=(p.trip.heals||0)+1;p.trip.healer=a.name;
-      plog(p,`${a.name} は ゼンカイ を となえた\n　いっこうの きずが ${h} ずつ かいふくした`);continue;}
-    if(CAN.mamori(a)&&!p.guard&&a.mp>=2&&(t.rare||t.gate||t.boss||(t.xpm||1)>=1.4||(foes.length>=3&&f>=12))){
-      a.mp--;p.guard=2+Math.floor(PL(a)/4);plog(p,`${a.name} は マモリ を となえた\n　いっこうの まもりが ${p.guard} あがった`);continue;}
-    if(CAN.orihara(a)&&!p.ward&&a.mp>=3&&(t.boss||(p.ident&&t.sp==='drain'))){
-      a.mp-=3;p.ward=1;p.trip.wardBy=a.name;plog(p,`${a.name} は オリハライ を となえた\n　きよらかな ひかりが いっこうを つつむ`);continue;}
-    if(p.potions>0&&low.hp/low.mhp<.3&&!(c.heal&&a.mp>0)){p.potions--;const h=Math.round(low.mhp*.4);low.hp=Math.min(low.mhp,low.hp+h);if(p.tav==='ours')favor(low,.3);
-      plog(p,`${a.name} は ${low===a?'':low.name+'に '}かいふくやくを つかった\n　${h} かいふくした（のこり ${p.potions}ほん）`);p.trip.potion=(p.trip.potion||0)+1;continue;}
-    if(c.heal&&a.mp>0&&low.hp/low.mhp<(c.healTh||.45)){
-      a.mp--;const h=Math.round((ri(4,8)+PL(a)*2)*(1+eqSum(a,'heal')+(has(a,'信心深い')?.2:0)));low.hp=Math.min(low.mhp,low.hp+h);p.trip.heals=(p.trip.heals||0)+1;p.trip.healer=a.name;
-      plog(p,`${a.name} は イヤシ を となえた\n　${low.name} の きずが ${h} かいふくした`);continue;
-    }
-    if(CAN.kiyome(a)&&a.mp>=2&&allies.filter(x=>x.poison).length>=2){
-      a.mp-=2;const n=allies.filter(x=>x.poison).length;allies.forEach(x=>x.poison=0);plog(p,`${a.name} は キヨメ を となえた\n　${n}にんの どくが きえた`);continue;}
-    if(c.heal&&a.mp>0&&allies.some(x=>x.poison)&&chance(.5)){
-      a.mp--;const x=allies.find(x=>x.poison);x.poison=0;plog(p,`${a.name} は ドクケシ を となえた`);continue;
-    }
-    if(c.song&&a.mp>0&&!p.buff&&chance(.6)){
-      a.mp--;p.buff=2+Math.floor(PL(a)/3);plog(p,`${a.name} は いさましい うたを うたった\n　いっこうの こうげきが ${p.buff} あがった`);continue;
-    }
-    if(c.song&&a.mp>0&&foes.length>=2&&!(p.ident&&!sleepMul(t))&&chance(.4)){
+  {const al0=alive(S,p);if(!t.boss&&(al0.length<=Math.ceil(p.members.length/2)||hpRatio(S,p)<.25)){const c=al0.find(a=>CAN.dasshutsu(a)&&a.mp>=SP.dasshutsu.mp);if(c){escape(S,p,c);return;}}}
+  // ひと巡りの手。各自は TURN の順に試し、最初に当てはまった手をする（呪文の順は SPELLS の turn から）
+  let a,c,foes,allies,low;
+  const caster=()=>CAN.hono(a)&&a.mp>0;
+  const STEP={
+    zenkai:()=>{if(!(CAN.zenkai(a)&&a.mp>=SP.zenkai.mp&&allies.filter(x=>x.hp/x.mhp<.6).length>=3))return false;
+      a.mp-=SP.zenkai.mp;const h=Math.round((ri(6,12)+PL(a))*(1+eqSum(a,'heal')+(has(a,'信心深い')?.2:0)));allies.forEach(x=>x.hp=Math.min(x.mhp,x.hp+h));p.trip.heals=(p.trip.heals||0)+1;p.trip.healer=a.name;
+      plog(p,`${a.name} は ゼンカイ を となえた\n　いっこうの きずが ${h} ずつ かいふくした`);return true;},
+    // マモリは MP を1使うが、2残っていないと唱えない
+    mamori:()=>{if(!(CAN.mamori(a)&&!p.guard&&a.mp>=2&&(t.rare||t.gate||t.boss||(t.xpm||1)>=1.4||(foes.length>=3&&f>=12))))return false;
+      a.mp-=SP.mamori.mp;p.guard=2+Math.floor(PL(a)/4);plog(p,`${a.name} は マモリ を となえた\n　いっこうの まもりが ${p.guard} あがった`);return true;},
+    orihara:()=>{if(!(CAN.orihara(a)&&!p.ward&&a.mp>=SP.orihara.mp&&(t.boss||(p.ident&&t.sp==='drain'))))return false;
+      a.mp-=SP.orihara.mp;p.ward=1;p.trip.wardBy=a.name;plog(p,`${a.name} は オリハライ を となえた\n　きよらかな ひかりが いっこうを つつむ`);return true;},
+    potion:()=>{if(!(p.potions>0&&low.hp/low.mhp<.3&&!(CAN.iyashi(a)&&a.mp>0)))return false;
+      p.potions--;const h=Math.round(low.mhp*.4);low.hp=Math.min(low.mhp,low.hp+h);if(p.tav==='ours')favor(low,.3);
+      plog(p,`${a.name} は ${low===a?'':low.name+'に '}かいふくやくを つかった\n　${h} かいふくした（のこり ${p.potions}ほん）`);p.trip.potion=(p.trip.potion||0)+1;return true;},
+    iyashi:()=>{if(!(CAN.iyashi(a)&&a.mp>=SP.iyashi.mp&&low.hp/low.mhp<(c.healTh||.45)))return false;
+      a.mp-=SP.iyashi.mp;const h=Math.round((ri(4,8)+PL(a)*2)*(1+eqSum(a,'heal')+(has(a,'信心深い')?.2:0)));low.hp=Math.min(low.mhp,low.hp+h);p.trip.heals=(p.trip.heals||0)+1;p.trip.healer=a.name;
+      plog(p,`${a.name} は イヤシ を となえた\n　${low.name} の きずが ${h} かいふくした`);return true;},
+    kiyome:()=>{if(!(CAN.kiyome(a)&&a.mp>=SP.kiyome.mp&&allies.filter(x=>x.poison).length>=2))return false;
+      a.mp-=SP.kiyome.mp;const n=allies.filter(x=>x.poison).length;allies.forEach(x=>x.poison=0);plog(p,`${a.name} は キヨメ を となえた\n　${n}にんの どくが きえた`);return true;},
+    dokukeshi:()=>{if(!(CAN.dokukeshi(a)&&a.mp>=SP.dokukeshi.mp&&allies.some(x=>x.poison)&&chance(.5)))return false;
+      a.mp-=SP.dokukeshi.mp;const x=allies.find(x=>x.poison);x.poison=0;plog(p,`${a.name} は ドクケシ を となえた`);return true;},
+    song:()=>{if(!(c.song&&a.mp>0&&!p.buff&&chance(.6)))return false;
+      a.mp--;p.buff=2+Math.floor(PL(a)/3);plog(p,`${a.name} は いさましい うたを うたった\n　いっこうの こうげきが ${p.buff} あがった`);return true;},
+    lullaby:()=>{if(!(c.song&&a.mp>0&&foes.length>=2&&!(p.ident&&!sleepMul(t))&&chance(.4)))return false;
       a.mp--;const sm=sleepMul(t);let n=0;foes.forEach(e=>{if(chance(.5*sm)){e.sleep=2;n++}});
-      plog(p,`${a.name} は こもりうたを うたった\n　${n?n+' たいが ねむってしまった':foeName(p)+' は ねむらなかった'}`);p.trip.slept=(p.trip.slept||0)+n;p.trip.sleeper=a.name;continue;
-    }
-    if(c.bomb&&a.mp>0&&(foes.length>=2||chance(.3))){
+      plog(p,`${a.name} は こもりうたを うたった\n　${n?n+' たいが ねむってしまった':foeName(p)+' は ねむらなかった'}`);p.trip.slept=(p.trip.slept||0)+n;p.trip.sleeper=a.name;return true;},
+    bomb:()=>{if(!(c.bomb&&a.mp>0&&(foes.length>=2||chance(.3))))return false;
       a.mp--;const m=elemMul(t,'fire');let dead=0;foes.forEach(e=>{e.hp-=Math.round((ri(3,8)+PL(a))*m);if(e.hp<=0){dead++;kill(p,a)}});
-      plog(p,`${a.name} は ばくやくを なげつけた\n　${foeName(p)} は ばくふうに のまれた${elemTag(m)}${dead?'\n　'+dead+' たいが しんだ':''}`);continue;
-    }
-    if(c.breath&&chance(.25)){
+      plog(p,`${a.name} は ばくやくを なげつけた\n　${foeName(p)} は ばくふうに のまれた${elemTag(m)}${dead?'\n　'+dead+' たいが しんだ':''}`);return true;
+    },
+    breath:()=>{if(!(c.breath&&chance(.25)))return false;
       const m=elemMul(t,'fire');let dead=0;foes.forEach(e=>{e.hp-=Math.round((ri(2,6)+PL(a)+Math.floor(f/2))*m);if(e.hp<=0){dead++;kill(p,a)}});
-      plog(p,`${a.name} は りゅうの いぶきを はいた！\n　${foeName(p)} は ほのおに つつまれた${elemTag(m)}${dead?'\n　'+dead+' たいが しんだ':''}`,'loot');continue;
-    }
-    const caster=c.mage&&PL(a)>=(c.mageLv||1)&&a.mp>0;
+      plog(p,`${a.name} は りゅうの いぶきを はいた！\n　${foeName(p)} は ほのおに つつまれた${elemTag(m)}${dead?'\n　'+dead+' たいが しんだ':''}`,'loot');return true;
+    },
     // ホシオトシは一戦に一度。主・黒竜・名のある魔物・強い変異種か、深い階の群れに使う。相性はなく、主にも効く
-    if(caster&&CAN.hoshi(a)&&!p.star&&a.mp>=8&&(t.boss||t.gate||t.rare||(t.xpm||1)>=1.4||(foes.length>=3&&f>=20))){
-      a.mp-=8;p.star=1;const bonus=rc(a).spell+(c.spell||0)+eqSum(a,'spell')+(has(a,'博識')?2:0);let dead=0,tot=0;
+    hoshi:()=>{if(!(caster()&&CAN.hoshi(a)&&!p.star&&a.mp>=SP.hoshi.mp&&(t.boss||t.gate||t.rare||(t.xpm||1)>=1.4||(foes.length>=3&&f>=20))))return false;
+      a.mp-=SP.hoshi.mp;p.star=1;const bonus=rc(a).spell+(c.spell||0)+eqSum(a,'spell')+(has(a,'博識')?2:0);let dead=0,tot=0;
       foes.forEach(e=>{const d=ri(40,60)+PL(a)*5+bonus*2;e.hp-=d;tot+=d;if(e.hp<=0){dead++;kill(p,a)}});
       plog(p,`${a.name} は ホシオトシ を となえた！\n　ほしが ふりそそぎ ${foeName(p)} を うちくだく　${foes.length>1?'あわせて ':''}${tot} の ダメージ${dead?'\n　'+dead+' たいが しんだ':''}`,'loot');
-      p.trip.star=a.name;if(!a.hoshiN)chron(S,a,`${FN(p.floor)}で${t.n}を相手に、はじめてホシオトシを唱える`);a.hoshiN=(a.hoshiN||0)+1;continue;}
-    if(caster&&c.sleep&&foes.length>=3&&fx(p.floor)<=sleepReach(a)&&!(p.ident&&!sleepMul(t))&&chance(.45)){
-      a.mp--;const sm=sleepMul(t);let n=0;foes.forEach(e=>{if(chance(.6*sm)){e.sleep=2;n++}});
-      plog(p,`${a.name} は ネムリ を となえた\n　${n?n+' たいが ねむってしまった':foeName(p)+' は ねむらなかった'}`);p.trip.slept=(p.trip.slept||0)+n;p.trip.sleeper=a.name;continue;
-    }
-    if(caster&&(foes.length>=2||chance(.5))){
-      const big=c.big&&PL(a)>=c.big,bonus=rc(a).spell+(c.spell||0)+eqSum(a,'spell')+(has(a,'博識')?2:0);
+      p.trip.star=a.name;if(!a.hoshiN)chron(S,a,`${FN(p.floor)}で${t.n}を相手に、はじめてホシオトシを唱える`);a.hoshiN=(a.hoshiN||0)+1;return true;},
+    nemuri:()=>{if(!(caster()&&CAN.nemuri(a)&&foes.length>=3&&fx(p.floor)<=sleepReach(a)&&!(p.ident&&!sleepMul(t))&&chance(.45)))return false;
+      a.mp-=SP.nemuri.mp;const sm=sleepMul(t);let n=0;foes.forEach(e=>{if(chance(.6*sm)){e.sleep=2;n++}});
+      plog(p,`${a.name} は ネムリ を となえた\n　${n?n+' たいが ねむってしまった':foeName(p)+' は ねむらなかった'}`);p.trip.slept=(p.trip.slept||0)+n;p.trip.sleeper=a.name;return true;
+    },
+    // 攻撃呪文。覚えている呪文の威力と相性を比べて一つ選ぶ
+    attack:()=>{if(!(caster()&&(foes.length>=2||chance(.5))))return false;
+      const big=CAN.goka(a),bonus=rc(a).spell+(c.spell||0)+eqSum(a,'spell')+(has(a,'博識')?2:0);
       const mu=el=>p.ident?elemMul(t,el):1;
       const opts=[{k:'fire',name:big?'ゴウカ':'ホノオ',ev:foes.length*((big?11+PL(a)*2:4.5+PL(a))+bonus)*mu('fire')}];
       if(CAN.goen(a))opts.push({k:'fire',name:'ゴウエン',goen:true,ev:foes.length*(16+PL(a)*3+bonus)*mu('fire')});
       if(CAN.koori(a))opts.push({k:'ice',name:'コオリ',ev:foes.length*(4+PL(a)+bonus)*mu('ice')*1.15});
       if(CAN.ikazuchi(a))opts.push({k:'bolt',name:'イカズチ',ev:Math.min(Math.max(...foes.map(e=>e.hp)),(13+PL(a)*3+bonus)*mu('bolt'))});
       // イシガタメは一体を確実に止める。MPを3使うので、止める一体の体力の半分で比べる。主・門番・名のある魔物には効かない
-      if(CAN.ishi(a)&&a.mp>=3&&!t.boss&&!t.gate&&!t.rare)opts.push({k:'stone',name:'イシガタメ',mp:3,ev:Math.max(...foes.map(e=>e.hp))*.5});
-      const sp=opts.reduce((m,o)=>o.ev>m.ev?o:m,opts[0]);a.mp-=sp.mp||1;
+      if(CAN.ishi(a)&&a.mp>=SP.ishi.mp&&!t.boss&&!t.gate&&!t.rare)opts.push({k:'stone',name:'イシガタメ',mp:SP.ishi.mp,ev:Math.max(...foes.map(e=>e.hp))*.5});
+      const sp=opts.reduce((m,o)=>o.ev>m.ev?o:m,opts[0]);a.mp-=sp.mp||SP.hono.mp;
       plog(p,`${a.name} は ${sp.name} を となえた`);let dead=0;
       if(sp.k==='stone'){const e=foes.reduce((m,x)=>x.hp>m.hp?x:m,foes[0]);e.hp=0;dead++;kill(p,a);p.trip.stoned=(p.trip.stoned||0)+1;
-        plog(p,`　${foeName(p)}${foes.length>1?' の 1たい':''} は いしに なった`);continue;}
+        plog(p,`　${foeName(p)}${foes.length>1?' の 1たい':''} は いしに なった`);return true;}
       if(sp.k==='bolt'){const e=foes.reduce((m,x)=>x.hp>m.hp?x:m,foes[0]);const bm=elemMul(t,'bolt');const d=Math.round((ri(8,18)+PL(a)*3+bonus)*bm);e.hp-=d;if(e.hp<=0){dead++;kill(p,a)}
-        plog(p,`　いかずちが ${foeName(p)}を うった　${d} の ダメージ${elemTag(bm)}${dead?'　'+foeName(p)+' は しんだ':''}`);continue;}
+        plog(p,`　いかずちが ${foeName(p)}を うった　${d} の ダメージ${elemTag(bm)}${dead?'　'+foeName(p)+' は しんだ':''}`);return true;}
       const m=elemMul(t,sp.k);let fr=0;
       foes.forEach(e=>{const d=Math.round(((sp.k==='ice'?ri(2,6)+PL(a):sp.goen?ri(10,22)+PL(a)*3:big?ri(6,16)+PL(a)*2:ri(2,7)+PL(a))+bonus)*m);e.hp-=d;if(e.hp<=0){dead++;kill(p,a)}else if(sp.k==='ice'&&!t.boss&&!t.gate&&chance(.3)){e.sleep=1;fr++;}});
-      plog(p,`　${foeName(p)} は ${sp.k==='ice'?'こおりに とざされた':sp.goen?'ごうえんに のみこまれた':'ほのおに つつまれた'}${elemTag(m)}${fr?'\n　'+fr+' たいが うごけなくなった':''}${dead?'\n　'+dead+' たいが しんだ':''}`);continue;
-    }
+      plog(p,`　${foeName(p)} は ${sp.k==='ice'?'こおりに とざされた':sp.goen?'ごうえんに のみこまれた':'ほのおに つつまれた'}${elemTag(m)}${fr?'\n　'+fr+' たいが うごけなくなった':''}${dead?'\n　'+dead+' たいが しんだ':''}`);return true;
+    },
+  };
+  for(a of alive(S,p)){
+    foes=living(); if(!foes.length)break;
+    c=C(a);
+    allies=alive(S,p);
+    low=allies.reduce((m,x)=>x.hp/x.mhp<m.hp/m.mhp?x:m,allies[0]);
+    if(TURN.some(k=>STEP[k]()))continue;
     const swings=c.berserk&&chance(.35)?2:1;
     for(let sw=0;sw<swings;sw++){
       const fs=living();if(!fs.length)break;
@@ -4533,7 +4536,7 @@ function sideSmall(){const list=smallOf(S);const day=tk=>Math.floor(tk/TICKS_PER
     ${t.owned?'':`<div style="margin-top:6px">${t.score<3?`<button class="btn sm" data-act="invest" data-n="${esc(t.n)}" ${T().gold<investPrice(S,t)?'disabled':''}>出資する ${investPrice(S,t)}G</button> `:''}<button class="btn sm" data-act="buysmall" data-n="${esc(t.n)}" ${T().gold<buyPrice(S,t)?'disabled':''}>買い取る ${buyPrice(S,t)}G</button></div>`}</div>`}).join('')||'<p class="note">いま裏通りに酒場はない。</p>'}
   ${S.smallClosed.length?`<p class="note">${keepText('たたんだ店：'+S.smallClosed.slice(-8).reverse().map(x=>`${x.n}（${day(x.tk)}日目。${x.why}）`).join('、'))}</p>`:''}</div>`;}
 function sideRef(){
-  return `<div class="sect"><h3>呪文の一覧</h3>${SPELL_LIST.map(([n,d,w])=>`<div class="cl"><b>${n}</b><span>${keepText(d+'。')}<br>使える者：${keepText(w)}</span></div>`).join('')}</div>
+  return `<div class="sect"><h3>呪文の一覧</h3>${SPELLS.map(x=>`<div class="cl"><b>${x.n}</b><span>${keepText(x.d+'。')}<br>使える者：${keepText(spellWho(x))}</span></div>`).join('')}</div>
   <div class="sect"><h3>職業の一覧</h3>
   ${Object.entries(CLS).map(([k,c])=>`<div class="cl"><b>${k}</b><span>${keepText((c.adv?`上級職：${c.adv}から（${c.req}）。`:c.rare?'レア職業：ごくまれに店に現れる。':'基本職。')+(c.desc||''))}</span></div>`).join('')}</div>`;
 }
