@@ -663,10 +663,10 @@ const ITEM_BASES=[
   {t:'鎖帷子',slot:'body',m:'metal',for:['warrior','samurai','priest'],st:t=>({ac:2*t+1})},
   {t:'革鎧',slot:'body',m:'leather',for:['thief','warrior','samurai','priest'],st:t=>({ac:t+1,dodge:.015*t})},
   {t:'法衣',slot:'body',m:'cloth',for:['priest','mage'],st:t=>({ac:t,mp:t+1})},
-  {t:'指輪',slot:'acc',m:'jewel',for:ALLC,st:t=>chance(.5)?{hit:.04*t}:{atk:t+1}},
+  {t:'指輪',slot:'acc',m:'jewel',for:ALLC,st:(t,i)=>(i==null?chance(.5):i===0)?{hit:.04*t}:{atk:t+1},roll:x=>'hit' in x?0:1},
   {t:'腕輪',slot:'acc',m:'jewel',for:ALLC,st:t=>({dodge:.03*t})},
   {t:'首飾り',slot:'acc',m:'jewel',for:['mage','priest','samurai'],st:t=>({mp:t+2})},
-  {t:'お守り',slot:'acc',m:'charm',for:ALLC,st:t=>chance(.5)?{pois:.3+.1*t}:{trap:.06*t}},
+  {t:'お守り',slot:'acc',m:'charm',for:ALLC,st:(t,i)=>(i==null?chance(.5):i===0)?{pois:.3+.1*t}:{trap:.06*t},roll:x=>'pois' in x?0:1},
 ];
 const MATS_BY={metal:[['青銅','鉄'],['鋼','銀'],['ミスリル','黒鉄'],['竜骨','星鉄'],['神銀','月長石'],['アダマン','冥銀'],['澱鉄','古王金'],['黒曜鉄','坑王鋼'],['澱金','山心鋼']],
   wood:[['樫','楡'],['桜','柊'],['黒檀','白樺'],['世界樹','霊木'],['星樹','神木'],['冥樹','影樹'],['澱木','王樹'],['化石樹','黒曜樹'],['澱樹','山根木']],
@@ -729,11 +729,12 @@ function itemStat(it){const r=[];if(it.atk)r.push(`攻${it.atk>0?'+':''}${it.atk
   if(it.crit)r.push(`会心+${Math.round(it.crit*100)}%`);if(it.spell)r.push(`呪文+${it.spell}`);if(it.heal)r.push(`回復+${Math.round(it.heal*100)}%`);if(it.fire)r.push(`炎の息を半減`);if(it.slayer)r.push('竜に倍撃');if(it.phoenix)r.push('一度だけ死を退ける');if(it.two)r.push('両手');return r.join(' ');}
 function makeItem(S,f,cls){
   S.usedItems=S.usedItems||{};S.uniqFound=S.uniqFound||{};
-  if(!cls&&f>=7&&chance(.12)){const us=UNIQUES.filter(u=>u.minF<=f&&!S.uniqFound[u.n]);const u=us.length?pick(us):null;if(u){S.uniqFound[u.n]=1;S.usedItems[u.n]=1;return {...u,for:[...u.for]};}}
+  if(!cls&&f>=7&&chance(.12)){const us=UNIQUES.filter(u=>u.minF<=f&&!S.uniqFound[u.n]);const u=us.length?pick(us):null;if(u){S.uniqFound[u.n]=1;S.usedItems[u.n]=1;return {...u,for:[...u.for],src:{u:u.n}};}}
   const b=pick(cls?ITEM_BASES.filter(x=>canUse(cls,x)):ITEM_BASES);const tier=f<=10?clamp(Math.ceil(f/2),1,5):f<=15?6:f<=20?7:f<=25?8:9;const mat=pick(MATS_BY[b.m][tier-1]);
-  const it=Object.assign({for:[...b.for],f:tier,slot:b.slot,base:b.t},b.two?{two:true}:{},b.st(tier));
-  if(it.atk>0&&it.slot==='wpn'&&chance(.6))it.atk+=Math.ceil(tier/2);
-  if(it.ac>0&&chance(.6))it.ac+=Math.ceil(tier/2);
+  const st=b.st(tier),src=baseSrc(b,tier,st);
+  const it=Object.assign({for:[...b.for],f:tier,slot:b.slot,base:b.t},b.two?{two:true}:{},st,{src});
+  if(it.atk>0&&it.slot==='wpn'&&chance(.6)){it.atk+=Math.ceil(tier/2);src.up=Object.assign(src.up||{},{atk:Math.ceil(tier/2)});}
+  if(it.ac>0&&chance(.6)){it.ac+=Math.ceil(tier/2);src.up=Object.assign(src.up||{},{ac:Math.ceil(tier/2)});}
   // 空いている銘を数えて、その中から pick と同じ引き方で選ぶ（品を作るたびに配列を作らない）
   const U=S.usedItems;let es=EPITHETS,ks=EPITHET_KEYS,c=0;for(const k of ks)if(!U[k])c++;
   if(!c){es=EP_ALL;ks=EP_KEYS;for(const k of ks)if(!U[k])c++;}
@@ -741,6 +742,34 @@ function makeItem(S,f,cls){
   if(c){let j=Math.floor(R()*c),i=-1;while(j>=0)if(!U[ks[++i]])j--;n=`${mat}の${b.t}「${es[i]}」`;U[ks[i]]=1;}
   else {let i=2;do{n=`${mat}の${b.t}・${i++}号`}while(S.usedItems[n]);}
   S.usedItems[n]=1;it.n=n;return it;
+}
+// 品物の作り方の鍵（src）。セーブには品物の名 n と src（と便りの品の lore）だけを書き、能力値などの定義は読み込むときに itemOf で表から引く（#195）。
+// b：もとの品（ITEM_BASES の t）、f：段、i：乱数で決まった能力（指輪・お守り）、up：乱数で足された分、shop・custom：武具屋の品と特注。
+// u：逸品（UNIQUES の名）、r：名のある魔物の品（その階）、letter：便りに添えられた品
+function baseSrc(b,f,st){const src={b:b.t,f};if(b.roll)src.i=b.roll(st);return src;}
+const LETTER_FOR=['warrior','samurai','thief','priest','mage'];
+function itemOf(c){
+  const s=c&&c.src;if(!s)return null;
+  if(s.u!=null){const u=UNIQUES.find(x=>x.n===s.u);return u?{...u,for:[...u.for],src:s}:null;}
+  if(s.r!=null){const R0=rareDef(s.r);return R0&&R0.item?Object.assign({f:6,rare:true,named:true},R0.item,{for:[...R0.item.for],src:s}):null;}
+  if(s.letter)return {n:c.n,slot:'acc',for:[...LETTER_FOR],ac:1,f:1,lore:c.lore,src:s};
+  const b=ITEM_BASES.find(x=>x.t===s.b);if(!b||!(s.f>=1))return null;
+  const it=Object.assign({for:[...b.for],f:s.f,slot:b.slot,base:b.t},s.shop||s.custom?{shop:true}:{},s.custom?{custom:true}:{},b.two?{two:true}:{},b.st(s.f,b.roll?(s.i||0):undefined));
+  if(s.up)for(const k of Object.keys(s.up))it[k]=(it[k]||0)+s.up[k];
+  it.n=c.n;it.src=s;return it;
+}
+// 鍵を持たない古い記録の品から、作り方の鍵を探す。逸品と名のある魔物の品は名で、便りの品は由来の文で、ほかは もとの品と段で引き、足された分は表との差にする。
+// 見つからなければ null（その品は古い記録の写しのまま持つ）
+function itemSrcOld(it){
+  if(!it||typeof it!=='object')return null;
+  if(UNIQUES.some(u=>u.n===it.n))return {u:it.n};
+  const rr=[...RARES,...MINE_RARES].find(r=>r.item&&r.item.n===it.n);if(rr)return {r:rr.f};
+  if(it.slot==='acc'&&typeof it.lore==='string'&&it.lore.endsWith('が故郷から送った品'))return {letter:1};
+  const b=ITEM_BASES.find(x=>x.t===it.base);if(!b||!(it.f>=1))return null;
+  const src=baseSrc(b,it.f,it);if(it.custom)src.custom=1;else if(it.shop)src.shop=1;
+  const st=b.st(it.f,b.roll?src.i:undefined),up={};
+  for(const k of ['atk','ac'])if(typeof it[k]==='number'&&typeof st[k]==='number'&&it[k]>st[k])up[k]=it[k]-st[k];
+  if(Object.keys(up).length)src.up=up;return src;
 }
 const MOVE=['くらい つうろを すすむ','とびらを あけた','いきどまりだ。ひきかえす','ゆかに ふるい ちのあとが ある','どこかで みずの おとが する','かべに ふしぎな もじが きざまれている','つめたい かぜが ふいている','かいてんする ゆかだ。むきが わからない','たいまつの あかりが ゆれる','とおくで だれかの さけびごえ'];
 const RET={
@@ -799,7 +828,7 @@ function assignOpeningDreams(S){
   });
 }
 // セーブの版。記録の形を変えたら上げ、migrate に移行の段を足す
-const SAVE_V=38;
+const SAVE_V=39;
 // 全滅した一行の扱い。予定帰還の刻を過ぎてから消息不明と知らせるまでの刻、巡回隊が届く深さ（最深階から何階上まで）、立て替えの借りの利息（消息不明の1日ごと・複利）と、帰還時に稼ぎから返す割合
 const MISSING_GRACE=150,PATROL_DEPTH=3,OWED_RATE=.02,OWED_REPAY=.25;
 function newState(){
@@ -1320,7 +1349,7 @@ const DREAMS={
   elfrelic:{w:1.2,can:a=>a.race==='elf',mk:()=>({f:ri(GATE_F+4,GATE_F+12)}),txt:d=>`${FN(d.f)}あたりに沈んだという、古いエルフの弓を見つけて森へ返したい`,
     ok:(S,a,d)=>a.deepest>=d.f,msg:(a,d)=>`${a.name}が${FN(d.f)}で古いエルフの弓を見つけ出した。森の長老たちに届けるという。`,prog:a=>`これまでの最深 ${deepNow(a.deepest)}`},
   dwarfaxe:{w:1.5,can:a=>a.race==='dwarf'||a.origin==='ベルクラント鉱山諸侯領',mk:()=>{const t=ri(4,6);return {t,mat:SHOP_MAT.metal[t-1],amt:SHOP_PRICE[t]*2}},txt:d=>`グンター親方に、${d.mat}で自分だけの得物を打たせたい（${d.amt}G）`,
-    ok:(S,a,d)=>!!(S.shop&&S.shop.tiers&&S.shop.tiers[d.t])&&a.gold>=d.amt,pay:d=>d.amt,act:(S,a,d)=>{const o=shopOffers(S,a.cls).filter(x=>x.t===d.t&&x.b.slot==='wpn')[0];if(o){const it=shopMake(S,o.b,o.t);it.n=`${a.name}の${d.mat}の${o.b.t}`;it.atk=(it.atk||0)+2;equip(a,it);}},
+    ok:(S,a,d)=>!!(S.shop&&S.shop.tiers&&S.shop.tiers[d.t])&&a.gold>=d.amt,pay:d=>d.amt,act:(S,a,d)=>{const o=shopOffers(S,a.cls).filter(x=>x.t===d.t&&x.b.slot==='wpn')[0];if(o){const it=shopMake(S,o.b,o.t);it.n=`${a.name}の${d.mat}の${o.b.t}`;it.atk=(it.atk||0)+2;it.src.up={atk:2};equip(a,it);}},
     msg:(a,d)=>`${a.name}が、グンター親方に打たせた${d.mat}の得物を手にした。`,prog:(a,d)=>`貯金 ${G(a.gold)} / ${G(d.amt)}${S.shop&&S.shop.tiers&&S.shop.tiers[d.t]?'':'（武具屋にまだ'+d.mat+'の品がない）'}`},
   mine:{w:0,ow:{'鉄の山脈':2,'ベルクラント鉱山諸侯領':2.5},mk:a=>({amt:r100(Math.max(20000,incomeAt(depthOf(a)+3)*ri(30,45)))}),txt:d=>`一族が手放した坑道を買い戻したい（${d.amt}G）`,
     ok:(S,a,d)=>a.gold>=d.amt,pay:d=>d.amt,msg:(a,d)=>`${a.name}が、一族の坑道を買い戻した。`,ret:()=>chance(.5)?'買い戻した坑道へ帰る':null,prog:(a,d)=>`貯金 ${G(a.gold)} / ${G(d.amt)}`},
@@ -1647,7 +1676,7 @@ function giveLetterGift(S,from,to){
   if(!to||!isIdle(to)||(to.eq&&to.eq.acc))return null;
   const n=letterGoods(from);
   to.eq=to.eq||{};
-  to.eq.acc={n,slot:'acc',for:['warrior','samurai','thief','priest','mage'],ac:1,f:1,lore:`${from.name}が故郷から送った品`};
+  to.eq.acc=itemOf({n,src:{letter:1},lore:`${from.name}が故郷から送った品`});
   chron(S,to,'letterGift',{who:from.name,it:n});
   return n;
 }
@@ -1856,7 +1885,7 @@ function shopInit(S){if(!S.shop)S.shop={tiers:{1:true},mats:{},serial:0,log:[]};
 function shopPrice(b,t){return Math.round(SHOP_PRICE[t]*(b.two?1.4:1)*(b.slot==='acc'?1.2:1)*(b.slot==='shield'||b.slot==='head'?.7:1)/10)*10}
 function shopOffers(S,cls){const sh=shopInit(S);const out=[];for(let t=1;t<=SHOP_TOP;t++){if(!sh.tiers[t])continue;for(const b of ITEM_BASES){if(cls&&!canUse(cls,b))continue;out.push({b,t,price:shopPrice(b,t)});}}return out;}
 function shopMake(S,b,t){const sh=shopInit(S);sh.serial++;const st=b.st(t);
-  return Object.assign({for:[...b.for],f:t,slot:b.slot,base:b.t,shop:true,n:`${SHOP_MAT[b.m][t-1]}の${b.t}（工房${sh.serial}番）`},b.two?{two:true}:{},st);}
+  return Object.assign({for:[...b.for],f:t,slot:b.slot,base:b.t,shop:true,n:`${SHOP_MAT[b.m][t-1]}の${b.t}（工房${sh.serial}番）`},b.two?{two:true}:{},st,{src:Object.assign(baseSrc(b,t,st),{shop:1})});}
 const MONEY_DREAMS=['debt','wealth','shop','temple','home','sendhome','marry','pension','mine','hobbithome','ship','absolve','grain','horse','dwarfaxe'];
 function shopVisit(S,a,mates){
   if(!isIdle(a))return;const sh=shopInit(S);
@@ -2778,7 +2807,8 @@ function customOffer(S,a){const sh=shopInit(S);if(!sh.tiers[7]||a.lvl<20)return 
   for(const b of ITEM_BASES){if(!canUse(a.cls,b))continue;const it=Object.assign({for:b.for,slot:b.slot},b.two?{two:true}:{},b.st(t));const g=gainOf(a,it);if(g<1.5)continue;if(g>sc){sc=g;best={b,t};}}
   if(best)best.price=Math.round(150000*Math.pow(1.35,n)/1000)*1000;return best;}
 function orderCustom(S,a,o){const T0=S.taverns.ours;if(!o||T0.gold<o.price)return null;T0.gold-=o.price;T0.support=(T0.support||0)+o.price;flowAdd(S,'s',o.price);a.custom=(a.custom||0)+1;
-  const it=Object.assign({for:[...o.b.for],f:o.t,slot:o.b.slot,base:o.b.t,shop:true,custom:true,n:`グンター銘の${o.b.t}（${a.name}のための${a.custom}作目）`},o.b.two?{two:true}:{},o.b.st(o.t));
+  const st=o.b.st(o.t);
+  const it=Object.assign({for:[...o.b.for],f:o.t,slot:o.b.slot,base:o.b.t,shop:true,custom:true,n:`グンター銘の${o.b.t}（${a.name}のための${a.custom}作目）`},o.b.two?{two:true}:{},st,{src:Object.assign(baseSrc(o.b,o.t,st),{custom:1})});
   const out=equip(a,it);out.forEach(x=>{a.gold+=Math.round((x.f||1)*30);});favor(a,3);chron(S,a,'smithGift',{it:it.n});
   news(S,'smithGift',{who:a.name,it:it.n},'record');return it;}
 function poachPrice(S,a){return r100((a.debt||0)+incomeAt(depthOf(a))*25);}
@@ -2963,7 +2993,7 @@ function rareSlain(S,p,t){
   if(R0.rw==='gold'){const g=r100(incomeAt(t.f)*ri(10,14));p.loot+=g;what=`${g}Gの財宝`;}
   if(R0.rw==='xp'){const x=Math.round((6*Math.pow(t.f,1.6)+3)*30/Math.max(1,al.length));al.forEach(a=>a.xp+=x);what=`ひとりあたり${x}の経験`;}
   if(R0.rw==='mat'){const T=SHOP_TIERS[Math.max(2,matTier(t.rf))];const q=Math.ceil(T.need/3);p.trip.mats=p.trip.mats||{};p.trip.mats[T.mat]=(p.trip.mats[T.mat]||0)+q;what=`${T.mat}${q}個`;}
-  if(R0.rw==='item'){const it=Object.assign({f:6,rare:true,named:true},R0.item,{for:[...R0.item.for]});S.uniqFound=S.uniqFound||{};S.uniqFound[it.n]=1;
+  if(R0.rw==='item'){const it=Object.assign({f:6,rare:true,named:true},R0.item,{for:[...R0.item.for],src:{r:t.rf}});S.uniqFound=S.uniqFound||{};S.uniqFound[it.n]=1;
     const tgt=giveBest(S,al,it,p);what=it.n+(tgt?`（${tgt.name}が手にした）`:'（使える者がおらず、売られた）');if(!tgt)p.loot+=3000;else chron(S,tgt,'rareDrop',{m:t.n,it:it.n});}
   plog(p,`${t.n}を たおした！ ${what}を てにいれた`,'loot');
   al.forEach(a=>{const fin=!!(slayer&&a===slayer);chron(S,a,fin?'rareKill':'rareJoin',{f:t.rf,m:t.n});if(fin){a.rareKills=(a.rareKills||0)+1;title(S,a);}if(['臆病','慎重'].includes(a.pers)&&chance(.4))changeOf(S,a,`「${t.n}」を討って、自信がついた`,x=>x.pers=x.pers==='臆病'?'慎重':'普通');});
@@ -4482,10 +4512,19 @@ function migrate(S){
   if(kind37){toKind();S.v=37;}
   // 版38：一行が戦っている魔物の型を、セーブには鍵だけで書く（#195）。型は読み込むたびに loadSave が鍵から引き直すので、ここで直すものはない
   if(!(S.v>=38))S.v=38;
+  // 版39：品物を、名と作り方の鍵（src）だけで書く（#195）。能力値は読み込むたびに loadSave が itemOf で表から引き直す。鍵のない古い品の鍵も loadSave が探す。
+  // 掲示の話とお触れの名・出どころ・文も書かず、loadSave が表から作り直す
+  if(!(S.v>=39))S.v=39;
 }
 /* eslint-enable no-restricted-syntax */
-// セーブに書く形（#195）。定義の写しは書かず、鍵にする（一行が戦っている魔物の型 → foeKey）。JSON.stringify の replacer に渡す
-function saveReplacer(k,v){return k==='etype'&&v&&typeof v==='object'?foeKey(v):v;}
+// セーブに書く形（#195）。定義の写しは書かず、鍵にする（一行が戦っている魔物の型 → foeKey、装備の品 → 名と作り方の鍵）。JSON.stringify の replacer に渡す
+function saveReplacer(k,v){
+  if(k==='etype'&&v&&typeof v==='object')return foeKey(v);
+  if(k==='eq'&&v&&typeof v==='object'){const o={};for(const [sl,it] of Object.entries(v))o[sl]=it&&it.src?itemSave(it):it;return o;}
+  // 掲示の話とお触れの名・出どころ・文は、表から作れるので書かない
+  if((k==='board'||k==='edicts')&&Array.isArray(v))return v.map(e=>{if(!e||typeof e!=='object')return e;const o=Object.assign({},e);delete o.n;delete o.from;delete o.t;return o;});
+  return v;}
+function itemSave(it){const c={n:it.n,src:it.src};if(it.src.letter)c.lore=it.lore;return c;}
 // 読み込みの入口（#195）。セーブ（{S,…}・S・その JSON の文字列）の形を確かめ、古い版を移し、鍵から定義を引き直して S を返す。
 // 店として読めない形なら null。部分的に壊れたもの（引けない魔物、種類の分からない手帳・知らせ）は外し、外した数を S.loadFixed に残す
 function loadSave(raw){
@@ -4499,6 +4538,16 @@ function loadSave(raw){
   // 魔物の型は鍵（古い記録では型の写し）から引き直す。引けなければ、その戦いはなかったことにする
   for(const p of Object.values(S.parties)){if(!isObj(p))continue;
     const t=p.etype?foeOf(foeKey(p.etype)):null;p.etype=t;if(!t&&p.enemies){p.enemies=null;fixed++;}}
+  // 装備の品は、名と作り方の鍵から表で作り直す。鍵のない古い品は鍵を探して作り直し、見つからなければ古い写しのまま持つ。鍵があって引けない品は外す
+  for(const a of Object.values(S.adv)){if(!isObj(a)||!isObj(a.eq))continue;
+    for(const sl of Object.keys(a.eq)){const it=a.eq[sl];if(!isObj(it))continue;
+      if(it.src){const v=itemOf(it);if(v)a.eq[sl]=v;else{a.eq[sl]=null;fixed++;}continue;}
+      const src=itemSrcOld(it);if(src){const v=itemOf({n:it.n,src,lore:it.lore});if(v)a.eq[sl]=v;}}}
+  // 掲示の話とお触れは、名・出どころ・文を表から作り直す。表から引けないものは外す
+  if(isObj(S.errands)&&Array.isArray(S.errands.board)){const n0=S.errands.board.length;
+    S.errands.board=S.errands.board.filter(e=>{const def=isObj(e)&&errandDef(e);if(!def)return false;e.n=def.n;e.from=def.from;e.t=def.txt(e.f);return true;});fixed+=n0-S.errands.board.length;}
+  if(Array.isArray(S.edicts)){const n0=S.edicts.length;
+    S.edicts=S.edicts.filter(e=>{const D=isObj(e)&&EDICTS.find(x=>x.k===e.k);if(!D)return false;e.from=D.from;e.t=D.txt(e);return true;});fixed+=n0-S.edicts.length;}
   // 手帳と知らせは、文（古い記録）か、表にある種類を持つものだけを残す
   const okChron=c=>isObj(c)&&(typeof c.t==='string'||typeof c.tk==='number'&&!!CHRON[c.kind]&&(c.args==null||typeof c.args==='object'));
   const okNews=n=>isObj(n)&&(typeof n.t==='string'||typeof n.tk==='number'&&!!NEWS[n.kind]&&(n.args==null||typeof n.args==='object'));
