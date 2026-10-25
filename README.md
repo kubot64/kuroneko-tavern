@@ -41,7 +41,7 @@ node tools/spec-test.mjs --shard 2/4     # 種を4つに分けたうちの2つ�
 - 種ごとに別のスレッドで回す。進捗の行と合否は種の順に出すので、同時に回す数を変えても、出力と合格・不合格は同じになる。ゲームの中身がエラーで止まった種も不合格になる。
 - 速い版の12種は毎回同じで、完全版の先頭（1000 から始まり、7919 ずつ足す）である。種を減らすと、めったに起きない不具合は見逃しやすくなる。引数なしは完全版のまま。
 - 不合格なら、最初の反例（種・刻・中身）を出して、終了コード1で終わる。
-- 古いセーブの見本（`tools/old-saves/vNN.json.gz`）を一つずつ今の migrate にかけ、今の版になること、冒険者・一行・記念碑などの数と店の金が変わらないこと、今のコードで店を開いたときにいつもある項目がそろうこと、そのまま30日回せることを見る。見本は、版ごとにその版で最後のコミットのコードで店を300日回して保存したもの（`node tools/old-saves/make.mjs` で作る。同じコミットからは同じ見本ができる）。リポジトリの履歴が版24から始まるので、見本は版24から。
+- 古いセーブの見本（`tools/old-saves/vNN.json.gz`）を一つずつ読み込みの入口 `loadSave` にかけ（形を確かめ、migrate で今の版に移し、魔物の型などの定義を表から引き直す）、今の版になること、冒険者・一行・記念碑などの数と店の金が変わらないこと、今のコードで店を開いたときにいつもある項目がそろうこと、そのまま30日回せることを見る。見本は、版ごとにその版で最後のコミットのコードで店を300日回して保存したもの（`node tools/old-saves/make.mjs` で作る。同じコミットからは同じ見本ができる）。リポジトリの履歴が版24から始まるので、見本は版24から。
 - セーブの版（SAVE_V）を上げる PR では、上げる前の版の見本が `tools/old-saves/` になければ、`make.mjs` の表にその版と、上げる前の main のコミットを足して作る。
 - 自動テストでは、pull request のときは速い版、main への push と毎晩（日本時間 0:00）と手動実行のときは完全版を回す。どちらも種を4つに分けて（`--shard`）4つのジョブで並べて回し、画面のテストも別のジョブで同時に回す。4つの分を合わせると、分けないときと同じ種と同じ確かめになる。
 
@@ -111,6 +111,7 @@ node tools/lint.mjs    # 見つかれば index.html の行番号つきで出し�
 - 冒険者の居どころは `a.status==='idle'` のように直に比べず、`isActive`（籍がある）・`isIdle`・`inParty`・`inTemple`（寺院で眠る）・`isDead`・`isAsh`・`isMissing`・`isLost`・`isRetired` を通す。比べてよいのはこれらの関数の中だけである。
 - 職業と種族は、記録にも判定にも内部の鍵（`warrior`・`human` など。`CLS` と `RACE` の鍵）を使う。表示名（戦士・人間など）は `CLS`・`RACE` の `n` にだけ書き、画面と文には `clsName`・`raceName` で出す。表示名を判定に書くと落ちる（古い記録を写す `migrate` の中だけは書いてよい）。
 - 手帳の記録は `chron(S,a,kind,args)` で書き、`{tk,kind,args,hidden}` で持つ。文は `CHRON[kind].t(args)` が見せるときに作る（`chronText`）。判定は種類と印（`chronMark` の end・lv・revive、記録の `hidden`）で行い、文を読まない。args には書いたときの値を入れ、文を作るときに今の様子を読まない。知らせも同じく `news(S,kind,args,k)` で書き、`{tk,k,kind,args}` で持って、文は `NEWS[kind].t(args)`（`newsText`）が作る（`k` は色分け）。これは lint でなく spec-test の「種類」が見張る。
+- セーブは `JSON.stringify(…,saveReplacer)` で書き、定義の写しは書かずに鍵にする（一行が戦っている魔物の型 `p.etype` → `foeKey`）。読み込みは入口の `loadSave(raw)` だけを通す。`loadSave` は形を確かめ、`migrate` で今の版に移し、鍵から定義を引き直す（`foeOf`）。
 - 一行の状態（`p.state` と、全滅しているあいだの `p.wipe`）を書くのは `setPhase(S,p,to)` だけで、許される移り変わりは `PHASE_TO` の表にある。全滅の中を読むときは `wipeAnnounced`・`wipeSeen`・`wipeFound`・`wipeCauseTold` を使う（全滅を表していた古いフラグは、版34の移行で `p.wipe` に写した）。
 - 画面の側（`/*ENGINE END*/` より下）は、全滅を伏せるためのフラグ（`announced`・`knownWiped`・`causeTold`・`retrieved`・`calmHp` など）や判定（`wipeHidden` など）を直に使わず、`viewOf(S,p)`・`hpView`・`shownStatus`・`chronShown` を通して一行と仲間を見る。伏せる判定は、エンジンのこれらの関数にだけ書く。
 - テストや measure からだけ使うトップレベルの名前は、`index.html` の `/*ENGINE START*/` のすぐ下にある `/* exported … */` に並べる。

@@ -1721,45 +1721,48 @@ function checkFoes(){
   // 息の傷の倍率。キメラは 0.8、番犬は 0.75、炉の番人ゴーレムは 0.9 で、ほかの息の魔物は持たない
   const scale={'キメラ':.8,'墓所の番犬':.75,'炉の番人ゴーレム':.9};
   for(const m of E.MON)if(m.sp==='breath'||m.br!=null)check('出る魔物：息の傷の倍率を持つのはキメラ（0.8）と番犬（0.75）と炉の番人ゴーレム（0.9）だけ',m.br===scale[m.n],m.n,`倍率${m.br==null?'なし':m.br}（決まりは${scale[m.n]==null?'なし':scale[m.n]}）`);
-  // 番犬の息を、同じ種で、倍率のない同じ強さの魔物と比べる。古い記録で戦いの途中だった番犬（倍率の値を持たない）には名で引いてかける。
+  // 番犬の息を、同じ種で、倍率のない同じ強さの魔物と比べる。古い記録で戦いの途中だった番犬（倍率の値を持たない型の写し）は、
+  // 読み込むとき（loadSave）に表の型へ引き直されるので、同じ倍率がかかる（reload は、古い記録の形のまま書いて読み直す）。
   // 水晶のログは名の文字数ぶん乱数を引き、怖いものや相性は名で引くので、比べる相手は同じ長さで「番犬」を含む名にする
-  const breathDmg=(seed,fix)=>{const E2=load(seed),S=E2.newState();const p=Object.values(S.parties).find(x=>x.tav==='ours');const a=S.adv[p.leader];
+  // 裏通りの店は、店を開いたあと最初に回したときに作られる。読み直しで作られて乱数がずれないよう、先に作っておく
+  const breathDmg=(seed,fix,reload)=>{const E2=load(seed),S0=E2.newState();E2.smallOf(S0);let S=S0;const p=Object.values(S.parties).find(x=>x.tav==='ours');const a=S.adv[p.leader];
     a.cls='warrior';a.lvl=8;a.hp=a.mhp=50000;a.mp=0;a.pers='普通';a.poison=0;a.eq={};
     p.members=[a.id];p.leader=a.id;p.floor=15;p.state='explore';p.fought=true;p.ident=true;p.ambush=false;p.potions=0;p.guard=0;p.buff=0;p.log=[];
     S.floors=S.floors||{};S.floors[15]={through:1};// 前人未踏の足しがなく、階の強さが整数（10）なので、息の傷の0.75倍を端数なしで比べられる
     p.etype=fix(Object.assign({},E2.MON.find(m=>m.n==='墓所の番犬')));p.enemies=[{hp:99999,sleep:0}];
-    E2.combat(S,p);return {dmg:50000-a.hp,breathed:p.log.some(x=>x.t.includes('ほのおを はいた'))};};
+    let q=p,b=a;if(reload){S=E2.loadSave(JSON.parse(JSON.stringify({S:S0})));q=S.parties[p.id];b=S.adv[a.id];}
+    E2.combat(S,q);return {dmg:50000-b.hp,breathed:q.log.some(x=>x.t.includes('ほのおを はいた'))};};
   let hound=0;
-  for(let seed=1;seed<=40&&hound<5;seed++){
+  for(let seed=1;seed<=200&&hound<5;seed++){
     const plain=breathDmg(seed,t=>Object.assign(t,{n:'ためし番犬',br:undefined}));
     if(!plain.breathed)continue;hound++;
-    const now=breathDmg(seed,t=>t),old=breathDmg(seed,t=>{delete t.br;return t;});
+    const now=breathDmg(seed,t=>t),old=breathDmg(seed,t=>{delete t.br;return t;},true);
     check('出る魔物：番犬の息の傷は、同じ強さの息の0.75倍',now.breathed&&now.dmg===Math.round(plain.dmg*.75)&&now.dmg<plain.dmg,`種${seed}`,`倍率なし${plain.dmg} 番犬${now.dmg}`);
-    check('出る魔物：倍率の値を持たない古い記録の番犬にも、名で引いて同じ倍率がかかる',old.dmg===now.dmg,`種${seed}`,`番犬${now.dmg} 古い${old.dmg}`);
-    const vplain=breathDmg(seed,t=>Object.assign(t,{n:'若い墓所の番犬',base:'ためし番犬',br:undefined})),vari=breathDmg(seed,t=>Object.assign(t,{n:'若い墓所の番犬',base:'墓所の番犬'})),vold=breathDmg(seed,t=>{delete t.br;return Object.assign(t,{n:'若い墓所の番犬',base:'墓所の番犬'});});
-    if(vplain.breathed)check('出る魔物：変異種の番犬の息にも同じ倍率がかかり、倍率の値を持たなくても元の名で引く',vari.dmg===Math.round(vplain.dmg*.75)&&vold.dmg===vari.dmg,`種${seed}`,`倍率なし${vplain.dmg} 変異種${vari.dmg} 古い変異種${vold.dmg}`);}
-  check('出る魔物：番犬の息を5種で試し打ちした',hound===5,'40種',`${hound}種`);
+    check('出る魔物：倍率の値を持たない古い記録の番犬も、読み込むと表の型に引き直され、同じ倍率がかかる',old.dmg===now.dmg,`種${seed}`,`番犬${now.dmg} 古い${old.dmg}`);
+    const vplain=breathDmg(seed,t=>Object.assign(t,{n:'若い墓所の番犬',base:'ためし番犬',br:undefined})),vari=breathDmg(seed,t=>Object.assign(t,{n:'若い墓所の番犬',base:'墓所の番犬'})),vold=breathDmg(seed,t=>{delete t.br;return Object.assign(t,{n:'若い墓所の番犬',base:'墓所の番犬',variant:'若い'});},true);
+    if(vplain.breathed)check('出る魔物：変異種の番犬の息にも同じ倍率がかかり、倍率の値を持たない古い記録も読み込むと元の型から引き直される',vari.dmg===Math.round(vplain.dmg*.75)&&vold.dmg===vari.dmg,`種${seed}`,`倍率なし${vplain.dmg} 変異種${vari.dmg} 古い変異種${vold.dmg}`);}
+  check('出る魔物：番犬の息を5種で試し打ちした',hound===5,'200種',`${hound}種`);
   // 炉の番人ゴーレムも同じく。比べる相手は同じ長さで「ゴーレム」を含む名にする
-  const golemDmg=(seed,fix)=>breathDmg(seed,t=>fix(Object.assign(t,E.MON.find(m=>m.n==='炉の番人ゴーレム'),{})));
+  const golemDmg=(seed,fix,reload)=>breathDmg(seed,t=>fix(Object.assign(t,E.MON.find(m=>m.n==='炉の番人ゴーレム'),{})),reload);
   let golemN=0;
-  for(let seed=1;seed<=80&&golemN<5;seed++){
+  for(let seed=1;seed<=200&&golemN<5;seed++){
     const plain=golemDmg(seed,t=>Object.assign(t,{n:'ため番人ゴーレム',br:undefined}));
     if(!plain.breathed)continue;golemN++;
-    const now=golemDmg(seed,t=>t),old=golemDmg(seed,t=>{delete t.br;return t;});
+    const now=golemDmg(seed,t=>t),old=golemDmg(seed,t=>{delete t.br;return t;},true);
     check('出る魔物：炉の番人ゴーレムの息の傷は、同じ強さの息の0.9倍',now.breathed&&now.dmg===Math.round(plain.dmg*.9)&&now.dmg<plain.dmg,`種${seed}`,`倍率なし${plain.dmg} ゴーレム${now.dmg}`);
-    check('出る魔物：倍率の値を持たない古い記録の炉の番人ゴーレムにも、名で引いて同じ倍率がかかる',old.dmg===now.dmg,`種${seed}`,`ゴーレム${now.dmg} 古い${old.dmg}`);}
-  check('出る魔物：炉の番人ゴーレムの息を5種で試し打ちした',golemN===5,'80種',`${golemN}種`);
+    check('出る魔物：倍率の値を持たない古い記録の炉の番人ゴーレムも、読み込むと表の型に引き直され、同じ倍率がかかる',old.dmg===now.dmg,`種${seed}`,`ゴーレム${now.dmg} 古い${old.dmg}`);}
+  check('出る魔物：炉の番人ゴーレムの息を5種で試し打ちした',golemN===5,'200種',`${golemN}種`);
   // キメラも同じく。名を変えずに倍率だけを 1 にしたものと比べる（名が同じなので、乱数の引き方も相性も同じになる）
-  const chimeraDmg=(seed,fix)=>breathDmg(seed,t=>fix(Object.assign(t,E.MON.find(m=>m.n==='キメラ'),{})));
+  const chimeraDmg=(seed,fix,reload)=>breathDmg(seed,t=>fix(Object.assign(t,E.MON.find(m=>m.n==='キメラ'),{})),reload);
   let chimeraN=0;
   for(let seed=1;seed<=200&&chimeraN<5;seed++){
     const plain=chimeraDmg(seed,t=>Object.assign(t,{br:1}));
     if(!plain.breathed)continue;chimeraN++;
-    const now=chimeraDmg(seed,t=>t),old=chimeraDmg(seed,t=>{delete t.br;return t;});
+    const now=chimeraDmg(seed,t=>t),old=chimeraDmg(seed,t=>{delete t.br;return t;},true);
     check('出る魔物：キメラの息の傷は、同じ強さの息の0.8倍',now.breathed&&now.dmg===Math.round(plain.dmg*.8)&&now.dmg<plain.dmg,`種${seed}`,`倍率なし${plain.dmg} キメラ${now.dmg}`);
-    check('出る魔物：倍率の値を持たない古い記録のキメラにも、名で引いて同じ倍率がかかる',old.dmg===now.dmg,`種${seed}`,`キメラ${now.dmg} 古い${old.dmg}`);
-    const vplain=chimeraDmg(seed,t=>Object.assign(t,{n:'若いキメラ',base:'キメラ',br:1})),vold=chimeraDmg(seed,t=>{delete t.br;return Object.assign(t,{n:'若いキメラ',base:'キメラ'});});
-    if(vplain.breathed)check('出る魔物：変異種のキメラの息にも同じ倍率がかかり、倍率の値を持たなくても元の名で引く',vold.dmg===Math.round(vplain.dmg*.8),`種${seed}`,`倍率なし${vplain.dmg} 古い変異種${vold.dmg}`);}
+    check('出る魔物：倍率の値を持たない古い記録のキメラも、読み込むと表の型に引き直され、同じ倍率がかかる',old.dmg===now.dmg,`種${seed}`,`キメラ${now.dmg} 古い${old.dmg}`);
+    const vplain=chimeraDmg(seed,t=>Object.assign(t,{n:'若いキメラ',base:'キメラ',br:1})),vold=chimeraDmg(seed,t=>{delete t.br;return Object.assign(t,{n:'若いキメラ',base:'キメラ',variant:'若い'});},true);
+    if(vplain.breathed)check('出る魔物：変異種のキメラの息にも同じ倍率がかかり、倍率の値を持たない古い記録も読み込むと元の型から引き直される',vold.dmg===Math.round(vplain.dmg*.8),`種${seed}`,`倍率なし${vplain.dmg} 古い変異種${vold.dmg}`);}
   check('出る魔物：キメラの息を5種で試し打ちした',chimeraN===5,'200種',`${chimeraN}種`);
   const maze={
     'レイス':8,'ミノタウロス':13,'溺れた衛兵':12,'水路の大蛇':14,'堕ちた騎士':16,'石の巨像':20,
@@ -1842,7 +1845,9 @@ function checkOldSaves(){
   for(const f of files){
     const saved=read(f),S=saved.S,v0=S.v,at=`見本${f}`;
     const before={adv:Object.keys(S.adv).length,parties:Object.keys(S.parties).length,memorial:(S.memorial||[]).length,farewells:(S.farewells||[]).length,tick:S.tick,gold:S.taverns.ours.gold,debt:S.taverns.ours.debt};
-    const E=load(1);let err=null;try{E.migrate(S);}catch(e){err=e;}
+    // 読み込みの入口 loadSave を通す（形の確かめ・移行・定義の引き直し）
+    const E=load(1);let err=null,got=null;try{got=E.loadSave(saved);}catch(e){err=e;}
+    check('古いセーブ：loadSave が店として読める',!!err||got===S,at,'null');
     check('古いセーブ：移行がエラーで止まらない',!err,at,()=>err&&err.stack.split('\n').slice(0,3).join(' / '));
     if(err)continue;
     check('古いセーブ：移行のあとは今の版',S.v===SAVE_V,at,`版${v0}→${S.v}`);
@@ -1854,6 +1859,10 @@ function checkOldSaves(){
     check('古いセーブ：今のコードで店を開いたときにいつもある項目が、移行のあとにもある',!miss.length,at,()=>miss.slice(0,8).join('、'));
     const stray=Object.values(S.parties).flatMap(p=>(p.members||[]).filter(id=>!S.adv[id]).map(id=>`${p.name}の${id}`));
     check('古いセーブ：一行の仲間がみな名簿にいる',!stray.length,at,stray.join('、'));
+    // 戦いの途中の魔物の型は、表から引き直したものになる（古い記録の型の写しは使わない）
+    const foes=Object.values(S.parties).filter(p=>p.etype);
+    const badFoe=foes.filter(p=>JSON.stringify(p.etype)!==JSON.stringify(E.foeOf(E.foeKey(p.etype)))).map(p=>p.name);
+    check('古いセーブ：戦いの途中の魔物の型は、loadSave で表から引き直される',!badFoe.length,at,badFoe.join('、'));
     const un=untagged(S);check('古いセーブ：移行のあと、判定に使う手帳と知らせには種類が付いている（文はそのまま）',!un.length,at,()=>un.slice(0,3).join('、'));
     const T0=S.taverns.ours;
     // 版32からは回数を数えている
@@ -2084,6 +2093,39 @@ function checkKinds(){
     Object.assign(p,{state:'wiped',wipe:'hidden',wipedAt:S.tick,floor:5,killer:'オーク',cause:'オークに倒れた',dueAt:S.tick+100});
     const shown=c=>E.chronShown(S,a,c);
     check('種類：伏せ中の手帳で隠す記録は、文でなく記録の hidden で決まる',!shown({tk:0,kind:'fell',args:{f:5,by:'オーク'},hidden:'death'})&&!shown({tk:0,t:X,kind:'wipe',hidden:'death'})&&!shown({tk:0,kind:'carried',args:{p:'甲'},hidden:'body'})&&shown({tk:0,t:'B5Fでオークに倒れる'})&&shown({tk:0,kind:'gate'}),'伏せ中の全滅','');}
+}
+// セーブと読み込み（#195 4/4）。セーブには魔物の型の写しを書かず鍵だけを書き、loadSave が形を確かめて表から引き直す
+function checkSaveLoad(){
+  const run=(E,S,n)=>{for(let i=0;i<n;i++){E.tick(S);E.rivalTemple(S);}};
+  // 同じ種の二つを同じだけ回し、片方だけセーブして読み直す。そのあとも同じに進めば、セーブで失うものはない
+  {const A=load(77),B=load(77),SA=A.newState(),SB=B.newState();let fights=0,saw=null;
+    for(let k=0;k<12;k++){run(A,SA,500);run(B,SB,500);
+      const txt=JSON.stringify({S:SB,at:0,pend:0},B.saveReplacer);const o=JSON.parse(txt);
+      for(const p of Object.values(o.S.parties))if(p.etype){fights++;const ks=Object.keys(p.etype).sort().join(',');if(!['n','n,v','rare'].includes(ks))saw=saw||JSON.stringify(p.etype);}
+      const SB2=B.loadSave(txt);for(const k2 of Object.keys(SB))delete SB[k2];Object.assign(SB,SB2);}
+    run(A,SA,500);run(B,SB,500);
+    const same=JSON.stringify(SA,A.saveReplacer)===JSON.stringify(SB,B.saveReplacer);
+    check('セーブ：魔物の型は鍵（名・変わり種・名のある魔物の階）だけを書く',fights>0&&!saw,'種77・12回',`戦い${fights} ${saw||''}`);
+    check('セーブ：セーブして loadSave で読み直しても、そのあとの進み方は変わらない',same,'種77・500刻ごとに12回','食い違う');}
+  const E=load(1);
+  // 鍵から型を引く：ふつう・変わり種・名のある魔物・主。引けない鍵は null
+  {const t=E.MON.find(m=>m.br&&m.br<1),v=E.VARIANTS[0],vt=E.variantMon(t,v),r=E.rareMonOf(13),boss=E.MON.find(m=>m.boss&&!m.mboss);
+    const ok=E.foeOf(E.foeKey(t))===t&&JSON.stringify(E.foeOf(E.foeKey(vt)))===JSON.stringify(vt)&&JSON.stringify(E.foeOf(E.foeKey(r)))===JSON.stringify(r)&&E.foeOf(E.foeKey(boss))===boss
+      &&E.foeOf({n:'いない魔物'})===null&&E.foeOf({rare:999})===null;
+    check('セーブ：魔物の鍵から、同じ型が表から引ける',ok,'鍵と型',JSON.stringify(E.foeKey(vt)));}
+  // 古い記録の型の写し（息の強さ br を持たない）も、名から表の型に引き直す。息の強さはその型のもの
+  {const S=E.newState();const p=Object.values(S.parties)[0];const t=E.MON.find(m=>m.br&&m.br<1);
+    const old=JSON.parse(JSON.stringify(t));delete old.br;old.hp=1;p.etype=old;p.enemies=[{hp:5,sleep:0}];
+    const S2=E.loadSave(JSON.parse(JSON.stringify({S})));const q=S2.parties[p.id];
+    check('セーブ：古い記録の魔物の型の写しは、読み込むと表の型になり、息の強さもその型のもの',q.etype===t&&q.etype.br===t.br,'息の弱い魔物',JSON.stringify(q.etype&&q.etype.br));}
+  // 形の確かめ：店として読めないものは null。壊れた所（引けない魔物、種類の分からない手帳と知らせ）は外す
+  {const bad=[null,'{',{},{S:{v:1}},{S:{v:37,tick:0,adv:{},parties:{},taverns:{ours:{}}}}].map(x=>E.loadSave(x));
+    check('セーブ：店として読めない記録は、loadSave が null を返す',bad.every(x=>x===null),'壊れた記録',JSON.stringify(bad));
+    const S=E.newState();const p=Object.values(S.parties)[0];const a=S.adv[p.members[0]];
+    p.etype={n:'いない魔物'};p.enemies=[{hp:5,sleep:0}];a.chron.push({tk:1,kind:'いない種類'},{tk:2},{tk:3,t:'古い文'});S.news.push({tk:1,kind:'いない種類'},{tk:2,t:'古い知らせ',k:'info'});
+    const S2=E.loadSave(JSON.parse(JSON.stringify({S})));const q=S2.parties[p.id],b=S2.adv[a.id];
+    check('セーブ：引けない魔物の戦いと、種類の分からない手帳・知らせは、読み込むときに外す',!q.etype&&!q.enemies&&!b.chron.some(c=>c.kind==='いない種類'||(c.tk===2&&c.t==null&&!c.kind))&&b.chron.some(c=>c.t==='古い文')
+      &&!S2.news.some(n=>n.kind==='いない種類')&&S2.news.some(n=>n.t==='古い知らせ')&&S2.loadFixed===4,'壊れた所のある記録',`外した${S2.loadFixed}`);}
 }
 function checkLevelNews(){
   const E=load(1),S=E.newState(),D=E.TICKS_PER_DAY;
@@ -2547,7 +2589,7 @@ function checkLife(){
 
 if(!isMainThread){const line=runSeed(workerData.seed);parentPort.postMessage({line,res:[...results]});}
 else{
-  if(SHARD.k===1){checkTables();checkScenes();checkLife();checkLetters();checkErrands();checkCrest();checkRowFallback();checkMine();checkAffinity();checkRevive();checkMemoNotes();checkOpening();checkCareer();checkIntro();checkAge();checkFoes();checkQuarrel();checkFlow();checkLedger();checkLevelNews();checkBounty();checkMissing();checkLastWords();checkHighSpells();checkSpellTable();checkPhases();checkPush();checkOldSaves();checkKinds();}
+  if(SHARD.k===1){checkTables();checkScenes();checkLife();checkLetters();checkErrands();checkCrest();checkRowFallback();checkMine();checkAffinity();checkRevive();checkMemoNotes();checkOpening();checkCareer();checkIntro();checkAge();checkFoes();checkQuarrel();checkFlow();checkLedger();checkLevelNews();checkBounty();checkMissing();checkLastWords();checkHighSpells();checkSpellTable();checkPhases();checkPush();checkOldSaves();checkKinds();checkSaveLoad();}
   // 種ごとの結果は、種の順に重ねる。反例は、いちばん若い種の最初のものを残す。進捗の行も種の順に出す
   const out=new Array(SEEDS.length);let next=0,printed=0;
   const flush=()=>{while(printed<out.length&&out[printed]){if(out[printed].line)console.log(out[printed].line);printed++;}};
