@@ -100,7 +100,7 @@ node --test tools/browser-test.mjs               # 2分ほど
 
 ## lint
 
-`index.html` の `<script>` を取り出して ESLint にかけ、使っていない名前（no-unused-vars）と、宣言していない名前（no-undef）を見つける。
+`index.html` の `<script>` を取り出して ESLint にかけ、使っていない名前（no-unused-vars）と、宣言していない名前（no-undef）と、冒険者の `status` を文字列と直に比べる書き方（no-restricted-syntax）を見つける。
 
 ```
 npm install            # 最初の一度だけ
@@ -108,5 +108,6 @@ node tools/lint.mjs    # 見つかれば index.html の行番号つきで出し�
 ```
 
 - 関数の引数は見ない（同じ形で並べた表の関数が、使わない引数を持つため）。
+- 冒険者の居どころは `a.status==='idle'` のように直に比べず、`isActive`（籍がある）・`isIdle`・`inParty`・`inTemple`（寺院で眠る）・`isDead`・`isAsh`・`isMissing`・`isLost`・`isRetired` を通す。比べてよいのはこれらの関数の中だけである。
 - テストや measure からだけ使うトップレベルの名前は、`index.html` の `/*ENGINE START*/` のすぐ下にある `/* exported … */` に並べる。
 - 自動テストでも別のジョブで回す。

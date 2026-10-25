@@ -488,6 +488,20 @@ const RARE_CLS=Object.keys(CLS).filter(k=>CLS[k].rare);
 const BEAST_KIND=['狼','鷹','大山猫','熊','大蜥蜴','山犬'];
 const BEAST_NAMES=['ハヤテ','クロ','シロガネ','ツムジ','モミジ','イナズマ','ノワール','ブラン','ゴロウ','ヒバナ','アラシ','コハク','ソラ','ヨミ'];
 function C(a){return CLS[a.cls]||CLS['戦士']}
+// 冒険者の居どころ（status）は直に比べず、次の関数を通す（tools/lint.mjs で禁じている）。
+// idle：酒場にいる／party：一行に加わって街の外にいる／dead・ash：寺院で眠る（死・灰）／missing：全滅した一行にいて、まだ見つかっていない／lost：ロスト／retired：店を去った
+/* eslint-disable no-restricted-syntax */
+// 籍がある（ロストしておらず、店を去ってもいない）。寺院で眠る者や行方不明の者も含む
+function isActive(a){return a.status!=='lost'&&a.status!=='retired'}
+function isIdle(a){return a.status==='idle'}
+function inParty(a){return a.status==='party'}
+function isDead(a){return a.status==='dead'}
+function isAsh(a){return a.status==='ash'}
+function inTemple(a){return a.status==='dead'||a.status==='ash'}
+function isMissing(a){return a.status==='missing'}
+function isLost(a){return a.status==='lost'}
+function isRetired(a){return a.status==='retired'}
+/* eslint-enable no-restricted-syntax */
 function canUse(cls,it){const g=(CLS[cls]||CLS['戦士']).eq;return it.for.some(c=>g.includes(c));}
 function promote(S,a){
   const opts=Object.entries(CLS).filter(([,c])=>c.adv===a.cls&&a.lvl>=c.lv&&c.cond(a));
@@ -867,7 +881,7 @@ function bountyHint(S,p){return BOUNTY_WORDS[bountyOdds(S,p)]}
 // 預けると、次の返済の必要額に足りなくなるか（押せなくはしない）
 function bountyShort(S,p){const d=nextDue(S),g=S.taverns.ours.gold,c=bountyPrice(p);return !!d&&g>=c&&g-c<d.due;}
 function upkeep(a){const rep=eqList(a).reduce((s,it)=>s+SHOP_PRICE[Math.min(SHOP_TOP,Math.max(1,it.f||1))]*.025,0);return {repair:Math.round(rep),lodge:Math.round(incomeAt(depthOf(a))*.08)};}
-function templeCost(S,a){const base=Math.round(incomeAt(depthOf(a))*(a.status==='ash'?1.5:.5)/10)*10;const e=edict(S,'templeUp')||edict(S,'templeDown');return Math.round(base*(e?e.m:1));}
+function templeCost(S,a){const base=Math.round(incomeAt(depthOf(a))*(isAsh(a)?1.5:.5)/10)*10;const e=edict(S,'templeUp')||edict(S,'templeDown');return Math.round(base*(e?e.m:1));}
 function edictTick(S){
   S.edicts=(S.edicts||[]).filter(e=>e.until>S.tick);
   if(S.nextEdict==null)S.nextEdict=S.tick+ri(3,6)*TICKS_PER_DAY;
@@ -1063,7 +1077,7 @@ const DREAMS={
   lastdive:{w:1.2,can:a=>humanAge(a)>=42,mk:a=>({f:clamp(Math.max(a.deepest||0,Math.ceil(PL(a)))+ri(2,4),GATE_F+1,MAXF)}),txt:d=>`体が言うことをきくうちに、もう一度だけ${FN(d.f)}まで潜りたい`,
     ok:(S,a,d)=>a.deepest>=d.f,msg:(a,d)=>`${a.name}が老いた体で、ついに${FN(d.f)}に立った。「これで思い残すことはない」`,ret:()=>chance(.6)?'思い残すことなく引退する':null,prog:a=>`これまでの最深 ${deepNow(a.deepest)}`},
   mentor:{w:1,can:a=>humanAge(a)>=33&&a.lvl>=16,mk:()=>({}),txt:()=>'駆け出しを一人、一人前に育て上げたい',
-    ok:(S,a,d)=>{const b=Object.values(S.adv).find(b=>b!==a&&b.tav===a.tav&&b.party&&b.party===a.party&&(b.lvl0||99)<=4&&b.lvl>=14&&b.status!=='lost');if(b)d.pupil=b.name;return !!b;},
+    ok:(S,a,d)=>{const b=Object.values(S.adv).find(b=>b!==a&&b.tav===a.tav&&b.party&&b.party===a.party&&(b.lvl0||99)<=4&&b.lvl>=14&&!isLost(b));if(b)d.pupil=b.name;return !!b;},
     msg:(a,d)=>`${a.name}が駆け出しのころから面倒を見てきた${d.pupil}が、一人前の冒険者になった。`,prog:()=>'同じ一行の駆け出しが育つのを待っている'},
   prove:{w:1.5,can:a=>humanAge(a)<20,mk:a=>({l:Math.max(16,a.lvl+10)}),txt:d=>`「子どもは帰れ」と笑った連中に、レベル${d.l}の姿を見せつけたい`,
     ok:(S,a,d)=>a.lvl>=d.l,msg:(a,d)=>`${a.name}がレベル${d.l}に達した。子ども扱いしていた連中も、もう笑わない。`,prog:a=>`いまLv${a.lvl}`},
@@ -1187,13 +1201,13 @@ const DV={
 };
 function dvFill(d){const V=DV[d.k];if(!V)return;d.vi=ri(0,V.t.length-1);Object.keys(V).forEach(f=>{if(f!=='t'&&d[f]==null)d[f]=pick(V[f]);});}
 function dvText(d){const V=DV[d.k];return V.t[d.vi].replace(/\{(\w+)\}/g,(m,k)=>k==='pre'?(d.unseen?'まだ誰も見ぬ':''):d[k]!=null?d[k]:m);}
-function lostFriend(S,a){if(!S||!S.bonds)return null;let best=null,bn=2;for(const [k,v] of Object.entries(S.bonds)){if(v.n<=bn)continue;const ids=k.split('-');if(!ids.includes(String(a.id)))continue;const o=S.adv[+ids.find(x=>x!==String(a.id))];if(o&&o.status==='lost'&&S.tick-((S.memorial.find(m=>m.id===o.id)||{}).tk||0)<TICKS_PER_DAY*200){best=o;bn=v.n;}}return best;}
+function lostFriend(S,a){if(!S||!S.bonds)return null;let best=null,bn=2;for(const [k,v] of Object.entries(S.bonds)){if(v.n<=bn)continue;const ids=k.split('-');if(!ids.includes(String(a.id)))continue;const o=S.adv[+ids.find(x=>x!==String(a.id))];if(o&&isLost(o)&&S.tick-((S.memorial.find(m=>m.id===o.id)||{}).tk||0)<TICKS_PER_DAY*200){best=o;bn=v.n;}}return best;}
 function makeDream(S,a){
   const past=(a.pastDreams||[]).map(x=>x.k);
   const OW={knight:{'ラウレンツ王国':2.5},debt:{'セーレ自由都市同盟':1.5},temple:{'聖オルド教国':2.5},slay:{'灰の荒野':1.5},map:{'鉄の山脈':2,'ベルクラント鉱山諸侯領':1.5},shop:{'セーレ自由都市同盟':2,'ベルクラント鉱山諸侯領':1.5}};
   const opts=Object.entries(DREAMS).filter(([k,d])=>!past.includes(k)&&(!d.can||d.can(a,S))).map(([k,d])=>{let w=(d.cw&&d.cw[a.cls]||d.w)*(k==='map'&&a.quirk==='几帳面'?3:1);
     const ow=(d.ow&&d.ow[a.origin])||(OW[k]&&OW[k][a.origin]);if(ow)w=d.w?w*ow:ow;if(d.aw)w*=d.aw(a,S);return [k,w];}).filter(x=>x[1]>0);
-  const act=Object.values(S.adv).filter(b=>b!==a&&b.dream&&b.status!=='lost'&&b.status!=='retired');
+  const act=Object.values(S.adv).filter(b=>b!==a&&b.dream&&isActive(b));
   const texts=new Set(act.map(b=>dreamText(b.dream)));const kc={};act.filter(b=>b.tav===a.tav).forEach(b=>{kc[b.dream.k]=(kc[b.dream.k]||0)+1;});
   const pool=Object.fromEntries((opts.length?opts:[['fame',1]]).map(([k,w])=>[k,w/(1+(kc[k]||0)*2.5)]));
   let d=null;
@@ -1209,7 +1223,7 @@ function fulfill(S,a,note){
   a.dream=null;a.nextDreamAt=S.tick+ri(150,400);
 }
 // 店の評判を聞いて、常連と肩を並べられる者が来る。評判が高いほどその割合が増え、残りはこれまでどおりの散らばりで来る
-function newcomerLvl(S,tav){const rs=Object.values(S.adv).filter(a=>a.tav===tav&&a.status!=='lost'&&a.status!=='retired');
+function newcomerLvl(S,tav){const rs=Object.values(S.adv).filter(a=>a.tav===tav&&isActive(a));
   if(!rs.length||!chance(.5+Math.min(S.taverns[tav].rep||0,200)*.002))return 0;
   const avg=rs.reduce((s,a)=>s+a.lvl,0)/rs.length;return Math.max(1,Math.round(avg)+ri(-3,3));}
 function makeAdv(S,tav,o){
@@ -1286,11 +1300,11 @@ function buySmall(S,t){const T0=S.taverns.ours,c=buyPrice(S,t);if(t.owned||T0.go
   news(S,`黒猫亭が、裏通りの${t.n}を${c}Gで買い取った。${t.n}は黒猫亭の支店になり、主人の${t.owner}がそのまま店を任される。常連の席が${BRANCH_SEATS}増えた。`,'record');
   const n=ri(1,3);for(let i=0;i<n&&seatsUsed(S,'ours')<seatCap(S,'ours');i++){const lv=newcomerLvl(S,'ours');const a=makeAdv(S,'ours',Object.assign({bg:`${t.n}の常連`},lv?{lvl:lv}:{}));news(S,`${t.n}の常連だった${a.name}（${a.race}の${a.cls}・Lv${a.lvl}）が、黒猫亭に籍を移した。`,'info');}
   news(S,`噂：銀の杯亭の${S.taverns.rival.owner||RIVAL_OWNER}「裏通りの店まで買い集めるとは。黒猫亭さんも、ずいぶん偉くなったものですね」`,'rumor');return true;}
-function seatsUsed(S,tav){return Object.values(S.adv).filter(a=>a.tav===tav&&a.status!=='lost'&&a.status!=='retired').length}
-function freeAdv(S,tav){return Object.values(S.adv).filter(a=>a.tav===tav&&a.status==='idle'&&(!a.party||!S.parties[a.party]||(S.parties[a.party].state==='wiped'&&!S.parties[a.party].retrieved)))}
+function seatsUsed(S,tav){return Object.values(S.adv).filter(a=>a.tav===tav&&isActive(a)).length}
+function freeAdv(S,tav){return Object.values(S.adv).filter(a=>a.tav===tav&&isIdle(a)&&(!a.party||!S.parties[a.party]||(S.parties[a.party].state==='wiped'&&!S.parties[a.party].retrieved)))}
 function retire(S,a,why){
   const team=a.party;a.status='retired';a.party=null;
-  const mates=Object.values(S.adv).filter(m=>m!==a&&team&&m.party===team&&m.status!=='lost'&&m.status!=='retired');
+  const mates=Object.values(S.adv).filter(m=>m!==a&&team&&m.party===team&&isActive(m));
   eqList(a).forEach(it=>{const m=giveBest(S,mates,it,null);if(m){a.eq[it.slot]=null;chron(S,m,`店を去る${a.name}から${it.n}を託される`);chron(S,a,`${it.n}を${m.name}に託す`);}});
   chron(S,a,`${why}ため、${S.taverns[a.tav].name}を去る`);
   // 店主に恩のある常連は、去る前に恩を返していく。もう「恩を返す」夢を叶えた者は、そのぶん少なめ
@@ -1325,7 +1339,7 @@ function afterRetire(S,a,why){
   if(a.tav==='ours'&&(a.trips||0)>=3){a.letters=[];const fav=(a.favor||0)>=2;a.nextLetter=S.tick+ri(20,fav?40:60)*TICKS_PER_DAY;}
   else a.letterDone=1;
   const ment=(a.pastDreams||[]).find(d=>d.k==='mentor'&&d.pupil);
-  if(ment&&a.catch){const pupil=Object.values(S.adv).find(b=>b!==a&&b.name===ment.pupil&&b.tav===a.tav&&b.status!=='lost'&&b.status!=='retired');
+  if(ment&&a.catch){const pupil=Object.values(S.adv).find(b=>b!==a&&b.name===ment.pupil&&b.tav===a.tav&&isActive(b));
     if(pupil&&pupil.catch!==a.catch)changeOf(S,pupil,`${a.name}の口癖『${a.catch}』が、いつのまにか移っていた`,x=>{x.catch=a.catch;});}
   // 所帯を持って去った者。1〜2年後に甥姪か歳の離れた弟妹が40%。子本人は暦どおりで、ここでは予定の刻だけ置く
   if(a.tav!=='ours'||!String(why).includes('所帯を持つ'))return;
@@ -1336,7 +1350,7 @@ function afterRetire(S,a,why){
 function schedulePendingLetters(S){
   Object.values(S.adv).forEach(a=>{
     if(a.letterDone||a.letters||a.nextLetter!=null)return;
-    if(a.status!=='retired')return;
+    if(!isRetired(a))return;
     if(a.tav!=='ours'||(a.trips||0)<3){a.letterDone=1;return;}
     a.letters=[];const fav=(a.favor||0)>=2;const span=fav?21:41;
     a.nextLetter=S.tick+(20+(a.id*13)%span)*TICKS_PER_DAY;
@@ -1389,7 +1403,7 @@ function letterGoods(a){const g=LETTER_GOODS[a.origin]||['干し菓子'];const p
 function letterFriend(S,a){
   let best=null,bn=-1,be=-1;
   Object.values(S.adv).forEach(b=>{
-    if(b===a||b.tav!=='ours'||b.status!=='idle')return;
+    if(b===a||b.tav!=='ours'||!isIdle(b))return;
     const bd=bondOf(S,a,b);if(!bd||!(bd.n>=1))return;
     const ev=(bd.ev||[]).length;
     if(bd.n>bn||bd.n===bn&&ev>be||bd.n===bn&&ev===be&&(!best||b.id<best.id)){best=b;bn=bd.n;be=ev;}
@@ -1398,7 +1412,7 @@ function letterFriend(S,a){
 }
 function giveLetterGift(S,from,to){
   // すでに装飾品を持っている者には渡さない。今の装備を外して捨てることのないようにする
-  if(!to||to.status!=='idle'||(to.eq&&to.eq.acc))return null;
+  if(!to||!isIdle(to)||(to.eq&&to.eq.acc))return null;
   const n=letterGoods(from);
   to.eq=to.eq||{};
   to.eq.acc={n,slot:'acc',for:['戦士','侍','盗賊','僧侶','魔術師'],ac:1,f:1,lore:`${from.name}が故郷から送った品`};
@@ -1422,7 +1436,7 @@ function letterTick(S){
   if(S.tick%TICKS_PER_DAY)return;
   schedulePendingLetters(S);
   if(S.lastLetter!=null&&S.tick-S.lastLetter<5*TICKS_PER_DAY)return;
-  const due=Object.values(S.adv).filter(a=>a.status==='retired'&&a.tav==='ours'&&a.nextLetter!=null&&S.tick>=a.nextLetter&&(a.letters||[]).length<3);
+  const due=Object.values(S.adv).filter(a=>isRetired(a)&&a.tav==='ours'&&a.nextLetter!=null&&S.tick>=a.nextLetter&&(a.letters||[]).length<3);
   if(!due.length)return;
   due.sort((a,b)=>a.nextLetter-b.nextLetter||a.id-b.id);
   deliverLetter(S,due[0]);
@@ -1485,12 +1499,12 @@ function kinTick(S){
     const due=a.kinDue;a.kinDue={done:1};arriveKin(S,a,due);
   }
   for(const a of Object.values(S.adv).sort((a,b)=>a.id-b.id)){
-    if(!a.childAt||a.childDone||S.tick<a.childAt||a.status!=='retired'||a.tav!=='ours')continue;
+    if(!a.childAt||a.childDone||S.tick<a.childAt||!isRetired(a)||a.tav!=='ours')continue;
     a.childDone=1;if(chance(.4))arriveKin(S,a,{kind:'child'});
   }
 }
 function checkDream(S,a){
-  if(a.status!=='idle')return;
+  if(!isIdle(a))return;
   if(!a.dream){if(S.tick>=(a.nextDreamAt||0)){a.dream=makeDream(S,a);chron(S,a,`新たな夢を抱く――${dreamText(a.dream)}`);}return;}
   const d=a.dream,D=DREAMS[d.k];if(!D||d.done||!D.ok(S,a,d))return;
   if(D.pay)a.gold-=D.pay(d);if(D.act)D.act(S,a,d);
@@ -1613,7 +1627,7 @@ function shopMake(S,b,t){const sh=shopInit(S);sh.serial++;const st=b.st(t);
   return Object.assign({for:[...b.for],f:t,slot:b.slot,base:b.t,shop:true,n:`${SHOP_MAT[b.m][t-1]}の${b.t}（工房${sh.serial}番）`},b.two?{two:true}:{},st);}
 const MONEY_DREAMS=['debt','wealth','shop','temple','home','sendhome','marry','pension','mine','hobbithome','ship','absolve','grain','horse','dwarfaxe'];
 function shopVisit(S,a,mates){
-  if(a.status!=='idle')return;const sh=shopInit(S);
+  if(!isIdle(a))return;const sh=shopInit(S);
   for(let n=0;n<2;n++){
     const saving=a.dream&&MONEY_DREAMS.includes(a.dream.k);
     const budget=Math.max(0,a.gold-(saving?Math.max(300,a.gold*.75):150));
@@ -1623,7 +1637,7 @@ function shopVisit(S,a,mates){
     if(!best)return;
     const it=shopMake(S,best.b,best.t);a.gold-=best.price;
     const out=equip(a,it);
-    out.forEach(o=>{const m2=giveBest(S,(mates||[]).filter(x=>x!==a&&x.status==='idle'),o,null);if(m2)chron(S,m2,`${a.name}のお古の${o.n}を譲り受ける`);else a.gold+=Math.round((o.f||1)*30);});
+    out.forEach(o=>{const m2=giveBest(S,(mates||[]).filter(x=>x!==a&&isIdle(x)),o,null);if(m2)chron(S,m2,`${a.name}のお古の${o.n}を譲り受ける`);else a.gold+=Math.round((o.f||1)*30);});
     chron(S,a,`${SHOP_NAME}で${it.n}を${best.price}Gで買う`);
     sh.log.push({tk:S.tick,who:a.name,id:a.id,tav:a.tav,n:it.n,price:best.price});if(sh.log.length>40)sh.log.shift();
   }
@@ -1650,7 +1664,7 @@ const LEAD_PERS={'慎重':1.5,'普通':1,'無謀':.5,'強欲':0,'臆病':-3};
 function leaderScore(a){return heirScore(a)+(LEAD_PERS[a.pers]||0)}
 // 看板の跡継ぎに選ばれるのは、腕と経験と人望だけで見る。性格は、選ばれたあと継ぐかどうかで効く（臆病な者も選ばれ、そこで迷う）
 function heirScore(a){return PL(a)+(has(a,'人望')?4:0)+Math.min(3,(a.trips||0)/10)+(humanAge(a)>=30?1:0)}
-function disbandParty(S,p,why,extra){Object.values(S.adv).filter(a=>a.party===p.id).forEach(a=>{a.party=null;if(a.status==='party')a.status='idle';if(a.status!=='lost'&&a.status!=='retired')chron(S,a,`${why}、${p.name}は解散する`);});
+function disbandParty(S,p,why,extra){Object.values(S.adv).filter(a=>a.party===p.id).forEach(a=>{a.party=null;if(inParty(a))a.status='idle';if(isActive(a))chron(S,a,`${why}、${p.name}は解散する`);});
   news(S,`${S.taverns[p.tav].name}の${p.name}は、${why}、解散した。${extra||''}`,p.tav==='ours'?'info':'rumor');
   // 看板が消えると、返しきれなかった立て替えの借りは貸し倒れになる
   if(p.tav==='ours'&&p.owed>0){const T0=S.taverns.ours;T0.badDebt=(T0.badDebt||0)+p.owed;news(S,`${p.name}に立て替えていた${p.owed}Gは、貸し倒れになった。`,'death');p.owed=0;}
@@ -1665,12 +1679,12 @@ function inheritSway(a,old,p){return ((((a.id|0)*2654435761+((old&&old.id)|0)*40
 function inheritScore(S,a,old,p){const pe=INHERIT_BASE[a.pers]!=null?a.pers:'普通';const b=old&&bondOf(S,a,old);const n=b?b.n:0;const fv=a.favor||0;const owed=p&&p.owed||0;
   let s=INHERIT_BASE[pe]+INHERIT_BOND[pe]*Math.min(1,n/40)+Math.min(6,fv)*(pe==='臆病'?.4:.25);
   if(has(a,'人望'))s+=.8;if(has(a,'不屈'))s+=.4;
-  if(old&&old.status==='lost')s+=pe==='臆病'?-.4:.3;
+  if(old&&isLost(old))s+=pe==='臆病'?-.4:.3;
   if(owed>0)s-=pe==='強欲'?Math.min(3,owed/400):Math.min(1,owed/2000);
   return s+inheritSway(a,old,p);}
 function inheritWill(S,a,old,p){return inheritScore(S,a,old,p)>=0}
 function inheritSay(a,p,ok){const say=INHERIT_SAY[a.pers]||INHERIT_SAY['普通'];return ok?say[0]:a.pers==='強欲'&&p&&p.owed>0?INHERIT_DEBT_SAY:say[1];}
-function succession(S,p,roster,old){const why=!old?'リーダーを失い':old.status==='lost'?`リーダーの${old.name}を失い`:old.status==='retired'?`リーダーの${old.name}が店を去り`:`リーダーの${old.name}が${S.taverns[old.tav].name}に移り`;
+function succession(S,p,roster,old){const why=!old?'リーダーを失い':isLost(old)?`リーダーの${old.name}を失い`:isRetired(old)?`リーダーの${old.name}が店を去り`:`リーダーの${old.name}が${S.taverns[old.tav].name}に移り`;
   const cands=roster.filter(a=>a!==old);if(cands.length<2){disbandParty(S,p,why);return false;}
   const best=cands.slice().sort((x,y)=>heirScore(y)-heirScore(x)||x.id-y.id)[0];const ok=inheritWill(S,best,old,p),say=inheritSay(best,p,ok);
   if(!ok){chron(S,best,`${p.name}の看板を継がない。「${say}」`);disbandParty(S,p,why,`${best.name}は看板を継がなかった。「${say}」`);return false;}
@@ -1885,11 +1899,11 @@ function bondTopics(S,A,B,topics,say2){
     if(bd.n>=8)topics.push([1.5,()=>{say2(A,`お前とは、もう${bd.n}回も一緒に潜ってるな`);say2(B,fillT('[腐れ縁だな|お前の背中なら、目をつぶっても分かる|次も頼むぜ|そろそろ飽きてきた]',{}));}]);
     else if(bd.n<=1&&A.party&&A.party===B.party)topics.push([1,()=>{say2(A,fillT('[まだ一緒に潜ったことがほとんどないな|そういえば、お前のことをよく知らない]',{}));say2(B,fillT('[次で分かるさ|俺は{origin}の出だ。よろしくな]',{origin:B.origin}));}]);}
   // friends who are gone
-  const gone=Object.entries(S.bonds||{}).filter(([k,v])=>v.n>=3&&k.split('-').includes(String(A.id))).map(([k,v])=>{const oid=+k.split('-').find(x=>x!==String(A.id));return [S.adv[oid],v];}).filter(([o])=>o&&o!==B&&(o.status==='lost'||o.status==='retired'||o.tav!==A.tav));
+  const gone=Object.entries(S.bonds||{}).filter(([k,v])=>v.n>=3&&k.split('-').includes(String(A.id))).map(([k,v])=>{const oid=+k.split('-').find(x=>x!==String(A.id));return [S.adv[oid],v];}).filter(([o])=>o&&o!==B&&(!isActive(o)||o.tav!==A.tav));
   gone.forEach(([o,v])=>{
-    if(o.status==='lost')topics.push([2.5,()=>{say2(A,fillT(`${o.name}がいなくなってから、[この席は広すぎる|酒がまずい|${FN(o.lastFloor||'?')}には行く気がしない|${v.n}回も一緒に潜ったのにな]`,{}));say2(B,fillT('[……ああ|あいつの分まで潜るさ|俺も、あいつには借りがあった|記念碑に名前を見に行ったよ]',{}));}]);
-    else if(o.status==='retired'&&(o.letters||[]).length)topics.push([2.2,()=>{say2(A,`${o.name}から便りが来たってな`);say2(B,pick(['元気そうだった','字が下手になってた','自慢話ばかりだ']));}]);
-    else if(o.status==='retired')topics.push([1.5,()=>{say2(A,fillT(`${o.name}は今ごろ、[故郷で|どこかで]どうしてるかな`,{}));say2(B,fillT('[元気でやってるさ|手紙くらい寄こせばいいのにな|あいつは幸せ者だ]',{}));}]);
+    if(isLost(o))topics.push([2.5,()=>{say2(A,fillT(`${o.name}がいなくなってから、[この席は広すぎる|酒がまずい|${FN(o.lastFloor||'?')}には行く気がしない|${v.n}回も一緒に潜ったのにな]`,{}));say2(B,fillT('[……ああ|あいつの分まで潜るさ|俺も、あいつには借りがあった|記念碑に名前を見に行ったよ]',{}));}]);
+    else if(isRetired(o)&&(o.letters||[]).length)topics.push([2.2,()=>{say2(A,`${o.name}から便りが来たってな`);say2(B,pick(['元気そうだった','字が下手になってた','自慢話ばかりだ']));}]);
+    else if(isRetired(o))topics.push([1.5,()=>{say2(A,fillT(`${o.name}は今ごろ、[故郷で|どこかで]どうしてるかな`,{}));say2(B,fillT('[元気でやってるさ|手紙くらい寄こせばいいのにな|あいつは幸せ者だ]',{}));}]);
     else if(o.tav!==A.tav)topics.push([1.5,()=>{say2(A,fillT(`${o.name}のやつ、${S.taverns[o.tav].name}で[うまくやってるかな|借金まみれらしい|すれ違っても目を合わせない]`,{}));say2(B,fillT('[自分で決めたことだ|金に負けたのさ|戻ってくるなら席はあるさ]',{}));}]);});
 }
 function templTopics(S,A,B,topics,say2){
@@ -1940,7 +1954,7 @@ const OVERCOME={
   '浪費家':{ok:a=>(a.pastDreams||[]).some(d=>MONEY_DREAMS.includes(d.k)),p:.4,why:'夢のために金を貯めて、金の重みを知った'},
   '不運':{ok:a=>a.lvl>=30,p:.06,why:'長く生き延びるうちに、運が向いてきた',to:'強運'},
 };
-function overcomeCheck(S,a){if(!a.traits||a.status==='lost'||a.status==='retired')return;
+function overcomeCheck(S,a){if(!a.traits||!isActive(a))return;
   for(const t of trBad(a)){const O=OVERCOME[t];if(!O||!O.ok(a)||!chance(O.p*.4))continue;
     const up=O.to&&!has(a,O.to)&&chance(.12);
     changeOf(S,a,`${O.nm||t}を克服した。${O.why}${up?`。それどころか、${O.to}と呼ばれるほどになった`:''}`,x=>{x.traits=x.traits.filter(y=>y!==t);if(O.hp)x.mhp+=2+Math.floor(x.lvl/2);if(up)x.traits.push(O.to);if(up&&O.to==='頑健')x.mhp+=3+x.lvl;});
@@ -1981,8 +1995,8 @@ function toneT(a,t,fixed){const tn=a.tone||'普通';
   else if(tn==='無口'){t=t.replace(/^……/,'');if(t.length>16){t=t.match(/^[^。！？]*[。！？]?/)[0].replace(/[。]$/,'');}t='……'+t;}
   else if(tn==='ぶっきらぼう')t=t.replace(/(よ|ね)(?=[。！？]|$)/g,'');
   return t;}
-function changeOf(S,a,why,f){if(a.status==='lost'||a.status==='retired')return;f(a);a.changes=a.changes||[];a.changes.push({tk:S.tick,t:why});chron(S,a,why);}
-function onLostFriend(S,o){Object.entries(S.bonds||{}).forEach(([k,v])=>{if(v.n<5)return;const ids=k.split('-');if(!ids.includes(String(o.id)))return;const a=S.adv[+ids.find(x=>x!==String(o.id))];if(!a||a.status==='lost'||a.status==='retired')return;
+function changeOf(S,a,why,f){if(!isActive(a))return;f(a);a.changes=a.changes||[];a.changes.push({tk:S.tick,t:why});chron(S,a,why);}
+function onLostFriend(S,o){Object.entries(S.bonds||{}).forEach(([k,v])=>{if(v.n<5)return;const ids=k.split('-');if(!ids.includes(String(o.id)))return;const a=S.adv[+ids.find(x=>x!==String(o.id))];if(!a||!isActive(a))return;
   if(['無謀','強欲'].includes(a.pers)&&chance(.5))changeOf(S,a,`${o.name}を失ってから、無茶をしなくなった`,x=>x.pers='慎重');
   else if(a.tone!=='無口'&&chance(.3))changeOf(S,a,`${o.name}を失ってから、口数が減った`,x=>x.tone='無口');
   else if(chance(.3))changeOf(S,a,`${o.name}の口癖を、真似るようになった`,x=>x.catch=o.catch||x.catch);});}
@@ -2012,13 +2026,13 @@ function farewellLine(S,losts){
   // 絆の深さ、同じなら二人の出来事の数、同じなら先に店に来た者（id の小さい者）
   let best=null;
   for(const [k,v] of Object.entries(S.bonds||{})){if(!v||v.n<3)continue;const ids=k.split('-');const mine=ids.find(x=>lostIds.has(x));if(!mine)continue;const oid=ids.find(x=>x!==mine);if(oid==null||lostIds.has(oid))continue;
-    const o=S.adv[+oid];if(!o||o.tav!=='ours'||(o.status!=='idle'&&o.status!=='party'))continue;
+    const o=S.adv[+oid];if(!o||o.tav!=='ours'||(!isIdle(o)&&!inParty(o)))continue;
     const c={o,lost:S.adv[+mine],n:v.n,ev:(v.ev||[]).length};
     if(!best||c.n>best.n||(c.n===best.n&&(c.ev>best.ev||(c.ev===best.ev&&c.o.id<best.o.id))))best=c;}
   const seed=losts.reduce((s,a)=>s+a.id,0);
   if(!best)return FAREWELL_QUIET[seed%FAREWELL_QUIET.length];
   const {o,lost}=best;
-  if(o.status==='party'){const p=o.party&&S.parties[o.party];return `${o.name}はまだ${p&&p.floor>MAXF?'坑道':'迷宮'}にいて、それを知らない。`;}
+  if(inParty(o)){const p=o.party&&S.parties[o.party];return `${o.name}はまだ${p&&p.floor>MAXF?'坑道':'迷宮'}にいて、それを知らない。`;}
   const list=FAREWELL_TONE[o.tone]||FAREWELL_ACTS[o.pers]||FAREWELL_ACTS['普通'];
   return list[(seed+o.id)%list.length].replace(/\{n\}/g,o.name).replace(/\{o\}/g,lost.name);
 }
@@ -2026,7 +2040,7 @@ function farewellLine(S,losts){
 function withCatch(a,x){if(a.catch&&chance(.15)&&!x.includes(a.catch)&&!/）$/.test(x))x=(/[！？]$/.test(x)?x:x.replace(/。?$/,'。'))+a.catch;return x;}
 function chatterTick(S){
   if(!chance(.05))return;
-  const idle=Object.values(S.adv).filter(a=>a.tav==='ours'&&a.status==='idle');if(idle.length<2)return;
+  const idle=Object.values(S.adv).filter(a=>a.tav==='ours'&&isIdle(a));if(idle.length<2)return;
   const A=pick(idle);const others=idle.filter(x=>x!==A);let B=pick(others);
   if(chance(.5)){const bw=others.map(o=>{const b=bondOf(S,A,o);return b?b.n+b.ev.length*3:0;});if(bw.some(x=>x>0))B=others[+wpick(Object.fromEntries(bw.map((w,i)=>[i,w+.01])))];}
   const L=[];const say2=(a,t)=>{let x=voice(a,t);if(L.length)x=withCatch(a,x);L.push({id:a.id,who:a.name,t:x});};
@@ -2040,7 +2054,7 @@ function chatterTick(S){
   if(titled.length)topics.push([1,()=>{const t=pick(titled);say2(A,`${t.name}のやつ、「${t.title}」なんて呼ばれてるぜ`);say2(B,pick(['大したもんだ','俺にも何か二つ名がほしいね','本人は嫌がってるらしいがな']));}]);
   topics.push([1.5,()=>{say2(A,'お前、夢とかあるのか');if(B.dream)say2(B,`${dreamText(B.dream).replace(/（.*?）/,'')}……笑うなよ`);else say2(B,'前の夢は叶えちまった。次を探してるところさ');if(chance(.5))say2(A,pick(['笑わないさ','いい夢だ','叶うといいな']));}]);
   if(A.party&&A.party===B.party){const tp=S.parties[A.party];if(tp)topics.push([1,()=>{const TR={'慎重':['薬草は多めに持っていこう','地図だけは忘れるなよ'],'普通':['ああ、いつでも','任せとけ'],'無謀':['もちろんだ。今度こそ深くまで','待ちくたびれたぜ'],'強欲':['今度はもっと稼ぐぞ','宝箱は全部開けるからな'],'臆病':['う、うん……たぶん','もう少し休んでからでも……']};const k=pick([0,1,2]);say2(A,[`次はもう少し深くまで行こう`,`${tp.name}も、だいぶ様になってきたな`,`次の探索、準備はいいか`][k]);say2(B,k===1?pick(['ああ。最初の頃が嘘みたいだ','まだまだだよ']):pick(TR[B.pers]));}]);}
-  const fresh=Object.values(S.adv).filter(a=>a.tav==='ours'&&a.status==='idle'&&a.trips==null&&a.lvl<8);
+  const fresh=Object.values(S.adv).filter(a=>a.tav==='ours'&&isIdle(a)&&a.trips==null&&a.lvl<8);
   const vet=idle.filter(a=>a.lvl>=20);
   if(fresh.length&&vet.length)topics.push([2,()=>{const n=pick(fresh),v=pick(vet);L.length=0;say2(v,`新入り、${pick(['地図のない階では欲を出すな','宝箱は盗賊に任せろ','仲間が倒れたら、すぐ引き返せ','僧侶の呪文が尽きたら帰り時だ','名のある魔物を見たら逃げろ。勝てると思うな'])}`);say2(n,pick(['は、はい','わかってますよ','……覚えておきます']));}]);
   const sh=S.shop||{};const top=[9,8,7,6,5,4,3,2].find(t=>sh.tiers&&sh.tiers[t]);
@@ -2087,12 +2101,12 @@ function tick(S){
       else if(a.odd||CLS[a.cls].rare) news(S,`噂：銀の杯亭に${a.race}の${a.cls}が現れたらしい。`,'rumor');}
   }
   if(S.tick%(TICKS_PER_DAY*365)===0){
-    Object.values(S.adv).forEach(a=>{if(a.status!=='lost'&&a.status!=='retired'&&a.age)a.age++;});
+    Object.values(S.adv).forEach(a=>{if(isActive(a)&&a.age)a.age++;});
     news(S,`迷宮暦${81+Math.floor(S.tick/TICKS_PER_DAY/365)}年が明けた。冒険者たちはひとつ歳をとる。`,'info');
   }
   // temple on credit after a long wait (ours)
   for(const a of Object.values(S.adv)){
-    if(a.tav!=='ours'||(a.status!=='dead'&&a.status!=='ash'))continue;
+    if(a.tav!=='ours'||(!isDead(a)&&!isAsh(a)))continue;
     a.tw=(a.tw||0)+1;
     if(policy(S).revive&&S.taverns.ours.gold>=templeCost(S,a)){payRevive(S,a,a.party&&S.parties[a.party]);continue;}
     if(a.tw>120){a.tw=0;const cost=templeCost(S,a);a.gold-=cost;chron(S,a,`寺院に${cost}Gの借りを作って蘇生を受ける`);temple(S,a,true);}
@@ -2107,10 +2121,10 @@ function tick(S){
       // 消えた者の名を二つ名つきで並べる。名前は日報で一続きになる（記念碑の名が知らせの語になる）
       const names=p.members.map(id=>A(S,id)).filter(Boolean).map(full);
       // 見送りの一行は、消えた者全員の絆の中から一つ決め、知らせ1件に一行だけ添える。記念碑には消えた者それぞれに同じ一行を残す
-      const farewell=farewellLine(S,p.members.map(id=>A(S,id)).filter(a=>a&&a.status==='missing'));
+      const farewell=farewellLine(S,p.members.map(id=>A(S,id)).filter(a=>a&&isMissing(a)));
       // ひと幕は、消えた者がまだ消えたことになる前に組む（同じときに消えた仲間を見分ける）
-      const gone=new Set(p.members.filter(id=>{const a=A(S,id);return a&&a.status==='missing';}));const lives=[];
-      p.members.forEach(id=>{const a=A(S,id);if(a.status!=='missing')return;a.status='lost';a.party=null;chron(S,a,`${FN(p.floor)}から戻ることなく、迷宮に呑まれる`);
+      const gone=new Set(p.members.filter(id=>{const a=A(S,id);return a&&isMissing(a);}));const lives=[];
+      p.members.forEach(id=>{const a=A(S,id);if(!isMissing(a))return;a.status='lost';a.party=null;chron(S,a,`${FN(p.floor)}から戻ることなく、迷宮に呑まれる`);
         const m=memorialize(S,a,{by:a.lastBy||p.killer||'不明',floor:p.floor,farewell});
         if(lifeWorthy(a)){m.life=lifeLines(S,a,{k:'missing',tk:S.tick,floor:p.floor,wipedAt:p.wipedAt,party:p.name,n:gone.size,gone});lives.push({id:a.id,name:m.name,lines:m.life});}});
       queueLife(S,'lost',lives,p.name);
@@ -2141,17 +2155,17 @@ function stepParty(S,p){
   if(p.state==='town'){
     p.rest--; if(p.rest>0) return;
     // 遺体がまだ迷宮にあるあいだは、別の仲間を集めて先に潜らない
-    if(Object.values(S.adv).some(a=>a.party===p.id&&a.status==='missing')) return;
-    let roster=Object.values(S.adv).filter(a=>a.party===p.id&&a.status!=='lost'&&a.status!=='retired'&&a.status!=='missing');
+    if(Object.values(S.adv).some(a=>a.party===p.id&&isMissing(a))) return;
+    let roster=Object.values(S.adv).filter(a=>a.party===p.id&&isActive(a)&&!isMissing(a));
     roster.filter(a=>a.tav!==p.tav).forEach(a=>{a.party=null;});roster=roster.filter(a=>a.tav===p.tav);
     let L=A(S,p.leader);
     if(!p.leader&&roster.length){p.leader=roster.slice().sort((x,y)=>leaderScore(y)-leaderScore(x))[0].id;L=A(S,p.leader);}
-    if(!L||L.party!==p.id||L.status==='lost'||L.status==='retired'||L.tav!==p.tav){if(!succession(S,p,roster.filter(a=>a!==L),L))return;L=A(S,p.leader);roster=roster.filter(a=>a.party===p.id);}
+    if(!L||L.party!==p.id||!isActive(L)||L.tav!==p.tav){if(!succession(S,p,roster.filter(a=>a!==L),L))return;L=A(S,p.leader);roster=roster.filter(a=>a.party===p.id);}
     p.size=6;
     if(roster.length>6){roster.sort((x,y)=>y.lvl-x.lvl);roster.slice(6).forEach(a=>{if(a===L)return;a.party=null;chron(S,a,`人数が多すぎて${p.name}を離れる`);});roster=roster.filter(a=>a.party===p.id);}
     if(roster.length<p.size){const extra=freeAdv(S,p.tav).filter(a=>a.party!==p.id&&Math.abs(PL(a)-PL(L))<=6&&!quitCool(S,a,L)).sort((x,y)=>(pullOf(S,L,y)-pullOf(S,L,x))||(Math.abs(PL(x)-PL(L))-Math.abs(PL(y)-PL(L))));
       while(roster.length<p.size&&extra.length){const a=extra.shift();a.party=p.id;roster.push(a);plog(p,`${a.name} が なかまに くわわった`,'sys');chron(S,a,joinLine(S,a,L,p,p.name));if(p.tav==='ours')news(S,`${L.name}が、${a.name}を${p.name}に迎え入れた。`,'info');}}
-    let ms=roster.filter(a=>a.status==='idle');
+    let ms=roster.filter(a=>isIdle(a));
     const allIn=ms.length===roster.length;
     // 寺院で眠る仲間まで数えて6人いるなら、欠けたまま出ずに全員の戻りを待つ
     const full=roster.length>=p.size;
@@ -2423,7 +2437,7 @@ function floorThrough(S,p,f){const F=floorsInit(S);F[f]=F[f]||{};if(F[f].through
 function mapTick(S){const F=floorsInit(S);
   for(const [k,v] of Object.entries(F)){if(v.map||!v.mapAt||S.tick<v.mapAt)continue;const f=+k;v.map=true;
     const pay=Math.round(mapPrice(f)*.5/10)*10;const th=v.through;const team=Object.values(S.parties).find(q=>q.name===th.party&&q.tav===th.tav);
-    const ms=team?Object.values(S.adv).filter(a=>a.party===team.id&&a.status!=='lost'&&a.status!=='retired'):[];ms.forEach(a=>a.gold+=Math.floor(pay/ms.length));
+    const ms=team?Object.values(S.adv).filter(a=>a.party===team.id&&isActive(a)):[];ms.forEach(a=>a.gold+=Math.floor(pay/ms.length));
     news(S,`【${CARTO}】${FN(f)}の地図を売り出した（${mapPrice(f)}G）。この階を最初に突破したのは${th.tav?S.taverns[th.tav].name+'の':''}${th.party}。${ms.length?`地図屋は彼らの記録を${pay}Gで買い取った。`:'地図屋は記録の代金を払おうとしたが、もう受け取る者はいなかった。'}`,'edict');}}
 function policy(S){S.policy=S.policy||{potion:0,mapPay:false,revive:false,rookie:false};return S.policy;}
 // 帳場の「きょうの出入り」。前日と、きょうを含む直近7日。古い記録には過ぎた日を埋めない
@@ -2453,7 +2467,7 @@ function flowView(S){
 function goldSign(n){n=Math.round(+n)||0;if(!n)return '0G';return (n>0?'+':'')+n+'G';}
 // 支援の方針の、いまの深さでの1日あたり。回復薬は [なし,2本,5本,10本]
 function depthNow(S){
-  const al=Object.values(S.adv||{}).filter(a=>a.tav==='ours'&&a.status!=='lost'&&a.status!=='retired');
+  const al=Object.values(S.adv||{}).filter(a=>a.tav==='ours'&&isActive(a));
   if(!al.length)return Math.max(1,(S.deepest&&S.deepest.ours)||1);
   return Math.max(1,Math.round(al.reduce((s,a)=>s+depthOf(a),0)/al.length));
 }
@@ -2467,7 +2481,7 @@ function policyCost(S){
   const revive=Math.round(Math.round(base*(ed?ed.m:1))*n/10);
   const rep=Math.min(S.taverns.ours.rep||0,200),merc=edict(S,'mercs')?1.8:1;
   const perDay=(0.016+rep*0.00008)*TICKS_PER_DAY*merc;
-  const al=Object.values(S.adv||{}).filter(a=>a.tav==='ours'&&a.status!=='lost'&&a.status!=='retired');
+  const al=Object.values(S.adv||{}).filter(a=>a.tav==='ours'&&isActive(a));
   const avg=al.length?al.reduce((s,a)=>s+a.lvl,0)/al.length:1,vet=Math.min(.9,.5+rep*0.002);
   const under=(avg<10?vet:0)+(1-vet)*.8;
   return {depth:d,parties:n,potion,map,revive,rookie:Math.round(perDay*under*300)};
@@ -2490,7 +2504,7 @@ const PUSH_NOT={wealth:1,pension:1,payback:1,feast:1,jackpot:1};
 // 後押しした夢のうち、かなえば必ず店を去るもの（去る判定が変わらない）
 const PUSH_GO={shop:1,temple:1,tour:1,sea:1,home:1};
 function pushNeed(S,a){const d=a&&a.dream;
-  if(S.taverns.ours.debtFree==null||a.tav!=='ours'||a.status!=='idle'||!d||d.done||d.push||d.pushNo||PUSH_NOT[d.k]||!DREAMS[d.k]||!DREAMS[d.k].pay||!(d.amt>0))return 0;
+  if(S.taverns.ours.debtFree==null||a.tav!=='ours'||!isIdle(a)||!d||d.done||d.push||d.pushNo||PUSH_NOT[d.k]||!DREAMS[d.k]||!DREAMS[d.k].pay||!(d.amt>0))return 0;
   return Math.max(0,d.amt-Math.max(0,Math.floor(a.gold||0)));}
 // 一部を出すときの額。足りない分の半分を100G単位に切り上げる。足りない分より小さくならなければ出さない
 function pushHalf(n){const h=Math.ceil(n/200)*100;return h<n?h:0;}
@@ -2537,7 +2551,7 @@ function orderCustom(S,a,o){const T0=S.taverns.ours;if(!o||T0.gold<o.price)retur
   const out=equip(a,it);out.forEach(x=>{a.gold+=Math.round((x.f||1)*30);});favor(a,3);chron(S,a,`店主の頼みでグンター親方が打った${it.n}を贈られる`);
   news(S,`グンター親方が、黒猫亭の店主の頼みで${a.name}のために${it.n}を打った。`,'record');return it;}
 function poachPrice(S,a){return r100((a.debt||0)+incomeAt(depthOf(a))*25);}
-function poachList(S){if(seatsUsed(S,'ours')>=seatCap(S,'ours'))return [];return Object.values(S.adv).filter(a=>a.tav==='rival'&&a.status==='idle'&&(!a.party||!S.parties[a.party]||S.parties[a.party].state==='town')).sort((x,y)=>y.lvl-x.lvl).slice(0,5);}
+function poachList(S){if(seatsUsed(S,'ours')>=seatCap(S,'ours'))return [];return Object.values(S.adv).filter(a=>a.tav==='rival'&&isIdle(a)&&(!a.party||!S.parties[a.party]||S.parties[a.party].state==='town')).sort((x,y)=>y.lvl-x.lvl).slice(0,5);}
 function poach(S,a){const T0=S.taverns.ours,c=poachPrice(S,a),d=a.debt||0;if(T0.gold<c||!poachList(S).includes(a))return false;if(!moveTav(S,a,'ours'))return false;T0.gold-=c;a.debt=0;favor(a,1);
   chron(S,a,`黒猫亭の店主が銀の杯亭への借金${d}Gを肩代わりしてくれる`);
   news(S,`黒猫亭の店主が、銀の杯亭の${a.name}（${a.race}の${a.cls}・Lv${a.lvl}）を迎え入れた。${d?`銀の杯亭への借金${d}Gは、店主が肩代わりした。`:''}`,'record');
@@ -2664,7 +2678,7 @@ function lifeMate(S,a,gone){let best=null;
     if(!o||o.tav!=='ours')continue;const c={o,n:v.n,ev:(v.ev||[]).length};
     if(!best||c.n>best.n||(c.n===best.n&&(c.ev>best.ev||(c.ev===best.ev&&c.o.id<best.o.id))))best=c;}
   if(!best)return null;const o=best.o;
-  const fate=gone&&gone.has(o.id)?'同じ日に消えた':o.status==='lost'?'先に記念碑に刻まれた':o.status==='retired'?'先に店を去った':'まだ店にいる';
+  const fate=gone&&gone.has(o.id)?'同じ日に消えた':isLost(o)?'先に記念碑に刻まれた':isRetired(o)?'先に店を去った':'まだ店にいる';
   return {t:`いちばん長く背中を預けた${o.name}は、${fate}。`,n:best.n};}
 // end：{k:'ash'|'missing'|'retired', tk, floor, by, wipedAt, party, n, why}
 function lifeLines(S,a,end){
@@ -3128,14 +3142,14 @@ function owedTick(S){if(S.tick%TICKS_PER_DAY)return;
   for(const p of Object.values(S.parties)){
     if(p.tav!=='ours'||p.state!=='wiped'||!p.announced||p.knownWiped||!(p.owed>0))continue;
     // 遺体が街に着いて寺院へ移ったあと（missing がいなければ）は利息を止める
-    if(!(p.members||[]).some(id=>{const a=A(S,id);return a&&a.status==='missing';}))continue;
+    if(!(p.members||[]).some(id=>{const a=A(S,id);return a&&isMissing(a);}))continue;
     const d=Math.round(p.owed*OWED_RATE);if(!d)continue;p.owed+=d;p.owedInterest=(p.owedInterest||0)+d;}}
 // 遺体が街に届いた。死因と階はここで初めて手帳と知らせに残る。倒れた者は寺院へ。依頼の報酬は、届けた一行に払い、巡回隊なら店に戻す
 function corpsesHome(S,w,how,by){
-  if(!w||w.causeTold&&!(w.members||[]).some(id=>{const a=A(S,id);return a&&a.status==='missing';}))return;
+  if(!w||w.causeTold&&!(w.members||[]).some(id=>{const a=A(S,id);return a&&isMissing(a);}))return;
   const seen=w.knownWiped&&w.causeTold;
   tellCause(S,w);w.announced=true;
-  const ms=(w.members||[]).map(id=>A(S,id)).filter(a=>a&&a.status==='missing');
+  const ms=(w.members||[]).map(id=>A(S,id)).filter(a=>a&&isMissing(a));
   ms.forEach(a=>{flushDeathChron(S,a);a.status=a.dungeonAsh?'ash':'dead';a.dungeonAsh=false;a.carriedBy=null;chron(S,a,`${how}遺体が街に運ばれる`);
     if(a.tav==='ours'&&policy(S).revive&&S.taverns.ours.gold>=templeCost(S,a))payRevive(S,a,w);else temple(S,a,false);});
   const cause=wipedCause(S,w),k=w.killer||'';
@@ -3179,9 +3193,9 @@ function wipe(S,p,by){
 function releaseRetrieved(S){
   for(const p of Object.values(S.parties)){
     if(p.state!=='wiped'||!p.retrieved) continue;
-    if(Object.values(S.adv).some(a=>a.party===p.id&&a.status==='missing')) continue;
+    if(Object.values(S.adv).some(a=>a.party===p.id&&isMissing(a))) continue;
     p.retrieved=false;p.state='town';p.rest=ri(14,24);p.wait=0;p.floor=0;p.enemies=null;p.announced=false;p.knownWiped=false;
-    p.members=(p.members||[]).filter(id=>{const a=A(S,id);return a&&a.party===p.id&&a.status!=='lost'&&a.status!=='retired';});
+    p.members=(p.members||[]).filter(id=>{const a=A(S,id);return a&&a.party===p.id&&isActive(a);});
   }
 }
 function arrive(S,p){
@@ -3191,7 +3205,7 @@ function arrive(S,p){
   deliverCorpses(S,p);
   // 見つけた全滅一行の遺体を街に届ける。死因と階の知らせはここで一度だけ
   {const brought=new Set();
-    for(const id of (p.carried||[])){const a=A(S,id);if(!a||a.status!=='missing')continue;const w=a.party&&S.parties[a.party];
+    for(const id of (p.carried||[])){const a=A(S,id);if(!a||!isMissing(a))continue;const w=a.party&&S.parties[a.party];
       if(!w||w===p||w.state!=='wiped'||brought.has(w.id))continue;brought.add(w.id);
       corpsesHome(S,w,`${p.name}${p.tav===w.tav?'':p.tav==='rival'?'（銀の杯亭）':'（黒猫亭）'}が連れ帰り、`,p);}}
   // 立て替えの借りは、稼ぎの OWED_REPAY までを返す。返した分は売上ではなく、店に戻った立て替えとして出入りに出す
@@ -3222,7 +3236,7 @@ function arrive(S,p){
   p.bountyFor=[];
   // temple（他一行の遺体は corpsesHome 済み。自一行の倒れた者だけここで寺院へ）
   const ownDead=new Set(p.members);
-  dead.forEach(a=>{if(!a||a.status==='dead'||a.status==='ash'||a.status==='lost')return;
+  dead.forEach(a=>{if(!a||inTemple(a)||isLost(a))return;
     flushDeathChron(S,a);a.status=a.dungeonAsh?'ash':'dead';a.dungeonAsh=false;a.carriedBy=null;
     const wp=a.party&&S.parties[a.party];
     if(a.tav==='ours'&&policy(S).revive&&S.taverns.ours.gold>=templeCost(S,a)){payRevive(S,a,wp||p);return;}
@@ -3239,23 +3253,23 @@ function arrive(S,p){
   al.forEach(a=>{a.trips=(a.trips||0)+1;});
   // 席が埋まっているときは、救い出された身内を客にしない。本人が戻れていれば二人で故郷へ帰る
   (p.rescue||[]).forEach(r=>{const a=A(S,r.by);const full=seatsUsed(S,p.tav)>=seatCap(S,p.tav);
-    if(a&&a.status==='idle'&&(full||chance(.5))){retire(S,a,`見つけ出した${r.who}の${r.name}と故郷へ帰る`);}
+    if(a&&isIdle(a)&&(full||chance(.5))){retire(S,a,`見つけ出した${r.who}の${r.name}と故郷へ帰る`);}
     else if(!full){const d0=a&&a.dream||{};const ka=KIN_AGE[r.who]||[0,0];const k=makeAdv(S,p.tav,{name:r.name,sex:d0.g||KIN_G[r.who],race:a?a.race:null,origin:a?a.origin:null,age:a?a.age+ri(ka[0],ka[1]):null,lvl:ri(3,11),bg:`${FN(r.f)}で${a?a.name:'仲間'}に救い出された${r.who}`});k.dream=makeDream(S,k);
       news(S,`救い出された${r.name}が${S.taverns[p.tav].name}の客になった。`,'info');}
     else news(S,`救い出された${r.name}は、${S.taverns[p.tav].name}に空きがなかったので、故郷へ帰った。`,'info');
   });p.rescue=[];
   al.forEach(a=>promote(S,a));
-  al.forEach(a=>{if(a.status!=='idle')return;
+  al.forEach(a=>{if(!isIdle(a))return;
     if(humanAge(a)>=55&&chance(.12)){retire(S,a,`${ageWords(a)}。老いを感じ、冒険から身を引く`);return;}
     if(a.retirePending){const w=a.retirePending;a.retirePending=null;retire(S,a,w);return;}checkDream(S,a);});
-  deliverMats(S,p,al.filter(a=>a.status==='idle'));
+  deliverMats(S,p,al.filter(a=>isIdle(a)));
   al.forEach(a=>shopVisit(S,a,al));
   p.trip.lv=[...new Set(lvls)].map(a=>({n:a.name,l:a.lvl}));
   if(al.length){tale(S,p,al);if(al.length>1&&chance(.35))tale(S,p,al,true);askTale(S,p,al);}
   if(p.tav==='ours'&&p.loot>=400) news(S,`${p.name}が ${p.loot}G の稼ぎを抱えて帰還。今夜の酒場は大にぎわいだ。`,'loot');
   [...new Set(lvls)].filter(a=>a.lvl%10===0).forEach(a=>noteLevel(S,a));
   p.state='town';p.rest=p.tav==='ours'&&fac(S,'inn')?ri(8,14):ri(14,24);p.floor=0;
-  quarrelCheck(S,p,al.filter(a=>a.status==='idle'));
+  quarrelCheck(S,p,al.filter(a=>isIdle(a)));
 }
 const QUIRK_TALES={
   '酒好き':['迷宮の奥に湧き水があってな。あれが酒だったらと何度思ったか','帰ったらまずこの一杯だと決めて、それだけを支えに歩いた','{other}が隠し持ってた酒を見つけちまった。もちろん没収だ'],
@@ -3382,15 +3396,15 @@ function tale(S,p,al,second){
 }
 function reviveChance(S,a){
   const faith=has(a,'信心深い')?1:0,b=blessed(S,a)?1:0;
-  if(a.status==='dead')return clamp(.84+PL(a)*.01+faith*.05+b*.08,0,b?.99:.97);
-  if(a.status==='ash')return clamp(.7+PL(a)*.015+faith*.06+b*.08,0,b?.97:.94);
+  if(isDead(a))return clamp(.84+PL(a)*.01+faith*.05+b*.08,0,b?.99:.97);
+  if(isAsh(a))return clamp(.7+PL(a)*.015+faith*.06+b*.08,0,b?.97:.94);
   return 0;
 }
 // 蘇生の見込みは数字で出さず、司祭の見立ての言葉にする。上の段から、見込みが段の下限以上なら当たり
 const REVIVE_WORDS=[[.95,'まず戻る'],[.88,'たいていは戻る'],[.8,'戻らないこともある'],[0,'戻らないことも少なくない']];
 function reviveHint(S,a){
   const r=reviveChance(S,a),w=REVIVE_WORDS.find(x=>r>=x[0]-1e-9)[1];
-  const st=a.status==='ash'?'灰':'死';
+  const st=isAsh(a)?'灰':'死';
   const bits=[];
   if(blessed(S,a))bits.push('寄進で上がっている');
   if(has(a,'信心深い'))bits.push('信心深く、成功しやすい');
@@ -3409,11 +3423,11 @@ function temple(S,a,paidByTavern){
     if(a.tav==='ours'&&a.gold<cost) return 'wait';
     if(a.tav==='ours') a.gold-=cost;
   }
-  if(a.status==='dead'){
+  if(isDead(a)){
     if(chance(reviveChance(S,a))){a.status='idle';a.hp=a.mhp;a.mp=mmpOf(a);a.revived++;chron(S,a,'寺院で息を吹き返す');title(S,a);if(a.tav==='ours')news(S,`寺院にて${a.name}が息を吹き返した。`,'loot');return 'ok';}
     a.status='ash';chron(S,a,'蘇生に失敗し、灰になる');news(S,`${S.taverns[a.tav].name}の${a.name}、蘇生に失敗し灰となる。`,'death');return 'ash';
   }
-  if(a.status==='ash'){
+  if(isAsh(a)){
     if(chance(reviveChance(S,a))){a.status='idle';a.hp=a.mhp;a.mp=mmpOf(a);a.revived++;chron(S,a,'灰の中からよみがえる');title(S,a);if(chance(.25))changeOf(S,a,'灰から戻ってから、人が変わったように静かになった',x=>{x.tone='無口';x.catch='……生きてるって、いいな';});news(S,`灰の中から${a.name}がよみがえった。`,'loot');return 'ok';}
     a.status='lost';a.party=null;chron(S,a,'ロスト。その名は記念碑に刻まれる');const m=memorialize(S,a,{by:a.lastBy||'不明',floor:a.lastFloor||'?'});
     if(lifeWorthy(a)){m.life=lifeLines(S,a,{k:'ash',tk:S.tick,floor:m.floor,by:m.by});queueLife(S,'lost',[{id:a.id,name:m.name,lines:m.life}]);}
@@ -3453,7 +3467,7 @@ function title(S,a,quiet){
   if(eqList(a).some(it=>it.rare))ach.push('item');if(a.conq)ach.push('conq');if((a.mineDeep||0)>=13)ach.push('mdeep');if(a.mconq)ach.push('mconq');if((a.errandsDone||0)>=3)ach.push('errand');
   if(!ach.length)return;
   const top=Math.max(...ach.map(k=>TITLE_TIER[k]));if(a.titleKind&&(TITLE_TIER[a.titleKind]||0)>=top)return;
-  const others=Object.values(S.adv).filter(b=>b!==a&&b.title&&b.status!=='lost'&&b.status!=='retired');
+  const others=Object.values(S.adv).filter(b=>b!==a&&b.title&&isActive(b));
   const taken=new Set(others.map(b=>b.title)),stems=new Set(others.map(b=>b.titleStem).filter(Boolean));
   const kinds=ach.filter(k=>TITLE_TIER[k]===top).sort(()=>R()-.5).concat(ach.filter(k=>TITLE_TIER[k]===top-1).sort(()=>R()-.5));
   let t=null,st=null,kind=null;
@@ -3577,18 +3591,18 @@ function rivalTick(S){
   if(S.tick>=S.nextSmall){S.nextSmall=S.tick+ri(6,12)*TICKS_PER_DAY;smallEvent(S);}
   if(S.tick%TICKS_PER_DAY)return;const d=day(S);const RO=S.taverns.rival.owner||RIVAL_OWNER;const To=S.taverns.ours,Tr=S.taverns.rival;
   const ace=S.parties[S.ace];if(!ace||(ace.state==='wiped'&&ace.announced))pickAce(S);
-  if(d%10===0&&d>20&&seatsUsed(S,'rival')<seatCap(S,'rival')&&chance(.6)){const c=Object.values(S.adv).filter(a=>a.tav==='ours'&&a.status==='idle'&&a.lvl>=8&&!(a.dream&&a.dream.k==='kin')).sort((x,y)=>y.lvl-x.lvl)[0];
+  if(d%10===0&&d>20&&seatsUsed(S,'rival')<seatCap(S,'rival')&&chance(.6)){const c=Object.values(S.adv).filter(a=>a.tav==='ours'&&isIdle(a)&&a.lvl>=8&&!(a.dream&&a.dream.k==='kin')).sort((x,y)=>y.lvl-x.lvl)[0];
     if(c){const pr=clamp(.35-(c.favor||0)*.05-(To.rep/Math.max(1,Tr.rep)-1)*.25,.03,.5);
       if(chance(pr)&&moveTav(S,c,'rival')){news(S,`銀の杯亭の${RO}が、黒猫亭の${c.name}（Lv${c.lvl}）を引き抜いた。「うちなら宿も装備も上等ですよ」`,'lost');}
       else{favor(c,1);chron(S,c,`銀の杯亭の${RO}に誘われたが、断る`);news(S,`噂：銀の杯亭の${RO}が黒猫亭の${c.name}に声をかけたが、断られたらしい。「${pick(['黒猫亭には借りがある','あの店の酒のほうが口に合う','金で動く安い剣じゃない','借りた装備で潜るのは性に合わない'])}」`,'rumor');}}}
   if(d%12===0&&seatsUsed(S,'ours')<seatCap(S,'ours')&&chance(.15+.25*Math.min(1.4,To.rep/Math.max(1,Tr.rep)))){
-    const c=pick(Object.values(S.adv).filter(a=>a.tav==='rival'&&a.status==='idle'&&(a.debt||0)>0&&a.party!==S.ace&&(!a.party||!S.parties[a.party]||S.parties[a.party].state==='town')));
+    const c=pick(Object.values(S.adv).filter(a=>a.tav==='rival'&&isIdle(a)&&(a.debt||0)>0&&a.party!==S.ace&&(!a.party||!S.parties[a.party]||S.parties[a.party].state==='town')));
     if(c&&moveTav(S,c,'ours')){news(S,`銀の杯亭の${c.name}（${c.race}の${c.cls}・Lv${c.lvl}）が、取り立てに嫌気がさして黒猫亭に移ってきた。借金${c.debt}Gは踏み倒したらしい。`,'record');c.debt=0;}}
   if(!To.overtook&&To.rep>Tr.rep){To.overtook=S.tick;news(S,`ロウエンでいちばんの酒場は、もう銀の杯亭ではない。黒猫亭だ、という声が街に出はじめた。`,'record');}
   if(d%40===0&&chance(.5))news(S,pick([`銀の杯亭の${RO}が、また装備の貸付の値を上げたらしい。`,`噂：銀の杯亭の看板「${S.parties[S.ace]?S.parties[S.ace].name:'白銀の牙'}」の連中は、全員が${RO}に借りがあるらしい。`,`銀の杯亭の${RO}が、黒猫亭の前をわざわざ通って帰っていった。`,`噂：銀の杯亭の地下には、冒険者の借用書が山と積まれているらしい。`]),'rumor');}
 // rival temple runs automatically for its own dead
 function rivalTemple(S){
-  Object.values(S.adv).forEach(a=>{if(a.tav==='rival'&&(a.status==='dead'||a.status==='ash')&&chance(.1)){a.debt=(a.debt||0)+templeCost(S,a);temple(S,a,true);}});
+  Object.values(S.adv).forEach(a=>{if(a.tav==='rival'&&(inTemple(a))&&chance(.1)){a.debt=(a.debt||0)+templeCost(S,a);temple(S,a,true);}});
 }
 /* ---- 店に持ち込まれる話と、見込んだ者 ---- */
 // 話は段を追って開く。段1は最初の返済日（罰金の有無は問わない）、段2はそこから20日かつ評判150、段3は完済。
@@ -3667,16 +3681,16 @@ function advanceErrandStage(S,quiet){
 }
 // 手がかりと本人の個性の噛み合い。s は合計、neg は不向きの重さ、best と worst は知らせに添える一言の元
 function fitOf(def,a){let s=0,neg=0,best=null,worst=null;for(const r of def.fit){if(!r.t(a))continue;s+=r.w;if(r.w<0){neg-=r.w;if(!worst||r.w<worst.w)worst=r;}else if(!best||r.w>best.w)best=r;}return {s,neg,best,worst};}
-function markedOf(S){return Object.values(S.adv).filter(a=>a.marked&&a.tav==='ours'&&a.status!=='lost'&&a.status!=='retired');}
+function markedOf(S){return Object.values(S.adv).filter(a=>a.marked&&a.tav==='ours'&&isActive(a));}
 function heroErrand(S,a){return errandsOf(S).board.find(e=>e.hero===a.id)||null;}
 // 主役に回せないときは、その理由を返す
 // 主役に指定できないときは、その理由を返す。ほかの話の主役や、ほかの話で伝えるのを待っている者は指定できない
 function designateBlock(S,e,a){
-  if(e.hero)return '引き受け済み';if(a.tav!=='ours'||a.status==='lost'||a.status==='retired')return '黒猫亭の常連でない';
+  if(e.hero)return '引き受け済み';if(a.tav!=='ours'||!isActive(a))return '黒猫亭の常連でない';
   if(errandsOf(S).board.some(x=>x!==e&&(x.hero===a.id||x.pend===a.id)))return '別の話を引き受けている';if((e.refused||[]).includes(a.id))return '断られた';return null;}
 // いますぐ伝えられないときは、その理由を返す。伝えられるのは、酒場にいて、一行が街で休んでいるとき
 function errandBlock(S,e,a){
-  const b=designateBlock(S,e,a);if(b)return b;if(a.status!=='idle')return '酒場にいない';
+  const b=designateBlock(S,e,a);if(b)return b;if(!isIdle(a))return '酒場にいない';
   const p=a.party&&S.parties[a.party];if(!p||p.tav!==a.tav)return '一行に入っていない';if(p.state!=='town')return '一行が迷宮に出ている';return null;}
 // 主役を指定する。いま伝えられれば伝え、伝えられなければ、次に酒場で会えたときに伝える
 function assignErrand(S,e,a){
@@ -3715,7 +3729,7 @@ const ASK_SAY={
 // 返しの文は、話と本人の番号で決める。乱数は引かない
 function askLine(a,e,k){const L=(ASK_SAY[a.tone]||ASK_SAY['普通'])[k];return withMe(a,L[(e.id+a.id)%L.length].replace(/\{n\}/g,e.n));}
 // 持ちかけられないときは、その理由を返す。持ちかけられるのは、主役に指定できて、酒場にいる者に一度だけ
-function askBlock(S,e,a){const b=designateBlock(S,e,a);if(b)return b;if(a.status!=='idle')return '酒場にいない';if(e.asked&&e.asked[a.id])return '持ちかけた';return null;}
+function askBlock(S,e,a){const b=designateBlock(S,e,a);if(b)return b;if(!isIdle(a))return '酒場にいない';if(e.asked&&e.asked[a.id])return '持ちかけた';return null;}
 // 話を持ちかける。本人がひと言返し、大きな不向きなら断る。断った者は、その話の主役に指定できない
 function askErrand(S,e,a){
   if(!boardOpen(S)||!errandsOf(S).board.includes(e)||askBlock(S,e,a))return null;
@@ -3730,10 +3744,10 @@ function askTale(S,p,al){const m=p.trip.askMiss;if(!m||!al.length)return;p.trip.
   const t=T[m.k];if(!t)return;const said=voice(sp,t,true);
   S.tales.push({tk:S.tick,who:full(sp),whoId:sp.id,tav:p.tav,party:p.name,t:said,k:'ask',pers:sp.pers});remember(S,sp,said);if(S.tales.length>80)S.tales.shift();}
 function markAdv(S,a,on){
-  if(on){if(markMax(S)<1||a.marked||a.tav!=='ours'||a.status==='lost'||a.status==='retired'||markedOf(S).length>=markMax(S))return false;a.marked=true;chron(S,a,'黒猫亭の店主に見込まれる');return true;}
+  if(on){if(markMax(S)<1||a.marked||a.tav!=='ours'||!isActive(a)||markedOf(S).length>=markMax(S))return false;a.marked=true;chron(S,a,'黒猫亭の店主に見込まれる');return true;}
   if(!a.marked)return false;a.marked=false;a.favor=Math.max(0,(a.favor||0)-1);chron(S,a,'店主の見込みを外される');
   // 外された者は気づいて、酒場で一言こぼす
-  if(a.status!=='lost'&&a.status!=='retired'){S.chatter=S.chatter||[];const said=voice(a,pick(['店主は、もう俺には期待してないらしい','まあ、見込み違いってやつさ','……見込まれるってのも、肩が凝るもんだ','次は、見返してやる']));S.chatter.push({tk:S.tick,lines:[{id:a.id,who:a.name,t:said}]});if(S.chatter.length>40)S.chatter.shift();remember(S,a,said);}
+  if(isActive(a)){S.chatter=S.chatter||[];const said=voice(a,pick(['店主は、もう俺には期待してないらしい','まあ、見込み違いってやつさ','……見込まれるってのも、肩が凝るもんだ','次は、見返してやる']));S.chatter.push({tk:S.tick,lines:[{id:a.id,who:a.name,t:said}]});if(S.chatter.length>40)S.chatter.shift();remember(S,a,said);}
   return true;}
 function postErrand(S){const E=errandsOf(S),reach=Math.max(1,S.deepest.ours),stage=E.stage||0;if(stage<1)return;
   const post=o=>{const e=Object.assign({id:E.nid++,tk:S.tick,until:S.tick+ri(28,32)*TICKS_PER_DAY,hero:null,refused:[]},o);const def=errandDef(e);e.n=def.n;e.from=def.from;e.t=def.txt(e.f);E.board.push(e);
@@ -3759,7 +3773,7 @@ function expireErrand(S,e){const E=errandsOf(S);E.board=E.board.filter(x=>x!==e)
 function errandTick(S){
   advanceErrandStage(S);if(!boardOpen(S))return;const E=errandsOf(S);
   for(const e of E.board.slice()){const a=e.hero&&S.adv[e.hero];
-    if(a&&(a.tav!=='ours'||a.status==='lost'||a.status==='retired')){e.hero=null;news(S,`「${e.n}」を引き受けた${a.name}がいなくなり、話は掲示に戻った。`,'errand');}
+    if(a&&(a.tav!=='ours'||!isActive(a))){e.hero=null;news(S,`「${e.n}」を引き受けた${a.name}がいなくなり、話は掲示に戻った。`,'errand');}
     // 伝えるのを待っている主役が、酒場にいて一行が街で休んでいれば、ここで伝える
     const w=e.pend&&S.adv[e.pend];
     if(w&&designateBlock(S,e,w)){e.pend=null;news(S,`「${e.n}」を回すつもりだった${w.name}がいなくなり、話は掲示に戻った。`,'errand');}
@@ -3810,7 +3824,7 @@ function arcAdvance(S,e,a){const A0=ARCS[e.arc],arc=S.arcs[e.arc];arc.stage=e.st
   arc.log.push({stage:e.stage,tk:S.tick,who:a.name,t,deep:e.stage===A0.stages.length&&est});
   news(S,`【${A0.n}】${e.stage===A0.stages.length&&est?`荒野の出の${a.name}が、壁の言葉を最後まで読んだ。`:''}${t}`,'lore');
   // 隠れ家の受け取りの束には、身内を探す常連の探し人の名もある。手がかりを得た者は、身内のいる階で見つけやすくなる
-  if(e.arc==='gate'&&e.stage===3)Object.values(S.adv).forEach(b=>{const d=b.dream;if(b.tav!=='ours'||b.status==='lost'||b.status==='retired'||!d||d.k!=='kin'||d.hint)return;d.hint=true;
+  if(e.arc==='gate'&&e.stage===3)Object.values(S.adv).forEach(b=>{const d=b.dream;if(b.tav!=='ours'||!isActive(b)||!d||d.k!=='kin'||d.hint)return;d.hint=true;
     chron(S,b,`抜け穴の受け取りの束に、${d.who}の${d.name}の名が見つかる`);news(S,`抜け穴の受け取りの束に、${b.name}が探す${d.who}の${d.name}の名があった。${FN(d.f)}の方へ向かったらしい。`,'record');});
   if(e.stage===A0.stages.length){arc.done=S.tick;S.taverns.ours.rep+=5;}}
 // 利息の内訳がない記録。延滞の跡がなければ、返した額と借金の減りの差を利息にする。跡があれば、残っている知らせの利息だけ足す
@@ -3877,7 +3891,7 @@ function migrate(S){
     Object.values(S.adv).forEach(a=>{
       const old=a.age;a.age=rollAge(a.race,a.lvl);
       if(a.chron&&a.chron[0]&&old)a.chron[0].t=a.chron[0].t.replace(old+'歳、',a.age+'歳、');
-      if(a.status==='lost'||a.status==='retired')return;
+      if(!isActive(a))return;
       const d=a.dream;a.pastDreams=a.pastDreams||[];
       if(d&&d.done){a.pastDreams.push({k:d.k==='lvl'?'hero':d.k,t:(d.k==='kin'?`迷宮で消えた${d.who}の${d.name}を探している`:d.k==='lvl'?`一人前（レベル${d.l}）になりたい`:d.k==='fame'?'二つ名で呼ばれる冒険者になりたい':d.k==='debt'?`故郷に残した借金${d.amt}Gを返したい`:d.k==='shop'?`いつか${d.what}を開きたい`:d.k==='deep'?`${FN(d.f)}の景色をこの目で見たい`:d.k==='slay'?`故郷を襲った${d.m}を討ちたい`:'夢'),tk:S.tick,note:d.keep?`${d.keep}だけが見つかった`:''});a.dream=null;a.nextDreamAt=S.tick+ri(50,200);}
       else if(d&&d.k==='kin'){d.f=Math.max(d.f,4);}
@@ -3921,7 +3935,7 @@ function migrate(S){
     Object.values(S.parties||{}).forEach(p=>{
       if(p.announced==null)p.announced=false;if(p.knownWiped==null)p.knownWiped=false;if(p.retrieved==null)p.retrieved=false;if(!p.carried)p.carried=[];
       if(p.state==='town'&&!(p.members&&p.members.length)){
-        const missing=Object.values(S.adv).filter(a=>a.party===p.id&&a.status==='missing');
+        const missing=Object.values(S.adv).filter(a=>a.party===p.id&&isMissing(a));
         if(missing.length){
           p.state='wiped';p.retrieved=true;p.announced=true;p.members=missing.map(a=>a.id);if(!p.wipedAt)p.wipedAt=S.tick;if(!p.floor)p.floor=missing[0].lastFloor||1;}
       }
@@ -4021,7 +4035,7 @@ function migrate(S){
   if(typeof S.taverns.ours.interestPaid!=='number')S.taverns.ours.interestPaid=inferInterestPaid(S);
   Object.values(S.adv).forEach(a=>{if(!a.tone)personalize(a);if(!a.traits)assignTraits(S,a,true);});
   smallOf(S);
-  Object.values(S.adv).filter(a=>a.title&&!a.titleKind&&a.status!=='lost'&&a.status!=='retired').forEach(a=>{a.title='';title(S,a,true);});
+  Object.values(S.adv).filter(a=>a.title&&!a.titleKind&&isActive(a)).forEach(a=>{a.title='';title(S,a,true);});
 }
 function migrateV2(S){
   S.usedNames={};S.usedItems={};S.uniqFound={};
@@ -4251,7 +4265,7 @@ function hideRecall(p){return !!(p&&p.tav==='ours'&&wipeHidden(p)&&!p.hideRecall
 // 画面に出す体力。伏せ中は全滅した戦いの前の体力で探索中に見せ、消息不明のあいだは数を出さない
 function shownHp(a){
   const p=a.party&&S.parties[a.party];
-  if(a.status==='missing'&&wipeUnknown(p)){
+  if(isMissing(a)&&wipeUnknown(p)){
     if(wipeHidden(p)){const i=(p.members||[]).indexOf(a.id),h=p.calmHp&&i>=0&&p.calmHp[i]!=null?p.calmHp[i]:a.mhp;
       const b=hpBand({hp:h,mhp:a.mhp});return {hp:h,mhp:a.mhp,band:b,label:b==='dead'?'しぼう':h+'/'+a.mhp};}
     return {hp:0,mhp:a.mhp,band:'',label:'—',hide:true};
@@ -4335,7 +4349,7 @@ function renderCrystals(){
 const T=()=>S.taverns.ours;
 const speedNow=()=>speed>0?speed:1;
 function partyMembers(p){
-  if(p.state==='town')return Object.values(S.adv).filter(x=>x.party===p.id&&x.status!=='lost'&&x.status!=='retired');
+  if(p.state==='town')return Object.values(S.adv).filter(x=>x.party===p.id&&isActive(x));
   return (p.members||[]).map(id=>S.adv[id]).filter(Boolean);
 }
 function partyDepth(p){
@@ -4351,8 +4365,8 @@ function partyDepth(p){
 }
 function reachText(p){const d=partyDepth(p),bits=[];if(d.lab)bits.push(FN(d.lab));if(d.mine)bits.push(FN(d.mine));return bits.join('・')||'まだ'}
 // 画面に出す状態。まだ知れていない全滅の仲間は、探索中として出す
-function shownStatus(a){if(a.status==='missing'){const p=a.party&&S.parties[a.party];if(p&&wipeHidden(p))return 'party';}return a.status;}
-function rosterMark(a){const st=shownStatus(a);if(st==='dead'||st==='ash')return '眠';if(st==='party'&&a.status==='missing')return '';if(st==='missing')return '不明';if(a.hp<=0)return '倒';return ''}
+function shownStatus(a){if(isMissing(a)){const p=a.party&&S.parties[a.party];if(p&&wipeHidden(p))return 'party';}return a.status;}
+function rosterMark(a){const st=shownStatus(a);if(st==='dead'||st==='ash')return '眠';if(st==='party'&&isMissing(a))return '';if(st==='missing')return '不明';if(a.hp<=0)return '倒';return ''}
 function renderParties(){
   const ps=Object.values(S.parties).filter(p=>!(p.tav==='rival'&&p.state==='wiped'&&!p.announced)).sort((a,b)=>{
     if(a.tav!==b.tav)return a.tav==='ours'?-1:1;
@@ -4381,7 +4395,7 @@ function renderParties(){
 const TAB_GROUPS=[['見る',[['news','迷宮日報'],['bar','酒場'],['roster','名簿'],['rank','番付'],['stone','記念碑'],['ref','資料']]],['店',[['desk','帳場'],['shop','武具屋'],['maps','地図屋']]]];
 function renderSide(){
   if(tab==='desk')markMemoSeen(S);
-  const waiting=Object.values(S.adv).filter(a=>a.tav==='ours'&&(a.status==='dead'||a.status==='ash')).length;
+  const waiting=Object.values(S.adv).filter(a=>a.tav==='ours'&&(inTemple(a))).length;
   const To=T();const openErr=boardOpen(S)?errandsOf(S).board.filter(e=>!e.hero&&!e.pend).length:0;const pay=To.debt>0&&((To.nextPay||0)-S.tick)<TICKS_PER_DAY*3;
   const memoMark=memoUnseen(S);
   $('tabs').innerHTML=TAB_GROUPS.map(([g,ts])=>`<div class="tabrow"><span class="tg">${g}</span>${ts.map(([k,l])=>`<button class="${tab===k?'on':''}" data-act="tab" data-v="${k}">${l}${k==='desk'&&waiting?`<span class="cnt">寺院${waiting}</span>`:''}${k==='desk'&&pay?'<span class="cnt">返済</span>':''}${k==='desk'&&memoMark?'<span class="cnt">覚え書き</span>':''}${k==='stone'&&S.memorial.length?`<span class="cnt">ロスト${S.memorial.length}</span>`:''}${k==='bar'&&openErr?`<span class="cnt">話${openErr}</span>`:''}</button>`).join('')}</div>`).join('');
@@ -4408,7 +4422,7 @@ function focusSide(){
   if(Math.abs(dy)>1)wrap.scrollTop+=dy;
 }
 function sideNews(){const ed=(S.edicts||[]).filter(e=>e.until>S.tick);return `${ed.length?`<div class="sect"><h3>いま出ているお触れ</h3>${ed.map(e=>`<div class="quote edict">【${esc(e.from)}】${esc(e.t)}<span class="by">あと${Math.max(1,Math.ceil((e.until-S.tick)/TICKS_PER_DAY))}日</span></div>`).join('')}</div>`:''}<p class="note">黒猫亭にも、銀の杯亭にも、迷宮の出来事は届く。</p><ul class="news">${S.news.slice(-60).reverse().map(newsLi).join('')}</ul>`}
-function markTag(a){return a.marked&&a.tav==='ours'&&a.status!=='lost'&&a.status!=='retired'?'<span class="markmark" title="店主が見込んだ者">◆見込み</span>':''}
+function markTag(a){return a.marked&&a.tav==='ours'&&isActive(a)?'<span class="markmark" title="店主が見込んだ者">◆見込み</span>':''}
 // 酒場の掲示。持ち込まれた話と、誰に回すか
 function sideBoard(){
   const st=errandStage(S);
@@ -4420,7 +4434,7 @@ function sideBoard(){
     else if(pickErr!==e.id)foot=`<div style="margin-top:6px"><button class="btn sm" data-act="pickerr" data-e="${e.id}">主役を選ぶ</button>${(e.refused||[]).length?` <span class="meta">断った者：${e.refused.map(id=>S.adv[id]?esc(S.adv[id].name):'').join('・')}</span>`:''}</div>`;
     else{// いま伝えられる者、次に酒場で会えたら伝える者、指定できない者の順に並べる
       const rank=x=>!x.d?(x.b?1:0):2;
-      const cs=Object.values(S.adv).filter(a=>a.tav==='ours'&&a.status!=='lost'&&a.status!=='retired').map(a=>({a,d:designateBlock(S,e,a),b:errandBlock(S,e,a)}))
+      const cs=Object.values(S.adv).filter(a=>a.tav==='ours'&&isActive(a)).map(a=>({a,d:designateBlock(S,e,a),b:errandBlock(S,e,a)}))
         .sort((x,y)=>(rank(x)-rank(y))||(!!y.a.marked-!!x.a.marked)||byTeam(x.a,y.a));
       // 持ちかけた者には、そのときの返しを本人の言葉として添える
       const said=a=>{const r=e.asked&&e.asked[a.id];return r?`<span class="does ask">${keepText(`「${r.t}」`)}</span>`:'';};
@@ -4438,7 +4452,7 @@ function sideBoard(){
   ${log?`<h3 style="margin-top:8px">これまでの話</h3>${log}`:''}</div>`;
 }
 function sideBar(){
-  const idle=Object.values(S.adv).filter(a=>a.tav==='ours'&&a.status==='idle').sort(byTeam);
+  const idle=Object.values(S.adv).filter(a=>a.tav==='ours'&&isIdle(a)).sort(byTeam);
   const used=seatsUsed(S,'ours');
   const tales=S.tales.slice(-12).reverse();
   const ch=(S.chatter||[]).slice(-8).reverse();
@@ -4449,16 +4463,16 @@ function sideBar(){
   ${idle.map(a=>`<div class="row"><span class="who">${a.title?`<span class="ttl">「${esc(a.title)}」</span>`:''}${nmLink(a,true)}${markTag(a)}${teamTag(a)}${a.odd?'<span class="oddmark">異例</span>':''}${C(a).rare?'<span class="clsmark">レア</span>':C(a).adv?'<span class="clsmark">上級</span>':''} <span class="meta">${sexAgeHtml(a)} ${originBit(a)}${lvCls(a)}</span><span class="does">${esc(doing(a))}</span></span></div>`).join('')||'<p class="note">いまは皆、出払っている。</p>'}</div>`;
 }
 function advRow(a){
-  const st=shownStatus(a);const down=st==='party'&&a.status!=='missing'&&a.hp<=0;
+  const st=shownStatus(a);const down=st==='party'&&!isMissing(a)&&a.hp<=0;
   const chip=down?'倒れている':{idle:'酒場',party:'探索中',missing:'行方不明',dead:'寺院・死',ash:'寺院・灰'}[st]||st;
   const hp=shownHp(a);const hpBit=hp.hide?'':nw('HP'+hp.label);
   return `<div class="row"><span class="chip ${down?'down':st}">${chip}</span><span class="who">${a.title?`<span class="ttl">「${esc(a.title)}」</span>`:''}${nmLink(a,true)}${markTag(a)}${teamTag(a)}${a.odd?'<span class="oddmark">異例</span>':''}${C(a).rare?'<span class="clsmark">レア</span>':C(a).adv?'<span class="clsmark">上級</span>':''} <span class="meta">${sexAgeHtml(a)} ${originBit(a)}${lvCls(a)}・${a.pers}${hpBit?'・'+hpBit:''}</span><span class="does">${a.dream?'夢：'+esc(dreamText(a.dream)):'次の夢を探している'}${(a.pastDreams||[]).length?`（かなえた夢 ${a.pastDreams.length}）`:''}</span></span></div>`;
 }
 function sideRoster(){
-  const ours=Object.values(S.adv).filter(a=>a.tav==='ours'&&a.status!=='lost');
+  const ours=Object.values(S.adv).filter(a=>a.tav==='ours'&&!isLost(a));
   const g=(f,h)=>{const l=ours.filter(f);return l.length?`<div class="sect"><h3>${h}　${l.length}人</h3>${l.sort(byTeam).map(advRow).join('')}</div>`:''};
   return `<p class="note">名前を押すと、その冒険者の手帳が開く。蘇生や贈り物は「帳場」から。</p>`+
-    g(a=>a.status==='dead'||a.status==='ash','寺院で眠る者')+g(a=>shownStatus(a)==='party','探索中')+g(a=>a.status==='idle','酒場')+g(a=>shownStatus(a)==='missing','行方不明');
+    g(a=>inTemple(a),'寺院で眠る者')+g(a=>shownStatus(a)==='party','探索中')+g(a=>isIdle(a),'酒場')+g(a=>shownStatus(a)==='missing','行方不明');
 }
 function memoLine(m){const when=m.done&&m.tk!=null?`<span class="when">${Math.floor(m.tk/TICKS_PER_DAY)+1}日目</span>`:'';return `<li class="${m.done?'done':''}" data-id="${m.id}">${m.done?`<s>${esc(m.t)}</s>`:esc(m.t)}${when}</li>`;}
 function memoHtml(){const st=memoState(S);if(!st.show.length)return '';return `<div class="memo" id="memo"><h3>店主の覚え書き</h3><ul>${st.show.map(memoLine).join('')}</ul></div>`;}
@@ -4495,16 +4509,16 @@ function sideDesk(){
   <div class="row" data-seats="1"><span class="who"><b>常連の席 ${baseSeats}席</b><span class="meta lv">Lv${seatLv}/${SEAT_STEPS.length}</span><span class="does">${seatDoes}</span></span>${ns?`<button class="btn sm" data-act="seats" ${To.gold<ns[2]?'disabled':''}>店を広げる ${ns[2]}G</button>`:''}</div></div>`;
   return `<div class="desk">${memoHtml()}${debtSect}${flowHtml()}<div class="sect"><h3>店の方針　冒険者への支援</h3>
   <p class="note">店の金で常連を支える。生きて帰る者が増え、恩を感じた者は店でよく飲む。これまでの支援 ${T().support||0}G・売上 ${T().earned}G。蘇生代・回復薬・地図代は一行の借りとして記録され、稼ぎから少しずつ戻る。立て替えた分が戻るまで、序盤は手元が薄くなる。いま一行が負う借り ${Object.values(S.parties).filter(p=>p.tav==='ours').reduce((s,p)=>s+(p.owed||0),0)}G${T().owedBack?`・これまでに戻った額 ${T().owedBack}G`:''}${T().badDebt?`・貸し倒れ ${T().badDebt}G`:''}。</p>
-  <div class="row"><span class="who"><b>回復薬の差し入れ</b><span class="does">${keepText(`出発する一行に持たせる。1本 ${potionPrice(S,{members:Object.values(S.adv).filter(a=>a.tav==='ours'&&a.status!=='lost'&&a.status!=='retired').map(a=>a.id)})}G前後（深さで変わる）`)}</span>${costLine('potion')}</span>${[['なし',0],['2本',1],['5本',2],['10本',3]].map(([l,v])=>`<button class="btn sm${policy(S).potion===v?' on':''}" data-act="pol" data-k="potion" data-v="${v}">${l}</button>`).join('')}</div>
+  <div class="row"><span class="who"><b>回復薬の差し入れ</b><span class="does">${keepText(`出発する一行に持たせる。1本 ${potionPrice(S,{members:Object.values(S.adv).filter(a=>a.tav==='ours'&&isActive(a)).map(a=>a.id)})}G前後（深さで変わる）`)}</span>${costLine('potion')}</span>${[['なし',0],['2本',1],['5本',2],['10本',3]].map(([l,v])=>`<button class="btn sm${policy(S).potion===v?' on':''}" data-act="pol" data-k="potion" data-v="${v}">${l}</button>`).join('')}</div>
   ${[['mapPay','地図を店のもちで買う','常連の一行が地図を買うとき、店が払う'],['revive','蘇生代を肩代わりする','常連が寺院に運ばれたら、すぐ店が払って蘇生を頼む'],['rookie','新人に支度の品を贈る','レベル10未満の新顔が来たら、武具屋の品を2つまで贈る']].map(([k,l,d])=>`<div class="row"><span class="who"><b>${l}</b><span class="does">${d}</span>${costLine(k)}</span><button class="btn sm pol${policy(S)[k]?' on':''}" data-act="pol" data-k="${k}" data-v="${policy(S)[k]?0:1}">${policy(S)[k]?'している':'していない'}</button></div>`).join('')}
   </div>
 <div class="sect"><h3>常連への手当て</h3>
-  ${(()=>{const dead=Object.values(S.adv).filter(a=>a.tav==='ours'&&(a.status==='dead'||a.status==='ash'));const idle=Object.values(S.adv).filter(a=>a.tav==='ours'&&a.status==='idle');
+  ${(()=>{const dead=Object.values(S.adv).filter(a=>a.tav==='ours'&&(inTemple(a)));const idle=Object.values(S.adv).filter(a=>a.tav==='ours'&&isIdle(a));
     const gifts=idle.map(a=>({a,o:giftOffer(S,a)})).filter(x=>x.o).sort((x,y)=>x.o.price-y.o.price);
     const pushes=idle.map(a=>({a,n:pushNeed(S,a)})).filter(x=>x.n>0).sort((x,y)=>x.n-y.n||x.a.id-y.a.id);
     const note=reviveNote&&S.adv[reviveNote.id]&&S.adv[reviveNote.id].status===reviveNote.status?reviveNote:null;
     const gone=note&&!dead.some(a=>a.id===note.id)?`<p class="quote revive revive-result ${note.kind}">${esc(note.t)}</p>`:'';
-    return gone+(dead.length?dead.map(a=>{const c=templeCost(S,a);const hit=note&&note.id===a.id;return `<div class="row"><span class="who"><span class="chip ${a.status}">${a.status==='ash'?'寺院・灰':'寺院・死'}</span>${nmLink(a,true)}${teamTag(a)} <span class="meta">${lvCls(a)}</span><span class="does">${esc(reviveHint(S,a)).replace(/（[^（）]*）$/,m=>kw(m))}</span>${hit?`<span class="does revive revive-result ${note.kind}">${esc(note.t)}</span>`:''}</span><button class="btn sm" data-act="revive" data-a="${a.id}" ${T().gold<c?'disabled':''}>蘇生を頼む ${c}G</button></div>`}).join(''):'<p class="note">寺院で眠っている常連はいない。</p>')+
+    return gone+(dead.length?dead.map(a=>{const c=templeCost(S,a);const hit=note&&note.id===a.id;return `<div class="row"><span class="who"><span class="chip ${a.status}">${isAsh(a)?'寺院・灰':'寺院・死'}</span>${nmLink(a,true)}${teamTag(a)} <span class="meta">${lvCls(a)}</span><span class="does">${esc(reviveHint(S,a)).replace(/（[^（）]*）$/,m=>kw(m))}</span>${hit?`<span class="does revive revive-result ${note.kind}">${esc(note.t)}</span>`:''}</span><button class="btn sm" data-act="revive" data-a="${a.id}" ${T().gold<c?'disabled':''}>蘇生を頼む ${c}G</button></div>`}).join(''):'<p class="note">寺院で眠っている常連はいない。</p>')+
     (gifts.length?`<p class="note" style="margin-top:8px">酒場にいる常連に、店の金で武具屋の品を贈れる。贈られた者は恩を感じ、帰還のたびに店でよく飲むようになる。</p>`+gifts.map(({a,o})=>`<div class="row"><span class="who">${nmLink(a,true)}${teamTag(a)} <span class="meta">${lvCls(a)}</span></span><button class="btn sm" data-act="gift" data-a="${a.id}" ${T().gold<o.price?'disabled':''}>${SHOP_MAT[o.b.m][o.t-1]}の${o.b.t}を贈る ${o.price}G</button></div>`).join(''):'')+
     (pushes.length?`<p class="note" style="margin-top:8px">借金を返し終えた今なら、酒場にいる常連の、お金を貯める夢に足りない分を店から出せる。かなえば、店を去る者もいる。</p>`+pushes.map(({a,n})=>{const h=pushHalf(n);return `<div class="row push"><span class="who">${nmLink(a,true)}${teamTag(a)} <span class="meta">${lvCls(a)}</span><span class="does">${keepText(dreamText(a.dream))}</span><span class="does">${nw(esc(DREAMS[a.dream.k].prog(a,a.dream)))} ${nw('足りない分 '+G(n))}</span></span><button class="btn sm" data-act="push" data-a="${a.id}" data-v="${n}" ${T().gold<n?'disabled':''}>足りない分を出す ${G(n)}</button>${h?`<button class="btn sm" data-act="push" data-a="${a.id}" data-v="${h}" ${T().gold<h?'disabled':''}>半分を出す ${G(h)}</button>`:''}</div>`}).join(''):'');})()}
   </div>
@@ -4578,7 +4592,7 @@ function sideShop(){
   const log=sh.log.slice(-10).reverse().map(l=>`<div class="row"><span class="who">${S.adv[l.id]?nmLink(S.adv[l.id]):esc(l.who)}<span class="meta">（${S.taverns[l.tav].name}）が ${esc(l.n)} を買った</span></span><span class="meta">${nw(l.price+'G')}・${dayMark(l.tk)}</span></div>`).join('');
   return `<p class="note">${SHOP_NAME}。親方はドワーフのグンター。冒険者が迷宮から持ち帰った素材が集まると、上の品が打てるようになる。迷宮で見つかる銘入りの品は、同じ素材の店売りより一段よく出来ていることが多い。</p>
   <div class="sect"><h3>素材の集まり具合</h3>${prog}</div>
-  <div class="sect"><h3>親方の特注</h3>${sh.tiers[7]?(()=>{const C0=Object.values(S.adv).filter(a=>a.tav==='ours'&&a.status==='idle').map(a=>({a,o:customOffer(S,a)})).filter(x=>x.o).sort((x,y)=>y.a.lvl-x.a.lvl);
+  <div class="sect"><h3>親方の特注</h3>${sh.tiers[7]?(()=>{const C0=Object.values(S.adv).filter(a=>a.tav==='ours'&&isIdle(a)).map(a=>({a,o:customOffer(S,a)})).filter(x=>x.o).sort((x,y)=>y.a.lvl-x.a.lvl);
     return `<p class="note">澱鉄まで打てるようになったグンター親方は、大金を積めば、店売りより上の品を常連ひとりのために打つ。打たせるのはレベル20以上の者に限る。同じ者に頼むたびに腕をふるった品になり、値も上がる。</p>`+(C0.length?C0.map(({a,o})=>`<div class="row"><span class="who">${nmLink(a,true)} <span class="meta">${lvCls(a)}・${nw(o.b.t)}${a.custom?`・${nw((a.custom+1)+'作目')}`:''}</span></span><button class="btn sm" data-act="custom" data-a="${a.id}" ${T().gold<o.price?'disabled':''}>打たせる ${o.price}G</button></div>`).join(''):'<p class="note">いま酒場にいる常連で、特注の品がはっきり役に立つ者はいない。</p>');})():'<p class="note">澱鉄の品が並ぶようになると、親方に常連のための特注を頼めるようになる。</p>'}</div>
   <div class="sect"><h3>品書き</h3><div class="tiers">${open.map(t=>`<button class="btn sm${t===shopTier?' on':''}" data-act="shoptier" data-v="${t}">${SHOP_TIERS[t].label}</button>`).join('')}</div>
   <div class="tblwrap"><table class="shoptbl"><tbody>${rows}</tbody></table></div><p class="note" style="margin-top:6px">指輪とお守りは、品によって効き目が変わる。</p></div>
@@ -4610,14 +4624,14 @@ function sideStone(){
 function ledgerHtml(t){return t?`<div class="ledger">${esc(t).replace(/在籍は(?:[〇一二三四五六七八九十百千]+日ほど|十日に満たない)|[〇一二三四五六七八九十百千]+(?:人に一人|日ほどで)|百日に満たず/g,m=>nw(m))}</div>`:'';}
 // 年代記。来た日の記録（いちばん古い1件）と、ロスト・店を去った記録のすぐ下に、黒猫亭の帳面の一行を添える
 function chronItems(a){
-  const ch=a.chron||[];const endRe=a.status==='lost'?/ロスト。その名は記念碑に刻まれる|迷宮に呑まれる$/:a.status==='retired'?/を去る$/:null;
-  const p=a.party&&S.parties[a.party];const hideDeath=a.status==='missing'&&wipeUnknown(p);
+  const ch=a.chron||[];const endRe=isLost(a)?/ロスト。その名は記念碑に刻まれる|迷宮に呑まれる$/:isRetired(a)?/を去る$/:null;
+  const p=a.party&&S.parties[a.party];const hideDeath=isMissing(a)&&wipeUnknown(p);
   let endAt=-1;if(endRe)for(let i=ch.length-1;i>0;i--)if(endRe.test(ch[i].t)){endAt=i;break;}
   return ch.map((c,i)=>{
     // 伏せ中・消息不明のあいだは、階と相手・全滅の一文を手帳に出さない（古い記録の漏れも隠す）
     if(hideDeath&&DEATH_CHRON.test(c.t))return '';
     // 伏せ中は、遺体が見つかって運ばれていることも手帳に出さない
-    if(a.status==='missing'&&wipeHidden(p)&&/^遺体から.+持ち去られる$|に遺体を見つけられ、街へ運ばれる$/.test(c.t))return '';
+    if(isMissing(a)&&wipeHidden(p)&&/^遺体から.+持ち去られる$|に遺体を見つけられ、街へ運ばれる$/.test(c.t))return '';
     return `<li><span class="d">${Math.floor(c.tk/TICKS_PER_DAY)+1}日目</span>${newsBody(c.t)}${i===0?ledgerHtml(ledgerLine(S,a,'came')):i===endAt?ledgerHtml(ledgerLine(S,a,'end')):''}</li>`;
   }).filter(Boolean).reverse().join('');
 }
@@ -4632,7 +4646,7 @@ function dreamSeen(a,x){if(x.seen)return true;if(x.k!=='kinvenge')return false;c
 function nmLink(a,head){return `<button class="nm-link${head?' nm-head':''}" data-act="adv" data-a="${a.id}">${esc(a.name)}</button>`}
 function teamOf(a){const p=a.party&&S.parties[a.party];return p&&p.tav===a.tav?p:null}
 function isLeader(a){const p=teamOf(a);return !!p&&p.leader===a.id}
-function teamTag(a){const p=teamOf(a);if(!p)return a.status==='idle'?'<span class="ptag none" title="一行なし">一行なし</span>':'';const L=p.leader===a.id;const label=(L?'★':'')+partyShown(p.name)+(L?'のリーダー':'');return `<span class="ptag${L?' lead':''}" title="${esc(label)}">${L?'★':''}${partyHtml(p.name)}${L?'のリーダー':''}</span>`}
+function teamTag(a){const p=teamOf(a);if(!p)return isIdle(a)?'<span class="ptag none" title="一行なし">一行なし</span>':'';const L=p.leader===a.id;const label=(L?'★':'')+partyShown(p.name)+(L?'のリーダー':'');return `<span class="ptag${L?' lead':''}" title="${esc(label)}">${L?'★':''}${partyHtml(p.name)}${L?'のリーダー':''}</span>`}
 function byTeam(x,y){const px=teamOf(x),py=teamOf(y);const kx=px?px.name:'\uffff',ky=py?py.name:'\uffff';return kx<ky?-1:kx>ky?1:(isLeader(y)-isLeader(x))||(y.lvl-x.lvl)}
 function doing(a){
   const st=shownStatus(a);
@@ -4666,7 +4680,7 @@ function renderAdv(){
   const status={idle:'酒場にいる',party:'探索中',missing:'行方不明',dead:'寺院で眠る（死）',ash:'寺院で眠る（灰）',lost:'ロスト',retired:'店を去った'}[shownStatus(a)];
   const team=a.party&&S.parties[a.party]?partyShown(S.parties[a.party].name):'なし';
   const d=a.dream;
-  const canMark=markMax(S)>0&&a.tav==='ours'&&a.status!=='lost'&&a.status!=='retired';const markFull=canMark&&!a.marked&&markedOf(S).length>=markMax(S);const he=a.tav==='ours'&&heroErrand(S,a),pe=a.tav==='ours'&&boardOpen(S)&&errandsOf(S).board.find(e=>e.pend===a.id);
+  const canMark=markMax(S)>0&&a.tav==='ours'&&isActive(a);const markFull=canMark&&!a.marked&&markedOf(S).length>=markMax(S);const he=a.tav==='ours'&&heroErrand(S,a),pe=a.tav==='ours'&&boardOpen(S)&&errandsOf(S).board.find(e=>e.pend===a.id);
   box.innerHTML=groupMoney(`<div class="adv-h"><h2>${a.title?`<span class="ttl">「${esc(a.title)}」</span>`:''}${esc(a.name)}</h2><span class="chip ${shownStatus(a)}">${status}</span>${teamTag(a)}${markTag(a)}${a.opening?'<span class="markmark">開店からの常連</span>':''}${canMark?`<button class="btn sm markbtn" data-act="mark" data-a="${a.id}" ${markFull?'disabled':''}>${a.marked?'見込みを外す':'見込む'}</button>`:''}</div>
   ${markFull?`<p class="markwhy">${markFullLine()}</p>`:''}
   ${he?`<div class="dream"><small>引き受けている話</small>「${esc(he.n)}」${FN(he.f)}・あと${Math.max(1,Math.ceil((he.until-S.tick)/TICKS_PER_DAY))}日</div>`:''}
@@ -4678,7 +4692,7 @@ function renderAdv(){
   ${a.odd?`<div class="dream odd"><small>異例の冒険者</small>${parenNw(ODD_PERK[a.race]||'')}</div>`:''}
   ${C(a).adv||C(a).rare?`<div class="dream cls"><small>${C(a).rare?'レア職業':'上級職（'+esc(a.promoted||C(a).adv)+'から転職）'}・${esc(a.cls)}</small>${parenNw(C(a).desc)}${a.beast?`<small>相棒：${esc(a.beast.kind)}の${esc(a.beast.name)}</small>`:''}</div>`:''}
   <div class="note">${a.race}：得意　${parenNw(rc(a).good)}／苦手　${parenNw(rc(a).bad)}${a.odd?nw('（克服している）'):''}</div>
-  ${d?`<div class="dream"><small>夢</small>${parenNw(dreamText(d))}${dreamProgress(a)?`<small>${parenNw(dreamProgress(a))}</small>`:''}</div>`:`<div class="dream"><small>夢</small>${a.status==='lost'||a.status==='retired'?'――':'次の夢を探している'}</div>`}
+  ${d?`<div class="dream"><small>夢</small>${parenNw(dreamText(d))}${dreamProgress(a)?`<small>${parenNw(dreamProgress(a))}</small>`:''}</div>`:`<div class="dream"><small>夢</small>${!isActive(a)?'――':'次の夢を探している'}</div>`}
   ${(a.pastDreams||[]).map(x=>`<div class="dream done"><small>${dreamSeen(a,x)?'見届けた夢':'かなえた夢'}・${Math.floor(x.tk/TICKS_PER_DAY)+1}日目</small>${parenNw(x.t)}${x.note?`<small>${parenNw(x.note)}</small>`:''}</div>`).join('')}
   <div class="kv"><div><b>${a.kills}</b>討伐</div><div><b>${deepNow(a.deepest)}</b>最深到達</div><div><b>${a.revived}</b>蘇生</div><div><b>${a.disarms}</b>罠解除</div>${a.errandsDone?`<div><b>${a.errandsDone}</b>果たした話</div>`:''}<div><b>${a.gold}G</b>所持金</div>${(()=>{const hp=shownHp(a);return hp.hide?'':`<div><b>${esc(hp.label)}</b>HP</div>`;})()}</div>
   <div class="eqtab">${SLOTS.map(k=>{const it=a.eq&&a.eq[k];const two=k==='shield'&&a.eq&&a.eq.wpn&&a.eq.wpn.two;
@@ -4750,7 +4764,7 @@ document.addEventListener('click',e=>{
   if(act==='poach'){const a=S.adv[b.dataset.a];if(a&&poach(S,a))toast(`${a.name}を黒猫亭に迎え入れた`);render();save();return;}
   if(act==='custom'){const a=S.adv[b.dataset.a];const it=a&&orderCustom(S,a,customOffer(S,a));if(it)toast(`${a.name}に${it.n}が届いた`);render();save();return;}
   if(act==='invest'||act==='buysmall'){const t=smallOf(S).find(x=>x.n===b.dataset.n);if(t&&(act==='invest'?invest(S,t):buySmall(S,t)))toast(act==='invest'?`${t.n}に出資した`:`${t.n}を買い取った`);render();save();return;}
-  if(act==='revive'){const a=S.adv[b.dataset.a];const c=a&&templeCost(S,a);if(a&&(a.status==='dead'||a.status==='ash')&&T().gold>=c){T().gold-=c;flowAdd(S,'v',c);owe(S,a.party&&S.parties[a.party],c);const r=temple(S,a,true);const t=reviveResultText(a.name,r);reviveNote=t?{id:a.id,t,kind:r,status:a.status}:null;if(t)toast(t);render();save();}return;}
+  if(act==='revive'){const a=S.adv[b.dataset.a];const c=a&&templeCost(S,a);if(a&&(inTemple(a))&&T().gold>=c){T().gold-=c;flowAdd(S,'v',c);owe(S,a.party&&S.parties[a.party],c);const r=temple(S,a,true);const t=reviveResultText(a.name,r);reviveNote=t?{id:a.id,t,kind:r,status:a.status}:null;if(t)toast(t);render();save();}return;}
   if(act==='pickerr'){pickErr=b.dataset.e?+b.dataset.e:null;renderSide();return;}
   if(act==='boardhelp'){boardHelpOpen=!boardHelpOpen;renderSide();return;}
   if(act==='assign'){const e=errandsOf(S).board.find(x=>x.id===+b.dataset.e),a=S.adv[b.dataset.a];const r=e&&a&&assignErrand(S,e,a);
