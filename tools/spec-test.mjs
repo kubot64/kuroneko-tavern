@@ -67,6 +67,14 @@ const KIND_RE=[['yomiAsh',/でヨミガエリに失敗し、灰になる$/],['wi
 // 印と文の形（以前は画面の側がこの正規表現で見分けていた）
 const MARK_RE={lv:/レベル/,revive:/息を吹き返す|よみがえる/,lost:/ロスト。その名は記念碑に刻まれる|迷宮に呑まれる$/,retired:/を去る$/,
   death:/^全滅した。|で.+に倒れる$|でヨミガエリに失敗し、灰になる$/,body:/^遺体から.+持ち去られる$|に遺体を見つけられ、街へ運ばれる$/};
+// 装備の品（#195）。どの品も作り方の鍵 src を持ち、名と鍵だけから表で作り直すと同じ品になる
+const sortKeys=o=>JSON.stringify(Object.keys(o).sort().map(k=>[k,o[k]]));
+function itemIssues(S){const E=PE(),out=[];
+  for(const a of Object.values(S.adv||{}))for(const [sl,it] of Object.entries((a&&a.eq)||{})){if(!it)continue;
+    if(!it.src){out.push(`${a.name}の${it.n} 鍵なし`);continue;}
+    const again=E.itemOf(JSON.parse(JSON.stringify(E.itemSave(it))));
+    if(!again||sortKeys(again)!==sortKeys(it))out.push(`${a.name}の${it.n}（${sl}） ${JSON.stringify(it)} → ${JSON.stringify(again)}`);}
+  return out;}
 function untagged(S){const out=[];const E=PE();
   for(const a of Object.values(S.adv||{}))for(const c of (a&&a.chron)||[]){
     if(c.t==null&&!(c.kind&&E.CHRON[c.kind])){out.push(`${a.name} 種類のない記録 ${JSON.stringify(c)}`);continue;}
@@ -1179,6 +1187,7 @@ function runSeed(seed){
     if(S.tick%100===0){const KEYRE=/\b(warrior|samurai|thief|priest|mage|paladin|berserker|kensei|ninja|bishop|sorcerer|dragoon|bard|alchemist|tamer|human|elf|dwarf|hobbit)\b/;
       const leak=S.news.find(x=>KEYRE.test(nt(x)))||(S.tales||[]).find(x=>KEYRE.test(x.t))||advs.flatMap(a=>a.chron||[]).find(c=>KEYRE.test(ct(c)))||(S.chatter||[]).find(c=>KEYRE.test(JSON.stringify(c)));
       check('職業と種族：内部の鍵は、知らせ・手帳・土産話・ざわめきに出ない',!leak,at,()=>JSON.stringify(leak));
+      const ii=itemIssues(S);check('品物：装備の品はみな作り方の鍵を持ち、名と鍵だけから表で作り直すと同じ品になる',!ii.length,at,()=>ii.slice(0,2).join('、'));
       const un=untagged(S);check('種類：手帳の記録と知らせはみな種類で持ち、判定に使う種類と印が、作った文と合っている。まとめ直す知らせには中身がある',!un.length,at,()=>un.slice(0,3).join('、'));}
     {const bad=parties.find(p=>(p.state==='wiped')!==!!E.WIPE[p.wipe]||['announced','knownWiped','retrieved','causeTold'].some(k=>k in p));
       check('一行の状態：全滅の中の状態は全滅しているときだけあり、古いフラグは残らない',!bad,at,()=>bad&&`${bad.name} ${bad.state} ${bad.wipe}`);}
@@ -1863,6 +1872,8 @@ function checkOldSaves(){
     const foes=Object.values(S.parties).filter(p=>p.etype);
     const badFoe=foes.filter(p=>JSON.stringify(p.etype)!==JSON.stringify(E.foeOf(E.foeKey(p.etype)))).map(p=>p.name);
     check('古いセーブ：戦いの途中の魔物の型は、loadSave で表から引き直される',!badFoe.length,at,badFoe.join('、'));
+    // 鍵のない古い品も、loadSave が作り方の鍵を探して表から作り直す
+    const ii=itemIssues(S);check('古いセーブ：装備の品は loadSave で作り方の鍵を持ち、表から作り直される',!ii.length,at,()=>ii.slice(0,2).join('、'));
     const un=untagged(S);check('古いセーブ：移行のあと、判定に使う手帳と知らせには種類が付いている（文はそのまま）',!un.length,at,()=>un.slice(0,3).join('、'));
     const T0=S.taverns.ours;
     // 版32からは回数を数えている
@@ -2098,15 +2109,30 @@ function checkKinds(){
 function checkSaveLoad(){
   const run=(E,S,n)=>{for(let i=0;i<n;i++){E.tick(S);E.rivalTemple(S);}};
   // 同じ種の二つを同じだけ回し、片方だけセーブして読み直す。そのあとも同じに進めば、セーブで失うものはない
-  {const A=load(77),B=load(77),SA=A.newState(),SB=B.newState();let fights=0,saw=null;
+  {const A=load(77),B=load(77),SA=A.newState(),SB=B.newState();let fights=0,saw=null,items=0,sawIt=null,posts=0,sawPost=null;
     for(let k=0;k<12;k++){run(A,SA,500);run(B,SB,500);
       const txt=JSON.stringify({S:SB,at:0,pend:0},B.saveReplacer);const o=JSON.parse(txt);
       for(const p of Object.values(o.S.parties))if(p.etype){fights++;const ks=Object.keys(p.etype).sort().join(',');if(!['n','n,v','rare'].includes(ks))saw=saw||JSON.stringify(p.etype);}
+      for(const e of [...((o.S.errands||{}).board||[]),...(o.S.edicts||[])]){posts++;if('n' in e||'from' in e||'t' in e)sawPost=sawPost||JSON.stringify(e);}
+      for(const a of Object.values(o.S.adv))for(const it of Object.values(a.eq||{}))if(it){items++;const ks=Object.keys(it).sort().join(',');if(!['n,src','lore,n,src'].includes(ks))sawIt=sawIt||JSON.stringify(it);}
       const SB2=B.loadSave(txt);for(const k2 of Object.keys(SB))delete SB[k2];Object.assign(SB,SB2);}
     run(A,SA,500);run(B,SB,500);
     const same=JSON.stringify(SA,A.saveReplacer)===JSON.stringify(SB,B.saveReplacer);
     check('セーブ：魔物の型は鍵（名・変わり種・名のある魔物の階）だけを書く',fights>0&&!saw,'種77・12回',`戦い${fights} ${saw||''}`);
+    check('セーブ：掲示の話とお触れは、表から作れる名・出どころ・文を書かない',posts>0&&!sawPost,'種77・12回',`${posts}件 ${sawPost||''}`);
+    check('セーブ：装備の品は名と作り方の鍵（便りの品は由来の文も）だけを書く',items>0&&!sawIt,'種77・12回',`品${items} ${sawIt||''}`);
     check('セーブ：セーブして loadSave で読み直しても、そのあとの進み方は変わらない',same,'種77・500刻ごとに12回','食い違う');}
+  // 品の作り方の鍵：ふつうの品（乱数で決まった能力と足された分）・武具屋・逸品・名のある魔物の品・便りの品。鍵のない古い品は鍵を探す
+  {const E=load(5),S=E.newState();const its=[];for(let i=0;i<300;i++)its.push(E.makeItem(S,1+i%25));
+    const ring=E.ITEM_BASES.find(b=>b.t==='指輪');its.push(E.shopMake(S,ring,3),E.itemOf({src:{r:3},n:''}),E.itemOf({n:'押し花の栞',src:{letter:1},lore:'甲が故郷から送った品'}));
+    const bad=its.filter(it=>!it||!it.src||sortKeys(E.itemOf(JSON.parse(JSON.stringify(E.itemSave(it)))))!==sortKeys(it));
+    check('品物：どの作り方の品も、名と鍵だけから同じ品に作り直せる',!bad.length&&its.some(it=>it.src.u)&&its.some(it=>it.src.up)&&its.some(it=>it.src.i===1),'300品と武具屋・名のある魔物・便りの品',()=>bad.slice(0,2).map(x=>JSON.stringify(x)).join(' / '));
+    const olds=its.filter(it=>!it.src.letter).map(it=>{const o=JSON.parse(JSON.stringify(it));delete o.src;return o;});
+    const lost=olds.filter((o,i)=>{const src=E.itemSrcOld(o);return !src||sortKeys(E.itemOf({n:o.n,src,lore:o.lore}))!==sortKeys(Object.assign({},its.filter(it=>!it.src.letter)[i],{src}));});
+    check('品物：鍵のない古い品からも、同じ作り方の鍵が見つかる',!lost.length,'鍵を外した品',()=>lost.slice(0,2).map(x=>JSON.stringify(x)).join(' / '));
+    const T=E.newState();const a=Object.values(T.adv)[0];a.eq={wpn:{n:'消えた剣',src:{b:'もうない剣',f:3}},acc:{n:'謎の首飾り',slot:'acc',for:['mage'],mp:9,f:2}};
+    const T2=E.loadSave(JSON.parse(JSON.stringify({S:T})));const b2=T2.adv[a.id];
+    check('品物：引けない鍵の品は読み込むときに外し、鍵の見つからない古い品は写しのまま持つ',b2.eq.wpn===null&&b2.eq.acc&&b2.eq.acc.mp===9&&!b2.eq.acc.src,'壊れた品',JSON.stringify(b2.eq));}
   const E=load(1);
   // 鍵から型を引く：ふつう・変わり種・名のある魔物・主。引けない鍵は null
   {const t=E.MON.find(m=>m.br&&m.br<1),v=E.VARIANTS[0],vt=E.variantMon(t,v),r=E.rareMonOf(13),boss=E.MON.find(m=>m.boss&&!m.mboss);

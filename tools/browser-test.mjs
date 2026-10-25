@@ -3172,19 +3172,23 @@ test('どのタブも、375px・768px・1280pxで押す所が44px以上あり、
   assert.deepEqual(errors,[]);await ctx.close();
 });
 
-test('セーブには戦っている魔物の型の写しを書かず鍵だけを書き、読み込むと表の型に戻る。読めない記録は別にしまって新しく始める',async()=>{
+test('セーブには戦っている魔物の型と装備の品の写しを書かず鍵だけを書き、読み込むと表から戻る。読めない記録は別にしまって新しく始める',async()=>{
   const {ctx,page,errors}=await open();
   const saved=await page.evaluate(()=>{
     const ps=Object.values(S.parties);const t=MON.find(m=>m.br&&m.br<1);
     ps[0].etype=variantMon(t,VARIANTS[0]);ps[0].enemies=[{hp:30,sleep:0}];ps[1].etype=rareMonOf(13);ps[1].enemies=[{hp:30,sleep:0}];
     save();const o=JSON.parse(localStorage.getItem('kuroneko-tavern-v1'));
-    return {ids:[ps[0].id,ps[1].id],keys:[o.S.parties[ps[0].id].etype,o.S.parties[ps[1].id].etype]};
+    const itemKeys=[...new Set(Object.values(o.S.adv).flatMap(a=>Object.values(a.eq||{}).filter(Boolean).map(it=>Object.keys(it).sort().join(','))))];
+    const atk=Object.values(S.adv).map(a=>a.eq&&a.eq.wpn?a.eq.wpn.atk:null);
+    return {ids:[ps[0].id,ps[1].id],keys:[o.S.parties[ps[0].id].etype,o.S.parties[ps[1].id].etype],itemKeys,atk};
   });
   assert.deepEqual(saved.keys,[{n:'キメラ',v:'wound'},{rare:13}]);
+  assert.ok(saved.itemKeys.length>0&&saved.itemKeys.every(k=>k==='n,src'||k==='lore,n,src'),saved.itemKeys.join(' / '));
   const {page:p2,errors:e2}=await open({ctx});
   const back=await p2.evaluate(ids=>ids.map(id=>{const e=S.parties[id].etype;return e&&{n:e.n,br:e.br||null,rare:!!e.rare,hp:e.hp};}),saved.ids);
   assert.deepEqual(back.map(x=>x&&x.n),['手負いのキメラ','暴走した鉄の巨人']);
   assert.equal(back[0].br,0.8);
+  assert.deepEqual(await p2.evaluate(()=>Object.values(S.adv).map(a=>a.eq&&a.eq.wpn?a.eq.wpn.atk:null)),saved.atk);
   await p2.evaluate(()=>localStorage.setItem('kuroneko-tavern-v1',JSON.stringify({S:{v:37,tick:5},at:0})));
   const {page:p3,errors:e3}=await open({ctx});
   const fresh=await p3.evaluate(()=>({tick:S.tick,v:S.v,bad:JSON.parse(localStorage.getItem('kuroneko-tavern-v1-bad')||'null')}));
