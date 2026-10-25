@@ -1952,7 +1952,7 @@ test('全滅と依頼の失敗には理由が一文つき、知れていない�
   const info=await page.evaluate(()=>{
     const p=Object.values(S.parties).find(x=>x.tav==='ours');
     p.state='explore';p.floor=4;p.enemies=null;p.plan='normal';p.pushWhy=null;p.steps=400;
-    p.trip=p.trip||{};p.trip.deep=1;p.maps={};p.announced=false;p.knownWiped=false;
+    p.trip=p.trip||{};p.trip.deep=1;p.maps={};delete p.wipe;
     // 到達B2Fで出発し、探索中にB4Fまで進んだ（ふつうに起きる状態）
     p.reach=2;p.pushTo=0;p.mineTrip=false;noteKnownDepth(p);reachFloor(S,p,false);
     const ms=p.members.map(id=>S.adv[id]);
@@ -2697,7 +2697,7 @@ test('まだ知れていない全滅の水晶は、生きている一行と見�
       const out=[];
       const p=Object.values(S.parties).find(x=>x.tav==='ours');
       Object.values(S.parties).forEach(q=>{if(q!==p){q.state='town';q.rest=99;}});
-      p.state='explore';p.floor=5;p.enemies=null;p.plan='normal';p.pushWhy=null;p.steps=0;p.fsteps=0;p.maps={};p.announced=false;p.knownWiped=false;p.hideRecall=0;
+      p.state='explore';p.floor=5;p.enemies=null;p.plan='normal';p.pushWhy=null;p.steps=0;p.fsteps=0;p.maps={};delete p.wipe;p.hideRecall=0;
       p.trip=p.trip||{};p.trip.deep=5;p.log=[];p.lc=0;p.loot=1234;
       const ms=p.members.map(id=>S.adv[id]);
       ms.forEach(a=>{a.status='party';a.hp=a.mhp=100;a.poison=0;a.mp=5;a.pers='普通';a.cls='戦士';});
@@ -2932,9 +2932,9 @@ test('水晶の札：映せない一行を押すと、わけが一言出る',asy
     const out={};
     rival.state='explore';rival.seen=S.tick-31;out.rival=press(rival);
     rival.seen=S.tick;out.rivalSeen=press(rival);
-    rival.state='wiped';rival.announced=true;out.rivalWiped=press(rival);
-    ours.state='wiped';ours.announced=true;ours.knownWiped=false;out.missing=press(ours);
-    ours.knownWiped=true;out.known=press(ours);
+    rival.state='wiped';rival.wipe='missing';out.rivalWiped=press(rival);
+    ours.state='wiped';ours.wipe='missing';out.missing=press(ours);
+    ours.wipe='seen';out.known=press(ours);
     return out;
   });
   assert.deepEqual(got.rival,{toast:'銀の杯亭の一行は、すれ違ったときしか見えない',watched:false});

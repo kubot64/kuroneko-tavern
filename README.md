@@ -109,6 +109,7 @@ node tools/lint.mjs    # 見つかれば index.html の行番号つきで出し�
 
 - 関数の引数は見ない（同じ形で並べた表の関数が、使わない引数を持つため）。
 - 冒険者の居どころは `a.status==='idle'` のように直に比べず、`isActive`（籍がある）・`isIdle`・`inParty`・`inTemple`（寺院で眠る）・`isDead`・`isAsh`・`isMissing`・`isLost`・`isRetired` を通す。比べてよいのはこれらの関数の中だけである。
+- 一行の状態（`p.state` と、全滅しているあいだの `p.wipe`）を書くのは `setPhase(S,p,to)` だけで、許される移り変わりは `PHASE_TO` の表にある。全滅の中を読むときは `wipeAnnounced`・`wipeSeen`・`wipeFound`・`wipeCauseTold` を使う（全滅を表していた古いフラグは、版34の移行で `p.wipe` に写した）。
 - 画面の側（`/*ENGINE END*/` より下）は、全滅を伏せるためのフラグ（`announced`・`knownWiped`・`causeTold`・`retrieved`・`calmHp` など）や判定（`wipeHidden` など）を直に使わず、`viewOf(S,p)`・`hpView`・`shownStatus`・`chronShown` を通して一行と仲間を見る。伏せる判定は、エンジンのこれらの関数にだけ書く。
 - テストや measure からだけ使うトップレベルの名前は、`index.html` の `/*ENGINE START*/` のすぐ下にある `/* exported … */` に並べる。
 - 自動テストでも別のジョブで回す。

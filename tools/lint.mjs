@@ -28,7 +28,13 @@ const eslint=new ESLint({overrideConfigFile:true,overrideConfig:[{
     'no-restricted-syntax':['error',
       {selector:"BinaryExpression[operator=/^[!=]==?$/][left.property.name='status'][right.type='Literal']",message:'status を直に比べない。isActive・isIdle・inTemple などを使う'},
       {selector:"BinaryExpression[operator=/^[!=]==?$/][right.property.name='status'][left.type='Literal']",message:'status を直に比べない。isActive・isIdle・inTemple などを使う'},
-      {selector:"CallExpression[callee.property.name='includes'] > MemberExpression.arguments[property.name='status']",message:'status を直に比べない。isActive・isIdle・inTemple などを使う'}]},
+      {selector:"CallExpression[callee.property.name='includes'] > MemberExpression.arguments[property.name='status']",message:'status を直に比べない。isActive・isIdle・inTemple などを使う'},
+      // 一行の状態（state と、全滅の中の wipe）を書くのは setPhase だけ（#194）
+      {selector:"AssignmentExpression[left.property.name=/^(state|wipe)$/]",message:'一行の状態は setPhase で変える'},
+      {selector:"UnaryExpression[operator='delete'][argument.property.name=/^(state|wipe)$/]",message:'一行の状態は setPhase で変える'},
+      {selector:"ObjectExpression > Property[key.name='state']",message:'一行の状態は setPhase で変える'},
+      // 全滅を表していた古いフラグは、版34の移行で wipe に写した。読むときは wipeAnnounced・wipeSeen・wipeFound・wipeCauseTold を使う
+      {selector:"MemberExpression[property.name=/^(announced|knownWiped|retrieved|causeTold)$/]",message:'古い全滅のフラグは使わない。wipeAnnounced・wipeSeen・wipeFound・wipeCauseTold を使う'}]},
 }]});
 // ESLint は拡張子で設定を選ぶので、script だけを .js の名前で渡す（そのファイルは作らない）
 const [r]=await eslint.lintText(code,{filePath:FILE.replace(/\.html$/,'.script.js')});
