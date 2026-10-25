@@ -56,12 +56,24 @@ const check=(name,ok,where,detail)=>{pass(name);if(!ok)fail(name,where,typeof de
 const SAVE_V=load(1).SAVE_V;
 
 const live=a=>a.status!=='lost'&&a.status!=='retired';
-// 判定に使う手帳と知らせ（#195）。エンジンは種類で判定し、文を読まない。ここでは文の形から、種類の付け忘れを見張る
+// 手帳の記録の文（#195）。記録は {kind,args} で持ち、文はエンジンの chronText で作る
+const ct=c=>PE().chronText(c);
+// 判定に使う手帳と知らせ（#195）。エンジンは種類と印で判定し、文を読まない。ここでは作った文の形と種類・印が合っているかを見張る
+// （種類の付け忘れ・印の付け違い）。古い記録の文（t）は、移行で種類が付いているかだけを見る
 const KIND_RE=[['yomiAsh',/でヨミガエリに失敗し、灰になる$/],['wipe',/^全滅した。/],['fell',/で.+に倒れる$/],['looted',/^遺体から.+持ち去られる$/],
   ['carried',/に遺体を見つけられ、街へ運ばれる$/],['gate',/門番の黒竜を討つ$/],['ashBack',/^灰の中からよみがえる$/],['deep',/^はじめてB\d+Fに足を踏み入れる$/],['door',/の扉をくぐる。夢は「/]];
-function untagged(S){const out=[];
-  for(const a of Object.values(S.adv||{}))for(const c of (a&&a.chron)||[]){const h=KIND_RE.find(([,re])=>re.test(c.t));
-    if(h&&(c.k!==h[0]||(h[0]==='deep'&&c.f!==+c.t.match(/B(\d+)F/)[1])))out.push(`${a.name}「${c.t}」k=${c.k} f=${c.f}`);}
+// 印と文の形（以前は画面の側がこの正規表現で見分けていた）
+const MARK_RE={lv:/レベル/,revive:/息を吹き返す|よみがえる/,lost:/ロスト。その名は記念碑に刻まれる|迷宮に呑まれる$/,retired:/を去る$/,
+  death:/^全滅した。|で.+に倒れる$|でヨミガエリに失敗し、灰になる$/,body:/^遺体から.+持ち去られる$|に遺体を見つけられ、街へ運ばれる$/};
+function untagged(S){const out=[];const E=PE();
+  for(const a of Object.values(S.adv||{}))for(const c of (a&&a.chron)||[]){
+    if(c.t==null&&!(c.kind&&E.CHRON[c.kind])){out.push(`${a.name} 種類のない記録 ${JSON.stringify(c)}`);continue;}
+    const t=ct(c),h=KIND_RE.find(([,re])=>re.test(t));
+    if(h&&(c.kind!==h[0]||(h[0]==='deep'&&(c.args||{}).f!==+t.match(/B(\d+)F/)[1])))out.push(`${a.name}「${t}」kind=${c.kind}`);
+    if(c.t!=null)continue;
+    const bad=[['lv',E.chronMark(c,'lv')],['revive',E.chronMark(c,'revive')],['lost',E.chronMark(c,'end')==='lost'],['retired',E.chronMark(c,'end')==='retired'],
+      ['death',c.hidden==='death'],['body',c.hidden==='body']].filter(([m,v])=>!!v!==MARK_RE[m].test(t)).map(([m])=>m);
+    if(bad.length)out.push(`${a.name}「${t}」印 ${bad.join('・')}`);}
   for(const n of S.news||[]){
     if(n.k==='info'&&/出発した。$/.test(n.t)&&n.kind!=='depart')out.push(`知らせ「${n.t}」`);
     if(n.k==='rumor'&&/^噂：銀の杯亭(の|では、).+Lv\d+に達した。/.test(n.t)&&n.kind!=='rivalLv')out.push(`知らせ「${n.t}」`);}
@@ -172,7 +184,7 @@ function checkScenes(){
     check('貸し付け：坑道に潜る銀の杯亭の一行だけが回復薬5本を借り、代金が借金に足される',ok,mine?'坑道へ':'迷宮へ',`回復薬${p.potions}本・借金+${d1-d0}G（代金${c}G）`);}
   // 「貸し付け」：手帳の「借金を返し終える」は、最初に装備を借りた分を返したときの1回きり。坑道で借りた分を返しても書かない
   {const E=load(1),S=E.newState();const p=Object.values(S.parties).find(x=>x.tav==='rival');const al=p.members.map(id=>S.adv[id]);const a=al.find(x=>x.loanItem)||al[0];
-    a.loanItem=a.loanItem||'借りた剣';const line='銀の杯亭への借金を返し終える';const cnt=()=>(a.chron||[]).filter(x=>x.t===line).length;const got=[];
+    a.loanItem=a.loanItem||'借りた剣';const line='銀の杯亭への借金を返し終える';const cnt=()=>(a.chron||[]).filter(x=>ct(x)===line).length;const got=[];
     for(let i=0;i<3;i++){al.forEach(x=>{x.hp=x.mhp;x.status='party';});if(i===0)a.debt=1;else E.lendRival(S,p,al.length);
       p.loot=100000;p.carried=[];p.rescue=[];E.arrive(S,p);got.push(`${a.debt}G/${cnt()}回`);}
     check('貸し付け：手帳の「借金を返し終える」は、装備の借金を返したときの1回きり',cnt()===1&&!a.loanItem,'返し終える→坑道で借りて返す×2',got.join(' → '));}
@@ -180,9 +192,9 @@ function checkScenes(){
   {const E=load(1),S=E.newState();const p=Object.values(S.parties).find(x=>x.tav==='rival');const al=p.members.map(id=>S.adv[id]);
     const paid=al[0],owing=al[1];const line='銀の杯亭への借金を返し終える';
     paid.debt=0;paid.loanItem='借りた剣';paid.chron=(paid.chron||[]).concat([{tk:1,t:line}]);
-    owing.debt=50;owing.loanItem='借りた盾';owing.chron=(owing.chron||[]).filter(x=>x.t!==line);
+    owing.debt=50;owing.loanItem='借りた盾';owing.chron=(owing.chron||[]).filter(x=>ct(x)!==line);
     S.v=21;E.migrate(S);
-    const cnt=a=>(a.chron||[]).filter(x=>x.t===line).length;
+    const cnt=a=>(a.chron||[]).filter(x=>ct(x)===line).length;
     check('貸し付け：古い記録を開くと、借金のない客の貸し付けの印が消える',!paid.loanItem&&owing.loanItem==='借りた盾'&&cnt(paid)===1&&cnt(owing)===0&&S.v===SAVE_V,'版21を開く',`返し済み${paid.loanItem||'なし'}・${cnt(paid)}回 残債${owing.loanItem||'なし'}・${cnt(owing)}回 版${S.v}`);
     al.forEach(x=>{x.hp=x.mhp;x.status='party';});E.lendRival(S,p,al.length);p.loot=100000;p.carried=[];p.rescue=[];E.arrive(S,p);
     check('貸し付け：印を消した客は、坑道で借りた分を返しても手帳に出ない',cnt(paid)===1&&paid.debt===0&&!paid.loanItem&&cnt(owing)===1&&owing.debt===0&&!owing.loanItem,'坑道の借りを返す',`返し済み${cnt(paid)}回・借金${paid.debt} 残債${cnt(owing)}回・借金${owing.debt}`);}
@@ -201,10 +213,10 @@ function checkScenes(){
     p.floor=5;p.state='explore';p.etype=t;p.ident=true;p.fought=true;p.maps={5:1};p.ambush=false;p.potions=0;p.guard=0;p.buff=0;p.enemies=[{hp:1e9,sleep:0}];p.log=[];p.trip={close:[]};
     E.combat(S,p);
     const line='レイスでレベルを吸い取られ、レベル17になる';
-    check('吸精：手帳に、吸い取られたあとのレベルが残る',hit.lvl===17&&(hit.chron||[]).some(c=>c.t===line)&&p.members.slice(1).every(id=>S.adv[id].lvl===19),'レイス・レベル19',`${hit.name}は${hit.lvl} ${(hit.chron||[]).filter(c=>c.t.includes('吸い取')).map(c=>c.t).join(' / ')||'記録なし'}`);
-    p.members.forEach(id=>{const a=S.adv[id];a.lvl=2;a.hp=a.mhp;a.chron=(a.chron||[]).filter(c=>!c.t.includes('吸い取'));});
+    check('吸精：手帳に、吸い取られたあとのレベルが残る',hit.lvl===17&&(hit.chron||[]).some(c=>ct(c)===line)&&p.members.slice(1).every(id=>S.adv[id].lvl===19),'レイス・レベル19',`${hit.name}は${hit.lvl} ${(hit.chron||[]).filter(c=>ct(c).includes('吸い取')).map(c=>ct(c)).join(' / ')||'記録なし'}`);
+    p.members.forEach(id=>{const a=S.adv[id];a.lvl=2;a.hp=a.mhp;a.chron=(a.chron||[]).filter(c=>!ct(c).includes('吸い取'));});
     p.enemies=[{hp:1e9,sleep:0}];p.etype=t;p.log=[];E.combat(S,p);
-    check('吸精：レベル2以下は吸い取られない',p.members.every(id=>S.adv[id].lvl===2&&!(S.adv[id].chron||[]).some(c=>c.t.includes('吸い取'))),'レベル2','レベル '+p.members.map(id=>S.adv[id].lvl).join(','));}
+    check('吸精：レベル2以下は吸い取られない',p.members.every(id=>S.adv[id].lvl===2&&!(S.adv[id].chron||[]).some(c=>ct(c).includes('吸い取'))),'レベル2','レベル '+p.members.map(id=>S.adv[id].lvl).join(','));}
   // 「前人未踏の階」：まだ誰もB11Fに着いていないうちに罠でB12F以降へ飛ばされても、封じの門を越えた知らせが出る
   for(const f of [11,13]){const E=load(1),S=E.newState();const p=Object.values(S.parties).find(x=>x.tav==='ours');
     p.members.forEach(id=>{const a=S.adv[id];a.hp=a.mhp;a.status='party';});S.deepest.ours=S.deepest.rival=E.GATE_F;p.floor=f;p.trip=p.trip||{};
@@ -235,8 +247,8 @@ function checkScenes(){
     const titled=al.filter(a=>a.title&&a.title.includes(n)&&a.title.includes('殺し'));
     const news=(S.news||[]).filter(x=>x.tk===S.tick&&x.t.includes(n+'殺し')&&x.t.includes('と呼ばれはじめた'));
     const bonds=others.every(a=>{const ev=((bondOf(S,slayer,a)||{}).ev||[]);return ev.some(e=>e.k==='rare'&&String(e.t).includes(n+'討伐に加わった'));});
-    const kept=others.every(a=>a.title==='鉄拳'&&!(a.rareKills>0)&& (a.chron||[]).some(c=>c.t.includes(n+'討伐に加わった')));
-    const fin=(slayer.chron||[]).some(c=>c.t.includes(`「${n}」を討つ`))&&slayer.rareKills===1&&slayer.title&&slayer.title.includes(n)&&slayer.title.includes('殺し');
+    const kept=others.every(a=>a.title==='鉄拳'&&!(a.rareKills>0)&& (a.chron||[]).some(c=>ct(c).includes(n+'討伐に加わった')));
+    const fin=(slayer.chron||[]).some(c=>ct(c).includes(`「${n}」を討つ`))&&slayer.rareKills===1&&slayer.title&&slayer.title.includes(n)&&slayer.title.includes('殺し');
     check('二つ名：名のある魔物の「殺し」はとどめを刺した者だけに付く',!!k&&k.by===slayer.name&&titled.length===1&&titled[0]===slayer&&fin&&kept&&bonds&&news.length===1,`${how}・${E.FN(floor)}の${n}`,
       `とどめ${k&&k.by} 二つ名${al.map(a=>a.title||'なし').join('・')} 知らせ${news.length}件`);
     slayerNews(S,E,`${how}・${n}`);}
@@ -267,7 +279,7 @@ function checkScenes(){
     const n0=S.news.length;const t=E.rareMonOf(1);E.rareSlain(S,p,t);
     const titled=S.news.slice(n0).some(n=>n.t.includes('と呼ばれはじめた'));
     const k=S.rares[1]&&S.rares[1].killed;
-    check('二つ名：倒れた者のとどめにも「殺し」は付くが、知らせは出ない',!!k&&k.by===slayer.name&&slayer.rareKills===1&&slayer.title&&slayer.title.includes('ドブ王')&&slayer.title.includes('殺し')&&!titled&&(slayer.chron||[]).some(c=>c.t.includes('「ドブ王」を討つ'))&&!(other.rareKills>0),
+    check('二つ名：倒れた者のとどめにも「殺し」は付くが、知らせは出ない',!!k&&k.by===slayer.name&&slayer.rareKills===1&&slayer.title&&slayer.title.includes('ドブ王')&&slayer.title.includes('殺し')&&!titled&&(slayer.chron||[]).some(c=>ct(c).includes('「ドブ王」を討つ'))&&!(other.rareKills>0),
       'B1Fのドブ王',`とどめ${k&&k.by} 「${slayer.title||'なし'}」 知らせ${titled?'出た':'なし'}`);
     slayer.trips=4;slayer.tav='ours';slayer.status='lost';E.memorialize(S,slayer,{by:'ドブ王',floor:1});
     const m=S.memorial.at(-1);
@@ -355,7 +367,7 @@ function checkPush(){
   // 確率で去る夢。去る目が出ても、半分は店に残る
   for(const [u,stay] of [[.3,true],[.55,false]]){const E=load(5,u),S=E.newState();free(S);
     const m=setup(E,S,{d:{k:'marry',amt:6000,who:'ロウエンの花売り'}});E.pushDream(S,m,5000);
-    check('夢の後押し：確率で去る夢は、去る目が出ても半分は残る',stay?(m.status==='idle'&&m.chron.some(c=>c.t==='店主に借りを返すまでは、と店に残る')):m.status==='retired','乱数'+u,m.status);}
+    check('夢の後押し：確率で去る夢は、去る目が出ても半分は残る',stay?(m.status==='idle'&&m.chron.some(c=>ct(c)==='店主に借りを返すまでは、と店に残る')):m.status==='retired','乱数'+u,m.status);}
 }
 function checkErrands(){
   const nail='掲示板に、釘がひとつ打たれた',second='掲示の釘がもうひとつ増えた',third='持ち込まれる話の質が変わった';
@@ -448,7 +460,7 @@ function checkErrands(){
     check('話を持ちかける：乱数は引かない',draws===n0,'持ちかける',`${draws-n0}回`);
     check('話を持ちかける：持ちかけられるのは一人一度',ka==='no'&&kc==='keen'&&again===null&&E.askBlock(S,e,c)==='持ちかけた','同じ者に二度',`${ka} ${kc} ${again}`);
     const nw=S.news.slice(news0).map(x=>x.t);
-    check('話を持ちかける：断った者は主役に指定できず、知らせと手帳に残る',e.refused.includes(a.id)&&E.designateBlock(S,e,a)==='断られた'&&E.assignErrand(S,e,a)===null&&nw.length===1&&nw[0]===`黒猫亭の店主が「鐘楼の光」を${a.name}に持ちかけたが、断られた。「${e.asked[a.id].t}」`&&a.chron.slice(-1)[0].t==='店主に「鐘楼の光」を持ちかけられ、断る','高い所を怖がる者',nw.join(' / '));
+    check('話を持ちかける：断った者は主役に指定できず、知らせと手帳に残る',e.refused.includes(a.id)&&E.designateBlock(S,e,a)==='断られた'&&E.assignErrand(S,e,a)===null&&nw.length===1&&nw[0]===`黒猫亭の店主が「鐘楼の光」を${a.name}に持ちかけたが、断られた。「${e.asked[a.id].t}」`&&ct(a.chron.slice(-1)[0])==='店主に「鐘楼の光」を持ちかけられ、断る','高い所を怖がる者',nw.join(' / '));
     check('話を持ちかける：乗り気・渋る・曖昧の返しは知らせに出ず、本人の言葉としてしまう',!S.news.slice(news0+1).length&&c.said.slice(-1)[0].t===e.asked[c.id].t,'乗り気',JSON.stringify(c.said));
     check('話を持ちかける：持ちかけて断られなかった者は回せる',E.assignErrand(S,e,c)==='ok'&&e.hero===c.id,'乗り気の者',e.hero);
     // 返しの文は口調8種×返し方4つ×2通り。数字や割合、向き不向きのラベルは出さない。返し方どうしで同じ文はない
@@ -526,7 +538,7 @@ function checkErrands(){
     const oldGone=olds.every(n=>!news.includes(n));
     const kept=news.includes('葡萄酒を飲んだ')&&news.includes('鉄の誓い傭兵団（四十人）')&&news.includes('七つ星団（赤い樽亭・三十人）')&&news.includes('夜鷹団')&&news.includes('黄金の剣団')&&news.includes('黒猫亭')&&news.includes('銀の杯亭')&&news.includes('白銀の牙は看板')&&news.includes('錆びた兜')&&news.includes('灯りの火');
     check('一行の名前：古い記録のいまいる一行は紋章名に付け替わる',!!ace&&ace.name==='白銀の牙'&&renamed&&rest.every(p=>news.includes(p.name))&&oldGone&&kept, '付け替え', news);
-    check('一行の名前：付け替えは手帳と迷宮の記録にも行き渡る',leader.chron.at(-1).t.includes(rest[0].name)&&!leader.chron.at(-1).t.includes(names0[rest[0].id])&&rest[0].log.at(-1).t.includes(rest[0].name)&&S.floors[3].arrive.party===rest[0].name&&S.floors[1].through.party===hist&&S.rares[1].killed.party===rest[0].name&&leader.last.party===rest[0].name, '手帳と記録', `${leader.chron.at(-1).t} / ${hist}`);
+    check('一行の名前：付け替えは手帳と迷宮の記録にも行き渡る',ct(leader.chron.at(-1)).includes(rest[0].name)&&!ct(leader.chron.at(-1)).includes(names0[rest[0].id])&&rest[0].log.at(-1).t.includes(rest[0].name)&&S.floors[3].arrive.party===rest[0].name&&S.floors[1].through.party===hist&&S.rares[1].killed.party===rest[0].name&&leader.last.party===rest[0].name, '手帳と記録', `${ct(leader.chron.at(-1))} / ${hist}`);
     check('一行の名前：付け替えで店の金や冒険者の名は変わらない',S.taverns.ours.gold===gold&&S.taverns.ours.name==='黒猫亭'&&leader.name===member&&S.v===SAVE_V, '付け替え後', `金${S.taverns.ours.gold} ${leader.name}`);
     const again=rest.map(p=>p.name).join(',');E.migrate(S);
     check('一行の名前：付け替えは一度だけ',rest.map(p=>p.name).join(',')===again&&ace.name==='白銀の牙', '二度目の読み込み', rest.map(p=>p.name).join(','));}
@@ -880,9 +892,9 @@ function checkAffinity(){
     {const {E,S,p}=scene();prep(E,S,p,{healer:true,mp:0,poison:['誰か']});const n0=S.news.length;p.steps=40;
       // 見ていない全滅の直前に一人倒しても、手帳に階と相手は残らない
       const a0=S.adv[p.members[0]];E.dieInDungeon(S,p,a0,'オーク');
-      check('全滅：見ていなければ、倒れた瞬間も手帳に階と相手は残らない',!!a0.deathPending&&!(a0.chron||[]).some(c=>/で.+に倒れる$/.test(c.t)),'倒れた直後',`${a0.deathPending} ${(a0.chron||[]).map(c=>c.t).join('/')}`);
+      check('全滅：見ていなければ、倒れた瞬間も手帳に階と相手は残らない',!!a0.deathPending&&!(a0.chron||[]).some(c=>/で.+に倒れる$/.test(ct(c))),'倒れた直後',`${a0.deathPending} ${(a0.chron||[]).map(c=>ct(c)).join('/')}`);
       E.wipe(S,p,'オーク');
-      const told=()=>p.members.some(id=>(S.adv[id].chron||[]).some(c=>c.t.startsWith('全滅した。')||/で.+に倒れる$/.test(c.t)));
+      const told=()=>p.members.some(id=>(S.adv[id].chron||[]).some(c=>ct(c).startsWith('全滅した。')||/で.+に倒れる$/.test(ct(c))));
       check('全滅：癒し手の呪文が尽きた一文は、毒より先で決まり、見ていなければ手帳にも知らせにもその場では出ない',p.cause==='癒し手の呪文が尽きていた'&&!told()&&!wC(p)&&S.news.length===n0&&p.dueAt===S.tick+E.overdueSteps(p)-40&&S.v===SAVE_V,'僧侶MP0・毒あり・40歩',`${p.cause} 手帳${told()} 予定${p.dueAt}`);
       Object.values(S.parties).forEach(q=>{if(q!==p){q.state='town';q.rest=99;}});
       check('全滅：予定帰還の刻までは隠れていて、まだ戻らないとも出ない',E.wipeHidden(p)&&!E.partyOverdue(S,p),'全滅直後',`隠れ${E.wipeHidden(p)} 遅れ${E.partyOverdue(S,p)}`);
@@ -903,7 +915,7 @@ function checkAffinity(){
         check('全滅：坑道で倒れたときも、依頼額は出発のときの坑道の石碑で決まる',p.mineReach===top+14&&bf===top+6,'坑道B6Fの石碑から出発し、坑道B14Fで倒れた',`最深${p.mineReach} 依頼階${bf}`);}
       // 見ていれば、その場で死因が手帳と知らせに出て、消息不明の期間はない
       const {E:E2,S:S2,p:p2}=scene();prep(E2,S2,p2,{healer:true,mp:0,watch:true});E2.wipe(S2,p2,'オーク');
-      const told2=p2.members.every(id=>(S2.adv[id].chron||[]).some(c=>c.tk===S2.tick&&c.t==='全滅した。癒し手の呪文が尽きていた'));
+      const told2=p2.members.every(id=>(S2.adv[id].chron||[]).some(c=>c.tk===S2.tick&&ct(c)==='全滅した。癒し手の呪文が尽きていた'));
       check('全滅：水晶で見ていれば、その場で手帳に一文が残り、隠れない',told2&&wC(p2)&&wS(p2)&&wA(p2)&&!E2.wipeHidden(p2),'見ていた',`手帳${told2}`);
       // 見ていた全滅の遺体が届いても、死因と階は繰り返さない
       const n20=S2.news.length;E2.corpsesHome(S2,p2,'巡回隊が見つけ、',null);
@@ -920,8 +932,8 @@ function checkAffinity(){
       check('見え方：まだ知れていない全滅の札に、全滅・消息不明・まだ戻らないは出ない',!/全滅|消息不明|まだ戻らない/.test(v.card[0]),'伏せ中',v.card[0]);
       check('見え方：まだ知れていない全滅の仲間は、名簿で探索中、体力は全滅の前のまま',ms.every(a=>E.shownStatus(S,a)==='party')&&ms.map(a=>E.hpView(S,a).label).join(',')===hpB.join(','),'伏せ中',ms.map(a=>E.shownStatus(S,a)+':'+E.hpView(S,a).label).join(','));
       check('見え方：まだ知れていない全滅の水晶の記録に、倒れた行と全滅の行は出ない',v.log.length>0&&!v.log.some(l=>l.k==='death'||/しんだ|ぜんめつ|たおれ/.test(l.t)),'伏せ中',v.log.slice(-3).map(l=>l.t).join(' / '));
-      {const a=ms[0];E.chron(S,a,'B9Fでオークに倒れる','fell');E.chron(S,a,'全滅した。オークに倒れた','wipe');const last=a.chron.slice(-2);
-        check('見え方：まだ知れていない全滅の手帳に、倒れた階と相手・全滅の一文は出ない',last.every(c=>!E.chronShown(S,a,c)),'伏せ中',last.map(c=>c.t).join(' / '));a.chron.splice(-2);}
+      {const a=ms[0];E.chron(S,a,'fell',{f:9,by:'オーク'});E.chron(S,a,'wipe',{cause:'オークに倒れた'});const last=a.chron.slice(-2);
+        check('見え方：まだ知れていない全滅の手帳に、倒れた階と相手・全滅の一文は出ない',last.every(c=>!E.chronShown(S,a,c)),'伏せ中',last.map(c=>ct(c)).join(' / '));a.chron.splice(-2);}
       S.tick=p.dueAt;
       check('見え方：予定帰還の刻を過ぎると、伏せたまま札に「まだ戻らない」が出る',E.viewOf(S,p).hidden&&E.viewOf(S,p).card[0].includes('まだ戻らない'),'予定の刻',E.viewOf(S,p).card[0]);
       S.tick=p.dueAt+E.MISSING_GRACE-1;E.tick(S);
@@ -940,7 +952,7 @@ function checkAffinity(){
       check('全滅：癒し手がいなければ、その一文を水晶の知らせに添える',p.cause==='癒し手がひとりもいなかった'&&n.includes('癒し手がひとりもいなかった')&&n.includes('オークに倒れる'),'戦士だけ',n);}
     {const {E,S,p}=scene();prep(E,S,p,{healer:true,mp:4,watch:true});E.wipe(S,p,'オーク');
       const n=S.news.slice(-1)[0].t;
-      const chron=p.members.every(id=>(S.adv[id].chron||[]).some(c=>c.t==='全滅した。オークに倒れた'));
+      const chron=p.members.every(id=>(S.adv[id].chron||[]).some(c=>ct(c)==='全滅した。オークに倒れた'));
       check('全滅：倒した相手の繰り返しは、水晶の知らせに重ねない',p.cause==='オークに倒れた'&&n.includes('オークに倒れる')&&!n.includes('オークに倒れた')&&chron,'僧侶MP4・B4F',n);}
     {const {E,S,p}=scene();prep(E,S,p,{poison:['誰か']});E.wipe(S,p,'オーク');
       check('全滅：毒が抜けない一文は、癒し手不在より先',p.cause==='毒が抜けないまま倒れた','毒あり・戦士だけ',p.cause);}
@@ -959,7 +971,7 @@ function checkAffinity(){
       const F=load(1,0.99),T=F.newState(),q=Object.values(T.parties).find(x=>x.tav==='ours'),h=T.adv[q.leader];
       q.state='explore';q.floor=2;q.enemies=null;q.members.forEach(id=>{const m=T.adv[id];m.hp=m.mhp;m.status='party';m.pers='普通';m.quirk='無口';m.fear=null;m.traits=[];m.cls='warrior';});
       const run=(mut)=>{mut();const e={id:1,k:'kitten',n:'迷い込んだ子猫',f:2,hero:h.id};F.errandEvent(T,q,e);
-        return {news:T.news.slice(-1)[0].t,chron:(h.chron||[]).slice(-1)[0].t};};
+        return {news:T.news.slice(-1)[0].t,chron:ct((h.chron||[]).slice(-1)[0])};};
       const none=run(()=>{});
       check('依頼：向かなかった一文は、知らせと手帳に残る',none.news.includes('心得のない者に「迷い込んだ子猫」は向かなかった')&&none.chron===`店主に回された「迷い込んだ子猫」をしくじる。心得のない者に「迷い込んだ子猫」は向かなかった`,'手がかりなし',none.news+' / '+none.chron);
       const scared=run(()=>{h.fear='獣';});
@@ -992,7 +1004,7 @@ function checkLetters(){
     S.tick=a.nextLetter;E.letterTick(S);
     const news=S.news.filter(n=>n.k==='letter');
     const gift=b.eq&&b.eq.acc;
-    check('便り：1通目は便りの知らせになり、絆の深い者へ小さな品が添う',news.length===1&&news[0].t.startsWith('【便り】')&&news[0].t.includes('幼なじみ')&&news[0].t.includes('添えてあった')&&gift&&gift.ac===1&&gift.slot==='acc'&&String(gift.lore).includes('故郷から送った')&&(a.chron||[]).some(c=>c.t==='黒猫亭に便りを寄越す')&&S.taverns.ours.gold===g1&&!news[0].t.includes('為替')&&!news[0].t.includes('紹介状'),
+    check('便り：1通目は便りの知らせになり、絆の深い者へ小さな品が添う',news.length===1&&news[0].t.startsWith('【便り】')&&news[0].t.includes('幼なじみ')&&news[0].t.includes('添えてあった')&&gift&&gift.ac===1&&gift.slot==='acc'&&String(gift.lore).includes('故郷から送った')&&(a.chron||[]).some(c=>ct(c)==='黒猫亭に便りを寄越す')&&S.taverns.ours.gold===g1&&!news[0].t.includes('為替')&&!news[0].t.includes('紹介状'),
       '1通目',news.map(n=>n.t).join(' / ')+` 品${gift&&gift.n}`);
     // 店の金は、去るときに置いていった恩だけで、便りでは増えない
     S.tick=a.nextLetter;E.letterTick(S);
@@ -1073,7 +1085,7 @@ function checkLetters(){
     m.catch='酒は命より重い';p.catch='別の口癖';p.status='idle';p.tav=m.tav;m.trips=1;m.status='idle';
     m.pastDreams=[{k:'mentor',pupil:p.name,t:'駆け出しを一人前に育てたい',tk:1}];
     E.retire(S,m,'故郷へ帰る');
-    check('次の世代：育てた相手は、去った者の口癖を受け継ぐ',p.catch===m.catch&&(p.chron||[]).some(c=>c.t.includes('口癖')&&c.t.includes(m.catch))&&!Object.values(S.adv).some(x=>x.kin&&x.kin.id===m.id),'口癖',p.catch);}
+    check('次の世代：育てた相手は、去った者の口癖を受け継ぐ',p.catch===m.catch&&(p.chron||[]).some(c=>ct(c).includes('口癖')&&ct(c).includes(m.catch))&&!Object.values(S.adv).some(x=>x.kin&&x.kin.id===m.id),'口癖',p.catch);}
   // 子の予定の日に40%を外すと、子は来ない
   {const E=load(8,0.5),S=E.newState();const a=oursOf(S)[0];a.trips=5;a.favor=0;a.status='idle';a.party=null;E.retire(S,a,'所帯を持つ');
     const due=a.kinDue;if(due){S.taverns.ours.seats=E.seatsUsed(S,'ours')+2;S.tick=due.tk;E.kinTick(S);} 
@@ -1113,7 +1125,7 @@ function checkLetters(){
     const told=S.news.slice(n0).map(n=>n.t).join(' / ');
     check('次の世代：別の者に討たれた仇の夢は、酒場にいるあいだにかなう',!k.dream&&(k.pastDreams||[]).some(x=>x.k==='kinvenge')&&told.includes('別の者に討たれていた')&&!told.includes('を討った'),'答え合わせ',told);
     const seenRec=(k.pastDreams||[]).find(x=>x.k==='kinvenge');const seenChron=(k.chron||[]).slice(-1)[0];
-    check('次の世代：別の者に討たれた仇の夢は、見届けた夢として残る',!!seenRec&&seenRec.seen===1&&seenChron&&String(seenChron.t).startsWith('仇の最期を見届ける')&&!String(seenChron.t).includes('夢がかなう'),'見届けた',seenChron&&seenChron.t);
+    check('次の世代：別の者に討たれた仇の夢は、見届けた夢として残る',!!seenRec&&seenRec.seen===1&&seenChron&&ct(seenChron).startsWith('仇の最期を見届ける')&&!ct(seenChron).includes('夢がかなう'),'見届けた',seenChron&&ct(seenChron));
     const oak={k:'kinvenge',m:'オーク',elder:'兄'};
     check('次の世代：何度でも出る魔物は、自分が討つまでは夢がかなわない',!E.DREAMS.kinvenge.ok(S,k,oak)&&E.DREAMS.kinvenge.prog(k,oak,S)==='これまでの最深 B2F','オーク',E.DREAMS.kinvenge.prog(k,oak,S));}
 }
@@ -1162,9 +1174,9 @@ function runSeed(seed){
     check('一行の状態：表にない移り変わりは起きない',E.PHASE_BAD.length===0,at,()=>JSON.stringify(E.PHASE_BAD[0]));
     // 職業と種族の内部の鍵（#195）が、遊ぶ人の読む文（知らせ・手帳・土産話・ざわめき）に出ない。100刻ごとに見る
     if(S.tick%100===0){const KEYRE=/\b(warrior|samurai|thief|priest|mage|paladin|berserker|kensei|ninja|bishop|sorcerer|dragoon|bard|alchemist|tamer|human|elf|dwarf|hobbit)\b/;
-      const leak=S.news.find(x=>KEYRE.test(x.t))||(S.tales||[]).find(x=>KEYRE.test(x.t))||advs.flatMap(a=>a.chron||[]).find(c=>KEYRE.test(c.t))||(S.chatter||[]).find(c=>KEYRE.test(JSON.stringify(c)));
+      const leak=S.news.find(x=>KEYRE.test(ct(x)))||(S.tales||[]).find(x=>KEYRE.test(ct(x)))||advs.flatMap(a=>a.chron||[]).find(c=>KEYRE.test(ct(c)))||(S.chatter||[]).find(c=>KEYRE.test(JSON.stringify(c)));
       check('職業と種族：内部の鍵は、知らせ・手帳・土産話・ざわめきに出ない',!leak,at,()=>JSON.stringify(leak));
-      const un=untagged(S);check('種類：判定に使う手帳と知らせには、種類が付いている',!un.length,at,()=>un.slice(0,3).join('、'));}
+      const un=untagged(S);check('種類：手帳の記録はみな種類で持ち、判定に使う種類と印が、作った文と合っている。まとめ直す知らせには中身がある',!un.length,at,()=>un.slice(0,3).join('、'));}
     {const bad=parties.find(p=>(p.state==='wiped')!==!!E.WIPE[p.wipe]||['announced','knownWiped','retrieved','causeTold'].some(k=>k in p));
       check('一行の状態：全滅の中の状態は全滅しているときだけあり、古いフラグは残らない',!bad,at,()=>bad&&`${bad.name} ${bad.state} ${bad.wipe}`);}
 
@@ -1205,7 +1217,7 @@ function runSeed(seed){
       // 「黒竜」：黒竜を一度も倒していなければ、B29Fより下には降りられない
       if(p.state!=='wiped'&&p.state!=='town')check('黒竜：倒すまではB29Fより下に降りられない',p.floor<=E.DRAGON_F||(S.dragon&&S.dragon.kills>0),at,()=>`${p.name} B${p.floor}F`);
       if(p.state==='wiped'&&prevState[p.id]!=='wiped'){
-        const cause=p.cause;const told=(p.members||[]).some(id=>{const a=S.adv[id];return a&&(a.chron||[]).some(c=>c.tk===S.tick&&c.t===`全滅した。${cause}`);});
+        const cause=p.cause;const told=(p.members||[]).some(id=>{const a=S.adv[id];return a&&(a.chron||[]).some(c=>c.tk===S.tick&&ct(c)===`全滅した。${cause}`);});
         check('全滅：原因の一文は、水晶で見ていればその場で手帳に残り、見ていなければ遺体が着くまで残らない',!!cause&&(wS(p)?told:!told)&&wC(p)===wS(p)&&p.dueAt>=S.tick&&p.dueAt<=S.tick+E.overdueSteps(p),at,()=>`${p.name} ${cause||'なし'} 見ていた${wS(p)} 手帳${told} 予定${p.dueAt}`);
       }
       if(E.wipeHidden(p))check('全滅：まだ知れていない全滅は、予定帰還の刻から MISSING_GRACE 刻より前',S.tick<(p.dueAt||0)+E.MISSING_GRACE,at,()=>`${p.name} 予定${p.dueAt} いま${S.tick}`);
@@ -1213,7 +1225,7 @@ function runSeed(seed){
       // 見ていない黒猫亭の全滅：この回の倒れた記録と全滅の一文は、遺体が着くまで手帳に残らない（以前の回の記録は残ってよい）
       if(p.tav==='ours'&&p.state==='wiped'&&!wS(p)&&!wC(p)){
         const from=p.wipedAt-Math.max(0,p.steps||0)-5;
-        const leak=p.members.some(id=>{const a=S.adv[id];if(!a)return false;return (a.chron||[]).some(c=>c.tk>=from&&(/で.+に倒れる$/.test(c.t)||c.t.startsWith('全滅した。')));});
+        const leak=p.members.some(id=>{const a=S.adv[id];if(!a)return false;return (a.chron||[]).some(c=>c.tk>=from&&(/で.+に倒れる$/.test(ct(c))||ct(c).startsWith('全滅した。')));});
         check('全滅：見ていなければ、遺体が着くまで手帳に階・相手・全滅の一文は残らない',!leak,at,()=>`${p.name} 漏れ`);
       }
       if(p.state==='wiped'&&wS(p)&&owedSeen[p.id]!=null)check('一行の借り：水晶で最期を見ていた一行には利息がつかない',(p.owed||0)===owedSeen[p.id],at,()=>`${p.name} 借り${owedSeen[p.id]}→${p.owed}`);
@@ -1224,11 +1236,11 @@ function runSeed(seed){
     // 60日を過ぎて同じリーダーの一行に加わるときは、手帳に「（リーダー）とよりを戻し」と残る
     for(const a of advs){const was=inParty[a.id],q=a.party!=null&&S.parties[a.party],L=q&&S.adv[q.leader];
       if(was&&a.party!==was.party){const W=S.adv[was.leader];
-        if(W&&W!==a&&(a.chron||[]).some(c=>c.tk===S.tick&&c.t.startsWith(`リーダーの${W.name}と揉めて、`)))quitAt[a.id+'-'+W.id]=S.tick;}
+        if(W&&W!==a&&(a.chron||[]).some(c=>c.tk===S.tick&&ct(c).startsWith(`リーダーの${W.name}と揉めて、`)))quitAt[a.id+'-'+W.id]=S.tick;}
       if(q&&L&&L!==a&&(!was||was.party!==a.party)){const k=a.id+'-'+L.id;
         if(quitAt[k]!=null){
           check('仲間割れ：口論で抜けた者は、60日のあいだ同じリーダーの一行に加わらない',S.tick-quitAt[k]>=60*E.TICKS_PER_DAY,at,()=>`${a.name}が${L.name}の${q.name}に、抜けてから${Math.floor((S.tick-quitAt[k])/E.TICKS_PER_DAY)}日で加わる`);
-          check('仲間割れ：抜けたリーダーの一行にまた加わるときは、手帳に「よりを戻し」と残る',(a.chron||[]).some(c=>c.tk===S.tick&&c.t.startsWith(`${L.name}とよりを戻し、${q.name}に`)),at,()=>`${a.name}（${L.name}の${q.name}）`);
+          check('仲間割れ：抜けたリーダーの一行にまた加わるときは、手帳に「よりを戻し」と残る',(a.chron||[]).some(c=>c.tk===S.tick&&ct(c).startsWith(`${L.name}とよりを戻し、${q.name}に`)),at,()=>`${a.name}（${L.name}の${q.name}）`);
           delete quitAt[k];}}
       inParty[a.id]=q?{party:a.party,leader:q.leader}:null;}
     for(const n of S.news){
@@ -1249,7 +1261,7 @@ function runSeed(seed){
         check('全滅：消息不明の知らせには死因も階も入らない',!!hit&&wA(hit)&&!/B\d+F/.test(n.t)&&!(hit.cause&&n.t.includes(hit.cause)),at,()=>n.t);
       }
       if(n.t.includes('をしくじった。')||n.t.includes('をしくじり、')){
-        const said=advs.some(a=>(a.chron||[]).some(c=>c.tk===S.tick&&typeof c.t==='string'&&c.t.includes('をしくじる。')));
+        const said=advs.some(a=>(a.chron||[]).some(c=>c.tk===S.tick&&typeof ct(c)==='string'&&ct(c).includes('をしくじる。')));
         check('依頼：しくじった理由が手帳に残る',said,at,n.t);
       }
     }
@@ -1531,7 +1543,7 @@ const OPENING_TIE=['空き家の前の住人の娘','空き家の前の住人の
 const STELE=['B6Fの転移の石碑に、一度触れてみたい','B6Fまで潜って、地上の店に戻ってみたい'];
 function openingOf(S){return Object.values(S.adv).filter(a=>a.opening).sort((a,b)=>a.id-b.id);}
 function tieOf(a){const i=a.bg.lastIndexOf('。');return i>=0?a.bg.slice(i+1):a.bg;}
-function dreamLine(a){const c=(a.chron||[]).find(x=>x.t&&x.t.includes('夢は「'));const m=c&&c.t.match(/夢は「([^」]*)」/);return m?m[1]:'';}
+function dreamLine(a){const c=(a.chron||[]).find(x=>ct(x)&&ct(x).includes('夢は「'));const m=c&&ct(c).match(/夢は「([^」]*)」/);return m?m[1]:'';}
 // 「冒険者の手帳」「記念碑」：黒猫亭の帳面。その日より前の記録だけで、両方の店の冒険者を数え、数は漢数字の言葉で書く
 function checkLedger(){
   const E=load(1),D=E.TICKS_PER_DAY;
@@ -1598,7 +1610,7 @@ function checkOpening(){
     check('開店の顔ぶれ：名前は種ごとに違い、主人の名は使わない',cast.every(a=>a.name!=='ロドリック'),`種${seed}`,cast.map(a=>a.name).join('・'));
     check('開店の顔ぶれ：一行の中でレベルが高い2人が、別の文面の短い夢を持つ',holders.length===2&&holders.map(a=>a.id).join()===ranked.slice(0,2).map(a=>a.id).sort((a,b)=>S.adv[a].dream.vi-S.adv[b].dream.vi).join()&&holders.map(dreamLine).join('|')===STELE.join('|')&&party.members.includes(holders[0].id)&&party.members.includes(holders[1].id),`種${seed}`,holders.map(a=>`${a.name}Lv${a.lvl} ${dreamLine(a)}`).join(' / '));
     check('開店の顔ぶれ：最初の客たちの知らせが、開店の知らせの次に出る',!!guests&&guests.k==='info'&&guestAt===opened+1&&cast.every(a=>guests.t.includes(a.origin+'出身の'+a.name))&&guests.t.endsWith('が、開店の日から黒猫亭にいる。'),`種${seed}`,guests&&guests.t);
-    check('開店の顔ぶれ：手帳の来店の記録に、生い立ちと夢が残る',cast.every(a=>{const door=(a.chron||[]).find(c=>c.t&&c.t.includes('扉をくぐる'));return !!(door&&door.t.includes(tieOf(a))&&door.t.includes('夢は「'+dreamLine(a)+'」'));}),`種${seed}`,()=>cast.filter(a=>{const door=(a.chron||[]).find(c=>c.t&&c.t.includes('扉をくぐる'));return !(door&&door.t.includes(tieOf(a))&&door.t.includes('夢は「'+dreamLine(a)+'」'));}).map(a=>`${a.name}：${(a.chron.find(c=>c.t&&c.t.includes('扉をくぐる'))||{}).t||'記録なし'}`).join(' / '));
+    check('開店の顔ぶれ：手帳の来店の記録に、生い立ちと夢が残る',cast.every(a=>{const door=(a.chron||[]).find(c=>ct(c)&&ct(c).includes('扉をくぐる'));return !!(door&&ct(door).includes(tieOf(a))&&ct(door).includes('夢は「'+dreamLine(a)+'」'));}),`種${seed}`,()=>cast.filter(a=>{const door=(a.chron||[]).find(c=>ct(c)&&ct(c).includes('扉をくぐる'));return !(door&&ct(door).includes(tieOf(a))&&ct(door).includes('夢は「'+dreamLine(a)+'」'));}).map(a=>`${a.name}：${(a.chron.find(c=>ct(c)&&ct(c).includes('扉をくぐる'))||{}).t||'記録なし'}`).join(' / '));
     check('開店の顔ぶれ：まだ潜っていない短い夢の進みはB0Fと出ない',holders.every(a=>(a.deepest||0)===0&&E.DREAMS.stele.prog(a)==='まだ迷宮に潜っていない'),`種${seed}`,holders.map(a=>E.DREAMS.stele.prog(a)).join(' / '));
     check('開店の直後：階段を降りる前なので、個人の最深到達は0',Object.values(S.adv).every(a=>(a.deepest||0)===0),`種${seed}`,Object.values(S.adv).filter(a=>a.deepest).map(a=>`${a.name}${a.deepest}`).slice(0,4).join(' / '));
     check('開店の直後：まだ最深のない客の手帳の最深は―',holders.every(a=>E.deepNow(a.deepest)==='―'),`種${seed}`,holders.map(a=>E.deepNow(a.deepest)).join(' / '));
@@ -1671,9 +1683,9 @@ function checkCareer(){
   check('経歴：来た者の生い立ちが性別と食い違わない',!lived.length,'8種の開店',lived.slice(0,4).join(' / ')||'合う');
   {const E3=load(3),S=E3.newState(),a=Object.values(S.adv).find(x=>x.tav==='ours');
     a.sex='女';a.bg='辺境の農家の三男坊。空き家の前の住人の息子';
-    const door=a.chron.find(c=>c.t&&c.t.includes('扉をくぐる'));const before=door&&door.t;
+    const door=a.chron.find(c=>ct(c)&&ct(c).includes('扉をくぐる'));const before=door&&ct(door);
     S.v=23;E3.migrate(S);
-    check('経歴：この決まりより前の記録は、食い違った文のまま残る',S.v===SAVE_V&&a.bg==='辺境の農家の三男坊。空き家の前の住人の息子'&&door&&door.t===before,'版23',`版${S.v} ${a.bg}`);}
+    check('経歴：この決まりより前の記録は、食い違った文のまま残る',S.v===SAVE_V&&a.bg==='辺境の農家の三男坊。空き家の前の住人の息子'&&door&&ct(door)===before,'版23',`版${S.v} ${a.bg}`);}
 }
 
 // 「来店時の年齢」：年長枠の割合はレベルで決まり、枠の中は若い側に寄る。55歳以上の伸びはこれまでどおり
@@ -2027,7 +2039,7 @@ function checkHighSpells(){
     check('呪文：坑道では、坑道の石碑まで運ぶ',k.p.floor===k.E.MINE_STONES[1],'坑道',k.E.FN(k.p.floor));}
   // 覚えたときの一言は、はじめての一度だけ
   {const r=scene(.5,'bishop',57,30,'オーク',1);r.a.chron=[];r.E.learnHi(r.S,r.p,r.a);r.a.lvl=55;r.E.learnHi(r.S,r.p,r.a);r.a.lvl=57;r.E.learnHi(r.S,r.p,r.a);
-    const got=r.a.chron.map(c=>c.t).join('、');
+    const got=r.a.chron.map(c=>ct(c)).join('、');
     check('呪文：高い呪文を覚えたら、一度だけ手帳に残す',got==='新しい呪文キヨメを覚える、新しい呪文ゴウエンを覚える、新しい呪文タマヨビを覚える、新しい呪文オリハライを覚える、新しい呪文ホシオトシを覚える、新しい呪文イシガタメを覚える、新しい呪文ウツシエを覚える、新しい呪文イシワタリを覚える','司教Lv57',got);}
 }
 
@@ -2045,22 +2057,26 @@ function checkKinds(){
     S.news=[];E.news(S,'噂：銀の杯亭の戊がLv10に達した。','rumor');E.noteLevel(S,{tav:'rival',name:'己',lvl:10});
     check('種類：中身のない知らせは、文が同じ形でもまとめない',S.news.length===2,'種類のない噂',JSON.stringify(S.news));}
   {const S=E.newState();const a=Object.values(S.adv).find(x=>x.tav==='ours');
-    a.chron=[{tk:0,t:X,k:'gate'},{tk:1,t:X,k:'ashBack'},{tk:2,t:X,k:'ashBack'},{tk:3,t:'灰の中からよみがえる'},{tk:4,t:'B9Fで門番の黒竜を討つ'}];a.revived=0;
+    a.chron=[{tk:0,kind:'gate'},{tk:1,kind:'ashBack'},{tk:2,kind:'ashBack'},{tk:3,t:'灰の中からよみがえる'},{tk:4,t:'B9Fで門番の黒竜を討つ'}];a.revived=0;
     const L=E.lifeLines(S,a,{k:'retired',tk:S.tick,why:'故郷へ帰る'}).map(x=>typeof x==='string'?x:x.t||JSON.stringify(x)).join(' / ');
-    check('種類：ひと幕の門番と灰から戻った回数は、手帳の種類で数える',L.includes('門番の黒竜を討った一行にいた。')&&L.includes('灰の中から2回よみがえった。'),'文を書き換えた手帳',L);
+    check('種類：ひと幕の門番と灰から戻った回数は、手帳の種類で数える',L.includes('門番の黒竜を討った一行にいた。')&&L.includes('灰の中から2回よみがえった。'),'種類の記録',L);
     a.chron=[{tk:0,t:'B9Fで門番の黒竜を討つ'},{tk:1,t:'灰の中からよみがえる'}];
     const L2=E.lifeLines(S,a,{k:'retired',tk:S.tick,why:'故郷へ帰る'}).map(x=>typeof x==='string'?x:x.t||JSON.stringify(x)).join(' / ');
     check('種類：種類のない手帳の文は、同じ文でも数えない',!L2.includes('門番の黒竜')&&!L2.includes('灰の中から'),'種類のない手帳',L2);}
   {const S=E.newState();Object.values(S.adv).forEach(b=>{b.chron=[];});const a=Object.values(S.adv).find(x=>x.tav==='ours');
-    a.chron=[{tk:77,t:X,k:'deep',f:6},{tk:88,t:'はじめてB21Fに足を踏み入れる'}];
-    check('種類：覚え書きの石碑の日付は、手帳の種類と階で引く',E.memoWhen(S,'stone')===77&&E.memoWhen(S,'stone21')==null,'文を書き換えた手帳',`${E.memoWhen(S,'stone')} ${E.memoWhen(S,'stone21')}`);}
+    a.chron=[{tk:77,kind:'deep',args:{f:6}},{tk:88,t:'はじめてB21Fに足を踏み入れる'}];
+    check('種類：覚え書きの石碑の日付は、手帳の種類と階で引く',E.memoWhen(S,'stone')===77&&E.memoWhen(S,'stone21')==null,'種類の記録',`${E.memoWhen(S,'stone')} ${E.memoWhen(S,'stone21')}`);}
+  // 手帳の記録は種類と中身で持ち、文は見せるときに作る。中身を変えれば文が変わり、文だけを持つ古い記録はそのまま出す
+  {const S=E.newState();const a=Object.values(S.adv).find(x=>x.tav==='ours');a.chron=[];S.tick=3;
+    E.chron(S,a,'fell',{f:7,by:'オーク'});const c=a.chron[0];const t1=E.chronText(c);c.args.by='コボルド';const t2=E.chronText(c);
+    check('種類：手帳の記録は {tk,kind,args,hidden} で持ち、文は持たず、見せるときに作る',JSON.stringify(c)==='{"tk":3,"kind":"fell","args":{"f":7,"by":"コボルド"},"hidden":"death"}'&&t1==='B7Fでオークに倒れる'&&t2==='B7Fでコボルドに倒れる'&&E.chronText({tk:1,t:X})===X,'倒れた記録',`${JSON.stringify(c)} ${t1} ${t2}`);}
   {const a={letters:[{tk:5,n:1,line:X},{tk:9,n:2,line:X,child:1}]};
     check('種類：子が生まれた刻は、便りの印で引く',E.childBornOf(a)===9&&E.childBornOf({letters:[{tk:9,n:2,line:'子が生まれた'}]})==null,'文を書き換えた便り',`${E.childBornOf(a)}`);}
   {const S=E.newState();const p=Object.values(S.parties).find(x=>x.tav==='ours');const a=S.adv[p.members[0]];
     Object.values(S.parties).forEach(x=>{x.state='town';});p.members.forEach(id=>{const b=S.adv[id];b.status='missing';b.party=p.id;});
     Object.assign(p,{state:'wiped',wipe:'hidden',wipedAt:S.tick,floor:5,killer:'オーク',cause:'オークに倒れた',dueAt:S.tick+100});
     const shown=c=>E.chronShown(S,a,c);
-    check('種類：伏せ中の手帳で隠す記録は、文でなく種類で決まる',!shown({tk:0,t:X,k:'fell'})&&!shown({tk:0,t:X,k:'wipe'})&&!shown({tk:0,t:X,k:'yomiAsh'})&&!shown({tk:0,t:X,k:'carried'})&&!shown({tk:0,t:X,k:'looted'})&&shown({tk:0,t:'B5Fでオークに倒れる'})&&shown({tk:0,t:X,k:'gate'}),'伏せ中の全滅','');}
+    check('種類：伏せ中の手帳で隠す記録は、文でなく記録の hidden で決まる',!shown({tk:0,kind:'fell',args:{f:5,by:'オーク'},hidden:'death'})&&!shown({tk:0,t:X,kind:'wipe',hidden:'death'})&&!shown({tk:0,kind:'carried',args:{p:'甲'},hidden:'body'})&&shown({tk:0,t:'B5Fでオークに倒れる'})&&shown({tk:0,kind:'gate'}),'伏せ中の全滅','');}
 }
 function checkLevelNews(){
   const E=load(1),S=E.newState(),D=E.TICKS_PER_DAY;
@@ -2142,7 +2158,7 @@ function checkMissing(){
     p.members.forEach(id=>{const a=S.adv[id];a.status='missing';a.hp=0;a.party=p.id;});
     Object.assign(p,{state:'wiped',wipe:opt.known?'seen':opt.announced?'missing':'hidden',wipedAt:S.tick,floor,killer:'オーク',cause:'オークに倒れた',dueAt:S.tick+100,owed:opt.owed||0});
     return {E,S,p,q};};
-  const told=(S,p)=>p.members.every(id=>(S.adv[id].chron||[]).some(c=>c.t==='全滅した。オークに倒れた'));
+  const told=(S,p)=>p.members.every(id=>(S.adv[id].chron||[]).some(c=>ct(c)==='全滅した。オークに倒れた'));
   // 生還した一行が、同じ探索先で全滅した階以上まで潜っていれば、その帰還の刻に遺体が届く
   {const {E,S,p,q}=wipedScene(1,5);q.trip=Object.assign(q.trip||{},{deep:4});E.deliverCorpses(S,q);
     check('発見：全滅した階より浅くしか潜っていない一行では、遺体は届かない',!wF(p)&&!told(S,p)&&p.members.every(id=>S.adv[id].status==='missing'),'B4Fまで',`${wF(p)}`);
@@ -2202,11 +2218,11 @@ function checkMissing(){
       Object.assign(p,{state:'explore',floor:E.YOMI_F,enemies:null});p.trip=p.trip||{};p.trip.deaths=[];
       const [c,d]=p.members.map(id=>S.adv[id]);p.members.forEach(id=>{const a=S.adv[id];a.status='party';a.hp=a.mhp;});
       c.cls='bishop';c.lvl=30;c.mp=20;d.hp=0;E.dieInDungeon(S,p,d,'オーク');const n0=(d.chron||[]).length;E.tryYomi(S,p);
-      const add=(d.chron||[]).slice(n0).map(x=>x.t);
+      const add=(d.chron||[]).slice(n0).map(x=>ct(x));
       if(d.hp>0){ok++;check('ヨミガエリ：成功すると、保留していた倒れた記録が先に手帳に残り、そのあと息を吹き返す',!d.deathPending&&add.length===2&&/で.+に倒れる$/.test(add[0])&&add[1].includes('息を吹き返す'),`種${seed}`,add.join(' / '));}
       else{ng++;check('ヨミガエリ：失敗して灰になっても、黒猫亭では手帳に残らず、倒れた記録と一緒に保留される',d.deathPending&&!!d.ashPending&&add.length===0,`種${seed}`,add.join(' / '));
         // 生還したら、倒れた記録、灰になった一文の順で残る
-        p.state='return';p.floor=1;p.loot=0;E.arrive(S,p);const back=(d.chron||[]).slice(n0).map(x=>x.t);
+        p.state='return';p.floor=1;p.loot=0;E.arrive(S,p);const back=(d.chron||[]).slice(n0).map(x=>ct(x));
         check('ヨミガエリ：灰になった者が生還の一行と街に着くと、倒れた記録と灰の一文がその順で残る',!d.deathPending&&!d.ashPending&&/で.+に倒れる$/.test(back[0])&&/でヨミガエリに失敗し、灰になる$/.test(back[1]),`種${seed}`,back.join(' / '));}}
     check('ヨミガエリ：成功と失敗の両方を試した',ok>0&&ng>0,'60種',`成功${ok} 失敗${ng}`);}
   // 看板を継ぐかどうか。性格の傾きに絆・恩・素質・前のリーダーの去り方・借りを足し引きし、番号で決まる揺れを足す。乱数は引かない
@@ -2320,13 +2336,13 @@ function checkQuarrel(){
     if(m){toTown(S,p);E.stepParty(S,p);
       check('仲間割れ：口論で抜けた者は、60日のあいだ同じリーダーの空いた席に誘われない',m.party!==p.id,'抜けた直後',()=>`${m.name} 一行${m.party}`);
       S.tick+=60*D;toTown(S,p);E.stepParty(S,p);
-      check('仲間割れ：60日を過ぎると、同じリーダーの一行に戻り、手帳に「よりを戻し」と残る',m.party===p.id&&(m.chron||[]).at(-1).t===`${L.name}とよりを戻し、${p.name}に戻る`,'60日後',()=>`${m.name} 一行${m.party} ${(m.chron||[]).at(-1).t}`);
+      check('仲間割れ：60日を過ぎると、同じリーダーの一行に戻り、手帳に「よりを戻し」と残る',m.party===p.id&&ct((m.chron||[]).at(-1))===`${L.name}とよりを戻し、${p.name}に戻る`,'60日後',()=>`${m.name} 一行${m.party} ${ct((m.chron||[]).at(-1))}`);
       check('仲間割れ：よりを戻したあとは、抜けた記憶で誘う順を後ろに回さない',!E.quitMemo(S,m,L)&&E.pullOf(S,L,m)===((E.bondOf(S,L,m)||{}).n||0),'60日後',()=>E.pullOf(S,L,m));}}
   for(const [days,joins] of [[0,false],[60,true]]){const {E,S,p,L,m}=scene();if(!m)continue;
     const mem=Object.values(S.adv).filter(a=>a.party===p.id||a===m);mem.forEach(a=>{a.party=null;a.status='idle';});delete S.parties[p.id];S.tick+=days*D;
     E.formParties(S,'ours',true,mem);const q=Object.values(S.parties).find(x=>x.tav==='ours'&&x.leader===L.id);
     check(joins?'仲間割れ：60日を過ぎれば、同じリーダーが新しく組む一行に加わり、手帳に「よりを戻し」と残る':'仲間割れ：口論で抜けた者は、60日のあいだ同じリーダーが新しく組む一行にも加わらない',
-      !!q&&(m.party===q.id)===joins&&(!joins||(m.chron||[]).at(-1).t===`${L.name}とよりを戻し、${q.name}に加わる`),`${days}日後`,()=>`${m.name} 一行${m.party} ${q&&q.id} ${(m.chron||[]).at(-1).t}`);}
+      !!q&&(m.party===q.id)===joins&&(!joins||ct((m.chron||[]).at(-1))===`${L.name}とよりを戻し、${q.name}に加わる`),`${days}日後`,()=>`${m.name} 一行${m.party} ${q&&q.id} ${ct((m.chron||[]).at(-1))}`);}
   {const {E,S,L,m}=scene();if(m){const B=E.bondOf(S,m,L),e=B.ev.at(-1);
     delete e.left;delete e.p;
     check('仲間割れ：抜けたかどうかを持たない古い口論では、誘いを止めない',!E.quitCool(S,m,L)&&!E.quitMemo(S,m,L),'古い記録',JSON.stringify(e));
@@ -2442,9 +2458,9 @@ function checkIntro(){
     const S=load(1000+i*7919).newState();
     for(const a of Object.values(S.adv)){
       const o=E.ORIGINS[a.origin];
-      const doorC=(a.chron||[]).find(c=>c.t&&c.t.includes('扉をくぐる'));
+      const doorC=(a.chron||[]).find(c=>ct(c)&&ct(c).includes('扉をくぐる'));
       const again=E.doorLine(S,a);
-      if(!doorC||doorC.t!==again) lived.push(`${a.name}：${doorC&&doorC.t} ≠ ${again}`);
+      if(!doorC||ct(doorC)!==again) lived.push(`${a.name}：${doorC&&ct(doorC)} ≠ ${again}`);
       const intro=E.originIntro(a.origin,a.bg);
       for(const token of [a.origin,o.short]) if(a.bg.includes(token)&&(intro.news.includes(token)||intro.door.includes(token))) lived.push(`重なり ${a.name}「${token}」${a.bg}`);
       if(E.newcomerClause(a.origin,a.bg).includes('だっただ')) lived.push(`だっただ ${a.name} ${a.bg}`);
@@ -2479,7 +2495,7 @@ function checkLife(){
   // 点の上位3文だけが入り、同じ群から2文は入らない。並びは 旅・功・夢・命・店・縁・絆
   {const E=load(3),S=E.newState();const [a,b]=ours(S);
     Object.assign(a,{opening:false,trips:40,kills:500,deepest:20,lvl0:5,lvl:30,conq:true,title:'牙折り',rareKills:1,firsts:2,revived:2,marked:true,kin:{id:b.id,name:b.name,rel:'弟'}});
-    a.pastDreams=[{k:'x',t:'一つ目の夢',tk:1},{k:'y',t:'二つ目の夢',tk:2}];a.chron.push({tk:5,t:'灰の中からよみがえる'});
+    a.pastDreams=[{k:'x',t:'一つ目の夢',tk:1},{k:'y',t:'二つ目の夢',tk:2}];a.chron.push({tk:5,kind:'ashBack'});
     S.rares={1:{killed:{party:'夜明け団',tav:'ours',names:[a.name],by:a.name,tk:1}}};
     const k=a.id<b.id?`${a.id}-${b.id}`:`${b.id}-${a.id}`;S.bonds={[k]:{n:50,ev:[]}};
     const L=E.lifeLines(S,a,{k:'retired',tk:S.tick,why:'旅に出る'}),mid=L.slice(1,-1);
@@ -2497,8 +2513,8 @@ function checkLife(){
   // 銀の杯亭から移ってきた者：手帳があふれて移った記録が消えても、来た日とレベルは黒猫亭に移ったときのもの
   {const E=load(6),S=E.newState();const a=Object.values(S.adv).filter(x=>x.tav==='rival').sort((x,y)=>x.id-y.id)[0];
     a.party=null;a.lvl0=2;a.lvl=7;a.trips=4;S.tick=50*E.TICKS_PER_DAY;E.moveTav(S,a,'ours');
-    for(let i=0;i<100;i++){S.tick++;E.chron(S,a,'稽古をする');}a.lvl=12;
-    const lost=!a.chron.some(c=>/黒猫亭の客になる$/.test(c.t)),L=E.lifeLines(S,a,{k:'retired',tk:S.tick,why:'旅に出る'});
+    for(let i=0;i<100;i++){S.tick++;E.chron(S,a,'change',{t:'稽古をする'});}a.lvl=12;
+    const lost=!a.chron.some(c=>/黒猫亭の客になる$/.test(ct(c))),L=E.lifeLines(S,a,{k:'retired',tk:S.tick,why:'旅に出る'});
     check('ひと幕：移ってきた者の手帳があふれても、来た日とレベルは黒猫亭に移ったときのもの',lost&&L[0].endsWith('51日目、銀の杯亭から黒猫亭に移ってきた。レベル7だった。')&&!L[0].includes('黒猫亭に来た')&&L.some(t=>t.startsWith('レベル12まで上がり、4回潜')),a.name,L.join(' / '));
     // 移った刻を持たない古い記録（版29まで）：手帳から移った記録が消えていれば、来た日とレベルの行を出さない。残っていれば、その日だけを出す
     const old=chron=>{const E2=load(6),S2=JSON.parse(JSON.stringify(S));const b=S2.adv[a.id];delete b.moved;b.chron=chron(b.chron);S2.v=29;E2.migrate(S2);
@@ -2509,7 +2525,7 @@ function checkLife(){
   // 開店からの常連：古い記録で扉の行が手帳からあふれて消えていても、移行のあとで扉の一文が欠けない。版30で外していた記録も版31で戻る
   {const E=load(8),S=E.newState();const a=Object.values(S.adv).filter(x=>x.opening).sort((x,y)=>x.id-y.id)[0];a.trips=4;
     const want=`レベル${a.lvl0}で黒猫亭の扉をくぐった。`,fresh=E.lifeLines(S,a,{k:'retired',tk:S.tick,why:'旅に出る'})[0];
-    const old=(v,moved)=>{const E2=load(8),S2=JSON.parse(JSON.stringify(S));const b=S2.adv[a.id];b.chron=b.chron.filter(c=>!c.t.includes('黒猫亭の扉をくぐる'));
+    const old=(v,moved)=>{const E2=load(8),S2=JSON.parse(JSON.stringify(S));const b=S2.adv[a.id];b.chron=b.chron.filter(c=>!ct(c).includes('黒猫亭の扉をくぐる'));
       if(moved)b.moved=moved;else delete b.moved;S2.v=v;E2.migrate(S2);return {v:S2.v,head:E2.lifeLines(S2,S2.adv[a.id],{k:'retired',tk:S2.tick,why:'旅に出る'})[0]};};
     const v29=old(29,null),v30=old(30,{tk:null,lvl:null});
     check('ひと幕：扉の行があふれた開店からの常連でも、移行のあとで扉の一文が欠けない',fresh.endsWith(want)&&v29.head===fresh&&v30.head===fresh&&v29.v===E.SAVE_V&&v30.v===E.SAVE_V,a.name,`${fresh} ｜ 版29→${v29.head} ｜ 版30→${v30.head}`);}
