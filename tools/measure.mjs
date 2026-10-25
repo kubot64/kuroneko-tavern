@@ -128,22 +128,21 @@ function run(seed,mode,engine){
   r.heirs=heirs;
   r.marks=marks;return r;
 }
-// 手帳の「に倒れる」を数える。羽根で持ちこたえた行（「倒れるが」）は死んでいないので数えない
+// 手帳の倒れた記録（fell）を数える。羽根で持ちこたえた記録（feather）は死んでいないので数えない。相手が宝箱の罠なら宝箱の死
 function noteDeaths(S){
   const d={ours:{n:0,chest:0},rival:{n:0,chest:0}};
   for(const a of Object.values(S.adv)){
     const tav=a.tav==='rival'?'rival':'ours';
     for(const c of a.chron||[]){
-      const t=c&&c.t||'';
-      if(!t.includes('に倒れる')||t.includes('に倒れるが'))continue;
-      d[tav].n++;if(t.includes('宝箱'))d[tav].chest++;
+      if(!c||c.kind!=='fell')continue;
+      d[tav].n++;if(String(c.args&&c.args.by).startsWith('宝箱'))d[tav].chest++;
     }
   }
   return d;
 }
 
-// 来店時の年齢。手帳の最初の一文に残っている年齢を読む（年を越して歳をとったあとも、来たときの年齢が分かる）
-const AGE_OLD={'人間':31,'ホビット':41,'ドワーフ':91,'エルフ':181};
+// 来店時の年齢。手帳の来店の記録（door）に残っている年齢を読む（年を越して歳をとったあとも、来たときの年齢が分かる）
+const AGE_OLD={human:31,hobbit:41,dwarf:91,elf:181};
 const AGE_BUCKETS=['〜19','20〜24','25〜30','31〜39','40〜49','50〜54','55〜'];
 const AGE_LVLS=['1〜10','11〜16','17〜'];
 const DREAM_AGE=[['sendhome','仕送り'],['prove','見返す（20歳未満）'],['letters','手紙（26歳未満）'],['marry','所帯'],['mentor','育てる（33歳以上）'],['pension','余生（40歳以上）'],['lastdive','老いた体（42歳以上）']];
@@ -152,13 +151,14 @@ function emptyVisit(){return {n:0,old:0,miss:0,bucket:Object.fromEntries(AGE_BUC
 function noteArrivals(S,seen,visit){
   for(const a of Object.values(S.adv)){
     if(seen.has(a.id))continue;
-    const t=(a.chron||[]).map(c=>c&&c.t).find(x=>x&&x.includes('扉をくぐる'));
-    if(!t)continue;
+    const c=(a.chron||[]).find(x=>x&&x.kind==='door');
+    if(!c)continue;
     seen.add(a.id);
-    if(t.includes('救い出された'))continue;
-    const m=t.match(/(?:人間でいえば(\d+)歳ほど（実年齢(\d+)歳）|(\d+)歳)、(?:女の)?(人間|ホビット|ドワーフ|エルフ)の[^（]*（レベル(\d+)）として/);
-    if(!m){visit.miss++;continue;}
-    const hage=m[1]?+m[1]:+m[3],age=m[2]?+m[2]:+m[3],race=m[4],lvl=+m[5];
+    const x=c.args||{};
+    // 救い出されて客になった身内（経歴が「…に救い出された○○」）は、来店の年齢の集計に入れない
+    if(String(x.bg).includes('救い出された'))continue;
+    if(!AGE_OLD[x.race]){visit.miss++;continue;}
+    const age=x.age,hage=x.race==='human'?x.age:x.hage,race=x.race,lvl=x.lvl;
     const old=age>=(AGE_OLD[race]||31);
     visit.n++;if(old)visit.old++;
     visit.bucket[ageBucket(hage)]++;

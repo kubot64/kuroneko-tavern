@@ -2598,9 +2598,9 @@ test('黒猫亭の帳面の一行は、手帳と記念碑で語の途中で折�
     ids.slice(0,3).forEach((id,i)=>{S.adv[id].status='lost';S.memorial.push({id,name:S.adv[id].name,cls:'warrior',lvl:5,race:'human',tav:'ours',tk:(100+i*50)*D,by:'オーク',floor:3,kills:9});});
     S.farewells=S.farewells||[];
     ids.slice(3,7).forEach((id,i)=>{S.adv[id].status='retired';S.farewells.push({id,name:S.adv[id].name,tav:'ours',tk:(580+i*20)*D,why:'故郷に帰る',lvl:9,cls:'warrior',race:'human',sex:'男',age:30,hage:30});});
-    const lost=mk(1000*D,'lost');lost.chron.push({tk:1173*D,t:'ロスト。その名は記念碑に刻まれる'});
+    const lost=mk(1000*D,'lost');lost.chron.push({tk:1173*D,kind:'lost'});
     S.memorial.push({id:lost.id,name:lost.name,cls:'warrior',lvl:12,race:'human',tav:'ours',tk:1173*D,by:'オーク',floor:9,kills:40});
-    const gone=mk(1000*D,'retired');gone.chron.push({tk:1642*D,t:'故郷に帰るため、黒猫亭を去る'});
+    const gone=mk(1000*D,'retired');gone.chron.push({tk:1642*D,kind:'retire',args:{why:'故郷に帰る',tav:'黒猫亭'}});
     S.farewells.push({id:gone.id,name:gone.name,tav:'ours',tk:1642*D,why:'故郷に帰る',lvl:9,cls:'warrior',race:'human',sex:'男',age:30,hage:30});
     window.__ledger=[lost.id,gone.id];
   });

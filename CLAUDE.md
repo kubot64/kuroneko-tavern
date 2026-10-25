@@ -19,6 +19,7 @@
 | 画面は一行を `viewOf` などを通して見て、全滅を伏せるフラグを直に読まない | lint：`tools/lint.mjs`（CI） |
 | 一行の状態を変えるのは `setPhase` だけで、移り変わりは表にあるものだけ | lint：`tools/lint.mjs`（CI）と、spec-test の「一行の状態」（表にない移り変わりが起きないこと） |
 | 職業と種族は内部の鍵で判定し、表示名（戦士・人間など）は `CLS`・`RACE` の `n` にだけ書く | lint：`tools/lint.mjs`（CI）と、spec-test・browser-test の「内部の鍵が文と画面に出ない」 |
+| 手帳の記録は種類と中身（`{kind,args,hidden}`）で持ち、文は見せるときに `CHRON` から作る。判定は種類と印で行い、文を読まない | テスト：spec-test の「種類」（種類のない記録がないこと、印と作った文が合うこと） |
 | テストからエンジンの名前を使うのに、一覧は書かない | 仕組み：`tools/engine.mjs` がトップレベルの宣言を名前で引く |
 | 古いセーブを壊さない | テスト：spec-test が `tools/old-saves/` の版ごとの見本を今の migrate にかける（CI）。SAVE_V を上げる PR では、上げる前の版の見本を足す（README「仕様のテスト」） |
 | 振る舞いを変えたら、同じ変更で `docs/spec.md` を直す | 人のレビュー |
