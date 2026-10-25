@@ -1,5 +1,6 @@
 // index.html の <script> を取り出して ESLint にかけ、使っていない名前（no-unused-vars）と、宣言していない名前（no-undef）と、
 // 冒険者の status を文字列と直に比べる書き方（no-restricted-syntax）を見つける。
+// あわせて、画面の側（ENGINE END より下）が全滅を伏せるためのフラグや判定を直に使っていないかを見る（viewOf を通す）。
 //
 //   npm install   最初の一度だけ
 //   node tools/lint.mjs
@@ -32,6 +33,11 @@ const eslint=new ESLint({overrideConfigFile:true,overrideConfig:[{
 // ESLint は拡張子で設定を選ぶので、script だけを .js の名前で渡す（そのファイルは作らない）
 const [r]=await eslint.lintText(code,{filePath:FILE.replace(/\.html$/,'.script.js')});
 for(const x of r.messages)console.log(`index.html:${x.line}:${x.column}  ${x.message}  (${x.ruleId||'構文'})`);
-const n=r.messages.length;
-console.log(n?`\n${n}件`:'index.html の script：使っていない名前も、宣言していない名前も、status の直の比較もない');
+// 画面の側（ENGINE END より下）は、全滅を伏せるためのフラグと判定を直に読まず、viewOf・hpView・shownStatus・chronShown を通す（#194）
+const HIDE=/\.(announced|knownWiped|causeTold|retrieved|calmHp|calmLc|hideRecall|wipedAt|dueAt)\b|\b(wipeHidden|wipeUnknown|partyOverdue|partyVisible|partyLabel|partyCard|partyDepth|hiddenLog)\(/g;
+const lines=html.split('\n'),endAt=lines.findIndex(l=>l.includes('/*ENGINE END*/'));
+let hideN=0;
+lines.forEach((l,i)=>{if(i<=endAt)return;for(const mm of l.matchAll(HIDE)){hideN++;console.log(`index.html:${i+1}:${mm.index+1}  画面の側で「${mm[0]}」を直に使わない。viewOf などを通す  (伏せる処理)`);}});
+const n=r.messages.length+hideN;
+console.log(n?`\n${n}件`:'index.html の script：使っていない名前も、宣言していない名前も、status の直の比較も、画面の側で伏せるフラグを読むところもない');
 process.exit(n?1:0);
