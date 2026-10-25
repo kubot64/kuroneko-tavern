@@ -798,7 +798,7 @@ function assignOpeningDreams(S){
   });
 }
 // セーブの版。記録の形を変えたら上げ、migrate に移行の段を足す
-const SAVE_V=33;
+const SAVE_V=34;
 // 全滅した一行の扱い。予定帰還の刻を過ぎてから消息不明と知らせるまでの刻、巡回隊が届く深さ（最深階から何階上まで）、立て替えの借りの利息（消息不明の1日ごと・複利）と、帰還時に稼ぎから返す割合
 const MISSING_GRACE=150,PATROL_DEPTH=3,OWED_RATE=.02,OWED_REPAY=.25;
 function newState(){
@@ -853,7 +853,7 @@ function r100(x){return Math.max(100,Math.round(x/100)*100)}
 // 死体回収の依頼額。死因と階が知れるまでは、探索先と出発時に分かる深さだけで決める（金額から階が漏れないように）
 function bountyFloor(p){
   if(!p)return 1;
-  if(p.knownWiped||p.causeTold)return p.floor||1;
+  if(wipeSeen(p)||wipeCauseTold(p))return p.floor||1;
   // 出発のときに控えた深さ（到達済みの石碑と、深く攻める目標）。探索中に進んだ reach／mineReach は使わない
   const k=p.trip&&p.trip.known;if(k)return Math.max(1,k.f);
   // 控えのない古い記録は、到達済みの石碑で見る
@@ -1301,7 +1301,7 @@ function buySmall(S,t){const T0=S.taverns.ours,c=buyPrice(S,t);if(t.owned||T0.go
   const n=ri(1,3);for(let i=0;i<n&&seatsUsed(S,'ours')<seatCap(S,'ours');i++){const lv=newcomerLvl(S,'ours');const a=makeAdv(S,'ours',Object.assign({bg:`${t.n}の常連`},lv?{lvl:lv}:{}));news(S,`${t.n}の常連だった${a.name}（${a.race}の${a.cls}・Lv${a.lvl}）が、黒猫亭に籍を移した。`,'info');}
   news(S,`噂：銀の杯亭の${S.taverns.rival.owner||RIVAL_OWNER}「裏通りの店まで買い集めるとは。黒猫亭さんも、ずいぶん偉くなったものですね」`,'rumor');return true;}
 function seatsUsed(S,tav){return Object.values(S.adv).filter(a=>a.tav===tav&&isActive(a)).length}
-function freeAdv(S,tav){return Object.values(S.adv).filter(a=>a.tav===tav&&isIdle(a)&&(!a.party||!S.parties[a.party]||(S.parties[a.party].state==='wiped'&&!S.parties[a.party].retrieved)))}
+function freeAdv(S,tav){return Object.values(S.adv).filter(a=>a.tav===tav&&isIdle(a)&&(!a.party||!S.parties[a.party]||(S.parties[a.party].state==='wiped'&&!wipeFound(S.parties[a.party]))))}
 function retire(S,a,why){
   const team=a.party;a.status='retired';a.party=null;
   const mates=Object.values(S.adv).filter(m=>m!==a&&team&&m.party===team&&isActive(m));
@@ -1527,7 +1527,7 @@ function kinEvent(S,p,a){
     p.rescue=(p.rescue||[]).concat([{by:a.id,name:d.name,who:d.who,f:p.floor}]);
     chron(S,a,`${FN(p.floor)}で${d.who}の${d.name}を生きて見つけ出す`);
     news(S,`${tn}の${a.name}が、${FN(p.floor)}で行方知れずだった${d.who}の${d.name}を生きて見つけ出した！`,'record');
-    p.state='return';p.trip.kin.alive=true;fulfill(S,a,'生きて見つけ出した');
+    setPhase(S,p,'return');p.trip.kin.alive=true;fulfill(S,a,'生きて見つけ出した');
   } else {
     const keep=pick(['ペンダント','折れた剣','日記','指輪','革の帽子','手紙']);d.keep=keep;p.trip.kin.keep=keep;fulfill(S,a,`${keep}だけが見つかった`);
     plog(p,`${a.name} は ふるい ${keep}を ひろいあげた……`,'death');
@@ -1605,8 +1605,8 @@ function formParties(S,tav,quiet,forced,fname){
   if(take.length<3) return;
   take.sort((x,y)=>(C(y).front?1:0)-(C(x).front?1:0));
   const nm=newPartyName(S,fname,L);
-  const p={id:S.nid++,name:nm,tav,leader:L.id,size,members:take.map(a=>a.id),floor:1,state:'explore',steps:0,fsteps:0,
-    log:[],loot:0,carried:[],enemies:null,etype:null,ident:false,rest:0,trip:newTrip(),wipedAt:0,knownWiped:false,announced:false,retrieved:false,seen:-999,killer:'',dueAt:0,owed:0};
+  const p={id:S.nid++,name:nm,tav,leader:L.id,size,members:take.map(a=>a.id),floor:1,steps:0,fsteps:0,
+    log:[],loot:0,carried:[],enemies:null,etype:null,ident:false,rest:0,trip:newTrip(),wipedAt:0,seen:-999,killer:'',dueAt:0,owed:0};setPhase(S,p,'explore');
   take.forEach(a=>{a.party=p.id;a.status='party';chron(S,a,a===L?`仲間を集め、${nm}を結成してリーダーになる`:joinLine(S,a,L,p,nm))});
   S.parties[p.id]=p;
   plog(p,`${nm} が めいきゅうへ しゅっぱつした`,'sys');p.maps={};supplyTeam(S,p);setPlan(S,p);floorArrive(S,p);
@@ -2113,11 +2113,11 @@ function tick(S){
   }
   // the dungeon swallows parties nobody recovers. 遺体を運んでいる途中の一行は、運び手が帰るまでこの時計を止める
   for(const p of Object.values(S.parties)){
-    if(p.state==='wiped'&&!p.retrieved&&S.tick-p.wipedAt>1000){
+    if(p.state==='wiped'&&!wipeFound(p)&&S.tick-p.wipedAt>1000){
       // 巡回隊が届くのは、その探索先でこれまでに到達した最深階から PATROL_DEPTH 階上まで。それより深ければロスト
       const top=inMine(p.floor)?MAXF+Math.max((S.mineDeep||{}).ours||0,(S.mineDeep||{}).rival||0):Math.max(S.deepest.ours,S.deepest.rival);
       if(p.floor<=top-PATROL_DEPTH){corpsesHome(S,p,'巡回隊が見つけ、',null);continue;}
-      if(!p.announced)p.announced=true;
+      if(!wipeAnnounced(p))setPhase(S,p,wipeWith(p,{know:'missing'}));
       // 消えた者の名を二つ名つきで並べる。名前は日報で一続きになる（記念碑の名が知らせの語になる）
       const names=p.members.map(id=>A(S,id)).filter(Boolean).map(full);
       // 見送りの一行は、消えた者全員の絆の中から一つ決め、知らせ1件に一行だけ添える。記念碑には消えた者それぞれに同じ一行を残す
@@ -2136,8 +2136,8 @@ function tick(S){
   // delayed realisation of missing parties
   for(const p of Object.values(S.parties)){
     // 予定帰還の刻を過ぎて MISSING_GRACE 刻たったら消息不明。死因と階は、遺体が街に着くまで知らせない
-    if(p.state==='wiped'&&!p.announced&&S.tick>=(p.dueAt||p.wipedAt)+MISSING_GRACE){
-      p.announced=true;
+    if(p.state==='wiped'&&!wipeAnnounced(p)&&S.tick>=(p.dueAt||p.wipedAt)+MISSING_GRACE){
+      setPhase(S,p,wipeWith(p,{know:'missing'}));
       const WHY={race:'銀の杯亭に先を越されまいと深く潜った',first:'一番乗りを狙って最前線に挑んだ',bounty:'王国の報奨金を狙って無理をした',dream:'仲間の夢のために深みを目指した',avenge:'仇の魔物を追って深みに踏み込んだ',errand:'店主に回された話を果たしに向かった',boss:'坑道王を討ちに底へ向かった'};
       if(p.tav==='ours') news(S,`${p.name}が予定を過ぎても戻らない。${p.pushWhy?WHY[p.pushWhy]+'という。':''}${inMine(p.floor)?'坑道':'迷宮'}に入ったきり、消息が知れない。`,'death');
       else {news(S,`噂：銀の杯亭の${p.name}が、${inMine(p.floor)?'坑道':'迷宮'}から戻らないらしい。${p.pushWhy==='race'?'黒猫亭に負けまいと焦ったのだろう、と皆が言う。':p.pushWhy==='bounty'?'報奨金に目がくらんだのだろう。':''}`,'rumor');
@@ -2172,7 +2172,7 @@ function stepParty(S,p){
     if(ms.length>=3&&(allIn||(!full&&(p.wait||0)>150))&&(ms.includes(L)||(p.wait||0)>300)){
       p.wait=0;
       p.members=ms.map(a=>a.id); ms.forEach(a=>{a.status='party'});
-      Object.assign(p,{floor:1,state:'explore',steps:0,fsteps:0,loot:0,carried:[],trip:newTrip(),rescue:[],tmap:{},guard:0,ward:0,star:0,announced:false,knownWiped:false,retrieved:false,cause:'',causeTold:false,dueAt:0});
+      setPhase(S,p,'explore');Object.assign(p,{floor:1,steps:0,fsteps:0,loot:0,carried:[],trip:newTrip(),rescue:[],tmap:{},guard:0,ward:0,star:0,cause:'',dueAt:0});
       p.mineTrip=wantsMine(S,p);
       plog(p,'――――――――――','move'); plog(p,`${p.mineTrip?'こうどう':'めいきゅう'}へ しゅっぱつした`,'sys');supplyTeam(S,p);setPlan(S,p);
       if(p.mineTrip){const lim=Math.min(Math.floor(safeFloor(S,p)),p.cap||99);const st=MINE_STONES.filter(x=>x<=(p.mineReach||0)&&fx(x)<=lim).pop()||MINE_TOP;
@@ -2222,7 +2222,7 @@ function stepParty(S,p){
   let goHome = r<th || lostOne || al.length<=Math.ceil(p.members.length/2) || p.steps>(p.plan==='grind'?220:160) || (healLeft===0&&r<th+.2&&casters.length>0);
   if((p.carried||[]).length&&!goHome) goHome=true;
   if(goHome){
-    p.state='return'; say(S,p,RET[leader(S,p).pers]); return;
+    setPhase(S,p,'return'); say(S,p,RET[leader(S,p).pers]); return;
   }
   if(r<.5&&PUSH[leader(S,p).pers]&&chance(.3)) say(S,p,PUSH[leader(S,p).pers]);
   if(chance(.07)){const q=pick(al);plog(p,pick(QUIRKS[q.quirk].d).replace('{n}',q.name),'say');}
@@ -2261,7 +2261,7 @@ function meetParty(S,p){
 
 function findCorpses(S,p,base){
   // すでに誰かが運んでいる一行（retrieved）は除く
-  const w=Object.values(S.parties).find(q=>q.state==='wiped'&&!q.retrieved&&q.floor===p.floor&&q!==p);
+  const w=Object.values(S.parties).find(q=>q.state==='wiped'&&!wipeFound(q)&&q.floor===p.floor&&q!==p);
   if(!w) return false;
   const bounty=S.bounties[w.id];
   if(!chance(base+(bounty?.12:0))) return false;
@@ -2281,11 +2281,11 @@ function findCorpses(S,p,base){
   plog(p,`${lp.name}「つれて かえろう」`,'say');
   for(const id of w.members){if(!(p.carried||[]).includes(id))p.carried.push(id); const a=A(S,id);if(!a)continue;a.carriedBy=p.id; chron(S,a,`${p.name}に遺体を見つけられ、街へ運ばれる`);}
   // 階も相手も、街に着くまで知らせない。伏せ中なら知らせ自体を出さない
-  if(w.announced) news(S,`${p.name}${p.tav==='rival'?'（銀の杯亭）':''}が${w.name}の遺体を見つけ、連れ帰る。`,'info');
+  if(wipeAnnounced(w)) news(S,`${p.name}${p.tav==='rival'?'（銀の杯亭）':''}が${w.name}の遺体を見つけ、連れ帰る。`,'info');
   // 依頼の預け金は、街に着いた corpsesHome で払う。運んでいるあいだは retrieved で巡回隊の時計を止める
-  w.retrieved=true;w.enemies=null;
+  setPhase(S,w,wipeWith(w,{body:'carried'}));w.enemies=null;
   plog(w,'――――――――――','move');plog(w,`${p.name}によって いこつが まちへ はこばれた`,'sys');
-  p.state='return';
+  setPhase(S,p,'return');
   return true;
 }
 
@@ -3038,8 +3038,8 @@ function victory(S,p){
   const t=p.etype,n=p.enemies.length;
   const al=alive(S,p);
   // 主は1体きり。同じ主とほかの一行が先に決着をつけていたら、踏破の記録は書き換えない
-  if(t.mboss){if(!S.mineConq)mineConquest(S,p);p.state='return';}
-  else if(t.boss){if(!S.conquered)conquest(S,p);p.state='return';}
+  if(t.mboss){if(!S.mineConq)mineConquest(S,p);setPhase(S,p,'return');}
+  else if(t.boss){if(!S.conquered)conquest(S,p);setPhase(S,p,'return');}
   if(t.rare){rareSlain(S,p,t);}
   if(t.gate){dragonSlain(S,p);p.fsteps=99;}
   const mf=(hasMap(p)?1:.7)*(t.xpm||1)*(t.mine?MINE_XP:1);const bn=t.base||t.n;const xp=Math.round((6*Math.pow(t.f,1.6)+3)*n/al.length*mf*(t.xb||1));const g=Math.round(ri(5,12)*t.f*n*mf);
@@ -3119,16 +3119,62 @@ function overdueSteps(p){
   return walk+deep*6;
 }
 // まだ知れていない全滅。予定帰還の刻までは探索中、そのあと消息不明と知らせるまでは「まだ戻らない」と、生きている一行と同じに見せる
-function wipeHidden(p){return !!(p&&p.state==='wiped'&&!p.announced&&!p.knownWiped);}
+// ── 一行の状態（#194）──
+// 一行の状態は、p.state（town・explore・return・wiped）と、全滅しているあいだの p.wipe で表す。どちらも setPhase だけが書く（tools/lint.mjs）。
+// 全滅の中は、店がどこまで知っているか（know）と、遺体がどこにあるか（body）の組で分ける。
+//   know：hidden まだ知れていない／missing 消息不明（死因と階はまだ）／told 死因と階も知れた／seen 最期を水晶で見ていた
+//   body：lying 迷宮に倒れたまま／carried ほかの一行に運ばれている／home 街に着いた（寺院へ移った直後。同じ刻のうちに街の支度に戻る）
+// told と toldCarried は、死因を伏せる仕組みより前の記録（死因はもう手帳に残っていた）を開いたときにだけなる
+const WIPE={
+  hidden:{know:'hidden',body:'lying'},hiddenCarried:{know:'hidden',body:'carried'},
+  missing:{know:'missing',body:'lying'},missingCarried:{know:'missing',body:'carried'},
+  told:{know:'told',body:'lying'},toldCarried:{know:'told',body:'carried'},
+  seen:{know:'seen',body:'lying'},seenCarried:{know:'seen',body:'carried'},
+  home:{know:'told',body:'home'},
+};
+// 許される移り変わり。new は作ったばかりの一行
+const PHASE_TO={
+  new:['explore'],town:['explore'],explore:['return','town','hidden','seen'],return:['town','hidden','seen'],
+  hidden:['hiddenCarried','missing','seen','home'],hiddenCarried:['hidden','missingCarried','home','town'],
+  missing:['missingCarried','home'],missingCarried:['missing','home','town'],
+  told:['toldCarried','home'],toldCarried:['told','home','town'],
+  seen:['seenCarried','home'],seenCarried:['seen','home','town'],
+  home:['town','told'],
+};
+// 表にない移り変わり。遊びは止めずに移すが、ここに残す（spec-test が空であることを確かめる。記録には入らない）
+const PHASE_BAD=[];
+function phaseOf(p){return p.state==='wiped'?(WIPE[p.wipe]?p.wipe:'hidden'):(p.state||'new');}
+// 一行の状態を変える、ただ一つの関数。同じ状態へは何もしない
+/* eslint-disable no-restricted-syntax */
+function setPhase(S,p,to){
+  const from=phaseOf(p);if(from===to)return;
+  if(!(PHASE_TO[from]||[]).includes(to)){PHASE_BAD.push({id:p.id,from,to,tk:S.tick});if(typeof console!=='undefined')console.error(`一行の状態：${from} から ${to} へは移れない（${p.name}）`);}
+  if(WIPE[to]){p.state='wiped';p.wipe=to;}
+  else{p.state=to;delete p.wipe;if(to==='explore')delete p.hideRecall;}
+}
+/* eslint-enable no-restricted-syntax */
+// 全滅しているあいだの見方。全滅していなければどれも偽
+const wipeOf=p=>p&&p.state==='wiped'?WIPE[phaseOf(p)]:null;
+// 店に知れている（消息不明の知らせが出たか、最期を見ていた）
+function wipeAnnounced(p){const w=wipeOf(p);return !!w&&w.know!=='hidden';}
+// 最期を水晶で見ていた
+function wipeSeen(p){const w=wipeOf(p);return !!w&&w.know==='seen';}
+// 遺体が見つかっている（運ばれているか、街に着いた）。巡回隊の時計を止める
+function wipeFound(p){const w=wipeOf(p);return !!w&&w.body!=='lying';}
+// 死因と階が手帳に残った
+function wipeCauseTold(p){const w=wipeOf(p);return !!w&&(w.know==='told'||w.know==='seen');}
+// 遺体が見つかった・見失った・知れたときの、次の全滅の状態。いまの know と body の片方だけを変える
+function wipeWith(p,o){const w=wipeOf(p),k=o.know||w.know,b=o.body||w.body;return Object.keys(WIPE).find(n=>WIPE[n].know===k&&WIPE[n].body===b)||'home';}
+function wipeHidden(p){return !!(p&&p.state==='wiped'&&!wipeAnnounced(p)&&!wipeSeen(p));}
 // 手帳のうち、全滅が知れるまで伏せる記録（倒れた階と相手、全滅の一文、ヨミガエリの失敗で灰になったこと）
 const DEATH_CHRON=/^全滅した。|で.+に倒れる$|でヨミガエリに失敗し、灰になる$/;
 // 死因と階がまだ店に知れていない全滅（伏せ中・消息不明・運ばれているあいだ）
-function wipeUnknown(p){return !!(p&&p.state==='wiped'&&!p.knownWiped&&!p.causeTold);}
+function wipeUnknown(p){return !!(p&&p.state==='wiped'&&!wipeSeen(p)&&!wipeCauseTold(p));}
 function partyOverdue(S,p){
   if(!p||p.tav!=='ours')return false;
   if(wipeHidden(p))return S.tick>=(p.dueAt||0);
   if(p.state!=='explore'&&p.state!=='return')return false;
-  if(p.announced||p.knownWiped)return false;
+  if(wipeAnnounced(p)||wipeSeen(p))return false;
   return (p.steps||0)>overdueSteps(p);
 }
 // ── 画面から一行を見るときの見え方（#194）──
@@ -3139,7 +3185,7 @@ function partyOverdue(S,p){
 function partyVisible(S,p){
   if(!p) return false;
   if(p.tav==='rival') return S.tick-p.seen<=30 && p.state!=='wiped';
-  if(p.state==='wiped') return p.knownWiped||wipeHidden(p);
+  if(p.state==='wiped') return wipeSeen(p)||wipeHidden(p);
   return true;
 }
 // 伏せ中の水晶の記録。全滅した戦いより前（戦いのない最後の歩み）までの記録に、全滅のあと2刻ごとに歩みの行を足す。
@@ -3168,7 +3214,7 @@ function partyLabel(p){
   if(p.state==='wiped'){
     if(wipeHidden(p)&&p.hideRecall) return [`${FN(p.floor)} 帰還中`,false];
     if(wipeHidden(p)) return [`${FN(p.floor)} ${p.plan==='grind'?'腕を磨いている':p.plan==='push'?'深く攻めている':'探索中'}`,false];
-    if(p.tav==='ours') return p.knownWiped?[`全滅（${FN(p.floor)}）`,true]:[`消息不明（${inMine(p.floor)?'坑道':'迷宮'}）`,true];
+    if(p.tav==='ours') return wipeSeen(p)?[`全滅（${FN(p.floor)}）`,true]:[`消息不明（${inMine(p.floor)?'坑道':'迷宮'}）`,true];
     return [`消息不明（噂）`,true];
   }
   if(p.state==='town') return [(p.wait||0)>10?'仲間の回復を待っている':'酒場で休息中',false];
@@ -3208,8 +3254,8 @@ function partyDepth(p){
 function viewOf(S,p){
   if(!p)return null;
   const wiped=p.state==='wiped',hidden=wipeHidden(p),causeHidden=wipeUnknown(p);
-  return {hidden,causeHidden,missing:causeHidden&&!hidden,seen:wiped&&!!p.knownWiped,lost:wiped&&!hidden,
-    waiting:wiped&&!!p.announced&&!p.retrieved,rumor:p.tav==='rival'&&wiped&&!p.announced,
+  return {hidden,causeHidden,missing:causeHidden&&!hidden,seen:wiped&&!!wipeSeen(p),lost:wiped&&!hidden,
+    waiting:wiped&&!!wipeAnnounced(p)&&!wipeFound(p),rumor:p.tav==='rival'&&wiped&&!wipeAnnounced(p),
     visible:partyVisible(S,p),label:partyLabel(p),card:partyCard(S,p),depth:partyDepth(p),overdue:partyOverdue(S,p),
     log:hidden?hiddenLog(S,p):p.log,
     canRecall:p.tav==='ours'&&(hidden?!p.hideRecall:p.state==='explore')};
@@ -3225,9 +3271,9 @@ function chronShown(S,a,c){
   return true;
 }
 // 伏せ中の一行に伝書鳩を飛ばす。届いても誰も戻らないが、札と水晶は帰還中に見せる
-function recallHidden(S,p){if(!viewOf(S,p).hidden||p.hideRecall)return false;p.hideRecall=S.tick;return true;}
+function recallHidden(S,p){if(!p||p.tav!=='ours'||!viewOf(S,p).hidden||p.hideRecall)return false;p.hideRecall=S.tick;return true;}
 // 全滅の一文を手帳に残す。水晶で見ていたときはその場で、見ていなければ遺体が街に着いたときに
-function tellCause(S,p){if(!p||p.causeTold)return;p.causeTold=true;const cause=wipedCause(S,p);(p.members||[]).forEach(id=>{const a=A(S,id);if(a)chron(S,a,`全滅した。${cause}`);});}
+function tellCause(S,p){if(!p||wipeCauseTold(p))return;const cause=wipedCause(S,p);(p.members||[]).forEach(id=>{const a=A(S,id);if(a)chron(S,a,`全滅した。${cause}`);});}
 // 一行への立て替え（蘇生代・回復薬・地図代）を、その一行の借りに記録する。黒猫亭の一行だけ
 function owe(S,p,amt){if(!p||p.tav!=='ours'||!(amt>0))return;p.owed=Math.round((p.owed||0)+amt);}
 // 店主が蘇生代を出す。方針の蘇生、帳場の蘇生のどちらも、その者の一行の借りに積む
@@ -3235,15 +3281,15 @@ function payRevive(S,a,p){const c0=templeCost(S,a);const T0=S.taverns.ours;T0.go
 // 消息不明のあいだ（知れてから遺体が街に着くまで）、契約は続いているものとして借りに1日ごとに複利で利息を積む。運ばれているあいだも付く。水晶で最期を見ていた一行には付かない
 function owedTick(S){if(S.tick%TICKS_PER_DAY)return;
   for(const p of Object.values(S.parties)){
-    if(p.tav!=='ours'||p.state!=='wiped'||!p.announced||p.knownWiped||!(p.owed>0))continue;
+    if(p.tav!=='ours'||p.state!=='wiped'||!wipeAnnounced(p)||wipeSeen(p)||!(p.owed>0))continue;
     // 遺体が街に着いて寺院へ移ったあと（missing がいなければ）は利息を止める
     if(!(p.members||[]).some(id=>{const a=A(S,id);return a&&isMissing(a);}))continue;
     const d=Math.round(p.owed*OWED_RATE);if(!d)continue;p.owed+=d;p.owedInterest=(p.owedInterest||0)+d;}}
 // 遺体が街に届いた。死因と階はここで初めて手帳と知らせに残る。倒れた者は寺院へ。依頼の報酬は、届けた一行に払い、巡回隊なら店に戻す
 function corpsesHome(S,w,how,by){
-  if(!w||w.causeTold&&!(w.members||[]).some(id=>{const a=A(S,id);return a&&isMissing(a);}))return;
-  const seen=w.knownWiped&&w.causeTold;
-  tellCause(S,w);w.announced=true;
+  if(!w||wipeCauseTold(w)&&!(w.members||[]).some(id=>{const a=A(S,id);return a&&isMissing(a);}))return;
+  const seen=wipeSeen(w);
+  tellCause(S,w);
   const ms=(w.members||[]).map(id=>A(S,id)).filter(a=>a&&isMissing(a));
   ms.forEach(a=>{flushDeathChron(S,a);a.status=a.dungeonAsh?'ash':'dead';a.dungeonAsh=false;a.carriedBy=null;chron(S,a,`${how}遺体が街に運ばれる`);
     if(a.tav==='ours'&&policy(S).revive&&S.taverns.ours.gold>=templeCost(S,a))payRevive(S,a,w);else temple(S,a,false);});
@@ -3255,24 +3301,24 @@ function corpsesHome(S,w,how,by){
   if(b){if(by){const al=alive(S,by);al.forEach(a=>a.gold+=Math.floor(b/Math.max(1,al.length)));news(S,`${by.name}に死体回収の報酬 ${b}G を支払った。`,'info');}
     else{S.taverns.ours.gold+=b;news(S,`${w.name}の死体回収の依頼を取り下げ、預けていた${b}Gが戻った。`,'info');}}
   delete S.bounties[w.id];
-  w.retrieved=true;w.looted=false;w.enemies=null;
+  setPhase(S,w,'home');w.looted=false;w.enemies=null;
   if(w.tav==='rival'&&S.ace===w.id){w.ace=false;S.ace=null;pickAce(S);}
 }
 // 生還した一行が、同じ探索先で、全滅した一行の階以上まで潜っていたら、その帰還の刻に遺体が届く。迷宮と坑道は取り違えない
 function deliverCorpses(S,q){const deep=(q.trip&&q.trip.deep)||0;if(!deep)return;
-  for(const w of Object.values(S.parties)){if(w===q||w.state!=='wiped'||w.retrieved)continue;if(inMine(w.floor)!==inMine(deep)||deep<w.floor)continue;
+  for(const w of Object.values(S.parties)){if(w===q||w.state!=='wiped'||wipeFound(w))continue;if(inMine(w.floor)!==inMine(deep)||deep<w.floor)continue;
     corpsesHome(S,w,`${q.name}${q.tav===w.tav?'':q.tav==='rival'?'（銀の杯亭）':'（黒猫亭）'}が${FN(w.floor)}まで潜って戻り、`,q);}}
 function wipe(S,p,by){
-  p.enemies=null;p.state='wiped';p.wipedAt=S.tick;p.killer=by;
+  p.enemies=null;setPhase(S,p,'hidden');p.wipedAt=S.tick;p.killer=by;
   plog(p,'……','death');plog(p,'いっこうは ぜんめつした','death');
   const ids=(p.members||[]).slice();
   ids.forEach(id=>{const a=A(S,id);if(!a)return;a.hp=0;a.status='missing';a.lastFloor=p.floor;});
-  const cause=wipeCause(S,p,by);p.cause=cause;p.causeTold=false;
+  const cause=wipeCause(S,p,by);p.cause=cause;
   // 予定帰還の刻。引き返す歩数のうち、まだ歩いていなかった分を刻に読み替える。ここまでは探索中、そのあと MISSING_GRACE 刻は「まだ戻らない」と、生きている一行と同じに見せる
   p.dueAt=S.tick+Math.max(0,overdueSteps(p)-(p.steps||0));
   // 担いでいた遺体は再び迷宮に残る。運んでいた相手の一行は、また見つかるのを待つ
   (p.carried||[]).forEach(id=>{const a=A(S,id);if(!a)return;a.carriedBy=null;a.status='missing';
-    const ow=a.party&&S.parties[a.party];if(ow&&ow!==p&&ow.state==='wiped')ow.retrieved=false;
+    const ow=a.party&&S.parties[a.party];if(ow&&ow!==p&&ow.state==='wiped')setPhase(S,ow,ow.wipe==='home'?'told':wipeWith(ow,{body:'lying'}));
     if(!p.members.includes(id))p.members.push(id);});p.carried=[];
   (p.bountyFor||[]).forEach(b=>{if(b)S.taverns.ours.gold+=b;});p.bountyFor=[];
   const watched=(S.watch||[]).includes(p.id);
@@ -3282,14 +3328,14 @@ function wipe(S,p,by){
     (p.members||[]).forEach(id=>{const a=A(S,id);if(!a)return;a.deathPending=true;
       a.chron=(a.chron||[]).filter(c=>c.tk<from||!DEATH_CHRON.test(c.t));});
   }
-  if(watched&&p.tav==='ours'){p.knownWiped=true;p.announced=true;(p.members||[]).forEach(id=>flushDeathChron(S,A(S,id)));tellCause(S,p);const extra=cause===by+'に倒れた'?'':cause+'。';news(S,`水晶が${p.name}の最期を映した。${FN(p.floor)}、${by}に倒れる。${extra}${p.pushWhy==='race'?'銀の杯亭に先を越されまいとした末だった。':p.pushWhy==='first'?'一番乗りを狙った末だった。':p.pushWhy==='bounty'?'報奨金を狙った末だった。':p.pushWhy==='avenge'?'仇を追った末だった。':p.pushWhy==='errand'?'店主に回された話を果たしに向かった末だった。':p.pushWhy==='boss'?'坑道王を討ちに向かった末だった。':''}`,'death');}
+  if(watched&&p.tav==='ours'){(p.members||[]).forEach(id=>flushDeathChron(S,A(S,id)));tellCause(S,p);setPhase(S,p,'seen');const extra=cause===by+'に倒れた'?'':cause+'。';news(S,`水晶が${p.name}の最期を映した。${FN(p.floor)}、${by}に倒れる。${extra}${p.pushWhy==='race'?'銀の杯亭に先を越されまいとした末だった。':p.pushWhy==='first'?'一番乗りを狙った末だった。':p.pushWhy==='bounty'?'報奨金を狙った末だった。':p.pushWhy==='avenge'?'仇を追った末だった。':p.pushWhy==='errand'?'店主に回された話を果たしに向かった末だった。':p.pushWhy==='boss'?'坑道王を討ちに向かった末だった。':''}`,'death');}
 }
 // 運ばれていた遺体が街に着いた（あるいは途中でロストした）ら、一行を街の支度に戻す
 function releaseRetrieved(S){
   for(const p of Object.values(S.parties)){
-    if(p.state!=='wiped'||!p.retrieved) continue;
+    if(p.state!=='wiped'||!wipeFound(p)) continue;
     if(Object.values(S.adv).some(a=>a.party===p.id&&isMissing(a))) continue;
-    p.retrieved=false;p.state='town';p.rest=ri(14,24);p.wait=0;p.floor=0;p.enemies=null;p.announced=false;p.knownWiped=false;
+    setPhase(S,p,'town');p.rest=ri(14,24);p.wait=0;p.floor=0;p.enemies=null;
     p.members=(p.members||[]).filter(id=>{const a=A(S,id);return a&&a.party===p.id&&isActive(a);});
   }
 }
@@ -3363,7 +3409,7 @@ function arrive(S,p){
   if(al.length){tale(S,p,al);if(al.length>1&&chance(.35))tale(S,p,al,true);askTale(S,p,al);}
   if(p.tav==='ours'&&p.loot>=400) news(S,`${p.name}が ${p.loot}G の稼ぎを抱えて帰還。今夜の酒場は大にぎわいだ。`,'loot');
   [...new Set(lvls)].filter(a=>a.lvl%10===0).forEach(a=>noteLevel(S,a));
-  p.state='town';p.rest=p.tav==='ours'&&fac(S,'inn')?ri(8,14):ri(14,24);p.floor=0;
+  setPhase(S,p,'town');p.rest=p.tav==='ours'&&fac(S,'inn')?ri(8,14):ri(14,24);p.floor=0;
   quarrelCheck(S,p,al.filter(a=>isIdle(a)));
 }
 const QUIRK_TALES={
@@ -3685,7 +3731,7 @@ function rivalTick(S){
   if(S.nextSmall==null)S.nextSmall=S.tick+ri(4,8)*TICKS_PER_DAY;
   if(S.tick>=S.nextSmall){S.nextSmall=S.tick+ri(6,12)*TICKS_PER_DAY;smallEvent(S);}
   if(S.tick%TICKS_PER_DAY)return;const d=day(S);const RO=S.taverns.rival.owner||RIVAL_OWNER;const To=S.taverns.ours,Tr=S.taverns.rival;
-  const ace=S.parties[S.ace];if(!ace||(ace.state==='wiped'&&ace.announced))pickAce(S);
+  const ace=S.parties[S.ace];if(!ace||(ace.state==='wiped'&&wipeAnnounced(ace)))pickAce(S);
   if(d%10===0&&d>20&&seatsUsed(S,'rival')<seatCap(S,'rival')&&chance(.6)){const c=Object.values(S.adv).filter(a=>a.tav==='ours'&&isIdle(a)&&a.lvl>=8&&!(a.dream&&a.dream.k==='kin')).sort((x,y)=>y.lvl-x.lvl)[0];
     if(c){const pr=clamp(.35-(c.favor||0)*.05-(To.rep/Math.max(1,Tr.rep)-1)*.25,.03,.5);
       if(chance(pr)&&moveTav(S,c,'rival')){news(S,`銀の杯亭の${RO}が、黒猫亭の${c.name}（Lv${c.lvl}）を引き抜いた。「うちなら宿も装備も上等ですよ」`,'lost');}
@@ -3947,6 +3993,8 @@ function inferCleanPay(S){
     if(guessed>0&&guessed<=S.tick)T0.cleanPay=guessed;
   }
 }
+// 移行は古い形の記録を読み書きするので、一行の状態と古いフラグを直に扱ってよい
+/* eslint-disable no-restricted-syntax */
 function migrate(S){
   if(!(S.v>=2)){migrateV2(S);}
   if(!(S.v>=3)){
@@ -4127,11 +4175,24 @@ function migrate(S){
   if(!(S.v>=33)){// 掲示の話を持ちかけたときの返しと、しくじったあとの土産話のつなぎ。古い話には返しがないままで、何も埋めない。乱数は引かない
     S.v=33;
   }
+  if(!(S.v>=34)){// 一行の状態（#194）。全滅を表していたフラグ（announced・knownWiped・retrieved・causeTold）を、全滅の中の状態 p.wipe に写して外す。
+    // 遺体が見つかっていて、まだ迷宮にいる仲間がいなければ home、最期を見ていれば seen、まだ知れていなければ hidden、死因も知れていれば told、それ以外は missing。
+    // 見つかっていれば、それぞれの Carried。乱数は引かない
+    Object.values(S.parties).forEach(p=>{
+      if(p.state==='wiped'){
+        const R=!!p.retrieved,M=Object.values(S.adv).some(a=>a.party===p.id&&isMissing(a));
+        p.wipe=R&&!M?'home':p.knownWiped?(R?'seenCarried':'seen'):!p.announced?(R?'hiddenCarried':'hidden'):p.causeTold?(R?'toldCarried':'told'):(R?'missingCarried':'missing');
+      }else delete p.wipe;
+      delete p.announced;delete p.knownWiped;delete p.retrieved;delete p.causeTold;
+    });
+    S.v=34;
+  }
   if(typeof S.taverns.ours.interestPaid!=='number')S.taverns.ours.interestPaid=inferInterestPaid(S);
   Object.values(S.adv).forEach(a=>{if(!a.tone)personalize(a);if(!a.traits)assignTraits(S,a,true);});
   smallOf(S);
   Object.values(S.adv).filter(a=>a.title&&!a.titleKind&&isActive(a)).forEach(a=>{a.title='';title(S,a,true);});
 }
+/* eslint-enable no-restricted-syntax */
 function migrateV2(S){
   S.usedNames={};S.usedItems={};S.uniqFound={};
   const advs=Object.values(S.adv).sort((a,b)=>a.id-b.id);
@@ -4774,8 +4835,8 @@ document.addEventListener('click',e=>{
   }
   if(act==='recall'){const p=S.parties[b.dataset.p];
     // 伏せ中の一行にも、生きている一行と同じく伝書鳩を飛ばせる。届いても、誰も戻らない
-    if(viewOf(S,p).hidden){if(T().gold>=50&&recallHidden(S,p)){T().gold-=50;render();save();}return;}
-    if(p&&p.state==='explore'&&T().gold>=50){T().gold-=50;plog(p,'でんしょばとが まいおりた。「すぐ もどれ」','sys');p.state='return';say(S,p,['……店主の めいれいだ。もどるぞ']);render();save();}return;}
+    if(p&&viewOf(S,p).hidden){if(T().gold>=50&&recallHidden(S,p)){T().gold-=50;render();save();}return;}
+    if(p&&p.state==='explore'&&T().gold>=50){T().gold-=50;plog(p,'でんしょばとが まいおりた。「すぐ もどれ」','sys');setPhase(S,p,'return');say(S,p,['……店主の めいれいだ。もどるぞ']);render();save();}return;}
   if(act==='reset'){if(confirm('いまの記録を消して、最初から始めますか？\n消した記録は戻りません。')){reviveNote=null;S=newState();for(let i=0;i<6;i++)tick(S);save();autoWatch();render();toast('黒猫亭が店を開いた');}return;}
   if(act==='repay'){const x=repay(S,+b.dataset.v);if(x)toast(`両替商に${x}Gを返した`);render();save();return;}
   if(act==='seats'){const ns=nextSeats(S);if(ns&&T().gold>=ns[2]){T().gold-=ns[2];T().seats=ns[1];news(S,`黒猫亭が店を広げた。常連の席は${ns[1]}席になった。`,'record');toast(`常連の席は${ns[1]}席になった`);}render();save();return;}
