@@ -799,12 +799,12 @@ function assignOpeningDreams(S){
   });
 }
 // セーブの版。記録の形を変えたら上げ、migrate に移行の段を足す
-const SAVE_V=37;
+const SAVE_V=38;
 // 全滅した一行の扱い。予定帰還の刻を過ぎてから消息不明と知らせるまでの刻、巡回隊が届く深さ（最深階から何階上まで）、立て替えの借りの利息（消息不明の1日ごと・複利）と、帰還時に稼ぎから返す割合
 const MISSING_GRACE=150,PATROL_DEPTH=3,OWED_RATE=.02,OWED_REPAY=.25;
 function newState(){
   const S={tick:0,nid:1,adv:{},parties:{},news:[],tales:[],memorial:[],
-    taverns:{ours:{name:'黒猫亭',gold:400,rep:0,crystals:1,earned:0,debt:DEBT0,seats:12,nextPay:30*TICKS_PER_DAY,late:0,payClean:0},rival:{name:'銀の杯亭',gold:99999,rep:60,owner:RIVAL_OWNER}},
+    taverns:{ours:{name:'黒猫亭',gold:400,rep:0,crystals:1,earned:0,debt:DEBT0,seats:12,nextPay:30*TICKS_PER_DAY,late:0,payClean:0,interestPaid:0},rival:{name:'銀の杯亭',gold:99999,rep:60,owner:RIVAL_OWNER}},
     bounties:{},deepest:{ours:1,rival:GATE_F},usedNames:{[RIVAL_OWNER]:1},usedParty:{'鉄の誓い':1,'黄金の剣':1,'七つ星':1,'夜鷹':1,'鉄の誓い傭兵団':1,'黄金の剣団':1},usedItems:{},uniqFound:{},farewells:[],edicts:[],v:SAVE_V,loreFound:{},shop:{tiers:{1:true},mats:{},serial:0,log:[]},watch:[null,null],sel:0,stats:{dreams:{ours:0,rival:0}},small:SMALL_TAV.slice(0,5)};
   const cast=[];
   for(const cls of ['warrior','priest','thief','mage'])cast.push(makeAdv(S,'ours',{lvl:OPENING_LVL(),cls,race:raceForCls(cls),opening:true}));
@@ -899,7 +899,7 @@ function calDate(tick){const dd=Math.floor(tick/TICKS_PER_DAY);let r=dd%365,m=0;
 function day(S){return Math.floor(S.tick/TICKS_PER_DAY)+1}
 // 知らせは {tk,k,kind,args} で持ち、文は見せるときに NEWS の t で作る（#195）。k は色分け（info・record・rumor など）。
 // args には書いた刻の値を入れ、t は args と決まった表だけから文を作る。同じ日の出発（depart）と銀の杯亭のレベル到達（rivalLv）は、args を読んでまとめ直す。
-// 古い記録（版37まで）の知らせの文は t のまま残り、そのまま出す
+// 文（t）を持つ古い知らせは、そのまま出す
 const NEWS={
   promote:{t:x=>`${x.tav}の${x.who}が、${clsName(x.from)}から${clsName(x.to)}へと道を進めた。`},
   feather:{t:x=>`${x.tav}の${x.who}が死の淵で${x.it}に救われた。羽根は灰になった。`},
@@ -3084,7 +3084,7 @@ function encounter(S,p){
   const k=1+(f-t.f)*0.15;
   let tt=t;
   if(chance(.15)){const vs=VARIANTS.filter(v=>!v.minF||f>=v.minF);const vk=wpick(Object.fromEntries(vs.map(x=>[x.k,x.w])));const v=vs.find(x=>x.k===vk);
-    tt=Object.assign({},t,{n:v.n+t.n,u:v.n+' '+t.u,base:t.n,atk:Math.max(1,Math.round(t.atk*v.atk)),hpm:v.hp,xpm:v.xp,variant:v.n});}
+    tt=variantMon(t,v);}
   p.enemies=Array.from({length:n},()=>({hp:Math.max(1,Math.round(t.hp*k*(tt.hpm||1)*(0.8+R()*0.4))),sleep:0}));
   p.etype=tt;p.ident=chance(.6)||alive(S,p).some(a=>has(a,'博識'));p.fought=false;
   plog(p,'＊ かいぶつが あらわれた ＊','sys');
@@ -3096,8 +3096,13 @@ function encounterFlavor(S,p,t,big){const al=alive(S,p);if(!al.length)return;
   const fr=al.find(a=>fearsFoe(a,t));if(fr&&chance(.7)){plog(p,`${fr.name} は ${t.n}を みて あおざめた`,'move');plog(p,`${fr.name}「${FEAR_SAY[fr.fear]}」`,'say');return;}
   if(chance(big?.6:.08)){const a=pick(al);if(a.catch)plog(p,`${a.name}「${pick(CRIES).replace('{catch}',a.catch)}」`,'say');}}
 function foeName(p){return p.ident?p.etype.n:p.etype.u}
-// 炎の息の強さ。キメラと番犬と炉の番人ゴーレムの息は竜より弱い。古い記録で戦いの途中だった魔物にも効くよう、名で引く
-function breathScale(t){const m=t.br!=null?t:MON.find(x=>x.n===(t.base||t.n));return m&&m.br||1}
+// 変わり種の魔物（手負いの・巨大な など）。元の魔物の型から作る
+function variantMon(t,v){return Object.assign({},t,{n:v.n+t.n,u:v.n+' '+t.u,base:t.n,atk:Math.max(1,Math.round(t.atk*v.atk)),hpm:v.hp,xpm:v.xp,variant:v.n});}
+// 一行が戦っている魔物の型（p.etype）は、セーブには鍵だけを入れ、読み込むときに表から引き直す（#195）。
+// 名のある魔物は階（rareMonOf は階だけで決まる）、変わり種は元の名と変わり種の鍵、ほかは名。古い記録の型の写しからも同じ鍵を作る
+function foeKey(t){if(!t)return null;if(t.u==null)return t.rare!=null?{rare:t.rare}:t.v?{n:t.n,v:t.v}:{n:t.n};if(t.rare)return {rare:t.rf};const v=t.variant&&VARIANTS.find(x=>x.n===t.variant);return v?{n:t.base,v:v.k}:{n:t.n};}
+function foeOf(k){if(!k)return null;if(k.rare!=null)return rareDef(k.rare)?rareMonOf(k.rare):null;const t=MON.find(m=>m.n===k.n);if(!t)return null;
+  const v=k.v&&VARIANTS.find(x=>x.k===k.v);return v?variantMon(t,v):t;}
 function combat(S,p){
   p.rareBy=null;
   const t=p.etype,f=dz(Math.max(1,p.floor))+(isFrontier(S,p.floor)?1.3:0);
@@ -3128,7 +3133,7 @@ function combat(S,p){
     }
     if(t.sp==='breath'&&(t.gate||!breathed)&&chance(t.gate?.4:.3)){breathed=true;
       plog(p,`${t.n} は ${t.gate?'くろい ほのおの いきを はいた！':'ほのおを はいた！'}`,'death');
-      tg.forEach(a=>{a.hp-=Math.round((t.gate?ri(18,32):ri(f,f*2)*breathScale(t))*(1-Math.min(.8,eqSum(a,'fire'))));});
+      tg.forEach(a=>{a.hp-=Math.round((t.gate?ri(18,32):ri(f,f*2)*(t.br||1))*(1-Math.min(.8,eqSum(a,'fire'))));});
       tg.forEach(a=>{if(a.hp<=0){a.hp=0;die(S,p,a,t.n)}});
       continue;
     }
@@ -4475,8 +4480,33 @@ function migrate(S){
   Object.values(S.adv).filter(a=>a.title&&!a.titleKind&&isActive(a)).forEach(a=>{a.title='';title(S,a,true);});
   if(kinded){kindOld();S.v=36;}
   if(kind37){toKind();S.v=37;}
+  // 版38：一行が戦っている魔物の型を、セーブには鍵だけで書く（#195）。型は読み込むたびに loadSave が鍵から引き直すので、ここで直すものはない
+  if(!(S.v>=38))S.v=38;
 }
 /* eslint-enable no-restricted-syntax */
+// セーブに書く形（#195）。定義の写しは書かず、鍵にする（一行が戦っている魔物の型 → foeKey）。JSON.stringify の replacer に渡す
+function saveReplacer(k,v){return k==='etype'&&v&&typeof v==='object'?foeKey(v):v;}
+// 読み込みの入口（#195）。セーブ（{S,…}・S・その JSON の文字列）の形を確かめ、古い版を移し、鍵から定義を引き直して S を返す。
+// 店として読めない形なら null。部分的に壊れたもの（引けない魔物、種類の分からない手帳・知らせ）は外し、外した数を S.loadFixed に残す
+function loadSave(raw){
+  let o=raw;if(typeof o==='string'){try{o=JSON.parse(o);}catch(e){return null;}}
+  const S=o&&typeof o==='object'&&o.S&&typeof o.S==='object'?o.S:o;
+  const isObj=x=>!!x&&typeof x==='object'&&!Array.isArray(x);
+  if(!isObj(S)||typeof S.v!=='number'||typeof S.tick!=='number'||!isObj(S.adv)||!isObj(S.parties)||!isObj(S.taverns)||!isObj(S.taverns.ours)||!isObj(S.taverns.rival))return null;
+  if(!Array.isArray(S.news))S.news=[];
+  migrate(S);
+  let fixed=0;
+  // 魔物の型は鍵（古い記録では型の写し）から引き直す。引けなければ、その戦いはなかったことにする
+  for(const p of Object.values(S.parties)){if(!isObj(p))continue;
+    const t=p.etype?foeOf(foeKey(p.etype)):null;p.etype=t;if(!t&&p.enemies){p.enemies=null;fixed++;}}
+  // 手帳と知らせは、文（古い記録）か、表にある種類を持つものだけを残す
+  const okChron=c=>isObj(c)&&(typeof c.t==='string'||typeof c.tk==='number'&&!!CHRON[c.kind]&&(c.args==null||typeof c.args==='object'));
+  const okNews=n=>isObj(n)&&(typeof n.t==='string'||typeof n.tk==='number'&&!!NEWS[n.kind]&&(n.args==null||typeof n.args==='object'));
+  for(const a of Object.values(S.adv)){if(!isObj(a)||!Array.isArray(a.chron))continue;const n0=a.chron.length;a.chron=a.chron.filter(okChron);fixed+=n0-a.chron.length;}
+  {const n0=S.news.length;S.news=S.news.filter(okNews);fixed+=n0-S.news.length;}
+  if(fixed)S.loadFixed=(S.loadFixed||0)+fixed;
+  return S;
+}
 function migrateV2(S){
   S.usedNames={};S.usedItems={};S.uniqFound={};
   const advs=Object.values(S.adv).sort((a,b)=>a.id-b.id);
@@ -4505,7 +4535,7 @@ let S,speed=1,tab='news',timer=null,toastT=null,ff=null,hiddenAt=null,pickErr=nu
 const $=id=>document.getElementById(id);
 const esc=s=>groupMoney(String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])));
 
-function save(){try{localStorage.setItem(KEY,JSON.stringify({S,at:Date.now(),pend:ff?ff.n-ff.i:0}))}catch(e){}}
+function save(){try{localStorage.setItem(KEY,JSON.stringify({S,at:Date.now(),pend:ff?ff.n-ff.i:0},saveReplacer))}catch(e){}}
 function boot(){
   let saved=null;try{saved=JSON.parse(localStorage.getItem(KEY)||'null')}catch(e){}
   if(saved&&saved.S&&!(saved.S.v>=16)){
@@ -4513,12 +4543,17 @@ function boot(){
     saved=null;S=newState();for(let i=0;i<6;i++)tick(S);
     news(S,'reset',undefined,'info');save();
   } else if(saved&&saved.S){
-    S=saved.S;
-    migrate(S);
-    const away=Math.floor((Date.now()-saved.at)/1000);
-    const pend=saved.pend||0;
-    const {n,digest}=awayPlan(away,pend);
-    if(digest) fastForward(n,away);
+    S=loadSave(saved);
+    if(!S){
+      // 店として読めない記録は別にしまい、新しく始める
+      try{localStorage.setItem(KEY+'-bad',JSON.stringify(saved));}catch(e){}
+      S=newState();for(let i=0;i<6;i++)tick(S);
+    } else {
+      const away=Math.floor((Date.now()-saved.at)/1000);
+      const pend=saved.pend||0;
+      const {n,digest}=awayPlan(away,pend);
+      if(digest) fastForward(n,away);
+    }
   } else {
     S=newState();
     for(let i=0;i<6;i++)tick(S);
