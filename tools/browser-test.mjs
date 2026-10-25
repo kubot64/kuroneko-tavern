@@ -965,8 +965,8 @@ test('スマホ幅では帳場と名簿と留守のあいだの押し場所が44
       T0.debt=0;T0.debtFree=S.tick;
       const E=errandsOf(S);E.stage=3;const board=E.board.slice();
       S.chatter=[{tk:S.tick,lines:[{id:a.id,who:'ルゥ',t:'今夜は静かだな'},{who:'語り',t:'名前のない行です'}]}];
-      S.memorial=[{id:a.id,name:'ルゥ',cls:'戦士',lvl:1,race:'人間',tav:'ours',tk:S.tick,by:'魔物',floor:1,kills:0}];
-      S.farewells=[{name:'ルゥ',cls:'戦士',lvl:1,race:'人間',tav:'ours',tk:S.tick,why:'故郷へ帰る',age:30,sex:'男'}];
+      S.memorial=[{id:a.id,name:'ルゥ',cls:'warrior',lvl:1,race:'human',tav:'ours',tk:S.tick,by:'魔物',floor:1,kills:0}];
+      S.farewells=[{name:'ルゥ',cls:'warrior',lvl:1,race:'human',tav:'ours',tk:S.tick,why:'故郷へ帰る',age:30,sex:'男'}];
       E.board=[{id:9001,n:'試しの話',from:'王国',t:'文面だけ',until:S.tick+TICKS_PER_DAY,hero:a.id,tk:S.tick,refused:[]}];
       const h=el=>el.getBoundingClientRect().height;
       tab='bar';render();
@@ -1494,7 +1494,7 @@ test('坑道B13Fの水晶には、息を吐かない坑道都市の衛兵が出�
     if(!seen)return '衛兵が出なかった';
     p.ident=true;p.fought=true;p.ambush=false;p.potions=0;p.guard=0;p.buff=0;
     // 呪文と一撃は出さない。衛兵が生き残って、息ではなく斬りかかるところを見る
-    p.members.forEach(id=>{const a=S.adv[id];a.cls='僧侶';a.lvl=3;a.mp=0;a.hp=a.mhp=80;a.eq={};a.traits=['博識'];});
+    p.members.forEach(id=>{const a=S.adv[id];a.cls='priest';a.lvl=3;a.mp=0;a.hp=a.mhp=80;a.eq={};a.traits=['博識'];});
     const said=[];const orig=plog;
     plog=function(p2,t,k){said.push(t);return orig(p2,t,k);};
     let swung=false;
@@ -1598,7 +1598,7 @@ test('掲示の主役選びで話を持ちかけると、本人が口調どお�
     E.board=[{id:900,k:'bell',n:'鐘楼の光',from:'梟の地図屋',t:ERRANDS.find(x=>x.k==='bell').txt(8),f:8,until:S.tick+TICKS_PER_DAY*20,hero:null,refused:[],tk:S.tick}];
     const ours=Object.values(S.adv).filter(x=>x.tav==='ours'&&x.status!=='lost'&&x.status!=='retired').slice(0,4);
     const tones=['商人言葉','丁寧','陽気','田舎なまり'];
-    ours.forEach((a,i)=>{a.status='idle';a.fear=null;a.traits=[];a.race='人間';a.quirk='無口';a.cls='戦士';a.pers='普通';a.tone=tones[i];});
+    ours.forEach((a,i)=>{a.status='idle';a.fear=null;a.traits=[];a.race='human';a.quirk='無口';a.cls='warrior';a.pers='普通';a.tone=tones[i];});
     ours[0].fear='高い所';ours[1].traits=['俊足'];ours[3].traits=['鈍足'];
     tab='bar';pickErr=900;render();
     return ours.map(a=>a.id);
@@ -1956,7 +1956,7 @@ test('全滅と依頼の失敗には理由が一文つき、知れていない�
     // 到達B2Fで出発し、探索中にB4Fまで進んだ（ふつうに起きる状態）
     p.reach=2;p.pushTo=0;p.mineTrip=false;noteKnownDepth(p);reachFloor(S,p,false);
     const ms=p.members.map(id=>S.adv[id]);
-    ms.forEach(a=>{a.status='party';a.hp=a.mhp=100;a.poison=0;a.mp=5;a.pers='普通';a.quirk='無口';a.fear=null;a.traits=[];a.cls='戦士';});
+    ms.forEach(a=>{a.status='party';a.hp=a.mhp=100;a.poison=0;a.mp=5;a.pers='普通';a.quirk='無口';a.fear=null;a.traits=[];a.cls='warrior';});
     render();
     const card=()=>[...document.querySelectorAll('.pcard')].find(el=>el.dataset.p==String(p.id));
     const st=card().querySelector('.st');
@@ -1967,8 +1967,8 @@ test('全滅と依頼の失敗には理由が一文つき、知れていない�
     const rnd=Math.random;Math.random=()=>0.99;
     errandEvent(S,p,{id:1,k:'kitten',n:'迷い込んだ子猫',f:2,hero:a.id});
     Math.random=rnd;
-    ms.forEach(m=>{m.hp=0;m.mp=0;m.cls='戦士';});
-    const h=ms[0];h.cls='僧侶';h.mp=0;
+    ms.forEach(m=>{m.hp=0;m.mp=0;m.cls='warrior';});
+    const h=ms[0];h.cls='priest';h.mp=0;
     S.watch=[null,null];
     wipe(S,p,'オーク');
     render();
@@ -2250,10 +2250,10 @@ test('375pxと1280pxでは所属の札が行に収まり、名簿と日報と地
     p.name='ナジュム・ドラコ';
     const leader=S.adv[p.leader];
     const other=Object.values(S.adv).find(a=>a.tav==='ours'&&a.id!==leader.id&&a.status!=='lost');
-    other.race='ドワーフ';other.cls='聖騎士';other.sex='女';other.age=90;other.status='idle';other.party=null;
+    other.race='dwarf';other.cls='paladin';other.sex='女';other.age=90;other.status='idle';other.party=null;
     p.members=p.members.filter(id=>id!==other.id);
     S.farewells=S.farewells||[];
-    S.farewells.push({id:other.id,name:other.name,cls:'聖騎士',lvl:21,race:'ドワーフ',sex:'女',age:90,hage:23,tav:'ours',tk:S.tick,why:'夢を果たした'});
+    S.farewells.push({id:other.id,name:other.name,cls:'paladin',lvl:21,race:'dwarf',sex:'女',age:90,hage:23,tav:'ours',tk:S.tick,why:'夢を果たした'});
     const F=floorsInit(S);F[1].map=true;F[1].sold=12;
     render();
     const opening=Object.values(S.adv).filter(a=>a.opening);
@@ -2284,7 +2284,7 @@ test('375pxと1280pxでは所属の札が行に収まり、名簿と日報と地
       for(const nw of document.querySelectorAll('#tbody .meta .nw')){
         if(lines(nw)!==1)bad.push(nw.textContent+' が折れている');
       }
-      if(![...document.querySelectorAll('#tbody .meta')].some(el=>el.textContent.includes('歳相当')&&el.textContent.includes('聖騎士')))bad.push('名簿に歳相当と聖騎士がない');
+      if(![...document.querySelectorAll('#tbody .meta')].some(el=>el.textContent.includes('歳相当')&&el.textContent.includes('paladin')))bad.push('名簿に歳相当と聖騎士がない');
     }
     if(info.part==='news'){
       const li=[...document.querySelectorAll('.news li')].find(el=>el.textContent.includes('最初の客たち'));
@@ -2488,7 +2488,7 @@ test('倒れた者の札、番付の数、出資の買い取り、記念碑の�
   assert.match(after.note,/景気が上がると、買い取りの値も上がる/);
   assert.match(after.note,new RegExp('買い取る '+after.price.toLocaleString('ja-JP')+'G'));
   const badge=await page.evaluate(()=>{
-    S.memorial.push({id:1,name:'消えた者',cls:'戦士',lvl:1,race:'人間',tav:'rival',tk:1,by:'オーク',floor:2,kills:0});
+    S.memorial.push({id:1,name:'消えた者',cls:'warrior',lvl:1,race:'human',tav:'rival',tk:1,by:'オーク',floor:2,kills:0});
     tab='news';render();
     const btn=[...document.querySelectorAll('#tabs button')].find(b=>b.dataset.v==='stone');
     return btn.querySelector('.cnt').textContent;
@@ -2595,13 +2595,13 @@ test('黒猫亭の帳面の一行は、手帳と記念碑で語の途中で折�
     const mk=(tk,status)=>{const a=JSON.parse(JSON.stringify(base));a.id=S.nid++;a.name='帳面'+a.id;a.status=status;a.party=null;a.opening=false;a.chron=[{tk,t:'扉をくぐる'}];S.adv[a.id]=a;return a;};
     for(let i=0;i<30;i++)mk(0,'idle');
     const ids=Object.values(S.adv).filter(a=>a.name.startsWith('帳面')).map(a=>a.id);
-    ids.slice(0,3).forEach((id,i)=>{S.adv[id].status='lost';S.memorial.push({id,name:S.adv[id].name,cls:'戦士',lvl:5,race:'人間',tav:'ours',tk:(100+i*50)*D,by:'オーク',floor:3,kills:9});});
+    ids.slice(0,3).forEach((id,i)=>{S.adv[id].status='lost';S.memorial.push({id,name:S.adv[id].name,cls:'warrior',lvl:5,race:'human',tav:'ours',tk:(100+i*50)*D,by:'オーク',floor:3,kills:9});});
     S.farewells=S.farewells||[];
-    ids.slice(3,7).forEach((id,i)=>{S.adv[id].status='retired';S.farewells.push({id,name:S.adv[id].name,tav:'ours',tk:(580+i*20)*D,why:'故郷に帰る',lvl:9,cls:'戦士',race:'人間',sex:'男',age:30,hage:30});});
+    ids.slice(3,7).forEach((id,i)=>{S.adv[id].status='retired';S.farewells.push({id,name:S.adv[id].name,tav:'ours',tk:(580+i*20)*D,why:'故郷に帰る',lvl:9,cls:'warrior',race:'human',sex:'男',age:30,hage:30});});
     const lost=mk(1000*D,'lost');lost.chron.push({tk:1173*D,t:'ロスト。その名は記念碑に刻まれる'});
-    S.memorial.push({id:lost.id,name:lost.name,cls:'戦士',lvl:12,race:'人間',tav:'ours',tk:1173*D,by:'オーク',floor:9,kills:40});
+    S.memorial.push({id:lost.id,name:lost.name,cls:'warrior',lvl:12,race:'human',tav:'ours',tk:1173*D,by:'オーク',floor:9,kills:40});
     const gone=mk(1000*D,'retired');gone.chron.push({tk:1642*D,t:'故郷に帰るため、黒猫亭を去る'});
-    S.farewells.push({id:gone.id,name:gone.name,tav:'ours',tk:1642*D,why:'故郷に帰る',lvl:9,cls:'戦士',race:'人間',sex:'男',age:30,hage:30});
+    S.farewells.push({id:gone.id,name:gone.name,tav:'ours',tk:1642*D,why:'故郷に帰る',lvl:9,cls:'warrior',race:'human',sex:'男',age:30,hage:30});
     window.__ledger=[lost.id,gone.id];
   });
   const broken=()=>page.evaluate(()=>{
@@ -2700,7 +2700,7 @@ test('まだ知れていない全滅の水晶は、生きている一行と見�
       p.state='explore';p.floor=5;p.enemies=null;p.plan='normal';p.pushWhy=null;p.steps=0;p.fsteps=0;p.maps={};delete p.wipe;p.hideRecall=0;
       p.trip=p.trip||{};p.trip.deep=5;p.log=[];p.lc=0;p.loot=1234;
       const ms=p.members.map(id=>S.adv[id]);
-      ms.forEach(a=>{a.status='party';a.hp=a.mhp=100;a.poison=0;a.mp=5;a.pers='普通';a.cls='戦士';});
+      ms.forEach(a=>{a.status='party';a.hp=a.mhp=100;a.poison=0;a.mp=5;a.pers='普通';a.cls='warrior';});
       ms[0].hp=40;// 傷を負った者がいる
       plog(p,'くらい つうろを すすむ','move');plog(p,'とびらを あけた','move');
       // 戦いのない歩みで、水晶の位置と体力が控えられる（本物の歩みを1回）
@@ -3081,6 +3081,29 @@ test('資料タブの呪文の一覧は、呪文の表 SPELLS と同じ文を、
     return {got,want};
   });
   assert.deepEqual(r.got,r.want);
+  assert.deepEqual(errors,[]);await ctx.close();
+});
+
+test('職業と種族の内部の鍵は、どのタブにも手帳にも出ない',async()=>{
+  const {ctx,page,errors}=await open();
+  await page.locator('#sp0').click();
+  await page.evaluate(()=>{for(let i=0;i<200*TICKS_PER_DAY;i++){tick(S);rivalTemple(S);}render();});
+  const KEYRE=/\b(warrior|samurai|thief|priest|mage|paladin|berserker|kensei|ninja|bishop|sorcerer|dragoon|bard|alchemist|tamer|human|elf|dwarf|hobbit)\b/;
+  const tabs=await page.locator('#tabs button[data-act="tab"]').evaluateAll(bs=>bs.map(b=>b.dataset.v));
+  const leaks=[];
+  for(const v of tabs){
+    await page.locator(`#tabs button[data-act="tab"][data-v="${v}"]`).click();
+    const txt=await page.evaluate(()=>document.body.innerText);
+    const m=txt.match(KEYRE);if(m)leaks.push(`${v}：${m[0]}`);
+  }
+  // 手帳は、職業と種族の違う者を選んで開く（黒猫亭と銀の杯亭の両方）
+  const ids=await page.evaluate(()=>{const seen=new Set(),out=[];for(const a of Object.values(S.adv)){const k=a.cls+'/'+a.race;if(seen.has(k))continue;seen.add(k);out.push(a.id);}return out.slice(0,24);});
+  for(const id of ids){
+    await page.evaluate(id=>{advOpen=id;document.querySelector('#advm').hidden=false;renderAdv();},id);
+    const txt=await page.evaluate(()=>document.querySelector('#advbox').innerText);
+    const m=txt.match(KEYRE);if(m)leaks.push(`手帳${id}：${m[0]}`);
+  }
+  assert.deepEqual(leaks,[]);
   assert.deepEqual(errors,[]);await ctx.close();
 });
 

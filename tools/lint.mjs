@@ -1,6 +1,7 @@
 // index.html の <script> を取り出して ESLint にかけ、使っていない名前（no-unused-vars）と、宣言していない名前（no-undef）と、
 // 冒険者の status を文字列と直に比べる書き方（no-restricted-syntax）を見つける。
 // あわせて、画面の側（ENGINE END より下）が全滅を伏せるためのフラグや判定を直に使っていないかを見る（viewOf を通す）。
+// 職業と種族の表示名を判定に使っていないかも見る（鍵を使う）。
 //
 //   npm install   最初の一度だけ
 //   node tools/lint.mjs
@@ -44,6 +45,13 @@ const HIDE=/\.(announced|knownWiped|causeTold|retrieved|calmHp|calmLc|hideRecall
 const lines=html.split('\n'),endAt=lines.findIndex(l=>l.includes('/*ENGINE END*/'));
 let hideN=0;
 lines.forEach((l,i)=>{if(i<=endAt)return;for(const mm of l.matchAll(HIDE)){hideN++;console.log(`index.html:${i+1}:${mm.index+1}  画面の側で「${mm[0]}」を直に使わない。viewOf などを通す  (伏せる処理)`);}});
-const n=r.messages.length+hideN;
-console.log(n?`\n${n}件`:'index.html の script：使っていない名前も、宣言していない名前も、status の直の比較も、画面の側で伏せるフラグを読むところもない');
+// 職業と種族は内部の鍵（warrior・human など）で判定し、表示名（戦士・人間など）は CLS と RACE の n にだけ書く（#195）。
+// 移行（migrate）は古い記録の名前を鍵に写すので、そこだけは名前を書いてよい
+const NAMES=/'(戦士|侍|盗賊|僧侶|魔術師|聖騎士|狂戦士|剣聖|忍者|司教|魔導士|竜騎士|吟遊詩人|錬金術師|獣使い|人間|エルフ|ドワーフ|ホビット)'/g;
+const migA=lines.findIndex(l=>l.startsWith('function migrate(S){')),migB=lines.findIndex(l=>l.startsWith('function migrateV2(S){'));
+let nameN=0;
+lines.forEach((l,i)=>{if(i>=migA&&i<migB)return;for(const mm of l.matchAll(NAMES)){if(/\bn:$/.test(l.slice(0,mm.index))||/who:\[[^\]]*$/.test(l.slice(0,mm.index)))continue;
+  nameN++;console.log(`index.html:${i+1}:${mm.index+1}  職業と種族の名前「${mm[1]}」で判定しない。鍵（CLS・RACE の鍵）を使い、表示は clsName・raceName で  (表示名)`);}});
+const n=r.messages.length+hideN+nameN;
+console.log(n?`\n${n}件`:'index.html の script：使っていない名前も、宣言していない名前も、status の直の比較も、画面の側で伏せるフラグを読むところも、職業と種族の表示名での判定もない');
 process.exit(n?1:0);

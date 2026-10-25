@@ -18,6 +18,7 @@
 | 冒険者の status を文字列と直に比べない（`isActive`・`isIdle` などを通す） | lint：`tools/lint.mjs`（CI） |
 | 画面は一行を `viewOf` などを通して見て、全滅を伏せるフラグを直に読まない | lint：`tools/lint.mjs`（CI） |
 | 一行の状態を変えるのは `setPhase` だけで、移り変わりは表にあるものだけ | lint：`tools/lint.mjs`（CI）と、spec-test の「一行の状態」（表にない移り変わりが起きないこと） |
+| 職業と種族は内部の鍵で判定し、表示名（戦士・人間など）は `CLS`・`RACE` の `n` にだけ書く | lint：`tools/lint.mjs`（CI）と、spec-test・browser-test の「内部の鍵が文と画面に出ない」 |
 | テストからエンジンの名前を使うのに、一覧は書かない | 仕組み：`tools/engine.mjs` がトップレベルの宣言を名前で引く |
 | 古いセーブを壊さない | テスト：spec-test が `tools/old-saves/` の版ごとの見本を今の migrate にかける（CI）。SAVE_V を上げる PR では、上げる前の版の見本を足す（README「仕様のテスト」） |
 | 振る舞いを変えたら、同じ変更で `docs/spec.md` を直す | 人のレビュー |

@@ -180,13 +180,13 @@ function checkScenes(){
   // 乱数をいつも0にして、吐けるときは必ず吐くようにする。B6Fより下の記録は文字が乱れるので、B5Fで戦わせる
   // 開店の顔ぶれには、敵を眠らせる者と急所を突く者がいる。戦士にしてMPを空にし、息の前に勝負が終わらないようにする
   for(const [name,want] of [['キメラ',1],['黒竜',2]]){const E=load(1,1e-9),S=E.newState();const p=Object.values(S.parties).find(x=>x.tav==='ours');
-    p.members.forEach(id=>{const a=S.adv[id];a.status='party';a.mhp=a.hp=99999;a.mp=0;a.cls='戦士';});
+    p.members.forEach(id=>{const a=S.adv[id];a.status='party';a.mhp=a.hp=99999;a.mp=0;a.cls='warrior';});
     const t=E.MON.find(m=>m.n===name);p.floor=5;p.state='explore';p.etype=t;p.ident=true;p.fought=true;p.enemies=Array.from({length:name==='黒竜'?1:3},()=>({hp:1e9,sleep:0}));p.log=[];
     E.combat(S,p);const n=p.log.filter(x=>x.t.startsWith(`${name} は `)&&x.t.includes('を はいた！')).length;
     check('戦闘：炎の息は、群れでもひと巡りに1体まで（黒竜は2回）',n===want,`${name}${p.enemies.length}体`,`${n}回吐いた（決まりは${want}回）`);}
   // 「吸精」：レベルを2つ吸い取り、手帳に吸い取られたあとのレベルを残す。レベル2以下は下がらない
   {const E=load(1,1e-9),S=E.newState();const p=Object.values(S.parties).find(x=>x.tav==='ours');
-    p.members.forEach(id=>{const a=S.adv[id];a.status='party';a.mhp=a.hp=99999;a.mp=0;a.cls='戦士';a.lvl=19;a.xp=0;a.pers='普通';a.eq={};a.traits=[];});
+    p.members.forEach(id=>{const a=S.adv[id];a.status='party';a.mhp=a.hp=99999;a.mp=0;a.cls='warrior';a.lvl=19;a.xp=0;a.pers='普通';a.eq={};a.traits=[];});
     const t=E.MON.find(m=>m.n==='レイス');const hit=S.adv[p.members[0]];
     p.floor=5;p.state='explore';p.etype=t;p.ident=true;p.fought=true;p.maps={5:1};p.ambush=false;p.potions=0;p.guard=0;p.buff=0;p.enemies=[{hp:1e9,sleep:0}];p.log=[];p.trip={close:[]};
     E.combat(S,p);
@@ -220,7 +220,7 @@ function checkScenes(){
     const fresh=(S.news||[]).filter(n=>n.tk===S.tick&&String(n.t).includes('と呼ばれはじめた')&&String(n.t).includes('殺し'));
     let bad=null;for(const nm of names){const c=fresh.filter(n=>n.t.includes(nm+'殺し')).length;if(c>1)bad=`${nm}が${c}件`;}
     check('名のある魔物：同じ刻に同じ「殺し」の知らせは一件だけ',!bad,at,bad||fresh.map(n=>n.t).join(' / ')||'なし');};
-  for(const [how,floor,cls,rnd,prep] of [['呪文',1,'魔術師',1e-9,null],['爆薬',2,'錬金術師',1e-9,null],['息吹',5,'竜騎士',1e-9,null],['相棒の獣',4,'戦士',0.99,(S,p)=>{const id=p.members.at(-1);const a=S.adv[id];a.cls='獣使い';a.beast={kind:'狼',name:'クロ'};}]]){
+  for(const [how,floor,cls,rnd,prep] of [['呪文',1,'mage',1e-9,null],['爆薬',2,'alchemist',1e-9,null],['息吹',5,'dragoon',1e-9,null],['相棒の獣',4,'warrior',0.99,(S,p)=>{const id=p.members.at(-1);const a=S.adv[id];a.cls='tamer';a.beast={kind:'狼',name:'クロ'};}]]){
     const {E,S,p,n,al,expect}=slay(floor,cls,rnd,prep);const slayer=al[expect];const others=al.filter(a=>a!==slayer);const k=S.rares[floor]&&S.rares[floor].killed;
     const titled=al.filter(a=>a.title&&a.title.includes(n)&&a.title.includes('殺し'));
     const news=(S.news||[]).filter(x=>x.tk===S.tick&&x.t.includes(n+'殺し')&&x.t.includes('と呼ばれはじめた'));
@@ -428,7 +428,7 @@ function checkErrands(){
   {let draws=0;const M=Object.create(Math);let r=1;M.random=()=>{draws++;r=(r*16807)%2147483647;return r/2147483647;};
     const E=loadEngine(ENGINE,{Math:M}),S=E.newState();const {p,e}=errandScene(E,S,{k:'bell',f:8,n:'鐘楼の光'});
     const [a,b,c,d]=p.members.map(id=>S.adv[id]);const def=E.errandDef(e);
-    const plain=x=>{x.fear=null;x.traits=[];x.race='人間';x.quirk='無口';x.cls='戦士';x.pers='普通';};
+    const plain=x=>{x.fear=null;x.traits=[];x.race='human';x.quirk='無口';x.cls='warrior';x.pers='普通';};
     [a,b,c,d].forEach(plain);a.fear='高い所';b.fear='高い所';b.pers='無謀';c.traits=['俊足'];d.traits=['鈍足'];
     const kinds=[a,b,c,d].map(x=>E.askKind(def,x));
     const plainK=(()=>{const x=Object.assign({},a,{fear:null});return E.askKind(def,x);})();
@@ -448,12 +448,12 @@ function checkErrands(){
       if(new Set(all).size!==all.length)bad.push(t+'に同じ文');if(all.some(x=>/[0-9０-９%％]|向いている|向かない|不向き|確率|[一二三四五六七八九十]割/.test(x)))bad.push(t+'に数字かラベル');}
     check('話を持ちかける：返しの文は口調8種ぶんあり、数字やラベルを出さない',!bad.length&&Object.keys(E.ASK_SAY).length===8,'ASK_SAY',bad.join(' / '));
     // 同じ話と同じ人なら同じ文。「俺」は一人称になる
-    const x=Object.assign({},d,{tone:'田舎なまり',sex:'女',pers:'普通',race:'人間',age:25});
+    const x=Object.assign({},d,{tone:'田舎なまり',sex:'女',pers:'普通',race:'human',age:25});
     const l1=E.askLine(x,e,'keen'),l2=E.askLine(x,e,'keen');
     check('話を持ちかける：返しの文は話と本人の番号で決まり、一人称がかかる',l1===l2&&!l1.includes('俺')&&(l1.includes('あたし')||!E.ASK_SAY['田舎なまり'].keen[(e.id+x.id)%2].includes('俺')),'田舎なまりの女',l1);}
   // 持ちかけた主役がしくじると、帰ったときの土産話に、返しとつながる一文が出る
   {const F=load(1,0.99),T=F.newState();const {p:q,e}=errandScene(F,T,{k:'bell',f:8,n:'鐘楼の光'});const ms=q.members.map(id=>T.adv[id]);const h=ms[0];
-    ms.forEach(m=>{m.fear=null;m.traits=[];m.race='人間';m.quirk='無口';m.cls='戦士';m.pers='普通';m.tone='普通';});h.traits=['鈍足'];
+    ms.forEach(m=>{m.fear=null;m.traits=[];m.race='human';m.quirk='無口';m.cls='warrior';m.pers='普通';m.tone='普通';});h.traits=['鈍足'];
     const k=F.askErrand(T,e,h);F.assignErrand(T,e,h);
     q.state='explore';q.floor=8;q.trip=F.newTrip();ms.forEach(m=>{m.status='party';});
     F.errandEvent(T,q,e);const miss=q.trip.askMiss;
@@ -468,7 +468,7 @@ function checkErrands(){
     check('しくじったあと：持ちかけていなければ、つなぎの一文は出ない',!q2.trip.askMiss,'持ちかけずに回す',JSON.stringify(q2.trip.askMiss));}
   // 帰ったときに、ふつうの土産話のあとに足される
   {const F=load(7,0.99),T=F.newState();const {p:q,e}=errandScene(F,T,{k:'bell',f:8,n:'鐘楼の光'});const ms=q.members.map(id=>T.adv[id]);const h=ms[0];
-    ms.forEach(m=>{m.fear=null;m.traits=[];m.race='人間';m.quirk='無口';m.cls='戦士';m.pers='普通';m.tone='普通';});
+    ms.forEach(m=>{m.fear=null;m.traits=[];m.race='human';m.quirk='無口';m.cls='warrior';m.pers='普通';m.tone='普通';});
     F.askErrand(T,e,h);F.assignErrand(T,e,h);q.state='explore';q.floor=8;q.trip=F.newTrip();ms.forEach(m=>{m.status='party';});F.errandEvent(T,q,e);
     const n0=T.tales.length;q.loot=0;q.carried=[];F.arrive(T,q);const got=T.tales.slice(n0);
     check('しくじったあと：帰ると、ふつうの土産話のあとに曖昧な返しとつながる一文が出る',got.length>=2&&got.slice(-1)[0].t==='行ってみないと分からないと言ったろう。鐘楼の光は、やっぱり駄目だった'&&got.slice(0,-1).every(x=>x.k!=='ask'),'帰還',got.map(x=>x.t).join(' / '));}
@@ -538,15 +538,15 @@ function checkCrest(){
   const themed=(leader)=>{const U={usedParty:{}};const nm=E.takeCrest(U,leader);const [at,bt]=nm.split('・');return {nm,shown:E.partyShown(nm),a:E.PT_A.find(w=>w.t===at),b:E.PT_B.find(w=>w.t===bt)};};
   const fit=(x,lang,cls)=>!!x.a&&!!x.b&&x.a.lang.includes(lang)&&(x.b.lang.includes(lang)||x.b.cls.includes(cls));
   const samples=[
-    [{origin:'東方の島国アズマ',race:'人間',cls:'侍',name:'レン'},'アズマ','侍','ヤミ・ヤイバ'],
-    [{origin:'霧の森',race:'エルフ',cls:'魔術師',name:'シエラ'},'森','魔術師','ステルン・クロウ'],
-    [{origin:'鉄の山脈',race:'ドワーフ',cls:'戦士',name:'ドルフ'},'山','戦士','アイゼン・ハンマー'],
-    [{origin:'麦穂の丘',race:'ホビット',cls:'盗賊',name:'ピピン'},'丘','盗賊','コルン・フクス'],
-    [{origin:'聖オルド教国',race:'人間',cls:'僧侶',name:'ルカ'},'教','僧侶','ルクス・オイレ'],
-    [{origin:'北の氷海ノルデン',race:'人間',cls:'獣使い',name:'オラフ'},'ノルデン','獣使い','アイス・ウルフ'],
-    [{origin:'砂の大陸ザハル',race:'人間',cls:'竜騎士',name:'ラシド'},'ザハル','竜騎士','ラムル・ドラコ'],
-    [{origin:'グラウ帝国',race:'人間',cls:'戦士',name:'カール'},'帝国','戦士','シュタール・アドラー'],
-    [{origin:'ラウレンツ王国',race:'人間',cls:'吟遊詩人',name:'レオ'},'大陸','吟遊詩人','ナハト・リート'],
+    [{origin:'東方の島国アズマ',race:'human',cls:'samurai',name:'レン'},'アズマ','samurai','ヤミ・ヤイバ'],
+    [{origin:'霧の森',race:'elf',cls:'mage',name:'シエラ'},'森','mage','ステルン・クロウ'],
+    [{origin:'鉄の山脈',race:'dwarf',cls:'warrior',name:'ドルフ'},'山','warrior','アイゼン・ハンマー'],
+    [{origin:'麦穂の丘',race:'hobbit',cls:'thief',name:'ピピン'},'丘','thief','コルン・フクス'],
+    [{origin:'聖オルド教国',race:'human',cls:'priest',name:'ルカ'},'教','priest','ルクス・オイレ'],
+    [{origin:'北の氷海ノルデン',race:'human',cls:'tamer',name:'オラフ'},'ノルデン','tamer','アイス・ウルフ'],
+    [{origin:'砂の大陸ザハル',race:'human',cls:'dragoon',name:'ラシド'},'ザハル','dragoon','ラムル・ドラコ'],
+    [{origin:'グラウ帝国',race:'human',cls:'warrior',name:'カール'},'帝国','warrior','シュタール・アドラー'],
+    [{origin:'ラウレンツ王国',race:'human',cls:'bard',name:'レオ'},'大陸','bard','ナハト・リート'],
   ];
   const got=samples.map(([L,lang,cls,want])=>{const x=themed(L);return {ok:x.nm===want&&fit(x,lang,cls),t:`${L.origin}の${L.race}の${L.cls}→${x.shown}`};});
   check('一行の名前：リーダーの出身と種族と職業に合う',got.every(g=>g.ok),'付け方',got.map(g=>g.t).join(' / '));
@@ -556,7 +556,7 @@ function checkCrest(){
   const one=Object.values(S.parties).find(p=>p.name!=='白銀の牙');
   const keep={};Object.keys(S.usedParty).forEach(k=>{if(!/・/.test(k))keep[k]=1;});
   S.parties={[one.id]:one};one.name='鉄鍋隊';S.usedParty=Object.assign(keep,{'鉄鍋隊':1});
-  S.adv[one.leader].origin='東方の島国アズマ';S.adv[one.leader].race='人間';S.adv[one.leader].cls='侍';
+  S.adv[one.leader].origin='東方の島国アズマ';S.adv[one.leader].race='human';S.adv[one.leader].cls='samurai';
   S.v=20;E.migrate(S);
   check('一行の名前：付け替えもリーダーに合わせ、乱数の名は記録しない',one.name==='ヤミ・ヤイバ'&&S.v===SAVE_V&&!('ja' in one),'付け替え',one.name);
 }
@@ -565,8 +565,8 @@ function checkRowFallback(){
   const E=load(4),S=E.newState();
   for(const a of E.PT_A)for(const b of E.PT_B)S.usedParty[a.t+'・'+b.t]=1;
   S.usedParty['ミナの一行']=1;
-  const row=(name,prefer)=>E.newPartyName(S,prefer||null,name?{name,origin:'ラウレンツ王国',race:'人間',cls:'戦士'}:{origin:'ラウレンツ王国',race:'人間',cls:'戦士'});
-  const got={n1:row('ローエン'),n2:row('ローエン'),n3:row('ローエン'),u1:row(null),u2:row(null),m:row('ミナ'),ace:E.newPartyName(S,'白銀の牙',{name:'ケヴィ',origin:'聖オルド教国',race:'人間',cls:'魔術師'})};
+  const row=(name,prefer)=>E.newPartyName(S,prefer||null,name?{name,origin:'ラウレンツ王国',race:'human',cls:'warrior'}:{origin:'ラウレンツ王国',race:'human',cls:'warrior'});
+  const got={n1:row('ローエン'),n2:row('ローエン'),n3:row('ローエン'),u1:row(null),u2:row(null),m:row('ミナ'),ace:E.newPartyName(S,'白銀の牙',{name:'ケヴィ',origin:'聖オルド教国',race:'human',cls:'mage'})};
   const want={n1:'ローエンの一行',n2:'ローエンの一行・2',n3:'ローエンの一行・3',u1:'無名の一行',u2:'無名の一行・2',m:'ミナの一行・2',ace:'ケヴィの一行'};
   const vals=Object.values(got);
   check('一行の結成：紋章名が尽きたときの「の一行」は番号で区別する',Object.entries(want).every(([k,v])=>got[k]===v)&&new Set(vals).size===vals.length&&vals.every(n=>S.usedParty[n]&&n!=='白銀の牙'),'紋章名を使い切る',Object.entries(got).map(([k,v])=>`${k}:${v}`).join(' / '));
@@ -696,22 +696,22 @@ function checkAffinity(){
     p.etype=Object.assign({},E2.MON.find(m=>m.n===mon));p.enemies=[{hp:99999,sleep:0}];
     E2.combat(S,p);return {dmg:99999-p.enemies[0].hp,log:p.log.map(x=>x.t).join('\n')};};
   let breath=null,bomb=null;
-  for(let seed=1;seed<=80&&(!breath||!bomb);seed++){const b=strike(seed,'竜騎士','オーク');if(!breath&&b.log.includes('りゅうの いぶき'))breath=seed;
-    const c=strike(seed,'錬金術師','オーク');if(!bomb&&c.log.includes('ばくやくを なげつけた'))bomb=seed;}
+  for(let seed=1;seed<=80&&(!breath||!bomb);seed++){const b=strike(seed,'dragoon','オーク');if(!breath&&b.log.includes('りゅうの いぶき'))breath=seed;
+    const c=strike(seed,'alchemist','オーク');if(!bomb&&c.log.includes('ばくやくを なげつけた'))bomb=seed;}
   check('属性の相性：息吹と爆薬が試し打ちできる',!!breath&&!!bomb,'80種',`息吹${breath} 爆薬${bomb}`);
-  if(breath){const oak=strike(breath,'竜騎士','オーク'),dr=strike(breath,'竜騎士','黒竜'),lava=strike(breath,'竜騎士','溶岩の獣');
+  if(breath){const oak=strike(breath,'dragoon','オーク'),dr=strike(breath,'dragoon','黒竜'),lava=strike(breath,'dragoon','溶岩の獣');
     check('属性の相性：竜の息吹は竜に弱く効く',dr.dmg===Math.round(oak.dmg*.4)&&dr.dmg<oak.dmg&&dr.log.includes('あまり きかない')&&!oak.log.includes('きいた')&&!oak.log.includes('きかない'),`種${breath}`,`オーク${oak.dmg} 黒竜${dr.dmg}`);
     check('属性の相性：竜の息吹は溶岩の獣に弱く効く',lava.dmg===Math.round(oak.dmg*.8)&&lava.dmg<oak.dmg&&lava.log.includes('あまり きかない'),`種${breath}`,`オーク${oak.dmg} 溶岩${lava.dmg}`);
-    const hid=strike(breath,'竜騎士','黒竜');const E3=load(breath),S=E3.newState();const p=Object.values(S.parties).find(x=>x.tav==='ours');const a=S.adv[p.leader];
-    a.cls='竜騎士';a.lvl=10;a.hp=a.mhp=500;a.mp=0;a.pers='普通';a.poison=0;a.eq={};
+    const hid=strike(breath,'dragoon','黒竜');const E3=load(breath),S=E3.newState();const p=Object.values(S.parties).find(x=>x.tav==='ours');const a=S.adv[p.leader];
+    a.cls='dragoon';a.lvl=10;a.hp=a.mhp=500;a.mp=0;a.pers='普通';a.poison=0;a.eq={};
     p.members=[a.id];p.leader=a.id;p.floor=1;p.state='explore';p.fought=true;p.ident=false;p.ambush=false;p.potions=0;p.guard=0;p.buff=0;p.log=[];
     p.etype=Object.assign({},E3.MON.find(m=>m.n==='黒竜'));p.enemies=[{hp:99999,sleep:0}];E3.combat(S,p);
     check('属性の相性：正体がわからなくても息吹の傷には倍率がかかる',99999-p.enemies[0].hp===hid.dmg&&p.log.some(x=>x.t.includes('あまり きかない')),`種${breath}`,`見破る${hid.dmg} まだ${99999-p.enemies[0].hp}`);}
-  if(bomb){const oak=strike(bomb,'錬金術師','オーク'),dr=strike(bomb,'錬金術師','黒竜');
+  if(bomb){const oak=strike(bomb,'alchemist','オーク'),dr=strike(bomb,'alchemist','黒竜');
     check('属性の相性：爆薬は炎で、竜に弱く効く',dr.dmg===Math.round(oak.dmg*.4)&&dr.dmg<oak.dmg&&dr.log.includes('あまり きかない')&&oak.log.includes('ばくふうに のまれた')&&!oak.log.includes('きいた')&&!oak.log.includes('きかない'),`種${bomb}`,`オーク${oak.dmg} 黒竜${dr.dmg}`);}
   // 呪文の選びは、正体がわかっているときだけ相性を見る。傷の計算とは別
   const cast=(ident)=>{const E2=load(1),S=E2.newState();const p=Object.values(S.parties).find(x=>x.tav==='ours');const a=S.adv[p.leader];
-    a.cls='魔術師';a.lvl=10;a.hp=a.mhp=200;a.mp=8;a.pers='普通';a.poison=0;a.eq={};a.tal=[];
+    a.cls='mage';a.lvl=10;a.hp=a.mhp=200;a.mp=8;a.pers='普通';a.poison=0;a.eq={};a.tal=[];
     p.members=[a.id];p.leader=a.id;p.floor=1;p.state='explore';p.fought=true;p.ident=ident;p.ambush=false;p.potions=0;p.guard=0;p.buff=0;p.log=[];
     p.etype=Object.assign({},E2.MON.find(m=>m.n==='黒竜'));p.enemies=[{hp:500,sleep:0},{hp:500,sleep:0}];
     E2.combat(S,p);return p.log.map(x=>x.t).join('\n');};
@@ -726,13 +726,13 @@ function checkAffinity(){
     p.members=[a.id];p.leader=a.id;p.floor=floor;p.state='explore';p.fought=true;p.ident=ident;p.ambush=false;p.potions=0;p.guard=0;p.buff=0;p.log=[];
     p.etype=Object.assign({},E2.MON.find(m=>m.n===mon));p.enemies=Array.from({length:3},()=>({hp:1e9,sleep:0}));
     E2.combat(S,p);return {slept:p.enemies.filter(e=>e.sleep>0).length,mp:a.mp,log:p.log.map(x=>x.t).join('\n')};};
-  check('眠り：レベル1の魔術師のネムリはB6Fまで',E.sleepReach({cls:'魔術師',lvl:1})===6.5&&nemuri('魔術師',1,6,'オーク',true).slept===3&&nemuri('魔術師',1,7,'オーク',true).slept===0,'魔術師Lv1',`B6F${nemuri('魔術師',1,6,'オーク',true).slept}体 B7F${nemuri('魔術師',1,7,'オーク',true).slept}体`);
-  check('眠り：レベル24の魔導士のネムリはB22Fまで',E.sleepReach({cls:'魔導士',lvl:24})===22&&nemuri('魔導士',24,22,'オーク',true).slept===3&&nemuri('魔導士',24,23,'オーク',true).slept===0,'魔導士Lv24',`B22F${nemuri('魔導士',24,22,'オーク',true).slept}体 B23F${nemuri('魔導士',24,23,'オーク',true).slept}体`);
-  {const known=nemuri('魔術師',1,3,'ゾンビ',true),unknown=nemuri('魔術師',1,3,'ゾンビ',false);
+  check('眠り：レベル1の魔術師のネムリはB6Fまで',E.sleepReach({cls:'mage',lvl:1})===6.5&&nemuri('mage',1,6,'オーク',true).slept===3&&nemuri('mage',1,7,'オーク',true).slept===0,'魔術師Lv1',`B6F${nemuri('mage',1,6,'オーク',true).slept}体 B7F${nemuri('mage',1,7,'オーク',true).slept}体`);
+  check('眠り：レベル24の魔導士のネムリはB22Fまで',E.sleepReach({cls:'sorcerer',lvl:24})===22&&nemuri('sorcerer',24,22,'オーク',true).slept===3&&nemuri('sorcerer',24,23,'オーク',true).slept===0,'魔導士Lv24',`B22F${nemuri('sorcerer',24,22,'オーク',true).slept}体 B23F${nemuri('sorcerer',24,23,'オーク',true).slept}体`);
+  {const known=nemuri('mage',1,3,'ゾンビ',true),unknown=nemuri('mage',1,3,'ゾンビ',false);
     check('眠り：正体のわかった眠らない魔物にはネムリを唱えず、わからなければ唱えて効かない',!known.log.includes('ネムリ')&&unknown.log.includes('ネムリ')&&unknown.log.includes('ねむらなかった')&&unknown.slept===0,'ゾンビ3体',`わかる「${known.log.split('\n')[0]}」 わからない「${unknown.log.split('\n').slice(0,2).join(' ')}」`);}
   // 子守歌も同じ。乱数をいつも0にして、歌えるときは必ず歌う。勇ましい歌はすでにかかっているものとして、子守歌の手番を見る。B6F以上はログの文字が乱れるので、文言はB5Fで見る
   const lullaby=(mon,ident,floor)=>{const E2=load(1,1e-9),S=E2.newState();const p=Object.values(S.parties).find(x=>x.tav==='ours');const a=S.adv[p.leader];
-    a.cls='吟遊詩人';a.lvl=10;a.hp=a.mhp=99999;a.mp=8;a.pers='普通';a.poison=0;a.eq={};a.tal=[];a.fear=null;
+    a.cls='bard';a.lvl=10;a.hp=a.mhp=99999;a.mp=8;a.pers='普通';a.poison=0;a.eq={};a.tal=[];a.fear=null;
     p.members=[a.id];p.leader=a.id;p.floor=floor;p.state='explore';p.fought=true;p.ident=ident;p.ambush=false;p.potions=0;p.guard=0;p.buff=1;p.log=[];
     p.etype=Object.assign({},E2.MON.find(m=>m.n===mon));p.enemies=Array.from({length:2},()=>({hp:1e9,sleep:0}));
     E2.combat(S,p);return {slept:p.enemies.filter(e=>e.sleep>0).length,mp:a.mp,hp:p.enemies[0].hp,log:p.log.map(x=>x.t).join('\n')};};
@@ -743,7 +743,7 @@ function checkAffinity(){
   // 沈んだ王と坑道王の黒い炎は、炎を防ぐ装備では軽くならない。ふつうの炎の息は軽くなる
   // キメラの息は 0.8 倍なので、B1F では傷が端数で消えて耐性の差が出ない。キメラは B5F（文字化けの始まる B6F より浅い）で試す。黒い炎は B1F のまま
   const hurt=(seed,mon,fire,floor=1)=>{const E2=load(seed),S=E2.newState();const p=Object.values(S.parties).find(x=>x.tav==='ours');const a=S.adv[p.leader];
-    a.cls='戦士';a.lvl=8;a.hp=a.mhp=50000;a.mp=0;a.pers='普通';a.poison=0;a.eq=fire?{body:{fire,slot:'body'}}:{};
+    a.cls='warrior';a.lvl=8;a.hp=a.mhp=50000;a.mp=0;a.pers='普通';a.poison=0;a.eq=fire?{body:{fire,slot:'body'}}:{};
     p.members=[a.id];p.leader=a.id;p.floor=floor;p.state='explore';p.fought=true;p.ident=true;p.ambush=false;p.potions=0;p.guard=0;p.buff=0;p.log=[];
     p.etype=Object.assign({},E2.MON.find(m=>m.n===mon));p.enemies=[{hp:99999,sleep:0}];
     E2.combat(S,p);return {dmg:50000-a.hp,log:p.log.map(x=>x.t).join('\n')};};
@@ -760,8 +760,8 @@ function checkAffinity(){
   const chestScene=(pers,hp,{thief=false,dead=false,mhp=100}={})=>{
     const E=load(1,1e-9),S=E.newState();const p=Object.values(S.parties).find(x=>x.tav==='ours');
     p.floor=4;p.state='explore';p.enemies=null;p.log=[];p.loot=0;p.trip=trip0();p.maps={};p.tmap={};p.potions=0;
-    p.members.forEach(id=>{const a=S.adv[id];a.status='party';a.hp=a.mhp=100;a.mp=0;a.poison=0;a.cls='戦士';a.traits=[];a.lvl=8;});
-    const L=S.adv[p.leader];L.pers=pers;L.cls=thief?'盗賊':'戦士';L.hp=L.mhp=100;
+    p.members.forEach(id=>{const a=S.adv[id];a.status='party';a.hp=a.mhp=100;a.mp=0;a.poison=0;a.cls='warrior';a.traits=[];a.lvl=8;});
+    const L=S.adv[p.leader];L.pers=pers;L.cls=thief?'thief':'warrior';L.hp=L.mhp=100;
     const hurt=S.adv[p.members.find(id=>id!==p.leader)];hurt.mhp=mhp;hurt.hp=hp;
     if(dead){const id=p.members.find(x=>x!==p.leader&&x!==hurt.id);if(id)S.adv[id].hp=0;}
     const n0=S.news.length;E.chest(S,p);
@@ -787,20 +787,20 @@ function checkAffinity(){
     check('罠と宝箱：倒れて担がれているだけでは、2割未満の見送りには当たらない',w.chests===1&&!w.log.includes('けがにん'),'死者1人・ほかは満タン',w.log);}
   {const win=(hp,cls,mp)=>{const E=load(1,1e-9),S=E.newState();const p=Object.values(S.parties).find(x=>x.tav==='ours');
       p.floor=4;p.state='explore';p.log=[];p.loot=0;p.trip=trip0();p.maps={};p.tmap={};p.potions=0;p.buff=0;p.guard=0;
-      p.members.forEach(id=>{const a=S.adv[id];a.status='party';a.hp=a.mhp=100;a.mp=0;a.poison=0;a.cls='戦士';a.traits=[];a.lvl=8;a.pers='普通';});
+      p.members.forEach(id=>{const a=S.adv[id];a.status='party';a.hp=a.mhp=100;a.mp=0;a.poison=0;a.cls='warrior';a.traits=[];a.lvl=8;a.pers='普通';});
       const L=S.adv[p.leader];L.pers='普通';const heal=S.adv[p.members.find(id=>id!==L.id)];heal.cls=cls;heal.mp=mp;
       const hurt=S.adv[p.members.find(id=>id!==L.id&&id!==heal.id)];hurt.hp=hp;
       p.etype={n:'スライム',f:1};p.enemies=[{hp:1}];
       E.victory(S,p);return {log:p.log.map(l=>l.t).join('\n'),chests:p.trip.chests,hp:hurt.hp};};
-    const still=win(1,'錬金術師',3),over=win(15,'錬金術師',3),plain=win(19,'戦士',0);
+    const still=win(1,'alchemist',3),over=win(15,'alchemist',3),plain=win(19,'warrior',0);
     check('罠と宝箱：勝ったあとの手当てでも2割を切っていれば、その箱は開けない',still.chests===0&&still.hp<20&&still.log.includes('ひやく')&&still.log.includes('けがにんが いる'),'HP1が秘薬のあと',`${still.hp} ${still.log}`);
     check('罠と宝箱：手当てで2割以上に戻っていれば、その箱は開ける',over.chests===1&&over.hp>=20&&over.log.includes('ひやく')&&!over.log.includes('けがにん'),'HP15が秘薬のあと',`${over.hp} ${over.log}`);
     check('罠と宝箱：手当てがなければ、勝った直後の体力のまま見送る',plain.chests===0&&plain.hp===19&&plain.log.includes('けがにんが いる')&&!plain.log.includes('ひやく'),'戦士だけ',plain.log);}
   // 「画面と語り」：水晶の一言と札の理由。表示だけで、知らせは増えない
   const dangerScene=mut=>{const E=load(2),S=E.newState();const p=Object.values(S.parties).find(x=>x.tav==='ours');
     p.state='explore';p.floor=4;p.enemies=null;p.pushWhy=null;p.maps={[4]:1};p.tmap={};p.potions=0;
-    p.members.forEach(id=>{const a=S.adv[id];a.status='party';a.hp=a.mhp=100;a.mp=5;a.poison=0;a.cls='戦士';a.lvl=8;a.traits=[];});
-    const L=S.adv[p.leader];L.pers='普通';L.cls='戦士';L.mp=0;L.hp=L.mhp=100;
+    p.members.forEach(id=>{const a=S.adv[id];a.status='party';a.hp=a.mhp=100;a.mp=5;a.poison=0;a.cls='warrior';a.lvl=8;a.traits=[];});
+    const L=S.adv[p.leader];L.pers='普通';L.cls='warrior';L.mp=0;L.hp=L.mhp=100;
     const n0=S.news.length;mut(S,p,L);const d=E.partyDanger(S,p);
     return {d,p,S,E,L,news:S.news.length-n0,band:id=>E.hpBand(S.adv[id])};};
   {const hurtId=(p,L)=>p.members.find(id=>id!==L.id);
@@ -826,14 +826,14 @@ function checkAffinity(){
     check('帰還中の札：深手の者がいなければ、体力が少なくても全滅が近いとはみない',breath.d&&breath.d.key==='breath'&&breath.E.returnPeril(breath.S,breath.p)===false,'全員HP21%',JSON.stringify(breath.d));
     const half=dangerScene((S,p,L)=>{p.state='return';p.members.forEach(id=>{S.adv[id].hp=21;});S.adv[hurtId(p,L)].hp=10;L.hp=32;});
     check('帰還中の札：体力の合計がちょうど目安の半分なら、全滅が近いとはみない',half.E.returnPeril(half.S,half.p)===false,'合計21%・線42%','');}
-  {const poison=dangerScene((S,p,L)=>{const a=S.adv[p.members.find(id=>id!==L.id)];a.poison=1;a.cls='戦士';p.potions=10;});
+  {const poison=dangerScene((S,p,L)=>{const a=S.adv[p.members.find(id=>id!==L.id)];a.poison=1;a.cls='warrior';p.potions=10;});
     const name=poison.S.adv[poison.p.members.find(id=>id!==poison.L.id)].name;
     check('危険の知らせ：ドクケシを唱える者がいない毒は、回復薬があっても抜けない',poison.d&&poison.d.key==='poison'&&poison.d.line===`${name}の どくが ぬけない`&&poison.d.card==='毒が抜けない'&&poison.news===0,'僧侶なし・回復薬10',JSON.stringify(poison.d));
-    const cured=dangerScene((S,p,L)=>{const ids=p.members.filter(id=>id!==L.id);S.adv[ids[0]].poison=1;S.adv[ids[1]].cls='僧侶';S.adv[ids[1]].mp=3;});
+    const cured=dangerScene((S,p,L)=>{const ids=p.members.filter(id=>id!==L.id);S.adv[ids[0]].poison=1;S.adv[ids[1]].cls='priest';S.adv[ids[1]].mp=3;});
     check('危険の知らせ：呪文の残った癒し手がいれば、毒の一言は出ない',!cured.d,'僧侶MP3',JSON.stringify(cured.d));
-    const dry=dangerScene((S,p,L)=>{const ids=p.members.filter(id=>id!==L.id);S.adv[ids[0]].poison=1;S.adv[ids[1]].cls='僧侶';S.adv[ids[1]].mp=0;p.potions=8;});
+    const dry=dangerScene((S,p,L)=>{const ids=p.members.filter(id=>id!==L.id);S.adv[ids[0]].poison=1;S.adv[ids[1]].cls='priest';S.adv[ids[1]].mp=0;p.potions=8;});
     check('危険の知らせ：癒し手の呪文が尽きていれば、毒の一言が呪文切れより先',dry.d&&dry.d.key==='poison'&&dry.d.card==='毒が抜けない','僧侶MP0・回復薬8',JSON.stringify(dry.d));
-    const spells=dangerScene((S,p,L)=>{const a=S.adv[p.members.find(id=>id!==L.id)];a.cls='僧侶';a.mp=0;p.potions=8;});
+    const spells=dangerScene((S,p,L)=>{const a=S.adv[p.members.find(id=>id!==L.id)];a.cls='priest';a.mp=0;p.potions=8;});
     check('危険の知らせ：毒が無く呪文だけ尽きたときは、癒し手の一言で札には出さない',spells.d&&spells.d.key==='spells'&&spells.d.line==='いやしての じゅもんが つきた'&&!spells.d.card,'僧侶MP0',JSON.stringify(spells.d));}
   {const low=dangerScene((S,p)=>{p.members.forEach(id=>{S.adv[id].hp=50;});});
     check('危険の知らせ：体力の合計が引き返す目安より1割低いと、息が上がっている',low.d&&low.d.key==='breath'&&low.d.line==='いっこうの いきが あがっている'&&low.d.card==='息が上がっている'&&Math.abs(low.E.retreatLine(low.S,low.p)-.42)<1e-9,'普通・HP50%',JSON.stringify(low.d));
@@ -841,13 +841,13 @@ function checkAffinity(){
     check('危険の知らせ：平均が低い一行は、引き返す線が上がったところで息が上がる',young.d&&young.d.key==='breath'&&young.E.retreatLine(young.S,young.p)>.5,'Lv1・HP60%',`線${young.E.retreatLine(young.S,young.p)}`);
     const push=dangerScene((S,p)=>{p.pushWhy='race';p.members.forEach(id=>{S.adv[id].hp=40;});});
     check('危険の知らせ：深みを目指す理由があると、息の線もその分下がる',push.d&&push.d.key==='breath'&&Math.abs(push.E.retreatLine(push.S,push.p)-.36)<1e-9,'目安0.36・HP40%',`線${push.E.retreatLine(push.S,push.p)}`);}
-  {const front=dangerScene((S,p,L)=>{p.floor=12;p.maps={};const a=S.adv[p.members.find(id=>id!==L.id)];a.cls='僧侶';a.mp=1;p.members.forEach(id=>{if(id!==a.id)S.adv[id].mp=0;S.adv[id].hp=55;});});
+  {const front=dangerScene((S,p,L)=>{p.floor=12;p.maps={};const a=S.adv[p.members.find(id=>id!==L.id)];a.cls='priest';a.mp=1;p.members.forEach(id=>{if(id!==a.id)S.adv[id].mp=0;S.adv[id].hp=55;});});
     check('危険の知らせ：地図のない最前線で、息か呪文に近いときだけその一言が出る',front.d&&front.d.key==='front'&&front.d.line==='ちずの ない さいぜんせんに いる'&&!front.d.card,'B12F・HP55%・僧侶MP1',JSON.stringify(front.d));
-    const deep=dangerScene((S,p,L)=>{p.floor=20;p.maps={};const a=S.adv[p.members.find(id=>id!==L.id)];a.cls='僧侶';a.mp=5;});
+    const deep=dangerScene((S,p,L)=>{p.floor=20;p.maps={};const a=S.adv[p.members.find(id=>id!==L.id)];a.cls='priest';a.mp=5;});
     check('危険の知らせ：安全な深さより下なだけでは一言を出さない',!deep.d,'B20F・体力も呪文も足りている',JSON.stringify(deep.d));
     const mapped=dangerScene((S,p,L)=>{p.floor=12;p.maps={12:1};p.members.forEach(id=>{S.adv[id].hp=55;});});
     check('危険の知らせ：地図があれば、最前線でもその一言は出ない',!mapped.d,'B12F・地図あり・HP55%',JSON.stringify(mapped.d));
-    const far=dangerScene((S,p,L)=>{p.floor=12;p.maps={};const a=S.adv[p.members.find(id=>id!==L.id)];a.cls='僧侶';a.mp=2;});
+    const far=dangerScene((S,p,L)=>{p.floor=12;p.maps={};const a=S.adv[p.members.find(id=>id!==L.id)];a.cls='priest';a.mp=2;});
     check('危険の知らせ：呪文が2残っていて体力にも余裕があれば、最前線だけでは出ない',!far.d,'B12F・僧侶MP2',JSON.stringify(far.d));}
   {const wild=dangerScene((S,p,L)=>{S.adv[p.leader].pers='無謀';const a=S.adv[p.members.find(id=>id!==L.id)];a.hp=10;p.enemies=[{hp:5}];});
     check('危険の知らせ：無謀なリーダーは深手でも引き返さず、戦いの最中はその注が付く',wild.d&&wild.d.key==='wound'&&wild.d.thought==='リーダーは ひきかえす きが ない'&&wild.d.fight==='たたかいの さいちゅう。いま めいじても にげきれるとは かぎらない','無謀・戦闘中',JSON.stringify(wild.d));
@@ -861,8 +861,8 @@ function checkAffinity(){
       p.state='explore';p.floor=opt.floor||4;p.maps={};p.tmap={};p.plan='normal';p.pushWhy=null;p.enemies=null;
       p.trip=p.trip||{};p.trip.poison=opt.poison||[];p.trip.deep=opt.deep||p.floor;p.cause='';p.killer='';
       delete p.wipe;p.steps=0;
-      p.members.forEach(id=>{const a=S.adv[id];a.hp=a.mhp||10;a.mp=5;a.cls='戦士';a.status='party';a.poison=0;});
-      if(opt.healer){const a=S.adv[p.members[0]];a.cls='僧侶';a.mp=opt.mp==null?0:opt.mp;}
+      p.members.forEach(id=>{const a=S.adv[id];a.hp=a.mhp||10;a.mp=5;a.cls='warrior';a.status='party';a.poison=0;});
+      if(opt.healer){const a=S.adv[p.members[0]];a.cls='priest';a.mp=opt.mp==null?0:opt.mp;}
       if(opt.floor)S.floors=Object.assign({},S.floors,{[opt.floor]:opt.through?{through:1}:{}});
       S.watch=opt.watch?[p.id,null]:[null,null];
       return p;
@@ -939,7 +939,7 @@ function checkAffinity(){
     {const {E,S,p}=scene();prep(E,S,p,{healer:true,mp:4,floor:12});E.wipe(S,p,'オーク');
       check('全滅：地図のない最前線なら、その一文',p.cause==='地図のない最前線で倒れた','B12F・地図なし・僧侶MP4',p.cause);}
     {const {E,S,p}=scene();const a=S.adv[p.leader];
-      p.state='explore';p.floor=2;p.enemies=null;p.members.forEach(id=>{const m=S.adv[id];m.hp=m.mhp;m.status='party';m.pers='普通';m.quirk='無口';m.fear=null;m.traits=[];m.cls='戦士';});
+      p.state='explore';p.floor=2;p.enemies=null;p.members.forEach(id=>{const m=S.adv[id];m.hp=m.mhp;m.status='party';m.pers='普通';m.quirk='無口';m.fear=null;m.traits=[];m.cls='warrior';});
       const def=E.ERRANDS.find(x=>x.k==='kitten');const plain=E.fitOf(def,a);
       check('依頼：向きも不向きもなければ、向かなかったと書く',E.errandFailLine(def,a,plain)==='心得のない者に「迷い込んだ子猫」は向かなかった','無口・普通',JSON.stringify(plain));
       a.fear='獣';const fear=E.fitOf(def,a);
@@ -947,7 +947,7 @@ function checkAffinity(){
       a.fear=null;a.quirk='猫好き';const like=E.fitOf(def,a);
       check('依頼：向いていて果たせなければ、手を尽くしたと書く',E.errandFailLine(def,a,like)===`${a.name}は手を尽くしたが、目当てのものは見つからなかった`,'猫好き',JSON.stringify(like));
       const F=load(1,0.99),T=F.newState(),q=Object.values(T.parties).find(x=>x.tav==='ours'),h=T.adv[q.leader];
-      q.state='explore';q.floor=2;q.enemies=null;q.members.forEach(id=>{const m=T.adv[id];m.hp=m.mhp;m.status='party';m.pers='普通';m.quirk='無口';m.fear=null;m.traits=[];m.cls='戦士';});
+      q.state='explore';q.floor=2;q.enemies=null;q.members.forEach(id=>{const m=T.adv[id];m.hp=m.mhp;m.status='party';m.pers='普通';m.quirk='無口';m.fear=null;m.traits=[];m.cls='warrior';});
       const run=(mut)=>{mut();const e={id:1,k:'kitten',n:'迷い込んだ子猫',f:2,hero:h.id};F.errandEvent(T,q,e);
         return {news:T.news.slice(-1)[0].t,chron:(h.chron||[]).slice(-1)[0].t};};
       const none=run(()=>{});
@@ -1150,6 +1150,10 @@ function runSeed(seed){
     noteNames(at);
     // 一行の状態（#194）。表にない移り変わりは起きず、全滅の中の状態は全滅しているときだけあり、古いフラグは残らない
     check('一行の状態：表にない移り変わりは起きない',E.PHASE_BAD.length===0,at,()=>JSON.stringify(E.PHASE_BAD[0]));
+    // 職業と種族の内部の鍵（#195）が、遊ぶ人の読む文（知らせ・手帳・土産話・ざわめき）に出ない。100刻ごとに見る
+    if(S.tick%100===0){const KEYRE=/\b(warrior|samurai|thief|priest|mage|paladin|berserker|kensei|ninja|bishop|sorcerer|dragoon|bard|alchemist|tamer|human|elf|dwarf|hobbit)\b/;
+      const leak=S.news.find(x=>KEYRE.test(x.t))||(S.tales||[]).find(x=>KEYRE.test(x.t))||advs.flatMap(a=>a.chron||[]).find(c=>KEYRE.test(c.t))||(S.chatter||[]).find(c=>KEYRE.test(JSON.stringify(c)));
+      check('職業と種族：内部の鍵は、知らせ・手帳・土産話・ざわめきに出ない',!leak,at,()=>JSON.stringify(leak));}
     {const bad=parties.find(p=>(p.state==='wiped')!==!!E.WIPE[p.wipe]||['announced','knownWiped','retrieved','causeTold'].some(k=>k in p));
       check('一行の状態：全滅の中の状態は全滅しているときだけあり、古いフラグは残らない',!bad,at,()=>bad&&`${bad.name} ${bad.state} ${bad.wipe}`);}
 
@@ -1577,7 +1581,7 @@ function checkOpening(){
     const guestAt=S.news.indexOf(guests);
     const sele=cast.find(a=>a.origin==='セーレ自由都市同盟');
     check('開店の顔ぶれ：最初の常連は7人で、銀の杯亭には印がない',cast.length===7&&ours.length===7&&Object.values(S.adv).every(a=>a.tav==='ours'||!a.opening),`種${seed}`,`${cast.length}人`);
-    check('開店の顔ぶれ：戦士・僧侶・盗賊・魔術師がそろう',['戦士','僧侶','盗賊','魔術師'].every(c=>cls.has(c)),`種${seed}`,[...cls].join('・'));
+    check('開店の顔ぶれ：戦士・僧侶・盗賊・魔術師がそろう',['warrior','priest','thief','mage'].every(c=>cls.has(c)),`種${seed}`,[...cls].join('・'));
     check('開店の顔ぶれ：生い立ちに開店の一行が入り、7人で重ならない',ties.every(t=>OPENING_TIE.includes(t))&&new Set(ties).size===7,`種${seed}`,ties.join(' / '));
     check('開店の顔ぶれ：セーレ出身がいるときは、その一人が同じ船で来た',!sele||tieOf(sele)==='店主と同じ船でセーレから来た',`種${seed}`,sele?tieOf(sele):'なし');
     check('開店の顔ぶれ：名前は種ごとに違い、主人の名は使わない',cast.every(a=>a.name!=='ロドリック'),`種${seed}`,cast.map(a=>a.name).join('・'));
@@ -1676,7 +1680,7 @@ function checkAge(){
     check('年齢：年長枠の割合は来店時レベルどおり',bad===0&&rate>lo(p)&&rate<hi(p),`${race}・レベル${lv}`,`${(rate*100).toFixed(2)}%（決まりは${Math.round(p*100)}%）範囲外${bad}`);
   }
   const ages=[];
-  for(let i=0;i<20000;i++){const age=E.rollAge('人間',21);if(age>=31)ages.push(age);}
+  for(let i=0;i<20000;i++){const age=E.rollAge('human',21);if(age>=31)ages.push(age);}
   ages.sort((a,b)=>a-b);
   const med=ages[Math.floor(ages.length/2)];
   const elder=ages.filter(a=>a>=55).length/ages.length;
@@ -1694,7 +1698,7 @@ function checkFoes(){
   // 番犬の息を、同じ種で、倍率のない同じ強さの魔物と比べる。古い記録で戦いの途中だった番犬（倍率の値を持たない）には名で引いてかける。
   // 水晶のログは名の文字数ぶん乱数を引き、怖いものや相性は名で引くので、比べる相手は同じ長さで「番犬」を含む名にする
   const breathDmg=(seed,fix)=>{const E2=load(seed),S=E2.newState();const p=Object.values(S.parties).find(x=>x.tav==='ours');const a=S.adv[p.leader];
-    a.cls='戦士';a.lvl=8;a.hp=a.mhp=50000;a.mp=0;a.pers='普通';a.poison=0;a.eq={};
+    a.cls='warrior';a.lvl=8;a.hp=a.mhp=50000;a.mp=0;a.pers='普通';a.poison=0;a.eq={};
     p.members=[a.id];p.leader=a.id;p.floor=15;p.state='explore';p.fought=true;p.ident=true;p.ambush=false;p.potions=0;p.guard=0;p.buff=0;p.log=[];
     S.floors=S.floors||{};S.floors[15]={through:1};// 前人未踏の足しがなく、階の強さが整数（10）なので、息の傷の0.75倍を端数なしで比べられる
     p.etype=fix(Object.assign({},E2.MON.find(m=>m.n==='墓所の番犬')));p.enemies=[{hp:99999,sleep:0}];
@@ -1774,7 +1778,7 @@ function checkFoes(){
     const g=c['炉の番人ゴーレム']||0,w=c['坑道都市の衛兵']||0,d=c['盲目の洞窟竜']||0,k=c['澱の坑夫']||0;
     check('出る魔物：息の魔物は、同じ階の息を吐かない魔物より出にくい',g<w&&g<k&&d===0&&g+w+k===800,'坑道B12Fを800回',`ゴーレム${g} 洞窟竜${d} 衛兵${w} 坑夫${k}`);}
   const xpOf=mon=>{const E2=load(1,.99),S=E2.newState();const p=Object.values(S.parties).find(x=>x.tav==='ours');const a=S.adv[p.leader];
-    a.race='エルフ';a.tal='並';a.traits=[];a.xp=0;a.lvl=10;a.hp=a.mhp=100;p.members=[a.id];p.floor=43;p.state='explore';p.maps={43:1};p.loot=0;p.trip=p.trip||{kills:{},deep:43};
+    a.race='elf';a.tal='並';a.traits=[];a.xp=0;a.lvl=10;a.hp=a.mhp=100;p.members=[a.id];p.floor=43;p.state='explore';p.maps={43:1};p.loot=0;p.trip=p.trip||{kills:{},deep:43};
     p.etype=Object.assign({},E2.MON.find(m=>m.n===mon));p.enemies=[{hp:0,sleep:0}];E2.victory(S,p);return {xp:a.xp,gold:p.loot};};
   const raw=f=>(6*Math.pow(f,1.6)+3)*3;
   const golem=xpOf('坑道ゴーレム'),dragon=xpOf('盲目の洞窟竜');
@@ -1784,7 +1788,7 @@ function checkFoes(){
   const knightRaw=(6*Math.pow(9,1.6)+3);
   check('出る魔物：迷宮の埋め合わせの経験は1.13倍で、金にはかからない',knight.xp===Math.round(knightRaw*1.13)&&knight.gold===Math.round(12*9),'堕ちた騎士',`経験${knight.xp}（1.13倍は${Math.round(knightRaw*1.13)}） 金${knight.gold}`);
   {const E2=load(1,.99),S=E2.newState();const p=Object.values(S.parties).find(x=>x.tav==='ours');const a=S.adv[p.leader];
-    a.race='エルフ';a.tal='並';a.traits=[];a.xp=0;a.lvl=10;a.hp=a.mhp=100;p.members=[a.id];p.floor=43;p.state='explore';p.maps={43:1};p.loot=0;p.trip=p.trip||{kills:{},deep:43};
+    a.race='elf';a.tal='並';a.traits=[];a.xp=0;a.lvl=10;a.hp=a.mhp=100;p.members=[a.id];p.floor=43;p.state='explore';p.maps={43:1};p.loot=0;p.trip=p.trip||{kills:{},deep:43};
     const t=E2.MON.find(m=>m.n==='坑道都市の衛兵');
     p.etype=Object.assign({},t,{n:'飢えた'+t.n,base:t.n,xpm:1.1});p.enemies=[{hp:0,sleep:0}];E2.victory(S,p);
     check('出る魔物：変異の倍率は、埋め合わせのあとにもかかる',a.xp===Math.round(raw(t.f)*1.15*1.1),'飢えた坑道都市の衛兵',`経験${a.xp}（決まりは${Math.round(raw(t.f)*1.15*1.1)}）`);}
@@ -1904,9 +1908,9 @@ function checkHighSpells(){
     if(!row)continue;
     const who=w.split('・').map(x=>x.match(/^(.+?)Lv(\d+)〜$/)).filter(Boolean);
     check('呪文：高い呪文は職業ごとに覚えるレベルが決まっている',who.length===w.split('・').length,n,w);
-    for(const [,cls,lv] of who){const L=Number(lv);
+    for(const [,name,lv] of who){const L=Number(lv),cls=Object.keys(E.CLS).find(k=>E.CLS[k].n===name);
       check('呪文：一覧のレベルで覚え、その手前では覚えない',E.CAN[k]({cls,lvl:L})&&!E.CAN[k]({cls,lvl:L-1})&&E.CAN[k]({cls,lvl:60}),`${n} ${cls}`,`Lv${L}:${E.CAN[k]({cls,lvl:L})} Lv${L-1}:${E.CAN[k]({cls,lvl:L-1})}`);}
-    for(const cls of ['戦士','盗賊','侍','忍者','吟遊詩人'])check('呪文：一覧にない職業は覚えない',!E.CAN[k]({cls,lvl:99}),`${n} ${cls}`,'覚えた');
+    for(const cls of ['warrior','thief','samurai','ninja','bard'])check('呪文：一覧にない職業は覚えない',!E.CAN[k]({cls,lvl:99}),`${n} ${cls}`,'覚えた');
   }
   // 戦いの場を作る。一人目が術者。ほかの仲間はいない
   const scene=(rnd,cls,lvl,mp,mon,nFoes,prep)=>{const E2=load(1,rnd),S=E2.newState();const p=Object.values(S.parties).find(x=>x.tav==='ours');const a=S.adv[p.leader];
@@ -1916,27 +1920,27 @@ function checkHighSpells(){
     p.etype=Object.assign({},t);p.enemies=Array.from({length:nFoes},()=>({hp:99999,sleep:0}));
     if(prep)prep(E2,S,p,a);return {E:E2,S,p,a,log:()=>p.log.map(x=>x.t).join('\n')};};
   // キヨメ：二人以上が毒なら、全員の毒をまとめて消す
-  {const r=scene(.5,'僧侶',33,10,'オーク',1,(E2,S,p,a)=>{const others=Object.values(S.adv).filter(x=>x.id!==a.id&&x.tav==='ours').slice(0,2);
-      others.forEach(x=>{x.status='party';x.party=a.party;x.hp=x.mhp=9999;x.poison=1;x.cls='戦士';p.members.push(x.id);});});
+  {const r=scene(.5,'priest',33,10,'オーク',1,(E2,S,p,a)=>{const others=Object.values(S.adv).filter(x=>x.id!==a.id&&x.tav==='ours').slice(0,2);
+      others.forEach(x=>{x.status='party';x.party=a.party;x.hp=x.mhp=9999;x.poison=1;x.cls='warrior';p.members.push(x.id);});});
     const mp0=r.a.mp;r.E.combat(r.S,r.p);const pois=r.p.members.map(id=>r.S.adv[id].poison).filter(Boolean).length;
     check('呪文：キヨメは仲間全員の毒を消し、MPを2使う',r.log().includes('キヨメ を となえた')&&r.log().includes('2にんの どくが きえた')&&pois===0&&r.a.mp===mp0-2,'僧侶Lv33・毒2人',r.log().split('\n')[0]);}
   // ゴウエン：覚えた魔術師は、ゴウカより強いのでゴウエンを選ぶ。MPを1使う。覚える手前ではゴウカ
-  {const r=scene(.5,'魔術師',37,10,'オーク',3);r.E.combat(r.S,r.p);
+  {const r=scene(.5,'mage',37,10,'オーク',3);r.E.combat(r.S,r.p);
     check('呪文：ゴウエンを覚えた魔術師は群れにゴウエンを唱え、MPを1使う',r.log().includes('ゴウエン を となえた')&&r.log().includes('ごうえんに のみこまれた')&&r.a.mp===9,'魔術師Lv37・オーク3体',r.log().split('\n').slice(0,2).join(' / '));
-    const q=scene(.5,'魔術師',35,10,'オーク',3);q.E.combat(q.S,q.p);
+    const q=scene(.5,'mage',35,10,'オーク',3);q.E.combat(q.S,q.p);
     check('呪文：ゴウエンの手前ではゴウカ',q.log().includes('ゴウカ を となえた')&&!q.log().includes('ゴウエン'),'魔術師Lv35・オーク3体',q.log().split('\n')[0]);}
   // タマヨビ：失敗しても灰にならない。ヨミガエリは失敗すると灰になる
   for(const [lvl,nm,ash] of [[41,'タマヨビ',false],[39,'ヨミガエリ',true]]){
-    const r=scene(.99,'僧侶',lvl,20,'オーク',1,(E2,S,p,a)=>{const d=Object.values(S.adv).find(x=>x.id!==a.id&&x.tav==='ours');d.status='party';d.party=a.party;d.hp=0;d.mhp=40;d.dungeonAsh=false;p.members.push(d.id);p.floor=20;p.trip=p.trip||{};});
+    const r=scene(.99,'priest',lvl,20,'オーク',1,(E2,S,p,a)=>{const d=Object.values(S.adv).find(x=>x.id!==a.id&&x.tav==='ours');d.status='party';d.party=a.party;d.hp=0;d.mhp=40;d.dungeonAsh=false;p.members.push(d.id);p.floor=20;p.trip=p.trip||{};});
     const d=r.S.adv[r.p.members[1]];r.E.tryYomi(r.S,r.p);
     check('呪文：タマヨビは失敗しても灰にならず、ヨミガエリは灰になる',r.log().includes(`${nm} を となえた`)&&!!d.dungeonAsh===ash&&d.hp===0&&r.a.mp===20-(ash?4:6),`僧侶Lv${lvl}・失敗`,`${r.log()} 灰${!!d.dungeonAsh} MP${r.a.mp}`);}
-  {const r=scene(1e-9,'僧侶',41,20,'オーク',1,(E2,S,p,a)=>{const d=Object.values(S.adv).find(x=>x.id!==a.id&&x.tav==='ours');d.status='party';d.party=a.party;d.hp=0;d.mhp=41;d.dungeonAsh=false;p.members.push(d.id);p.floor=20;p.trip=p.trip||{};});
+  {const r=scene(1e-9,'priest',41,20,'オーク',1,(E2,S,p,a)=>{const d=Object.values(S.adv).find(x=>x.id!==a.id&&x.tav==='ours');d.status='party';d.party=a.party;d.hp=0;d.mhp=41;d.dungeonAsh=false;p.members.push(d.id);p.floor=20;p.trip=p.trip||{};});
     const d=r.S.adv[r.p.members[1]];r.E.tryYomi(r.S,r.p);
     check('呪文：タマヨビで息を吹き返すと、体力は半分',d.hp===21&&!d.dungeonAsh&&r.p.trip.yomi&&r.p.trip.yomi.s==='タマヨビ','僧侶Lv41・成功',`体力${d.hp}`);}
   // タマヨビは同じ死者に一探索一度。失敗したらほかの死者に移り、唱える相手がいなくなると、魂が戻らなかった者にヨミガエリを唱える。次の探索ではまたタマヨビを唱える
-  {const r=scene(.99,'僧侶',41,30,'オーク',1,(E2,S,p,a)=>{const ds=Object.values(S.adv).filter(x=>x.id!==a.id&&x.tav==='ours').slice(0,2);
+  {const r=scene(.99,'priest',41,30,'オーク',1,(E2,S,p,a)=>{const ds=Object.values(S.adv).filter(x=>x.id!==a.id&&x.tav==='ours').slice(0,2);
       ds.forEach(d=>{d.status='party';d.party=a.party;d.hp=0;d.mhp=40;d.dungeonAsh=false;p.members.push(d.id);});p.floor=20;
-      const y=Object.values(S.adv).find(x=>x.tav==='ours'&&!p.members.includes(x.id));y.status='party';y.party=a.party;y.cls='僧侶';y.lvl=39;y.hp=y.mhp=99;y.mp=20;p.members.push(y.id);});
+      const y=Object.values(S.adv).find(x=>x.tav==='ours'&&!p.members.includes(x.id));y.status='party';y.party=a.party;y.cls='priest';y.lvl=39;y.hp=y.mhp=99;y.mp=20;p.members.push(y.id);});
     const [d1,d2]=[1,2].map(i=>r.S.adv[r.p.members[i]]),y=r.S.adv[r.p.members[3]];
     r.E.tryYomi(r.S,r.p);const n1=r.log().split('タマヨビ を となえた').length-1;
     r.E.tryYomi(r.S,r.p);const second=r.p.log.slice(-2).map(x=>x.t).join(' ');
@@ -1951,46 +1955,46 @@ function checkHighSpells(){
     r.p.trip=r.E.newTrip();d1.dungeonAsh=false;r.E.tryYomi(r.S,r.p);
     check('呪文：次の探索では、またタマヨビを唱える',(r.log().split('タマヨビ を となえた').length-1)===3,'探索を改める',r.log().split('\n').slice(-2).join(' / '));}
   // タマヨビの使い手のMPが尽きていても、魂が戻らなかった者には、ヨミガエリの使い手が唱える。成功すれば体力の3分の1で立ち上がる
-  {const r=scene(1e-9,'僧侶',41,3,'オーク',1,(E2,S,p,a)=>{const d=Object.values(S.adv).find(x=>x.id!==a.id&&x.tav==='ours');d.status='party';d.party=a.party;d.hp=0;d.mhp=42;d.dungeonAsh=false;p.members.push(d.id);p.floor=20;
-      const y=Object.values(S.adv).find(x=>x.tav==='ours'&&!p.members.includes(x.id));y.status='party';y.party=a.party;y.cls='僧侶';y.lvl=30;y.hp=y.mhp=99;y.mp=20;p.members.push(y.id);});
+  {const r=scene(1e-9,'priest',41,3,'オーク',1,(E2,S,p,a)=>{const d=Object.values(S.adv).find(x=>x.id!==a.id&&x.tav==='ours');d.status='party';d.party=a.party;d.hp=0;d.mhp=42;d.dungeonAsh=false;p.members.push(d.id);p.floor=20;
+      const y=Object.values(S.adv).find(x=>x.tav==='ours'&&!p.members.includes(x.id));y.status='party';y.party=a.party;y.cls='priest';y.lvl=30;y.hp=y.mhp=99;y.mp=20;p.members.push(y.id);});
     const d=r.S.adv[r.p.members[1]],y=r.S.adv[r.p.members[2]];r.p.trip.soulGone=[d.id];r.E.tryYomi(r.S,r.p);
     check('呪文：魂が戻らなかった者にヨミガエリが効けば、体力の3分の1で立ち上がる',r.log().includes(`${y.name} は ヨミガエリ を となえた`)&&!r.log().includes('タマヨビ')&&d.hp===14&&!d.dungeonAsh&&y.mp===16&&r.a.mp===3,
       '僧侶Lv41（MP3）・魂が戻らなかった者・ヨミガエリの使い手',`${r.log()} 体力${d.hp} MP${r.a.mp}/${y.mp}`);}
-  {const r=scene(.99,'僧侶',41,20,'オーク',1,(E2,S,p,a)=>{const d=Object.values(S.adv).find(x=>x.id!==a.id&&x.tav==='ours');d.status='party';d.party=a.party;d.hp=0;d.mhp=40;p.members.push(d.id);p.floor=15;});
+  {const r=scene(.99,'priest',41,20,'オーク',1,(E2,S,p,a)=>{const d=Object.values(S.adv).find(x=>x.id!==a.id&&x.tav==='ours');d.status='party';d.party=a.party;d.hp=0;d.mhp=40;p.members.push(d.id);p.floor=15;});
     r.E.tryYomi(r.S,r.p);check('呪文：タマヨビもB16Fより浅いところでは唱えない',!r.log().includes('タマヨビ')&&r.a.mp===20,'B15F',r.log());}
   // オリハライ：レベルを吸う相手には先に唱え、その戦いのあいだは吸い取られない。一人だとダッシュツで逃げるので、頑丈な戦士を後ろに付ける
-  const guard=(E2,S,p,a)=>{const x=Object.values(S.adv).find(y=>y.id!==a.id&&y.tav==='ours');x.status='party';x.party=a.party;x.cls='戦士';x.hp=x.mhp=9999;x.poison=0;p.members.push(x.id);};
-  {const r=scene(1e-9,'僧侶',45,20,'吸精',1,guard);r.E.combat(r.S,r.p);
+  const guard=(E2,S,p,a)=>{const x=Object.values(S.adv).find(y=>y.id!==a.id&&y.tav==='ours');x.status='party';x.party=a.party;x.cls='warrior';x.hp=x.mhp=9999;x.poison=0;p.members.push(x.id);};
+  {const r=scene(1e-9,'priest',45,20,'吸精',1,guard);r.E.combat(r.S,r.p);
     check('呪文：オリハライのあいだはレベルを吸い取られない',r.log().includes('オリハライ を となえた')&&r.log().includes('まもった')&&r.a.lvl===45&&r.p.ward===1&&r.a.mp===17,`僧侶Lv45・${r.p.etype.n}`,r.log());
-    const q=scene(1e-9,'僧侶',43,20,'吸精',1,guard);q.E.combat(q.S,q.p);
+    const q=scene(1e-9,'priest',43,20,'吸精',1,guard);q.E.combat(q.S,q.p);
     check('呪文：オリハライを覚える手前では、これまでどおり吸い取られる',!q.log().includes('オリハライ')&&q.a.lvl===41,`僧侶Lv43・${q.p.etype.n}`,`Lv${q.a.lvl}`);
-    const u=scene(1e-9,'僧侶',45,20,'吸精',1,(E2,S,p,a)=>{guard(E2,S,p,a);p.ident=false;});u.E.combat(u.S,u.p);
+    const u=scene(1e-9,'priest',45,20,'吸精',1,(E2,S,p,a)=>{guard(E2,S,p,a);p.ident=false;});u.E.combat(u.S,u.p);
     check('呪文：正体のわからない相手には、オリハライを唱えない',!u.log().includes('オリハライ'),'正体不明',u.log().split('\n')[0]);}
-  {const r=scene(.5,'僧侶',45,20,'澱呑みの坑道王',1,(E2,S,p)=>{p.guard=5;p.floor=E2.MINE_BOT;});r.E.combat(r.S,r.p);
+  {const r=scene(.5,'priest',45,20,'澱呑みの坑道王',1,(E2,S,p)=>{p.guard=5;p.floor=E2.MINE_BOT;});r.E.combat(r.S,r.p);
     check('呪文：坑道王にはオリハライを唱える',r.log().includes('オリハライ を となえた'),'坑道王',r.log().split('\n')[0]);}
   // ホシオトシ：一戦に一度。主にも効き、相性はかからない。MPを8使う
-  {const r=scene(.5,'魔導士',49,30,'澱呑みの坑道王',1,(E2,S,p)=>{p.floor=E2.MINE_BOT;});
+  {const r=scene(.5,'sorcerer',49,30,'澱呑みの坑道王',1,(E2,S,p)=>{p.floor=E2.MINE_BOT;});
     r.E.combat(r.S,r.p);const hp1=r.p.enemies[0].hp,mp1=r.a.mp;r.E.combat(r.S,r.p);
     const n=(r.log().match(/ホシオトシ を となえた/g)||[]).length;
     check('呪文：ホシオトシは主にも効き、一戦に一度だけ',n===1&&hp1<=99999-175&&mp1===22&&r.p.star===1,'魔導士Lv49・坑道王',`唱えた${n}回 傷${99999-hp1} MP${mp1}`);
-    const dr=scene(.5,'魔導士',49,30,'黒竜',1);dr.E.combat(dr.S,dr.p);
+    const dr=scene(.5,'sorcerer',49,30,'黒竜',1);dr.E.combat(dr.S,dr.p);
     check('呪文：ホシオトシには炎・氷・雷の相性がかからない',99999-dr.p.enemies[0].hp===99999-hp1&&!dr.log().includes('きかない'),'黒竜',`黒竜${99999-dr.p.enemies[0].hp} 坑道王${99999-hp1}`);
     // ネムリの出る目（.3）でも、ホシオトシを先に唱える
-    const sl=scene(.3,'魔導士',49,30,'オーク',3,(E2,S,p)=>{p.etype.xpm=1.5;});sl.E.combat(sl.S,sl.p);
+    const sl=scene(.3,'sorcerer',49,30,'オーク',3,(E2,S,p)=>{p.etype.xpm=1.5;});sl.E.combat(sl.S,sl.p);
     check('呪文：ホシオトシはネムリやほかの攻撃呪文より先に唱える',sl.log().split('\n')[0].includes('ホシオトシ を となえた')&&!sl.log().includes('ネムリ'),'魔導士Lv49・強いオーク3体',sl.log().split('\n')[0]);
-    const o=scene(.5,'魔導士',49,30,'オーク',1);o.E.combat(o.S,o.p);
+    const o=scene(.5,'sorcerer',49,30,'オーク',1);o.E.combat(o.S,o.p);
     check('呪文：ふつうの敵一体にはホシオトシを使わない',!o.log().includes('ホシオトシ'),'オーク1体',o.log().split('\n')[0]);
-    const lo=scene(.5,'魔導士',47,30,'澱呑みの坑道王',1);lo.E.combat(lo.S,lo.p);
+    const lo=scene(.5,'sorcerer',47,30,'澱呑みの坑道王',1);lo.E.combat(lo.S,lo.p);
     check('呪文：ホシオトシを覚える手前では唱えない',!lo.log().includes('ホシオトシ'),'魔導士Lv47',lo.log().split('\n')[0]);}
   // イシガタメ：体力の多い一体を石にする。MPを3使う。主には効かない。覚える手前では唱えない
-  {const r=scene(.5,'魔導士',41,10,'オーク',3);r.E.combat(r.S,r.p);const left=r.p.enemies.filter(e=>e.hp>0).length;
+  {const r=scene(.5,'sorcerer',41,10,'オーク',3);r.E.combat(r.S,r.p);const left=r.p.enemies.filter(e=>e.hp>0).length;
     check('呪文：イシガタメは一体を石に変え、MPを3使う',r.log().includes('イシガタメ を となえた')&&r.log().includes('いしに なった')&&left===2&&r.a.mp===7,'魔導士Lv41・オーク3体',`${r.log().split('\n').slice(0,2).join(' ')} 残り${left} MP${r.a.mp}`);
-    const q=scene(.5,'魔導士',39,10,'オーク',3);q.E.combat(q.S,q.p);
+    const q=scene(.5,'sorcerer',39,10,'オーク',3);q.E.combat(q.S,q.p);
     check('呪文：イシガタメを覚える手前では唱えない',!q.log().includes('イシガタメ'),'魔導士Lv39',q.log().split('\n')[0]);
-    const b=scene(.5,'魔導士',41,10,'澱呑みの坑道王',3,(E2,S,p)=>{p.floor=E2.MINE_BOT;});b.E.combat(b.S,b.p);
+    const b=scene(.5,'sorcerer',41,10,'澱呑みの坑道王',3,(E2,S,p)=>{p.floor=E2.MINE_BOT;});b.E.combat(b.S,b.p);
     check('呪文：イシガタメは主には効かないので唱えない',!b.log().includes('イシガタメ'),'坑道王',b.log().split('\n')[0]);}
   // ウツシエ：ミトオシの代わりに唱え、地図の出ていない階なら写しを持ち帰って地図屋に売る
-  {const at=(lvl,prep)=>scene(.5,'魔導士',lvl,10,'オーク',1,(E2,S,p)=>{p.floor=8;p.trip=E2.newTrip();p.maps={};p.tmap={};const F=E2.floorsInit(S);F[8]={};if(prep)prep(E2,S,p);});
+  {const at=(lvl,prep)=>scene(.5,'sorcerer',lvl,10,'オーク',1,(E2,S,p)=>{p.floor=8;p.trip=E2.newTrip();p.maps={};p.tmap={};const F=E2.floorsInit(S);F[8]={};if(prep)prep(E2,S,p);});
     const r=at(37);r.E.floorArrive(r.S,r.p);
     check('呪文：ウツシエは道筋を見通し、地図のない階の写しを取る。MPを4使う',r.p.tmap[8]===1&&(r.p.trip.copies||[]).includes(8)&&r.a.mp===6&&r.log().includes('ウツシエ を となえた'),'魔導士Lv37・B8F',`${r.log()} MP${r.a.mp}`);
     r.p.loot=0;r.E.arrive(r.S,r.p);const pay=Math.round(r.E.mapPrice(8)*.3/10)*10;
@@ -2000,7 +2004,7 @@ function checkHighSpells(){
     const q=at(35);q.E.floorArrive(q.S,q.p);
     check('呪文：ウツシエを覚える手前ではミトオシを唱える',q.log().includes('ミトオシ を となえた')&&!q.log().includes('ウツシエ')&&!(q.p.trip.copies||[]).length,'魔導士Lv35',q.log());}
   // イシワタリ：帰り道で、いちばん近い転移の石碑が2階以上うえにあれば、そこまで一行を運ぶ
-  {const at=(lvl,floor,prep)=>scene(.5,'僧侶',lvl,10,'オーク',1,(E2,S,p,a)=>{p.state='return';p.enemies=null;p.floor=floor;p.trip=E2.newTrip();if(prep)prep(E2,S,p,a);});
+  {const at=(lvl,floor,prep)=>scene(.5,'priest',lvl,10,'オーク',1,(E2,S,p,a)=>{p.state='return';p.enemies=null;p.floor=floor;p.trip=E2.newTrip();if(prep)prep(E2,S,p,a);});
     const r=at(47,14);r.E.stepParty(r.S,r.p);
     check('呪文：イシワタリは帰り道で、うえの石碑の階まで一行を運ぶ。MPを4使う',r.p.floor===11&&r.a.mp===6&&r.log().includes('イシワタリ を となえた'),'僧侶Lv47・B14F',`${r.E.FN(r.p.floor)} MP${r.a.mp} ${r.log()}`);
     const n=at(47,12);n.E.stepParty(n.S,n.p);
@@ -2010,7 +2014,7 @@ function checkHighSpells(){
     const k=at(47,0,(E2,S,p)=>{p.floor=E2.MINE_STONES[1]+3;});k.E.stepParty(k.S,k.p);
     check('呪文：坑道では、坑道の石碑まで運ぶ',k.p.floor===k.E.MINE_STONES[1],'坑道',k.E.FN(k.p.floor));}
   // 覚えたときの一言は、はじめての一度だけ
-  {const r=scene(.5,'司教',57,30,'オーク',1);r.a.chron=[];r.E.learnHi(r.S,r.p,r.a);r.a.lvl=55;r.E.learnHi(r.S,r.p,r.a);r.a.lvl=57;r.E.learnHi(r.S,r.p,r.a);
+  {const r=scene(.5,'bishop',57,30,'オーク',1);r.a.chron=[];r.E.learnHi(r.S,r.p,r.a);r.a.lvl=55;r.E.learnHi(r.S,r.p,r.a);r.a.lvl=57;r.E.learnHi(r.S,r.p,r.a);
     const got=r.a.chron.map(c=>c.t).join('、');
     check('呪文：高い呪文を覚えたら、一度だけ手帳に残す',got==='新しい呪文キヨメを覚える、新しい呪文ゴウエンを覚える、新しい呪文タマヨビを覚える、新しい呪文オリハライを覚える、新しい呪文ホシオトシを覚える、新しい呪文イシガタメを覚える、新しい呪文ウツシエを覚える、新しい呪文イシワタリを覚える','司教Lv57',got);}
 }
@@ -2044,7 +2048,7 @@ function checkLevelNews(){
   const kinds={};
   for(const tav of ['ours','rival']){
     const a=Object.values(T.adv).find(x=>x.tav===tav&&x.status==='idle');
-    a.cls='魔術師';a.lvl=24;a.kills=400;T.news=[];
+    a.cls='mage';a.lvl=24;a.kills=400;T.news=[];
     F.promote(T,a);const pn=T.news.find(n=>n.t.includes('道を進めた'));
     T.news=[];F.title(T,a);const tn=T.news.find(n=>n.t.includes('と呼ばれはじめた'));
     kinds[tav]=[pn&&pn.k,tn&&tn.k];
@@ -2156,7 +2160,7 @@ function checkMissing(){
     for(let seed=1;seed<=60&&(!ok||!ng);seed++){const E=load(seed),S=E.newState();const p=Object.values(S.parties).find(x=>x.tav==='ours'&&x.members.length>=2);
       Object.assign(p,{state:'explore',floor:E.YOMI_F,enemies:null});p.trip=p.trip||{};p.trip.deaths=[];
       const [c,d]=p.members.map(id=>S.adv[id]);p.members.forEach(id=>{const a=S.adv[id];a.status='party';a.hp=a.mhp;});
-      c.cls='司教';c.lvl=30;c.mp=20;d.hp=0;E.dieInDungeon(S,p,d,'オーク');const n0=(d.chron||[]).length;E.tryYomi(S,p);
+      c.cls='bishop';c.lvl=30;c.mp=20;d.hp=0;E.dieInDungeon(S,p,d,'オーク');const n0=(d.chron||[]).length;E.tryYomi(S,p);
       const add=(d.chron||[]).slice(n0).map(x=>x.t);
       if(d.hp>0){ok++;check('ヨミガエリ：成功すると、保留していた倒れた記録が先に手帳に残り、そのあと息を吹き返す',!d.deathPending&&add.length===2&&/で.+に倒れる$/.test(add[0])&&add[1].includes('息を吹き返す'),`種${seed}`,add.join(' / '));}
       else{ng++;check('ヨミガエリ：失敗して灰になっても、黒猫亭では手帳に残らず、倒れた記録と一緒に保留される',d.deathPending&&!!d.ashPending&&add.length===0,`種${seed}`,add.join(' / '));
@@ -2183,7 +2187,7 @@ function checkMissing(){
     const c0=ids.filter(id=>set('臆病',30,0,0,[],id,'retired')).length,c1=ids.filter(id=>set('臆病',30,0,0,[],id,'lost')).length,m0=ids.filter(id=>set('普通',30,0,0,[],id,'retired')).length,m1=ids.filter(id=>set('普通',30,0,0,[],id,'lost')).length;
     check('後継ぎ：前のリーダーを失ったとき、臆病な者は畳みやすく、ほかの者は継ぎやすい',c1<c0&&m1>=m0,'ロストと引退',`臆病${c0}→${c1}・普通${m0}→${m1}`);
     check('後継ぎ：どの性格にも継ぐときと継がないときの一言があり、強欲な者は借りが残ると別の一言',Object.keys(E.INHERIT_SAY).length===5&&Object.values(E.INHERIT_SAY).every(x=>x.length===2&&x.every(t=>typeof t==='string'&&t.length>0))&&E.inheritSay({pers:'強欲'},{owed:1},false)===E.INHERIT_DEBT_SAY&&E.inheritSay({pers:'強欲'},{owed:0},false)===E.INHERIT_SAY['強欲'][1],'一覧',JSON.stringify(E.INHERIT_SAY));
-    const coward={pers:'臆病',lvl:20,traits:[],trips:50,age:30,race:'人間',cls:'戦士'},brave={pers:'慎重',lvl:12,traits:[],trips:10,age:30,race:'人間',cls:'戦士'};
+    const coward={pers:'臆病',lvl:20,traits:[],trips:50,age:30,race:'human',cls:'warrior'},brave={pers:'慎重',lvl:12,traits:[],trips:10,age:30,race:'human',cls:'warrior'};
     check('後継ぎ：跡継ぎは腕と経験と人望で選び、性格では外さない（臆病な者も選ばれる）',E.heirScore(coward)>E.heirScore(brave)&&E.leaderScore(coward)-E.heirScore(coward)===-3,'臆病Lv20と慎重Lv12',`${E.heirScore(coward)}／${E.heirScore(brave)}`);}
   {const E=load(6),S=E.newState();const p=Object.values(S.parties).find(x=>x.tav==='ours'&&x.members.length>=3);const ms=p.members.map(id=>S.adv[id]);const old=S.adv[p.leader];
     ms.forEach(a=>{a.status='idle';a.hp=a.mhp;a.pers='強欲';a.favor=0;});old.status='lost';old.party=null;p.state='town';p.rest=1;p.owed=800;
@@ -2378,7 +2382,7 @@ function checkIntro(){
     &&empire==='帝国の脱走兵だという'&&!empire.includes('グラウ帝国出身')
     &&azuma==='海の向こうから来たアズマで名を馳せた剣客だという'&&!azuma.includes('東方の島国アズマから来た'),
     '事例',[sheep,mine,lowen,empire,azuma].join(' / '));
-  const who={race:'人間',age:18,sex:'男',cls:'戦士',lvl:11,name:'アルト',odd:false,blessed:false,cursed:false,traits:[]};
+  const who={race:'human',age:18,sex:'男',cls:'warrior',lvl:11,name:'アルト',odd:false,blessed:false,cursed:false,traits:[]};
   const news=E.ourNewcomerNews(Object.assign({origin:'ロウエン',bg:'ロウエン生まれの冒険者の二世'},who));
   const far=E.ourNewcomerNews(Object.assign({origin:'東方の島国アズマ',bg:'海を渡ってきた若い剣士'},who));
   check('知らせ：新顔の文は、省いた出身のあとに年齢と名前が続く',
@@ -2386,8 +2390,8 @@ function checkIntro(){
     &&far.k==='record'&&far.t.startsWith('新顔がやってきた。海の向こう、東方の島国アズマから来た海を渡ってきた若い剣士だという18歳の'),
     '新顔の文',news.t+' / '+far.t);
   const S0={taverns:{ours:{name:'黒猫亭'}}};
-  const door=E.doorLine(S0,{origin:'ロウエン',bg:'ロウエン生まれの冒険者の二世',race:'人間',age:18,sex:'男',cls:'戦士',lvl:12,tav:'ours',dream:{k:'abyss'}});
-  const plain=E.doorLine(S0,{origin:'ラウレンツ王国',bg:'辺境の元守備隊長',race:'人間',age:40,sex:'女',cls:'戦士',lvl:14,tav:'ours',dream:{k:'abyss'}});
+  const door=E.doorLine(S0,{origin:'ロウエン',bg:'ロウエン生まれの冒険者の二世',race:'human',age:18,sex:'男',cls:'warrior',lvl:12,tav:'ours',dream:{k:'abyss'}});
+  const plain=E.doorLine(S0,{origin:'ラウレンツ王国',bg:'辺境の元守備隊長',race:'human',age:40,sex:'女',cls:'warrior',lvl:14,tav:'ours',dream:{k:'abyss'}});
   check('手帳：出身の名が経歴にあるときは「の出身。」を重ねない',
     door.startsWith('ロウエン生まれの冒険者の二世。')&&!door.includes('ロウエンの出身')&&door.includes('黒猫亭の扉をくぐる')
     &&plain.startsWith('ラウレンツ王国の出身。辺境の元守備隊長。'),
