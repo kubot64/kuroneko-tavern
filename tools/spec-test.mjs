@@ -56,6 +56,16 @@ const check=(name,ok,where,detail)=>{pass(name);if(!ok)fail(name,where,typeof de
 const SAVE_V=load(1).SAVE_V;
 
 const live=a=>a.status!=='lost'&&a.status!=='retired';
+// 判定に使う手帳と知らせ（#195）。エンジンは種類で判定し、文を読まない。ここでは文の形から、種類の付け忘れを見張る
+const KIND_RE=[['yomiAsh',/でヨミガエリに失敗し、灰になる$/],['wipe',/^全滅した。/],['fell',/で.+に倒れる$/],['looted',/^遺体から.+持ち去られる$/],
+  ['carried',/に遺体を見つけられ、街へ運ばれる$/],['gate',/門番の黒竜を討つ$/],['ashBack',/^灰の中からよみがえる$/],['deep',/^はじめてB\d+Fに足を踏み入れる$/],['door',/の扉をくぐる。夢は「/]];
+function untagged(S){const out=[];
+  for(const a of Object.values(S.adv||{}))for(const c of (a&&a.chron)||[]){const h=KIND_RE.find(([,re])=>re.test(c.t));
+    if(h&&(c.k!==h[0]||(h[0]==='deep'&&c.f!==+c.t.match(/B(\d+)F/)[1])))out.push(`${a.name}「${c.t}」k=${c.k} f=${c.f}`);}
+  for(const n of S.news||[]){
+    if(n.k==='info'&&/出発した。$/.test(n.t)&&n.kind!=='depart')out.push(`知らせ「${n.t}」`);
+    if(n.k==='rumor'&&/^噂：銀の杯亭(の|では、).+Lv\d+に達した。/.test(n.t)&&n.kind!=='rivalLv')out.push(`知らせ「${n.t}」`);}
+  return out;}
 const num=x=>typeof x==='number'&&Number.isFinite(x);
 
 // ---- 決まった値の表（仕様の表と、コードの値が一致すること） ----
@@ -910,7 +920,7 @@ function checkAffinity(){
       check('見え方：まだ知れていない全滅の札に、全滅・消息不明・まだ戻らないは出ない',!/全滅|消息不明|まだ戻らない/.test(v.card[0]),'伏せ中',v.card[0]);
       check('見え方：まだ知れていない全滅の仲間は、名簿で探索中、体力は全滅の前のまま',ms.every(a=>E.shownStatus(S,a)==='party')&&ms.map(a=>E.hpView(S,a).label).join(',')===hpB.join(','),'伏せ中',ms.map(a=>E.shownStatus(S,a)+':'+E.hpView(S,a).label).join(','));
       check('見え方：まだ知れていない全滅の水晶の記録に、倒れた行と全滅の行は出ない',v.log.length>0&&!v.log.some(l=>l.k==='death'||/しんだ|ぜんめつ|たおれ/.test(l.t)),'伏せ中',v.log.slice(-3).map(l=>l.t).join(' / '));
-      {const a=ms[0];E.chron(S,a,'B9Fでオークに倒れる');E.chron(S,a,'全滅した。オークに倒れた');const last=a.chron.slice(-2);
+      {const a=ms[0];E.chron(S,a,'B9Fでオークに倒れる','fell');E.chron(S,a,'全滅した。オークに倒れた','wipe');const last=a.chron.slice(-2);
         check('見え方：まだ知れていない全滅の手帳に、倒れた階と相手・全滅の一文は出ない',last.every(c=>!E.chronShown(S,a,c)),'伏せ中',last.map(c=>c.t).join(' / '));a.chron.splice(-2);}
       S.tick=p.dueAt;
       check('見え方：予定帰還の刻を過ぎると、伏せたまま札に「まだ戻らない」が出る',E.viewOf(S,p).hidden&&E.viewOf(S,p).card[0].includes('まだ戻らない'),'予定の刻',E.viewOf(S,p).card[0]);
@@ -1153,7 +1163,8 @@ function runSeed(seed){
     // 職業と種族の内部の鍵（#195）が、遊ぶ人の読む文（知らせ・手帳・土産話・ざわめき）に出ない。100刻ごとに見る
     if(S.tick%100===0){const KEYRE=/\b(warrior|samurai|thief|priest|mage|paladin|berserker|kensei|ninja|bishop|sorcerer|dragoon|bard|alchemist|tamer|human|elf|dwarf|hobbit)\b/;
       const leak=S.news.find(x=>KEYRE.test(x.t))||(S.tales||[]).find(x=>KEYRE.test(x.t))||advs.flatMap(a=>a.chron||[]).find(c=>KEYRE.test(c.t))||(S.chatter||[]).find(c=>KEYRE.test(JSON.stringify(c)));
-      check('職業と種族：内部の鍵は、知らせ・手帳・土産話・ざわめきに出ない',!leak,at,()=>JSON.stringify(leak));}
+      check('職業と種族：内部の鍵は、知らせ・手帳・土産話・ざわめきに出ない',!leak,at,()=>JSON.stringify(leak));
+      const un=untagged(S);check('種類：判定に使う手帳と知らせには、種類が付いている',!un.length,at,()=>un.slice(0,3).join('、'));}
     {const bad=parties.find(p=>(p.state==='wiped')!==!!E.WIPE[p.wipe]||['announced','knownWiped','retrieved','causeTold'].some(k=>k in p));
       check('一行の状態：全滅の中の状態は全滅しているときだけあり、古いフラグは残らない',!bad,at,()=>bad&&`${bad.name} ${bad.state} ${bad.wipe}`);}
 
@@ -1828,6 +1839,7 @@ function checkOldSaves(){
     check('古いセーブ：今のコードで店を開いたときにいつもある項目が、移行のあとにもある',!miss.length,at,()=>miss.slice(0,8).join('、'));
     const stray=Object.values(S.parties).flatMap(p=>(p.members||[]).filter(id=>!S.adv[id]).map(id=>`${p.name}の${id}`));
     check('古いセーブ：一行の仲間がみな名簿にいる',!stray.length,at,stray.join('、'));
+    const un=untagged(S);check('古いセーブ：移行のあと、判定に使う手帳と知らせには種類が付いている（文はそのまま）',!un.length,at,()=>un.slice(0,3).join('、'));
     const T0=S.taverns.ours;
     // 版32からは回数を数えている
     if(v0<32)check('古いセーブ：取り立て人を呼ばずに済んだ回数は持たず、完済の場面は待っていない',!('payClean' in T0)&&!T0.payoffScene,at,`回数${T0.payClean} 場面${T0.payoffScene}`);
@@ -2021,6 +2033,35 @@ function checkHighSpells(){
 
 // 「全滅」「他の一行の発見」「後継ぎ」「寺院の費用と店の立て替え」：消息不明の期間、遺体の搬送、巡回隊、一行の借り、看板を継ぐかどうか
 // 「知らせ（迷宮日報）」：レベル到達の知らせ。銀の杯亭の者は噂の色で、同じ日のものは一件にまとめる。黒猫亭の者は一人一件で記録の色
+// 手帳・知らせ・便りの判定は文を読まない（#195）。判定に使う記録の文を書き換えても、判定は変わらない
+function checkKinds(){
+  const E=load(1),D=E.TICKS_PER_DAY,X='（書き換えた文）';
+  {const S=E.newState();S.tick=10*D+5;S.news=[];
+    E.noteDepart(S,{tav:'ours',name:'甲',mineTrip:false});S.news[0].t=X;E.noteDepart(S,{tav:'ours',name:'乙',mineTrip:true});
+    check('種類：同じ日の出発は、文でなく中身でまとめる',S.news.length===1&&S.news[0].t==='甲が迷宮へ、乙が坑道へ出発した。'&&S.news[0].kind==='depart','文を書き換えた出発',JSON.stringify(S.news));}
+  {const S=E.newState();S.tick=10*D+5;S.news=[];
+    E.noteLevel(S,{tav:'rival',name:'丙',lvl:20});S.news[0].t=X;E.noteLevel(S,{tav:'rival',name:'丁',lvl:30});
+    check('種類：同じ日の銀の杯亭のレベル到達は、文でなく中身でまとめる',S.news.length===1&&S.news[0].t==='噂：銀の杯亭では、丙がLv20に、丁がLv30に達した。丁は英雄と呼ばれる域だ。'&&S.news[0].kind==='rivalLv','文を書き換えたレベル到達',JSON.stringify(S.news));
+    S.news=[];E.news(S,'噂：銀の杯亭の戊がLv10に達した。','rumor');E.noteLevel(S,{tav:'rival',name:'己',lvl:10});
+    check('種類：中身のない知らせは、文が同じ形でもまとめない',S.news.length===2,'種類のない噂',JSON.stringify(S.news));}
+  {const S=E.newState();const a=Object.values(S.adv).find(x=>x.tav==='ours');
+    a.chron=[{tk:0,t:X,k:'gate'},{tk:1,t:X,k:'ashBack'},{tk:2,t:X,k:'ashBack'},{tk:3,t:'灰の中からよみがえる'},{tk:4,t:'B9Fで門番の黒竜を討つ'}];a.revived=0;
+    const L=E.lifeLines(S,a,{k:'retired',tk:S.tick,why:'故郷へ帰る'}).map(x=>typeof x==='string'?x:x.t||JSON.stringify(x)).join(' / ');
+    check('種類：ひと幕の門番と灰から戻った回数は、手帳の種類で数える',L.includes('門番の黒竜を討った一行にいた。')&&L.includes('灰の中から2回よみがえった。'),'文を書き換えた手帳',L);
+    a.chron=[{tk:0,t:'B9Fで門番の黒竜を討つ'},{tk:1,t:'灰の中からよみがえる'}];
+    const L2=E.lifeLines(S,a,{k:'retired',tk:S.tick,why:'故郷へ帰る'}).map(x=>typeof x==='string'?x:x.t||JSON.stringify(x)).join(' / ');
+    check('種類：種類のない手帳の文は、同じ文でも数えない',!L2.includes('門番の黒竜')&&!L2.includes('灰の中から'),'種類のない手帳',L2);}
+  {const S=E.newState();Object.values(S.adv).forEach(b=>{b.chron=[];});const a=Object.values(S.adv).find(x=>x.tav==='ours');
+    a.chron=[{tk:77,t:X,k:'deep',f:6},{tk:88,t:'はじめてB21Fに足を踏み入れる'}];
+    check('種類：覚え書きの石碑の日付は、手帳の種類と階で引く',E.memoWhen(S,'stone')===77&&E.memoWhen(S,'stone21')==null,'文を書き換えた手帳',`${E.memoWhen(S,'stone')} ${E.memoWhen(S,'stone21')}`);}
+  {const a={letters:[{tk:5,n:1,line:X},{tk:9,n:2,line:X,child:1}]};
+    check('種類：子が生まれた刻は、便りの印で引く',E.childBornOf(a)===9&&E.childBornOf({letters:[{tk:9,n:2,line:'子が生まれた'}]})==null,'文を書き換えた便り',`${E.childBornOf(a)}`);}
+  {const S=E.newState();const p=Object.values(S.parties).find(x=>x.tav==='ours');const a=S.adv[p.members[0]];
+    Object.values(S.parties).forEach(x=>{x.state='town';});p.members.forEach(id=>{const b=S.adv[id];b.status='missing';b.party=p.id;});
+    Object.assign(p,{state:'wiped',wipe:'hidden',wipedAt:S.tick,floor:5,killer:'オーク',cause:'オークに倒れた',dueAt:S.tick+100});
+    const shown=c=>E.chronShown(S,a,c);
+    check('種類：伏せ中の手帳で隠す記録は、文でなく種類で決まる',!shown({tk:0,t:X,k:'fell'})&&!shown({tk:0,t:X,k:'wipe'})&&!shown({tk:0,t:X,k:'yomiAsh'})&&!shown({tk:0,t:X,k:'carried'})&&!shown({tk:0,t:X,k:'looted'})&&shown({tk:0,t:'B5Fでオークに倒れる'})&&shown({tk:0,t:X,k:'gate'}),'伏せ中の全滅','');}
+}
 function checkLevelNews(){
   const E=load(1),S=E.newState(),D=E.TICKS_PER_DAY;
   S.tick=10*D+5;S.news=[];
@@ -2483,7 +2524,7 @@ function checkLife(){
 
 if(!isMainThread){const line=runSeed(workerData.seed);parentPort.postMessage({line,res:[...results]});}
 else{
-  if(SHARD.k===1){checkTables();checkScenes();checkLife();checkLetters();checkErrands();checkCrest();checkRowFallback();checkMine();checkAffinity();checkRevive();checkMemoNotes();checkOpening();checkCareer();checkIntro();checkAge();checkFoes();checkQuarrel();checkFlow();checkLedger();checkLevelNews();checkBounty();checkMissing();checkLastWords();checkHighSpells();checkSpellTable();checkPhases();checkPush();checkOldSaves();}
+  if(SHARD.k===1){checkTables();checkScenes();checkLife();checkLetters();checkErrands();checkCrest();checkRowFallback();checkMine();checkAffinity();checkRevive();checkMemoNotes();checkOpening();checkCareer();checkIntro();checkAge();checkFoes();checkQuarrel();checkFlow();checkLedger();checkLevelNews();checkBounty();checkMissing();checkLastWords();checkHighSpells();checkSpellTable();checkPhases();checkPush();checkOldSaves();checkKinds();}
   // 種ごとの結果は、種の順に重ねる。反例は、いちばん若い種の最初のものを残す。進捗の行も種の順に出す
   const out=new Array(SEEDS.length);let next=0,printed=0;
   const flush=()=>{while(printed<out.length&&out[printed]){if(out[printed].line)console.log(out[printed].line);printed++;}};
