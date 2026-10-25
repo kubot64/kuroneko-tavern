@@ -351,7 +351,7 @@ test('黒猫亭の出発は日報に出て、同じ日の迷宮と坑道は一�
     noteDepart(S,{tav:'rival',name:'出ない牙',mineTrip:false});
     noteDepart(S,{tav:'ours',name:'試しの剣',mineTrip:false});
     render();
-    return S.news.filter(n=>n.t.includes('出発')||n.t.includes('出ない牙')).map(n=>n.t);
+    return S.news.filter(n=>newsText(n).includes('出発')||newsText(n).includes('出ない牙')).map(n=>newsText(n));
   });
   assert.deepEqual(lines,['試しの剣、樽ころがしが迷宮へ、試しの盾が坑道へ出発した。']);
   assert.match(await page.locator('#tbody').innerText(),/試しの剣、樽ころがしが迷宮へ、試しの盾が坑道へ出発した。/);
@@ -366,7 +366,7 @@ test('同じ日の銀の杯亭のレベル到達は噂の色の一件にまと�
     const rv=Object.values(S.adv).filter(a=>a.tav==='rival').sort((x,y)=>y.name.length-x.name.length).slice(0,5);
     rv.forEach((a,i)=>noteLevel(S,{tav:'rival',name:a.name,lvl:[20,30,40,30,20][i]}));
     render();
-    return S.news.filter(n=>n.t.startsWith('噂：銀の杯亭では、')).map(n=>n.t);
+    return S.news.filter(n=>newsText(n).startsWith('噂：銀の杯亭では、')).map(n=>newsText(n));
   });
   assert.equal(want.length,1);
   for(const [width,height] of [[375,740],[1280,800]]){
@@ -778,11 +778,11 @@ test('開店の顔ぶれは、知らせと手帳と記念碑に出る',async()=>
   await page.locator('#sp0').click();
   const info=await page.evaluate(()=>{
     const cast=Object.values(S.adv).filter(a=>a.opening).sort((a,b)=>a.id-b.id);
-    const guests=S.news.find(n=>n.t.startsWith('最初の客たち'));
+    const guests=S.news.find(n=>newsText(n).startsWith('最初の客たち'));
     const holders=cast.filter(a=>a.dream&&a.dream.k==='stele');
     const h=holders[0];
     const prog=DREAMS.stele.prog(h);
-    return {n:cast.length,names:cast.map(a=>a.name),origins:cast.map(a=>a.origin),guests:guests&&guests.t,id:h.id,bg:h.bg,dream:dreamText(h.dream),texts:holders.map(a=>dreamText(a.dream)).sort(),prog};
+    return {n:cast.length,names:cast.map(a=>a.name),origins:cast.map(a=>a.origin),guests:guests&&newsText(guests),id:h.id,bg:h.bg,dream:dreamText(h.dream),texts:holders.map(a=>dreamText(a.dream)).sort(),prog};
   });
   assert.equal(info.n,7);
   assert.deepEqual(info.texts,['B6Fの転移の石碑に、一度触れてみたい','B6Fまで潜って、地上の店に戻ってみたい'].sort());
@@ -1371,7 +1371,7 @@ test('帳場の設備と席に、いまの段が出る',async()=>{
   assert.doesNotMatch(built.dojo,/未建築|まだ建てていない/);
   assert.match(built.dojo,/いまの効き目：/);
   assert.match(built.dojo,/建て増すと道場：/);
-  const news=await page.evaluate(()=>S.news.map(n=>n.t).filter(t=>t.includes('稽古場')));
+  const news=await page.evaluate(()=>S.news.map(n=>newsText(n)).filter(t=>t.includes('稽古場')));
   assert.ok(news.some(t=>t.includes('稽古場ができた（Lv1）')),news.join(' / '));
   await page.evaluate(()=>{
     S.taverns.ours.gold=2000000;
@@ -1417,7 +1417,7 @@ test('帳場の設備と席に、いまの段が出る',async()=>{
   assert.match(maxed.dojo,/いまの効き目：/);
   assert.match(maxed.dojo,/建てた/);
   assert.doesNotMatch(maxed.dojo,/建て増すと|未建築/);
-  const lv3=await page.evaluate(()=>S.news.map(n=>n.t).filter(t=>t.includes('修練場')));
+  const lv3=await page.evaluate(()=>S.news.map(n=>newsText(n)).filter(t=>t.includes('修練場')));
   assert.ok(lv3.some(t=>t.includes('修練場ができた（Lv3）')),lv3.join(' / '));
   assert.deepEqual(errors,[]);await ctx.close();
 });
@@ -1466,7 +1466,7 @@ test('帳場の説明、資料のヨミガエリ、地図屋のとどめ、踏�
     S.tick=365*TICKS_PER_DAY;conquest(S,p);render();
   });
   assert.match(await page.locator('#ed-sub').innerText(),/迷宮暦82年・解禁から366日目/);
-  const cleared=await page.evaluate(()=>S.news.find(n=>n.t.includes('初めての踏破')).t);
+  const cleared=await page.evaluate(()=>newsText(S.news.find(n=>newsText(n).includes('初めての踏破'))));
   assert.match(cleared,/迷宮暦82年、初めての踏破である/);
   assert.doesNotMatch(cleared,/81年以来/);
   await page.locator('#ed-btn').click();
@@ -1659,7 +1659,7 @@ test('帳場の夢の後押しは、借金を返し終えたあとだけ出て�
   }
   await page.locator(`button[data-act="push"][data-a="${ids[1]}"][data-v="24127"]`).click();
   await page.locator(`button[data-act="push"][data-a="${ids[0]}"][data-v="12100"]`).click();
-  const r=await page.evaluate(ids=>({no:S.adv[ids[1]].gold,yes:S.adv[ids[0]].gold,news:S.news.slice(-2).map(x=>x.t),left:[...document.querySelectorAll('[data-act="push"]')].map(b=>+b.dataset.a).filter(x=>ids.includes(x))}),ids);
+  const r=await page.evaluate(ids=>({no:S.adv[ids[1]].gold,yes:S.adv[ids[0]].gold,news:S.news.slice(-2).map(x=>newsText(x)),left:[...document.querySelectorAll('[data-act="push"]')].map(b=>+b.dataset.a).filter(x=>ids.includes(x))}),ids);
   assert.equal(r.no,6873,'古風な者は断る');assert.equal(r.yes,6873+12100,'丁寧な者は受け取る');
   assert.match(r.news[0],/断られた。「.+」$/);assert.match(r.news[1],/足りない12,100Gを出した。「.+」$/);
   assert.deepEqual(r.left,[],'一つの夢に一度だけ');
@@ -1807,7 +1807,7 @@ test('深手の者は水晶と札で赤くなり、撤退の横に一言出る',
     low.mhp=100;low.hp=30;
     half.mhp=100;half.hp=50;
     S.watch[0]=p.id;S.sel=0;
-    const news=S.news.map(n=>n.t).join('\n');
+    const news=S.news.map(n=>newsText(n)).join('\n');
     render();
     const out=[];
     const crit=document.querySelector('.c-members .m.crit');
@@ -1830,7 +1830,7 @@ test('深手の者は水晶と札で赤くなり、撤退の横に一言出る',
     const byName=Object.fromEntries(ms.map(a=>[a.name,a]));
     if(names.length!==colors.length)out.push('帯の数');
     names.forEach((n,i)=>{const a=byName[n];if(a&&colors[i]!==want(a))out.push(`${n} の帯 ${colors[i]}（${a.hp}/${a.mhp}）`);});
-    if(S.news.map(n=>n.t).join('\n')!==news)out.push('日報が増えた');
+    if(S.news.map(n=>newsText(n)).join('\n')!==news)out.push('日報が増えた');
     if(news.includes('ふかで')||news.includes('深手の者がいる'))out.push('日報に危険が出た');
     L.pers='無謀';p.enemies=[{hp:3}];render();
     const w2=document.querySelector('.c-warn');
@@ -2007,7 +2007,7 @@ test('全滅と依頼の失敗には理由が一文つき、知れていない�
     Object.values(S.parties).forEach(q=>{if(q!==p){q.state='town';q.rest=99;}});
     p.dueAt=S.tick-MISSING_GRACE;tick(S);tab='news';render();
     const news2=document.querySelector('#tbody').innerText;
-    const line=(S.news.findLast(x=>x.t.includes('予定を過ぎても戻らない'))||{}).t||'';
+    const line=((n=>n?newsText(n):'')(S.news.findLast(x=>newsText(x).includes('予定を過ぎても戻らない'))));
     if(!line.startsWith(p.name+'が予定を過ぎても戻らない。'))out.push('消息不明の知らせがない '+line);
     if(/B\d+F|癒し手/.test(line))out.push('消息不明の知らせに死因か階が入った '+line);
     const st3=card().querySelector('.st');
@@ -2029,7 +2029,7 @@ test('全滅と依頼の失敗には理由が一文つき、知れていない�
     if(price===priceFloor)out.push('依頼額が倒れた階のまま '+price);
     // 巡回隊が連れ帰ると、死因と階が手帳と知らせに残る
     corpsesHome(S,p,'巡回隊が見つけ、',null);tab='news';render();
-    const news3=(S.news.findLast(x=>x.t.includes('遺体が街に届いた'))||{}).t||'';
+    const news3=((n=>n?newsText(n):'')(S.news.findLast(x=>newsText(x).includes('遺体が街に届いた'))));
     if(news3!=='巡回隊が見つけ、'+p.name+'の遺体が街に届いた。B4F、オークに倒れていた。癒し手の呪文が尽きていた。')out.push('届いた知らせがない '+news3);
     advOpen=h.id;document.querySelector('#advm').hidden=false;renderAdv();
     const book2=document.querySelector('#advbox').innerText;
@@ -2078,8 +2078,8 @@ test('全滅と依頼の失敗には理由が一文つき、知れていない�
     Object.assign(p,{state:'wiped',wipe:'missing',wipedAt:S.tick-1001,floor:4,killer:'オーク',cause:'オークに倒れた',dueAt:S.tick-200});
     S.deepest.ours=1;S.deepest.rival=1;S.watch=[null,null];
     tick(S);
-    const n=S.news.findLast(x=>x.t.includes('ついに見つからなかった'));
-    return {names,text:n&&n.t,ok:!!n&&n.k==='lost'&&n.t.includes(names.join('、')+'の'+names.length+'人の名が記念碑に刻まれる。')};
+    const n=S.news.findLast(x=>newsText(x).includes('ついに見つからなかった'));
+    return {names,text:n&&newsText(n),ok:!!n&&n.k==='lost'&&newsText(n).includes(names.join('、')+'の'+names.length+'人の名が記念碑に刻まれる。')};
   });
   assert.ok(lost.ok,`見つからなかった知らせ ${lost.text}`);
   for(const [width,height] of [[375,740],[1280,800]]){
@@ -2161,7 +2161,7 @@ test('便りは青く出て、記念碑と手帳に残る',async()=>{
     const prog=document.getElementById('advbox').innerText;
     kin.status='idle';kin.party=null;checkDream(S,kin);
     const told=(S.news||[]).slice(-1)[0];
-    return {prog,dream:kin.dream,past:(kin.pastDreams||[]).some(d=>d.k==='kinvenge'),news:told&&told.t};
+    return {prog,dream:kin.dream,past:(kin.pastDreams||[]).some(d=>d.k==='kinvenge'),news:told&&newsText(told)};
   });
   assert.match(other.prog,/仇は別の者に討たれた/);
   assert.equal(other.dream,null);
@@ -2185,13 +2185,13 @@ test('375pxの記念碑は地の文を「」に入れず、言葉の終わりを
     for(const x of [a,b]){x.trips=5;x.status='idle';x.party=null;x.tav='ours';}
     retire(S,a,'大陸をめぐる旅に出る');
     S.tick=Math.ceil(a.nextLetter/TICKS_PER_DAY)*TICKS_PER_DAY;letterTick(S);
-    const first=(S.news||[]).filter(n=>n.t.startsWith('【便り】')).slice(-1)[0];
+    const first=(S.news||[]).filter(n=>newsText(n).startsWith('【便り】')).slice(-1)[0];
     retire(S,b,'剣を置いて故郷の村で隠居する');
     // 古い記録。印のない潮の便り
     c.trips=5;c.tav='ours';c.status='idle';c.party=null;retire(S,c,'海を渡って東方の島国アズマへ向かう');
     c.letters=[{tk:S.tick,n:1,line:'潮で字が半分にじんでいる'}];
     tab='stone';render();
-    return {aid:a.id,bid:b.id,cid:c.id,first:first&&first.t};
+    return {aid:a.id,bid:b.id,cid:c.id,first:first&&newsText(first)};
   });
   assert.ok(info.first,'1通目が届いていない');
   assert.doesNotMatch(info.first,/前の便りと違う/);
