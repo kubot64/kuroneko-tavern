@@ -229,10 +229,10 @@ test('一行の札に、平均と最高と到達と顔ぶれが出て、狭い�
       if(ms.length&&!text.includes('平均'))bad.push(p.name+' 平均がない');
       if(ms.length&&!text.includes('最高'))bad.push(p.name+' 最高がない');
       if(!text.includes('到達'))bad.push(p.name+' 到達がない');
-      for(const a of ms){if(!text.includes(a.name)||!text.includes(a.cls))bad.push(`${p.name} に ${a.name}（${a.cls}）がいない`);
+      for(const a of ms){if(!text.includes(a.name)||!text.includes(clsName(a.cls)))bad.push(`${p.name} に ${a.name}（${clsName(a.cls)}）がいない`);
         const who=[...el.querySelectorAll('.who')].find(n=>(n.querySelector('.nm')||{}).textContent.includes(a.name));
         const cls=who&&who.querySelector('.cls');
-        if(!cls||!cls.textContent.startsWith(a.cls+' Lv'+a.lvl))bad.push(`${a.name} のLv ${cls&&cls.textContent}`);}
+        if(!cls||!cls.textContent.startsWith(clsName(a.cls)+' Lv'+a.lvl))bad.push(`${a.name} のLv ${cls&&cls.textContent}`);}
       if(p.leader&&S.adv[p.leader]&&ms.some(a=>a.id===p.leader)&&!text.includes('★'+S.adv[p.leader].name))bad.push(p.name+' のリーダー');
       const ja=crestJa(p.name);
       if(ja&&!text.includes(p.name+'（'+ja+'）'))bad.push(p.name+' の訳がない');
@@ -2284,7 +2284,7 @@ test('375pxと1280pxでは所属の札が行に収まり、名簿と日報と地
       for(const nw of document.querySelectorAll('#tbody .meta .nw')){
         if(lines(nw)!==1)bad.push(nw.textContent+' が折れている');
       }
-      if(![...document.querySelectorAll('#tbody .meta')].some(el=>el.textContent.includes('歳相当')&&el.textContent.includes('paladin')))bad.push('名簿に歳相当と聖騎士がない');
+      if(![...document.querySelectorAll('#tbody .meta')].some(el=>el.textContent.includes('歳相当')&&el.textContent.includes('聖騎士')))bad.push('名簿に歳相当と聖騎士がない');
     }
     if(info.part==='news'){
       const li=[...document.querySelectorAll('.news li')].find(el=>el.textContent.includes('最初の客たち'));
