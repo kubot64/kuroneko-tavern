@@ -182,16 +182,15 @@ function line(r){
   const fp=!r.firstPay?'なし':r.firstPay.ok?'無事':`罰金（${r.firstPay.short}G不足）`;
   return `種${r.seed}：借金完済 ${r.debtFree!=null?r.debtFree+'日目':'なし'}／初回返済 ${fp}／迷宮踏破 ${c}／坑道が開く ${r.open!=null?r.open+'日目':'なし'}／底に着く ${r.bottom!=null?'開いてから'+r.bottom+'日':'なし'}・坑道王と${r.fights}戦／坑道踏破 ${m}`;
 }
-// その日までの知らせから、返済が足りたか足りなかったかを数える。知らせは300件で消えるので、日ごとに見る
+// その日までの知らせ（返済の repay・足りなかった repayShort）から、返済が足りたか足りなかったかを数える。知らせは300件で消えるので、日ごとに見る
 function notePays(S,r,d){
   for(const n of S.news||[]){
     if(!n||n.payNoted)continue;
-    const t=n.t||'';
-    const late=t.startsWith('今月の返済に'),ok=t.startsWith('セーレの両替商に、今月の返済');
+    const late=n.kind==='repayShort',ok=n.kind==='repay';
     if(!late&&!ok)continue;
     n.payNoted=1;r.payN++;
     if(late){r.payPen++;
-      const short=+(t.match(/(\d+)G足りなかった/)||[0,0])[1],pen=+(t.match(/罰金(\d+)G/)||[0,0])[1];
+      const short=n.args.short,pen=n.args.pen;
       if(!r.firstPay)r.firstPay={ok:false,short,pen,d};}
     else if(!r.firstPay)r.firstPay={ok:true,d};
   }
