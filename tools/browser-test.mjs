@@ -1296,6 +1296,44 @@ test('900px以下で中身の短いタブは、下まで送ったところで止
   assert.deepEqual(errors,[]);await ctx.close();
 });
 
+test('借金を返し終えた帳場では、所持金で届く使い道と届かない使い道が分かれて出る',async()=>{
+  const {ctx,page,errors}=await open();
+  await page.locator('#sp0').click();
+  await page.locator('button[data-v="desk"]').click();
+  assert.equal(await page.locator('.reach').count(),0,'返し終える前に欄が出ている');
+  // 欄の2行を読む。項目は「名 額G」か「名 額Gから」
+  const read=gold=>page.evaluate(gold=>{
+    const To=S.taverns.ours;To.debt=0;To.debtFree=S.tick;To.gold=gold;tab='desk';render();
+    const box=document.querySelector('.reach');if(!box)return null;
+    const items=k=>{const d=box.querySelector(`[data-reach="${k}"] .does`);
+      return [...d.querySelectorAll('.nw')].map(e=>{const m=e.textContent.match(/^(.+) ([\d,]+)G(から)?$/);return m?{n:m[1],g:+m[2].replace(/,/g,'')}:{bad:e.textContent};});};
+    const far=box.querySelector('[data-reach="far"]');
+    return {head:box.querySelector('h3').textContent,ok:items('ok'),far:items('far'),okText:box.querySelector('[data-reach="ok"] .does').textContent,farText:far.querySelector('.does').textContent,
+      dim:getComputedStyle(far.querySelector('.does')).color!==getComputedStyle(box.querySelector('[data-reach="ok"] .does')).color,
+      donate:document.querySelector('[data-act="donate"]').disabled,wide:document.documentElement.scrollWidth>innerWidth+1};
+  },gold);
+  const mid=await read(3000);
+  assert.ok(mid,'返し終えたあとに欄が出ていない');
+  assert.equal(mid.head,'いまの所持金 3,000Gで');
+  assert.ok(mid.ok.length&&mid.far.length,JSON.stringify(mid));
+  for(const w of [...mid.ok,...mid.far])assert.ok(!w.bad,'項目の形が違う '+w.bad);
+  assert.ok(mid.ok.every(w=>w.g<=3000)&&mid.far.every(w=>w.g>3000),JSON.stringify(mid));
+  for(const L of [mid.ok,mid.far])assert.deepEqual(L.map(w=>w.g),L.map(w=>w.g).slice().sort((x,y)=>x-y),'安い順でない');
+  assert.ok(mid.dim,'届かない行が薄くない');
+  // 寄進のボタンが押せるかどうかと、欄の仕分けが合う
+  const don=[...mid.ok,...mid.far].find(w=>w.n==='寄進');
+  assert.ok(don,'寄進がない');assert.equal(mid.donate,mid.far.includes(don));
+  const rich=await read(1e9);
+  assert.equal(rich.farText,'なし');assert.ok(rich.ok.length>=mid.ok.length+mid.far.length-1,JSON.stringify(rich));
+  const poor=await read(0);
+  assert.equal(poor.okText,'なし');
+  await page.setViewportSize({width:375,height:740});
+  const narrow=await read(3000);
+  assert.equal(narrow.wide,false,'375pxで横にはみ出す');
+  const broken=await page.evaluate(()=>[...document.querySelectorAll('.reach .nw')].filter(e=>new Set([...e.getClientRects()].map(r=>Math.round(r.top))).size>1).map(e=>e.textContent));
+  assert.deepEqual(broken,[],'項目が途中で折れている');
+  assert.deepEqual(errors,[]);await ctx.close();
+});
 test('帳場の設備と席に、いまの段が出る',async()=>{
   const {ctx,page,errors}=await open();
   await page.locator('#sp0').click();
