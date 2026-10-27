@@ -264,6 +264,9 @@ button:focus-visible,[tabindex]:focus-visible{outline:2px solid var(--amber);out
 .does.ask{color:var(--fg);font-size:13px}
 /* 死体回収の依頼で、預けると次の返済に足りなくなるときの一言 */
 .does.short{color:var(--amber)}
+/* 帳場の、所持金で届く使い道は地の色、届かない使い道は薄く出す */
+.reach [data-reach="ok"] .does{color:var(--fg)}
+.reach .far b,.reach .far .does{color:var(--muted)}
 /* 右の列の行と碑、地図の札、迷宮日報、一行の様子、手帳。語の途中では折らない。行より長い語だけ、収まるところで折る */
 .row .who,.meta,.does,.stone,.mv,.news li>span:not(.d){word-break:keep-all;line-break:strict;overflow-wrap:anywhere}
 .nw,.tie{white-space:nowrap;overflow-wrap:normal}
@@ -4953,6 +4956,28 @@ function flowHtml(){
   const cell=(rec,k,sign)=>`<div class="num">${nw(goldSign(sign*(rec[k]||0)))}</div>`;
   return `<div class="sect" id="flow"><h3>きょうの出入り</h3><div class="flow"><div></div><div>前日</div><div>直近7日</div>${rows.map(([k,name,sign])=>`<div>${name}</div>${cell(y,k,sign)}${cell(w,k,sign)}`).join('')}</div></div>`;
 }
+// 借金を返し終えたあとの帳場の、使い道の先頭。手で使う道ごとに、いちばん安い額を、いまの所持金で届くものと届かないものに分ける
+function reachHtml(){
+  const To=T();if(To.debt>0)return '';
+  const ours=Object.values(S.adv).filter(a=>a.tav==='ours'),idle=ours.filter(isIdle);
+  const ns=nextSeats(S);
+  // 道ごとに、いま押せるボタンの額を並べる。額が二つ以上あれば「から」を付ける
+  const ways=[
+    ['店を広げる',ns?[ns[2]]:[]],
+    ['蘇生',ours.filter(inTemple).map(a=>templeCost(S,a))],
+    ['品を贈る',idle.map(a=>giftOffer(S,a)).filter(Boolean).map(o=>o.price)],
+    ['夢の後押し',idle.map(a=>pushNeed(S,a)).filter(n=>n>0).map(n=>pushHalf(n)||n)],
+    ['寄進',[donatePrice(S)]],
+    ['設備',FACILITIES.map(([k])=>nextFac(S,k)).filter(Boolean).map(t=>t[1])],
+    ['引き抜き',poachList(S).map(a=>poachPrice(S,a))],
+    ['死体回収の依頼',Object.values(S.parties).filter(p=>viewOf(S,p).waiting&&!S.bounties[p.id]).map(p=>bountyPrice(p))],
+  ].filter(w=>w[1].length).map(([n,gs])=>({n,g:Math.min(...gs),from:new Set(gs).size>1})).sort((x,y)=>x.g-y.g);
+  const line=ws=>ws.length?ws.map(w=>nw(`${w.n} ${G(w.g)}${w.from?'から':''}`)).join('、'):'なし';
+  const ok=ways.filter(w=>w.g<=To.gold),far=ways.filter(w=>w.g>To.gold);
+  return `<div class="sect reach"><h3>${nw('いまの所持金 '+G(To.gold))}で</h3>
+  <div class="row" data-reach="ok"><span class="who"><b>届く</b><span class="does">${line(ok)}</span></span></div>
+  <div class="row far" data-reach="far"><span class="who"><b>届かない</b><span class="does">${line(far)}</span></span></div></div>`;
+}
 function sideDesk(){
   const miss=Object.values(S.parties).filter(p=>viewOf(S,p).waiting);
   const To=T(),ns=nextSeats(S),due=nextDue(S);
@@ -4962,7 +4987,7 @@ function sideDesk(){
   ${To.debt>0?`<p class="note">開店のときにセーレの両替商から借りた金。30日ごとに${DEBT_DUE}Gと利息（残りの2%）を払う。足りなければ罰金が上乗せされ、取り立て人が店先に居座って評判が落ちる。次の返済まであと${due.days}日・必要額${due.due}G。</p>
   <div class="row debt"><span class="who"><b>${nw('借金の残り '+To.debt+'G')}</b><span class="does">${nw('これまでに返した額 '+(To.repaid||0)+'G')}<wbr>${nw('（うち利息 '+(To.interestPaid||0)+'G）')}</span></span>${[1000,10000].filter(x=>x<To.debt).map(x=>`<button class="btn sm" data-act="repay" data-v="${x}" ${To.gold<x?'disabled':''}>${x}G返す</button>`).join('')}<button class="btn sm" data-act="repay" data-v="${To.debt}" ${To.gold<To.debt?'disabled':''}>全額返す</button></div>`:`<p class="note">${To.debtFree!=null?`開店のときの借金は、${Math.floor(To.debtFree/TICKS_PER_DAY)+1}日目に返し終えた。`:'この店に借金はない。'}</p>`}
   <div class="row" data-seats="1"><span class="who"><b>常連の席 ${baseSeats}席</b><span class="meta lv">Lv${seatLv}/${SEAT_STEPS.length}</span><span class="does">${seatDoes}</span></span>${ns?`<button class="btn sm" data-act="seats" ${To.gold<ns[2]?'disabled':''}>店を広げる ${ns[2]}G</button>`:''}</div></div>`;
-  return `<div class="desk">${memoHtml()}${debtSect}${flowHtml()}<div class="sect"><h3>店の方針　冒険者への支援</h3>
+  return `<div class="desk">${memoHtml()}${debtSect}${flowHtml()}${reachHtml()}<div class="sect"><h3>店の方針　冒険者への支援</h3>
   <p class="note">店の金で常連を支える。生きて帰る者が増え、恩を感じた者は店でよく飲む。これまでの支援 ${T().support||0}G・売上 ${T().earned}G。蘇生代・回復薬・地図代は一行の借りとして記録され、稼ぎから少しずつ戻る。立て替えた分が戻るまで、序盤は手元が薄くなる。いま一行が負う借り ${Object.values(S.parties).filter(p=>p.tav==='ours').reduce((s,p)=>s+(p.owed||0),0)}G${T().owedBack?`・これまでに戻った額 ${T().owedBack}G`:''}${T().badDebt?`・貸し倒れ ${T().badDebt}G`:''}。</p>
   <div class="row"><span class="who"><b>回復薬の差し入れ</b><span class="does">${keepText(`出発する一行に持たせる。1本 ${potionPrice(S,{members:Object.values(S.adv).filter(a=>a.tav==='ours'&&isActive(a)).map(a=>a.id)})}G前後（深さで変わる）`)}</span>${costLine('potion')}</span>${[['なし',0],['2本',1],['5本',2],['10本',3]].map(([l,v])=>`<button class="btn sm${policy(S).potion===v?' on':''}" data-act="pol" data-k="potion" data-v="${v}">${l}</button>`).join('')}</div>
   ${[['mapPay','地図を店のもちで買う','常連の一行が地図を買うとき、店が払う'],['revive','蘇生代を肩代わりする','常連が寺院に運ばれたら、すぐ店が払って蘇生を頼む'],['rookie','新人に支度の品を贈る','レベル10未満の新顔が来たら、武具屋の品を2つまで贈る']].map(([k,l,d])=>`<div class="row"><span class="who"><b>${l}</b><span class="does">${d}</span>${costLine(k)}</span><button class="btn sm pol${policy(S)[k]?' on':''}" data-act="pol" data-k="${k}" data-v="${policy(S)[k]?0:1}">${policy(S)[k]?'している':'していない'}</button></div>`).join('')}
