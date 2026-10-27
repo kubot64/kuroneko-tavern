@@ -1167,7 +1167,8 @@ function originIntro(origin,bg){
   if(named) return o.far?{news:'海の向こうから来た',door:'海の向こうから来た。'}:{news:'',door:''};
   return o.far?{news:'海の向こう、'+origin+'から来た',door:'海の向こう、'+origin+'の出身。'}:{news:origin+'出身の',door:origin+'の出身。'};
 }
-function newcomerClause(origin,bg){return originIntro(origin,bg).news+(bg||'')+(bg&&String(bg).endsWith('だった')?'という':'だという');}
+// 経歴が「た」で終わる（だった・居ついた など）ときは「だという」ではなく「という」でつなぐ
+function newcomerClause(origin,bg){return originIntro(origin,bg).news+(bg||'')+(bg&&String(bg).endsWith('た')?'という':'だという');}
 function doorArgs(S,a){
   return {intro:originIntro(a.origin,a.bg).door,bg:a.bg,race:a.race,age:a.age,hage:humanAge(a),sex:a.sex,cls:a.cls,lvl:a.lvl,tav:S.taverns[a.tav].name,dream:dreamText(a.dream)};
 }

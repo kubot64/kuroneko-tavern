@@ -2496,13 +2496,16 @@ function checkIntro(){
       for(const token of [origin,o.short]){
         if(bg.includes(token)&&(intro.news.includes(token)||intro.door.includes(token))) bad.push(`重なり ${origin}「${token}」${bg}`);
       }
-      const tail=bg.endsWith('だった')?'という':'だという';
+      const tail=bg.endsWith('た')?'という':'だという';
       if(clause!==intro.news+bg+tail) bad.push(`つなぎ ${origin}「${bg}」${clause}`);
     }
   }
   check('知らせ：出身と経歴のすべての組み合わせで、だっただと地名の重なりがない',!bad.length,'出身×経歴',bad.slice(0,6).join(' / ')||'合う');
   check('経歴：文は「だった」で終わらない',!past.length,'経歴の一覧',past.slice(0,6).join(' / ')||'名詞');
   const sheep=E.newcomerClause('カルセ王国','羊飼いだった');
+  const stay=E.newcomerClause('カルセ王国','小作農の次男。開店の夜、雨宿りに入ってそのまま居ついた');
+  check('知らせ：経歴が「居ついた」で終わるときは「居ついたという」とつなぐ（#251）',
+    stay.endsWith('居ついたという')&&!stay.includes('居ついただ'),'事例',stay);
   const mine=E.newcomerClause('ベルクラント鉱山諸侯領','鉱山の元用心棒');
   const lowen=E.newcomerClause('ロウエン','ロウエン生まれの冒険者の二世');
   const empire=E.newcomerClause('グラウ帝国','帝国の脱走兵');
