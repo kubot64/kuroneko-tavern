@@ -5012,8 +5012,10 @@ function sideDesk(){
 <div class="sect"><h3>死体回収の依頼</h3><p class="note">依頼を出すと、同じ階を歩く一行が見つけやすくなり、欲深い者も遺体を連れ帰るようになる。報酬は、知れている探索先と深さで決まり、依頼を出すときに預ける。連れ帰った一行に払い、見つからなければ戻る。一行ごとに、知れている深さから見た見つかる見込みを添える。</p>
   ${miss.map(p=>`<div class="row"><span class="who"><b>${partyHtml(p.name)}</b> <span class="meta">${S.taverns[p.tav].name}・${inMine(p.floor)?'坑道':'迷宮'}・${p.members.length}人${p.looted?'・装備が持ち去られた形跡':''}</span><span class="does">${keepText(bountyHint(S,p))}</span>${!S.bounties[p.id]&&bountyShort(S,p)?`<span class="does short">${keepText('預けると、次の返済に足りなくなる')}</span>`:''}</span>${S.bounties[p.id]?`<span class="chip">依頼中 ${S.bounties[p.id]}G</span>`:`<button class="btn sm" data-act="bounty" data-p="${p.id}" ${T().gold<bountyPrice(p)?'disabled':''}>依頼を出す ${bountyPrice(p)}G</button>`}</div>`).join('')||'<p class="note">消息不明の一行はいない。</p>'}</div>
   <div class="sect"><h3>店の帳簿</h3><div class="row"><span class="who">これまでの売上</span><span class="meta">${T().earned}G</span></div><div class="row"><span class="who">これまでの支援</span><span class="meta">${T().support||0}G</span></div></div>
-  <div class="sect"><h3>記録</h3><div class="row"><span class="who"><b>最初から始める</b><span class="does">いまの記録を消して、若い店主が借金をして黒猫亭を開くところから始め直す。消した記録は戻らない。</span></span><button class="btn sm" data-act="reset">最初から始める</button></div></div></div>`;
+  ${resetSect()}</div>`;
 }
+// 「最初から始める」は帳場のいちばん下と、資料タブの先頭の両方に置く（#254）。確かめの窓は同じ
+function resetSect(){return `<div class="sect"><h3>記録</h3><div class="row"><span class="who"><b>最初から始める</b><span class="does">いまの記録を消して、若い店主が借金をして黒猫亭を開くところから始め直す。消した記録は戻らない。</span></span><button class="btn sm" data-act="reset">最初から始める</button></div></div>`}
 function sideRank(){
   return `${banzuke()}${sideSmall()}
   <div class="sect"><h3>迷宮の記録　${LORE.filter((L,i)=>(S.loreFound||{})[i]).length} / ${LORE.length}</h3>${LORE.map((L,i)=>{const f=(S.loreFound||{})[i];return f?`<div class="quote">「${esc(L.t)}」<span class="by">${FN(L.f)}付近の${esc(L.what)}・${esc(S.taverns[f.tav].name)}の${partyHtml(f.party)}が発見</span></div>`:`<div class="quote"><span class="by">${FN(L.f)}より深く……まだ見つかっていない</span></div>`}).join('')}
@@ -5031,7 +5033,7 @@ function sideSmall(){const list=smallOf(S);const day=tk=>Math.floor(tk/TICKS_PER
     ${t.owned?'':`<div style="margin-top:6px">${t.score<3?`<button class="btn sm" data-act="invest" data-n="${esc(t.n)}" ${T().gold<investPrice(S,t)?'disabled':''}>出資する ${investPrice(S,t)}G</button> `:''}<button class="btn sm" data-act="buysmall" data-n="${esc(t.n)}" ${T().gold<buyPrice(S,t)?'disabled':''}>買い取る ${buyPrice(S,t)}G</button></div>`}</div>`}).join('')||'<p class="note">いま裏通りに酒場はない。</p>'}
   ${S.smallClosed.length?`<p class="note">${keepText('たたんだ店：'+S.smallClosed.slice(-8).reverse().map(x=>`${x.n}（${day(x.tk)}日目。${x.why}）`).join('、'))}</p>`:''}</div>`;}
 function sideRef(){
-  return `<div class="sect"><h3>呪文の一覧</h3>${SPELLS.map(x=>`<div class="cl"><b>${x.n}</b><span>${keepText(x.d+'。')}<br>使える者：${keepText(spellWho(x))}</span></div>`).join('')}</div>
+  return `${resetSect()}<div class="sect"><h3>呪文の一覧</h3>${SPELLS.map(x=>`<div class="cl"><b>${x.n}</b><span>${keepText(x.d+'。')}<br>使える者：${keepText(spellWho(x))}</span></div>`).join('')}</div>
   <div class="sect"><h3>職業の一覧</h3>
   ${Object.values(CLS).map(c=>`<div class="cl"><b>${c.n}</b><span>${keepText((c.adv?`上級職：${clsName(c.adv)}から（${c.req}）。`:c.rare?'レア職業：ごくまれに店に現れる。':'基本職。')+(c.desc||''))}</span></div>`).join('')}</div>`;
 }

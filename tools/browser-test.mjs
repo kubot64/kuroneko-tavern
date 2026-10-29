@@ -3108,6 +3108,26 @@ function screenAudit(){
   return [...new Set(bad)];
 }
 
+test('「最初から始める」は資料タブの先頭にもあり、帳場と同じ確かめの窓を出す。断れば記録は消えない',async()=>{
+  const {ctx,page,errors}=await open();
+  await page.locator('#sp0').click();
+  await page.locator('button[data-v="ref"]').click();
+  const first=await page.evaluate(()=>{const s=document.querySelector('#tbody .sect');return {h:s.querySelector('h3').textContent,b:!!s.querySelector('button[data-act="reset"]')};});
+  assert.deepEqual(first,{h:'記録',b:true});
+  const day=await page.evaluate(()=>S.tick);
+  await page.evaluate(()=>{S.tick+=240;render();});
+  const msgs=[];
+  page.on('dialog',d=>{msgs.push(d.message());d.dismiss();});
+  await page.locator('#tbody button[data-act="reset"]').click();
+  await page.locator('button[data-v="desk"]').click();
+  await page.locator('#tbody button[data-act="reset"]').click();
+  assert.equal(msgs.length,2);
+  assert.equal(msgs[0],msgs[1]);
+  assert.match(msgs[0],/消した記録は戻りません/);
+  assert.equal(await page.evaluate(()=>S.tick),day+240);
+  assert.deepEqual(errors,[]);await ctx.close();
+});
+
 test('資料タブの呪文の一覧は、呪文の表 SPELLS と同じ文を、同じ並びで出す',async()=>{
   const {ctx,page,errors}=await open();
   await page.locator('#sp0').click();
