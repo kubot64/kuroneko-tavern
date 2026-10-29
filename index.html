@@ -4895,6 +4895,14 @@ function sideNews(){const ed=(S.edicts||[]).filter(e=>e.until>S.tick);return `${
 // 日報は新しい順に出す。ただし開店の日の導入（刻0の知らせ）だけは、いちばん下に書いた順のまま並べ、上から読めるようにする（#255）
 function newsOrder(list){return list.filter(x=>x.tk>0).reverse().concat(list.filter(x=>!(x.tk>0)))}
 function markTag(a){return a.marked&&a.tav==='ours'&&isActive(a)?'<span class="markmark" title="店主が見込んだ者">◆見込み</span>':''}
+// 掲示にまだ誰にも回していない話があるのに、いま酒場で伝えられる常連がいないとき、そのわけを一言で返す（#253）。それ以外は空
+function boardGap(S){
+  if(!boardOpen(S))return '';
+  const free=errandsOf(S).board.filter(e=>!e.hero&&!e.pend);if(!free.length)return '';
+  const ours=Object.values(S.adv).filter(a=>a.tav==='ours'&&isActive(a));
+  if(free.some(e=>ours.some(a=>!errandBlock(S,e,a))))return '';
+  return free.some(e=>ours.some(a=>!designateBlock(S,e,a)))?'いま酒場で話を伝えられる常連はいない。迷宮に出ている者を主役に選んでおけば、戻ったときに伝える。':'いま話を回せる黒猫亭の常連がいない。';
+}
 // 酒場の掲示。持ち込まれた話と、誰に回すか
 function sideBoard(){
   const st=errandStage(S);
@@ -4914,11 +4922,13 @@ function sideBoard(){
     return `<div class="quote board"><b>${esc(e.n)}</b>${e.arc?`<span class="markmark">続きもの・${esc(ARCS[e.arc].n)}　${e.stage}/${ARCS[e.arc].stages.length}</span>`:''}<span class="by">${esc(e.from)}から・${h?'引き受け済み':`掲示はあと${dd(e.until)}日`}</span>「${esc(e.t)}」${foot}</div>`;};
   const log=E.log.slice(-5).reverse().map(l=>`<div class="row"><span class="who">${l.ok?'<span class="chip">果たした</span>':'<span class="chip ash">果たせず</span>'} ${esc(l.n)}${l.who?`・${l.id&&S.adv[l.id]?nmLink(S.adv[l.id]):esc(l.who)}`:''}<span class="does">${esc(l.t)}</span></span><span class="meta">${dayMark(l.tk)}</span></div>`).join('');
   const shallow=st===1?'<p class="note">いまは浅い頼みごとだけ。名が上がれば、もっと持ち込まれる。</p>':'';
+  const gap=boardGap(S);
   const marks=markCap?`<p class="markline">見込んだ者　${mk.length} / ${markCap}${mk.length?'：'+mk.map(a=>nmLink(a)).join('・'):''}。${st===2?'見込めるのは、いまは一人だけ。':''}手帳から見込める。見込んだ者に噛み合う話が来やすくなる。</p>`:'';
   const help=`<p class="boardhelp"><button class="btn sm" data-act="boardhelp" aria-expanded="${boardHelpOpen?'true':'false'}">話の回し方</button></p>${boardHelpOpen?'<p class="note">店主が決めるのは、話を誰に回すかだけ。向き不向きは話の文面ににじむ。手帳を開いて、怖いものや得意不得意、出身と照らし合わせること。話が伝わるのは、主役が酒場にいて、一行が街で休んでいるとき。迷宮に出ている者を選んでおけば、戻ったときに伝える。</p>':''}`;
   return `<div class="sect"><h3>掲示　持ち込まれた話　${E.board.length} / ${cap}</h3>
   ${help}
   ${shallow}
+  ${gap?`<p class="note boardgap">${gap}</p>`:''}
   ${E.board.map(card).join('')||'<p class="note">いまは、持ち込まれた話はない。</p>'}
   ${marks}
   ${log?`<h3 style="margin-top:8px">これまでの話</h3>${log}`:''}</div>`;
