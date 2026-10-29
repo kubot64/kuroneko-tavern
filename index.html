@@ -4880,7 +4880,9 @@ function focusSide(){
   const dy=side.getBoundingClientRect().top-wrap.getBoundingClientRect().top;
   if(Math.abs(dy)>1)wrap.scrollTop+=dy;
 }
-function sideNews(){const ed=(S.edicts||[]).filter(e=>e.until>S.tick);return `${ed.length?`<div class="sect"><h3>いま出ているお触れ</h3>${ed.map(e=>`<div class="quote edict">【${esc(e.from)}】${esc(e.t)}<span class="by">あと${Math.max(1,Math.ceil((e.until-S.tick)/TICKS_PER_DAY))}日</span></div>`).join('')}</div>`:''}<p class="note">黒猫亭にも、銀の杯亭にも、迷宮の出来事は届く。</p><ul class="news">${S.news.slice(-60).reverse().map(newsLi).join('')}</ul>`}
+function sideNews(){const ed=(S.edicts||[]).filter(e=>e.until>S.tick);return `${ed.length?`<div class="sect"><h3>いま出ているお触れ</h3>${ed.map(e=>`<div class="quote edict">【${esc(e.from)}】${esc(e.t)}<span class="by">あと${Math.max(1,Math.ceil((e.until-S.tick)/TICKS_PER_DAY))}日</span></div>`).join('')}</div>`:''}<p class="note">黒猫亭にも、銀の杯亭にも、迷宮の出来事は届く。</p><ul class="news">${newsOrder(S.news.slice(-60)).map(newsLi).join('')}</ul>`}
+// 日報は新しい順に出す。ただし開店の日の導入（刻0の知らせ）だけは、いちばん下に書いた順のまま並べ、上から読めるようにする（#255）
+function newsOrder(list){return list.filter(x=>x.tk>0).reverse().concat(list.filter(x=>!(x.tk>0)))}
 function markTag(a){return a.marked&&a.tav==='ours'&&isActive(a)?'<span class="markmark" title="店主が見込んだ者">◆見込み</span>':''}
 // 酒場の掲示。持ち込まれた話と、誰に回すか
 function sideBoard(){

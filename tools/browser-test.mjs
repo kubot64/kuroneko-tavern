@@ -773,6 +773,22 @@ test('帳場の覚え書きと、次の返済までの日数・必要額が常�
   assert.deepEqual(errors,[]);await ctx.close();
 });
 
+test('迷宮日報は新しい順だが、開店の日の導入だけはいちばん下に読む順で並ぶ',async()=>{
+  const {ctx,page,errors}=await open();
+  await page.locator('#sp0').click();
+  const r=await page.evaluate(()=>{
+    news(S,'edict',{from:'噂',t:'あとから来た知らせ'},'info');S.news.at(-1).tk=S.tick+TICKS_PER_DAY;tab='news';render();
+    const lis=[...document.querySelectorAll('#tbody .news li')].map(li=>li.textContent);
+    const intro=S.news.filter(n=>n.tk===0).map(n=>newsText(n));
+    return {lis,intro};
+  });
+  assert.deepEqual(r.intro.map(t=>t.slice(0,6)),['【ラウレンツ','ロウエンの酒','封鎖の十九年','封じの門が開','最初の客たち']);
+  const tail=r.lis.slice(-r.intro.length).map(t=>t.replace(/^\d+日目/,'').slice(0,12));
+  assert.deepEqual(tail,r.intro.map(t=>t.slice(0,12)),'導入は上から開店の順に並ぶ');
+  assert.match(r.lis[0],/あとから来た知らせ/,'あとの知らせはいちばん上');
+  assert.deepEqual(errors,[]);await ctx.close();
+});
+
 test('開店の顔ぶれは、知らせと手帳と記念碑に出る',async()=>{
   const {ctx,page,errors}=await open();
   await page.locator('#sp0').click();
