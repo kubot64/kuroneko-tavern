@@ -1628,6 +1628,28 @@ test('酒場の掲示は段ごとに開き、見込みの人数も段で変わ�
   assert.deepEqual(errors,[]);await ctx.close();
 });
 
+test('掲示に主役の決まっていない話があるのに、いま酒場で伝えられる常連がいないときだけ、そのわけを一言出す',async()=>{
+  const {ctx,page,errors}=await open();
+  await page.locator('#sp0').click();
+  const gap=()=>page.evaluate(()=>{const g=document.querySelector('#tbody .boardgap');return g?g.textContent:'';});
+  await page.evaluate(()=>{
+    const T0=S.taverns.ours;T0.debt=0;T0.debtFree=S.tick;const E=errandsOf(S);E.stage=3;E.next=S.tick+99*TICKS_PER_DAY;
+    E.board=[{id:900,k:'bell',n:'鐘楼の光',from:'梟の地図屋',t:ERRANDS.find(x=>x.k==='bell').txt(8),f:8,until:S.tick+TICKS_PER_DAY*20,hero:null,refused:[],tk:S.tick}];
+    const ours=Object.values(S.adv).filter(a=>a.tav==='ours'&&isActive(a));
+    const p=Object.values(S.parties).find(x=>x.tav==='ours');
+    for(const a of ours){a.status='idle';a.party=p.id;}p.state='town';
+    tab='bar';render();
+  });
+  assert.equal(await gap(),'','酒場で伝えられる常連がいるとき');
+  await page.evaluate(()=>{Object.values(S.parties).filter(p=>p.tav==='ours').forEach(p=>{p.state='explore';});render();});
+  assert.equal(await gap(),'いま酒場で話を伝えられる常連はいない。迷宮に出ている者を主役に選んでおけば、戻ったときに伝える。');
+  await page.evaluate(()=>{const e=errandsOf(S).board[0];e.refused=Object.values(S.adv).filter(a=>a.tav==='ours'&&isActive(a)).map(a=>a.id);render();});
+  assert.equal(await gap(),'いま話を回せる黒猫亭の常連がいない。');
+  await page.evaluate(()=>{const e=errandsOf(S).board[0];e.refused=[];e.pend=Object.values(S.adv).find(a=>a.tav==='ours'&&isActive(a)).id;render();});
+  assert.equal(await gap(),'','主役の決まっていない話がないとき');
+  assert.deepEqual(errors,[]);await ctx.close();
+});
+
 test('掲示の主役選びで話を持ちかけると、本人が口調どおりに返し、断った者は選べない。375px・768px・1280pxで崩れない',async()=>{
   const {ctx,page,errors}=await open();
   await page.locator('#sp0').click();
