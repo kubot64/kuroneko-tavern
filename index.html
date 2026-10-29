@@ -396,6 +396,7 @@ button:focus-visible,[tabindex]:focus-visible{outline:2px solid var(--amber);out
     <div class="sum" id="dg-sum"></div>
     <div class="note" id="dg-brk"></div>
     <ul class="news" id="dg-news"></ul>
+    <p class="note" id="dg-who" hidden></p>
     <div style="margin-top:16px;text-align:right"><button class="btn on" data-act="closedigest">店に戻る</button></div>
   </div>
 </div>
@@ -4699,6 +4700,16 @@ function drawDigest(st){
   const earned=(T0.earned||0)-(st.e0||0),support=(T0.support||0)-(st.s0||0),paid=(T0.repaid||0)-(st.r0||0);
   $('dg-brk').innerHTML=groupMoney([`売上 ${sign(earned)}`,`支援 ${support}G`,`返済 ${paid}G`].map(nw).join('、'));
   $('dg-news').innerHTML=items.length?items.slice(-30).reverse().map(newsLi).join(''):`<li><span></span><span class="note">${done?'静かな日々だった。':'……'}</span></li>`;
+  const who=done?digestWho(items.slice(-30)):[];
+  $('dg-who').hidden=!who.length;
+  $('dg-who').innerHTML=who.length?'手帳を見る：'+who.map(a=>`<button class="nm-link" data-act="digestadv" data-a="${a.id}">${esc(a.name)}</button>`).join('・'):'';
+}
+// 留守のあいだの知らせに名前の出た黒猫亭の者を、新しい知らせの順に4人まで。押すとその人の手帳が開く（#256）
+function digestWho(items){
+  const ours=Object.values(S.adv).filter(a=>a.tav==='ours'&&a.name),got=[];
+  for(const x of items.slice().reverse()){const t=newsText(x);
+    for(const a of ours)if(got.length<4&&!got.includes(a)&&t.includes(a.name))got.push(a);}
+  return got;
 }
 // 丸めて60分や24時間になるときは、上の単位で出す
 function fmtAway(s){const m=Math.round(s/60);if(m<60)return m+'分';const h=Math.round(s/3600);if(h<24)return h+'時間';return Math.round(s/86400)+'日'}
@@ -5212,6 +5223,7 @@ document.addEventListener('click',e=>{
   if(act==='speed'){setSpeed(+b.dataset.v);return;}
   if(act==='skip'){fastForward(TICKS_PER_DAY,0);return;}
   if(act==='closedigest'){if(ff)return;$('digest').hidden=true;maybePayoff();maybeEnding();maybeLife();return;}
+  if(act==='digestadv'){if(ff)return;$('digest').hidden=true;advOpen=+b.dataset.a;$('advm').hidden=false;$('advbox').scrollTop=0;renderAdv();maybePayoff();maybeEnding();maybeLife();return;}
   if(act==='closepayoff'){$('payoff').hidden=true;delete S.taverns.ours.payoffScene;save();maybeEnding();maybeLife();return;}
   if(act==='closeending'){$('ending').hidden=true;if(S.conquered)S.conquered.ending=false;save();maybePayoff();maybeLife();return;}
   if(act==='closelife'){$('life').hidden=true;S.lifeQ=[];save();maybePayoff();return;}

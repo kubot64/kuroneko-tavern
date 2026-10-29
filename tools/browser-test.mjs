@@ -94,6 +94,31 @@ test('1時間裏にいて戻ると、「留守のあいだに」が出て10日�
   assert.deepEqual(errors,[]);await ctx.close();
 });
 
+test('「留守のあいだに」は、知らせに名前の出た黒猫亭の者を並べ、押すとその人の手帳が開く',async()=>{
+  const {ctx,page,errors}=await open();
+  await page.locator('#sp0').click();
+  const a=await page.evaluate(()=>{
+    const ours=Object.values(S.adv).filter(x=>x.tav==='ours');
+    const t0=S.tick;
+    news(S,'edict',{from:'噂',t:ours[0].name+'が酒場で歌った'},'info');
+    news(S,'edict',{from:'噂',t:ours[1].name+'と'+ours[2].name+'が口論した'},'info');
+    drawDigest({i:50,n:50,awaySec:3600,startTick:t0-1,g0:S.taverns.ours.gold,e0:0,s0:0,r0:0,lost0:S.memorial.length,returns:0,wipes:0});
+    document.querySelector('#digest').hidden=false;
+    return {ids:[ours[1].id,ours[2].id,ours[0].id],name:ours[1].name};
+  });
+  const who=await page.evaluate(()=>[...document.querySelectorAll('#dg-who button')].map(b=>+b.dataset.a));
+  assert.deepEqual(who,a.ids,'新しい知らせの順');
+  await page.locator(`#dg-who button[data-a="${a.ids[0]}"]`).click();
+  assert.equal(await page.locator('#digest').isVisible(),false);
+  assert.equal(await page.locator('#advm').isVisible(),true);
+  assert.match(await page.locator('#advbox h2').innerText(),new RegExp(a.name));
+  await page.evaluate(()=>{
+    drawDigest({i:50,n:50,awaySec:3600,startTick:S.tick+5,g0:S.taverns.ours.gold,e0:0,s0:0,r0:0,lost0:S.memorial.length,returns:0,wipes:0});
+  });
+  assert.equal(await page.evaluate(()=>document.querySelector('#dg-who').hidden),true,'名前の出た者がいないとき');
+  assert.deepEqual(errors,[]);await ctx.close();
+});
+
 test('留守のあいだの減りは売上と書かず、帳場は返した額と利息を分ける',async()=>{
   const {ctx,page,errors}=await open();
   await page.locator('#sp0').click();
