@@ -151,6 +151,42 @@ test('手帳の上に場面が出ているときの Esc は、場面だけを閉
   assert.deepEqual(errors,[]);await ctx.close();
 });
 
+test('375pxで店側のタブを開くと水晶と一行を畳み、中身の先頭が最初の画面に見える。ボタンで開け閉めでき、1280pxと見る側のタブは変わらない（#264）',async()=>{
+  const {ctx,page,errors}=await open();
+  await page.locator('#sp0').click();
+  await page.setViewportSize({width:375,height:812});
+  const left=page.locator('.left'),fold=page.locator('#foldbar');
+  // 見る側のタブでは、これまでどおり水晶が先
+  assert.equal(await left.isVisible(),true);assert.equal(await fold.isVisible(),false);
+  for(const v of ['desk','shop','maps']){
+    await page.locator(`#tabs button[data-v="${v}"]`).click();await frames(page);
+    assert.equal(await left.isVisible(),false,`${v}：水晶と一行が畳まれていない`);
+    assert.equal(await fold.isVisible(),true);
+    assert.ok(await fold.evaluate(b=>{const r=b.getBoundingClientRect();return r.top>=0&&r.bottom<=innerHeight;}),`${v}：開け閉めのボタンが画面の外`);
+    // 中身の先頭（最初の段）が、タブを押したあと手で滑らせずに、下のタブと返済の帯より上に見える
+    const m=await page.evaluate(()=>{const h=document.querySelector('#tbody').firstElementChild.getBoundingClientRect();
+      const cs=getComputedStyle(document.documentElement),bar=parseFloat(cs.getPropertyValue('--tabbar-h'))+parseFloat(cs.getPropertyValue('--paybar-h')||'0');
+      return {top:h.top,limit:innerHeight-bar};});
+    // 先頭の見出しと一行目が入るぶん（80px）は、帯より上に見えている
+    assert.ok(m.top+80<=m.limit,`${v}：中身の先頭が最初の画面に入らない（${m.top}+80 > ${m.limit}）`);
+  }
+  await page.locator('#tabs button[data-v="desk"]').click();
+  assert.equal(await fold.getAttribute('aria-expanded'),'false');
+  await fold.click();
+  assert.equal(await left.isVisible(),true,'開いても水晶と一行が見えない');
+  assert.equal(await fold.getAttribute('aria-expanded'),'true');
+  assert.ok(await page.locator('#crystals').innerText()!=='','水晶の中身が空');
+  await page.locator('#foldbar').click();
+  assert.equal(await left.isVisible(),false,'もう一度押しても畳まれない');
+  await page.locator('#tabs button[data-v="news"]').click();
+  assert.equal(await left.isVisible(),true,'見る側のタブに戻っても水晶が畳まれたまま');
+  // 1280pxでは、店側のタブでも水晶と一行はそのまま、ボタンは出ない
+  await page.setViewportSize({width:1280,height:800});
+  await page.locator('#tabs button[data-v="desk"]').click();
+  assert.equal(await left.isVisible(),true);assert.equal(await fold.isVisible(),false);
+  assert.deepEqual(errors,[]);await ctx.close();
+});
+
 test('留守のあいだの減りは売上と書かず、帳場は返した額と利息を分ける',async()=>{
   const {ctx,page,errors}=await open();
   await page.locator('#sp0').click();

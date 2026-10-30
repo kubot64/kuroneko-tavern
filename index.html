@@ -52,6 +52,12 @@ button:focus-visible,[tabindex]:focus-visible{outline:2px solid var(--amber);out
 .grid{display:grid;grid-template-columns:minmax(0,1fr) 370px;gap:16px;align-items:start}
 .left{display:flex;flex-direction:column;gap:16px;min-width:0}
 @media (max-width:900px){.grid{grid-template-columns:minmax(0,1fr)}}
+/* 店側のタブ（帳場・武具屋・地図屋）では、幅900px以下のとき水晶と一行を畳み、タブの中身を先に出す。上のボタンで開け閉めする（#264） */
+.foldbar{display:none}
+@media (max-width:900px){
+  .grid.shoptab .foldbar{display:flex;align-items:center;justify-content:center;width:100%;min-height:44px}
+  .grid.shoptab:not(.leftopen) .left{display:none}
+}
 
 .h2{font-family:var(--f-display);font-size:15px;letter-spacing:.12em;margin:0 0 8px;color:var(--amber);display:flex;align-items:baseline;gap:10px}
 .h2 span{font-family:var(--f-body);font-size:12px;color:var(--muted);letter-spacing:0}
@@ -367,8 +373,9 @@ button:focus-visible,[tabindex]:focus-visible{outline:2px solid var(--amber);out
   </header>
   <button class="memoline" id="memoline" data-act="memo" hidden type="button"></button>
 
-  <div class="grid">
-    <div class="left">
+  <div class="grid" id="grid">
+    <button class="btn foldbar" id="foldbar" data-act="fold" type="button" aria-controls="left" aria-expanded="false"></button>
+    <div class="left" id="left">
       <section>
         <h2 class="h2">遠見の水晶 <span>覗きたい一行を下から選ぶと、水晶に映ります</span></h2>
         <div class="crystals" id="crystals"></div>
@@ -4585,7 +4592,7 @@ function migrateV2(S){
 /* ---------- UI ---------- */
 const KEY='kuroneko-tavern-v1';
 const shown={};
-let S,speed=1,tab='news',timer=null,toastT=null,ff=null,hiddenAt=null,pickErr=null,reviveNote=null,boardHelpOpen=false;
+let S,speed=1,tab='news',leftOpen=false,timer=null,toastT=null,ff=null,hiddenAt=null,pickErr=null,reviveNote=null,boardHelpOpen=false;
 const $=id=>document.getElementById(id);
 const esc=s=>groupMoney(String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])));
 
@@ -4884,6 +4891,10 @@ function renderSide(){
   const tb=$('tbody');const st=tb.scrollTop;
   tb.innerHTML=groupMoney(({news:sideNews,bar:sideBar,roster:sideRoster,shop:sideShop,maps:sideMaps,desk:sideDesk,rank:sideRank,ref:sideRef,stone:sideStone})[tab]());
   tb.scrollTop=st;
+  // 店側のタブでは、狭い幅で水晶と一行を畳む（#264）。開け閉めのボタンの文言もここで決める
+  const shop=TAB_GROUPS.find(([g])=>g==='店')[1].some(([k])=>k===tab);
+  $('grid').classList.toggle('shoptab',shop);$('grid').classList.toggle('leftopen',leftOpen);
+  $('foldbar').textContent=leftOpen?'遠見の水晶と一行を畳む':'遠見の水晶と一行を見る';$('foldbar').setAttribute('aria-expanded',leftOpen?'true':'false');
   placeTabs();
 }
 function placeTabs(){
@@ -4897,7 +4908,8 @@ function placeTabs(){
 }
 function focusSide(){
   if(!window.matchMedia('(max-width:900px)').matches)return;
-  const wrap=document.querySelector('.wrap'),side=document.querySelector('.side');
+  // 店側のタブで水晶と一行を畳んでいるときは、その上の開け閉めのボタンから見せる（#264）
+  const wrap=document.querySelector('.wrap'),side=document.querySelector('.grid.shoptab .foldbar')||document.querySelector('.side');
   if(!wrap||!side)return;
   // スマホ幅で動くのは右の列ではなく、ページの中身。前の位置のまま残さない
   const dy=side.getBoundingClientRect().top-wrap.getBoundingClientRect().top;
@@ -5282,6 +5294,7 @@ document.addEventListener('click',e=>{
   if(act==='invest'||act==='buysmall'){const t=smallOf(S).find(x=>x.n===b.dataset.n);if(t&&(act==='invest'?invest(S,t):buySmall(S,t)))toast(act==='invest'?`${t.n}に出資した`:`${t.n}を買い取った`);render();save();return;}
   if(act==='revive'){const a=S.adv[b.dataset.a];const c=a&&templeCost(S,a);if(a&&(inTemple(a))&&T().gold>=c){T().gold-=c;flowAdd(S,'v',c);owe(S,a.party&&S.parties[a.party],c);const r=temple(S,a,true);const t=reviveResultText(a.name,r);reviveNote=t?{id:a.id,t,kind:r,status:a.status}:null;if(t)toast(t);render();save();}return;}
   if(act==='pickerr'){pickErr=b.dataset.e?+b.dataset.e:null;renderSide();return;}
+  if(act==='fold'){leftOpen=!leftOpen;renderSide();return;}
   if(act==='boardhelp'){boardHelpOpen=!boardHelpOpen;renderSide();return;}
   if(act==='assign'){const e=errandsOf(S).board.find(x=>x.id===+b.dataset.e),a=S.adv[b.dataset.a];const r=e&&a&&assignErrand(S,e,a);
     if(r==='ok'){pickErr=null;toast(`「${e.n}」を${a.name}に回した`);}else if(r==='pending'){pickErr=null;toast(`「${e.n}」は、次に酒場で会えたら${a.name}に伝える`);}else if(r==='refused')toast(`${a.name}は「${e.n}」を断った`);render();save();return;}
