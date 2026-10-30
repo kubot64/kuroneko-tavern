@@ -151,6 +151,29 @@ test('手帳の上に場面が出ているときの Esc は、場面だけを閉
   assert.deepEqual(errors,[]);await ctx.close();
 });
 
+test('375pxで「手帳を見る：」の名前はどれも44px四方を押せ、最後の知らせとのあいだが空く。1280pxは変わらない（#266）',async()=>{
+  const {ctx,page,errors}=await open();
+  await page.locator('#sp0').click();
+  const show=()=>page.evaluate(()=>{
+    const ours=Object.values(S.adv).filter(x=>x.tav==='ours').slice(0,4);ours[0].name='ポム';
+    const t0=S.tick;for(const a of ours)news(S,'levelOurs',{tav:'黒猫亭',who:a.name,lvl:5},'info');
+    drawDigest({i:50,n:50,awaySec:3600,startTick:t0-1,g0:S.taverns.ours.gold,e0:0,s0:0,r0:0,lost0:S.memorial.length,returns:0,wipes:0});
+    document.querySelector('#digest').hidden=false;
+  });
+  const geo=()=>page.evaluate(()=>{const who=document.querySelector('#dg-who'),li=[...document.querySelectorAll('#dg-news li')].pop();
+    return {gap:who.getBoundingClientRect().top-li.getBoundingClientRect().bottom,mt:getComputedStyle(who).marginTop,
+      btns:[...who.querySelectorAll('button')].map(b=>{const r=b.getBoundingClientRect();return [r.width,r.height];})};});
+  await page.setViewportSize({width:375,height:812});
+  await show();
+  const m=await geo();
+  assert.equal(m.btns.length,4);
+  for(const [w,h] of m.btns)assert.ok(w>=44&&h>=44,`押せる幅が足りない ${w}×${h}`);
+  assert.ok(m.gap>=8,`最後の知らせとのあいだ ${m.gap}px`);
+  await page.setViewportSize({width:1280,height:800});
+  assert.equal((await geo()).mt,'0px','1280pxで「手帳を見る：」の上の余白が変わった');
+  assert.deepEqual(errors,[]);await ctx.close();
+});
+
 test('留守のあいだの減りは売上と書かず、帳場は返した額と利息を分ける',async()=>{
   const {ctx,page,errors}=await open();
   await page.locator('#sp0').click();
@@ -1715,6 +1738,12 @@ test('掲示に主役の決まっていない話があるのに、いま酒場�
   });
   assert.equal(await gap(),'','酒場で伝えられる常連がいるとき');
   await page.evaluate(()=>{Object.values(S.parties).filter(p=>p.tav==='ours').forEach(p=>{p.state='explore';});render();});
+  assert.equal(await gap(),'いま酒場で話を伝えられる常連はいない。迷宮に出ている者を主役に選んでおけば、戻ったときに伝える。');
+  // 『話の回し方』を開いているときは、説明の最後と重なる後半を出さない（#266）
+  await page.locator('button[data-act="boardhelp"]').click();
+  assert.equal(await gap(),'いま酒場で話を伝えられる常連はいない。');
+  assert.equal((await page.locator('#tbody').innerText()).split('戻ったときに伝える').length-1,1,'説明と一言で同じ文が二度出ている');
+  await page.locator('button[data-act="boardhelp"]').click();
   assert.equal(await gap(),'いま酒場で話を伝えられる常連はいない。迷宮に出ている者を主役に選んでおけば、戻ったときに伝える。');
   await page.evaluate(()=>{const e=errandsOf(S).board[0];e.refused=Object.values(S.adv).filter(a=>a.tav==='ours'&&isActive(a)).map(a=>a.id);render();});
   assert.equal(await gap(),'いま話を回せる黒猫亭の常連がいない。');
