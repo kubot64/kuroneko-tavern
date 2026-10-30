@@ -3108,6 +3108,47 @@ test('帳場の死体回収の依頼は、見つかる見込みを言葉で添�
   assert.deepEqual(errors,[]);await ctx.close();
 });
 
+test('伏せ中の全滅は、帳場の依頼の欄で出ている一行と同じ形で目安額だけ出し、消息が出たら同じ額で依頼できる（#265）',async()=>{
+  const {ctx,page,errors}=await open();
+  await page.locator('#sp0').click();
+  const prep=await page.evaluate(()=>{
+    const p=Object.values(S.parties).find(x=>x.tav==='ours');
+    for(const x of Object.values(S.parties))if(x.tav==='ours'&&x!==p)x.state='town';
+    // 探索中の一行をもう一つ。形を比べるためだけなので、写しでよい
+    const q=JSON.parse(JSON.stringify(p));q.id=S.nid++;q.name='灰色の鷺';S.parties[q.id]=q;
+    p.members.forEach(id=>{const a=S.adv[id];a.status='missing';a.hp=0;a.party=p.id;});
+    Object.assign(p,{state:'wiped',wipe:'hidden',wipedAt:S.tick,floor:4,killer:'オーク',dueAt:S.tick+999});
+    q.state='explore';q.floor=3;
+    S.taverns.ours.gold=99999;
+    return {p:p.id,q:q.id,price:bountyPrice(p),qprice:bountyPrice(q)};
+  });
+  await page.locator('button[data-v="desk"]').click();
+  const sect=page.locator('#tbody .sect').filter({has:page.locator('h3',{hasText:'死体回収の依頼'})});
+  const txt=await sect.innerText();
+  assert.doesNotMatch(txt,/消息不明の一行はいない。/,'伏せ中の一行がいるのに「消息不明の一行はいない。」');
+  assert.match(txt,/いま消息不明と知れている一行はいない。/);
+  assert.match(txt,/消息不明の知らせが出たら、ここから依頼を出せる/);
+  assert.equal(await sect.locator('button[data-act="bounty"]').count(),0,'伏せ中に依頼のボタンが出ている');
+  const rowP=sect.locator(`.row[data-out="${prep.p}"]`),rowQ=sect.locator(`.row[data-out="${prep.q}"]`);
+  assert.match(await rowP.innerText(),new RegExp(`目安 ${prep.price}G`));
+  assert.match(await rowQ.innerText(),new RegExp(`目安 ${prep.qprice}G`));
+  assert.doesNotMatch(await rowP.innerText(),/全滅|オーク|消息不明/,'伏せ中の行に全滅と分かる言葉が出ている');
+  // 伏せ中の行と探索中の行は、一行の名と数だけが違う同じ形
+  const shape=t=>t.replace(/\d+/g,'#').split(/\s+/).slice(1).join(' ');
+  assert.equal(shape(await rowP.innerText()).replace(/坑道|迷宮/,''),shape(await rowQ.innerText()).replace(/坑道|迷宮/,''));
+  // 消息が出たら、今までどおり依頼できる。額は目安と同じ
+  await page.evaluate(id=>{setPhase(S,S.parties[id],'missing');render();},prep.p);
+  assert.equal(await sect.locator(`.row[data-out="${prep.p}"]`).count(),0);
+  const btn=sect.locator(`button[data-act="bounty"][data-p="${prep.p}"]`);
+  assert.equal(await btn.innerText(),`依頼を出す ${prep.price}G`);
+  await btn.click();
+  assert.match(await sect.innerText(),new RegExp(`依頼中 ${prep.price}G`));
+  // 出ている一行がいなければ、これまでどおりの言葉
+  await page.evaluate(()=>{for(const x of Object.values(S.parties))if(x.tav==='ours')x.state='town';S.bounties={};render();});
+  assert.match(await sect.innerText(),/消息不明の一行はいない。/);
+  assert.deepEqual(errors,[]);await ctx.close();
+});
+
 // 画面全体で、押す所の大きさ・はみ出し・折れ目を確かめ、崩れを「何が・どこで」の一行ずつで返す（ページの中で動かす）
 //   押す所：押せるもの（ボタン・リンク・欄の開け閉め・data-act の付いたもの）は縦横44px以上
 //   はみ出し：ページが横に滑らない。要素は画面の外に出ず、字は入れ物の外に出ず、横に滑る枠もない
