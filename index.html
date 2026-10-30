@@ -4705,11 +4705,23 @@ function drawDigest(st){
   $('dg-who').innerHTML=who.length?'手帳を見る：'+who.map(a=>`<button class="nm-link" data-act="digestadv" data-a="${a.id}">${esc(a.name)}</button>`).join('・'):'';
 }
 // 留守のあいだの知らせに名前の出た黒猫亭の者を、新しい知らせの順に4人まで。押すとその人の手帳が開く（#256）
+// 知らせの中身の値と名前が完全に一致する者を拾う。文のまま持つ知らせ（便りなど）は文から拾うが、ほかの者の名前の一部として出ているだけなら拾わない（#263）
 function digestWho(items){
-  const ours=Object.values(S.adv).filter(a=>a.tav==='ours'&&a.name),got=[];
-  for(const x of items.slice().reverse()){const t=newsText(x);
-    for(const a of ours)if(got.length<4&&!got.includes(a)&&t.includes(a.name))got.push(a);}
+  const all=Object.values(S.adv).filter(a=>a.name),ours=all.filter(a=>a.tav==='ours'),got=[];
+  for(const x of items.slice().reverse()){
+    const vals=[],texts=x.t!=null?[x.t]:[];
+    const walk=(v,k)=>{if(typeof v==='string')(k==='t'?texts:vals).push(v);else if(Array.isArray(v))v.forEach(y=>walk(y,k));else if(v&&typeof v==='object')for(const kk in v)walk(v[kk],kk);};
+    walk(x.args,null);
+    for(const a of ours)if(got.length<4&&!got.includes(a)&&(vals.includes(a.name)||texts.some(t=>nameInText(t,a.name,all))))got.push(a);
+  }
   return got;
+}
+// 文の中に name が、より長いほかの者の名前の一部としてではなく出ているか
+function nameInText(t,name,all){
+  const spans=[];
+  for(const b of all)if(b.name.length>name.length&&b.name.includes(name))for(let j=t.indexOf(b.name);j>=0;j=t.indexOf(b.name,j+1))spans.push([j,j+b.name.length]);
+  for(let i=t.indexOf(name);i>=0;i=t.indexOf(name,i+1))if(!spans.some(([s,e])=>s<=i&&i+name.length<=e))return true;
+  return false;
 }
 // 丸めて60分や24時間になるときは、上の単位で出す
 function fmtAway(s){const m=Math.round(s/60);if(m<60)return m+'分';const h=Math.round(s/3600);if(h<24)return h+'時間';return Math.round(s/86400)+'日'}
@@ -5279,7 +5291,8 @@ document.addEventListener('click',e=>{
   if(act==='mark'){const a=S.adv[b.dataset.a];if(a&&markAdv(S,a,!a.marked))toast(a.marked?`${a.name}を見込んだ`:`${a.name}の見込みを外した`);render();save();return;}
   if(act==='bounty'){const p=S.parties[b.dataset.p];if(!p||S.bounties[p.id])return;const c=bountyPrice(p);if(T().gold<c){toast('お金が足りない');return;}T().gold-=c;S.bounties[p.id]=c;toast(`掲示板に依頼を貼り出した（${c}Gを預けた）`);render();save();return;}
 });
-document.addEventListener('keydown',e=>{if(e.key==='Escape'&&advOpen!=null){advOpen=null;$('advm').hidden=true;return;}if((e.key==='Enter'||e.key===' ')&&e.target.matches('.c-head')){e.preventDefault();e.target.click();}});
+// Esc は、手帳の上に場面（借金を返し終えた・踏破・人生の節目）が出ていればいちばん上の場面だけを閉じ、なければ手帳を閉じる（#263）
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&advOpen!=null){const top=['life','ending','payoff'].find(id=>!$(id).hidden);if(top){$(top).querySelector('.btn.on').click();return;}advOpen=null;$('advm').hidden=true;return;}if((e.key==='Enter'||e.key===' ')&&e.target.matches('.c-head')){e.preventDefault();e.target.click();}});
 // 開いたまま裏に回ったタブは、ブラウザがタイマーを止めたり間引いたりする。戻ったときに、裏にいた時間を進める
 // 裏に回ったときに一度保存する。そのあとページが捨てられて pagehide が来ても、保存し直すと時刻が閉じた瞬間まで進み、裏にいた時間が消える
 function onHide(){if(hiddenAt!=null)return;hiddenAt=Date.now();clearInterval(timer);save();}
