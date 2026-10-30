@@ -119,6 +119,38 @@ test('「留守のあいだに」は、知らせに名前の出た黒猫亭の�
   assert.deepEqual(errors,[]);await ctx.close();
 });
 
+test('「留守のあいだに」の手帳を見るは、ほかの者の名前の一部として出ているだけの者を並べない（#263）',async()=>{
+  const {ctx,page,errors}=await open();
+  await page.locator('#sp0').click();
+  const a=await page.evaluate(()=>{
+    const ours=Object.values(S.adv).filter(x=>x.tav==='ours');
+    // ours[1] の名前は ours[0] の名前を含む
+    ours[0].name='リン';ours[1].name='リンネ';ours[2].name='カイ';
+    const t0=S.tick;
+    news(S,'edict',{from:'噂',t:'リンネが酒場で歌った'},'info');
+    news(S,'levelOurs',{tav:'黒猫亭',who:'リンネ',lvl:5},'info');
+    news(S,'recruit',{leader:'カイ',who:'リンネ',p:'リンの一行'},'info');
+    drawDigest({i:50,n:50,awaySec:3600,startTick:t0-1,g0:S.taverns.ours.gold,e0:0,s0:0,r0:0,lost0:S.memorial.length,returns:0,wipes:0});
+    document.querySelector('#digest').hidden=false;
+    return {ids:[ours[2].id,ours[1].id]};
+  });
+  const who=await page.evaluate(()=>[...document.querySelectorAll('#dg-who button')].map(b=>+b.dataset.a));
+  assert.deepEqual(who.slice().sort(),a.ids.slice().sort(),'出ていないリンが並んでいる');
+  assert.deepEqual(errors,[]);await ctx.close();
+});
+
+test('手帳の上に場面が出ているときの Esc は、場面だけを閉じ、手帳は開いたまま（#263）',async()=>{
+  const {ctx,page,errors}=await open();
+  await page.locator('#sp0').click();
+  await page.evaluate(()=>{const a=Object.values(S.adv).find(x=>x.tav==='ours');advOpen=a.id;$('advm').hidden=false;renderAdv();$('life').hidden=false;});
+  await page.keyboard.press('Escape');
+  assert.equal(await page.locator('#life').isVisible(),false,'場面が閉じない');
+  assert.equal(await page.locator('#advm').isVisible(),true,'下の手帳まで閉じた');
+  await page.keyboard.press('Escape');
+  assert.equal(await page.locator('#advm').isVisible(),false,'場面がないときに手帳が閉じない');
+  assert.deepEqual(errors,[]);await ctx.close();
+});
+
 test('留守のあいだの減りは売上と書かず、帳場は返した額と利息を分ける',async()=>{
   const {ctx,page,errors}=await open();
   await page.locator('#sp0').click();
