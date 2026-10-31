@@ -3321,14 +3321,20 @@ test('伏せ中の全滅は、帳場の依頼の欄で出ている一行と同�
 //   折れ目：一続きにした語（.nw・.tie、名前のボタン、所属の札）は1行。字を1字ずつ並べて、行が変わるところが
 //     人の名前・一行の名・店の名・地名、「Lv20 ホビットの盗賊」、B○F、数と単位（3,000G・12日目・10%など）、中が12字までのかっこ書きの途中なら崩れ。
 //     句読点と閉じかっこが行の頭に来るのと、開きかっこが行の末尾に残るのも崩れ（docs/principles.md 8）
-// 例外とその理由
-//   - 768px と 1280px の押す所は、手帳の「見込む」と記念碑の「生涯」だけを見る。ほかの44pxは、spec.md「タブ」で640px以下に限っている
-//   - 文の途中の名前は、横幅を見ない。箱にすると文の行が崩れるので、押せる範囲を縦にだけ広げている（spec.md「タブ」）
+// 例外とその理由（押す所の例外は、関数の頭の TAP_EXEMPT に理由つきで並べる）
 //   - 語ひとつが行より長いとき（表の狭いますに入る長い一行の名など）は、その語の途中で折れてよい（spec.md「タブ」）
 //   - 水晶のログは、幅に合わせて字の単位で折り返す作り（spec.md「遠見の水晶」）なので、折れ目は見ない。はみ出しは見る
 //   - 末尾を「…」にする札（所属の札、一行の札の名）は、字が枠の外に出ても見ない。全文は札に触れると出る
 function screenAudit(){
   const bad=[],vw=innerWidth,phone=vw<=640;
+  // 押す所の除外リスト。sel に当たる押す所は、dim の向き（どちらも／横幅だけ）の44pxを見ない。wide は 641px 以上でだけ効く（#269）
+  const TAP_EXEMPT=[
+    {wide:true,sel:':not([data-act="mark"]):not(.life>summary)',
+      why:'44px は spec.md「タブ」で640px以下に限っている。広い画面ではボタンを低くする（「広い画面のボタンが高い」の確かめ）。手帳の「見込む」と記念碑の「生涯」だけは、広い画面でも44pxにしている'},
+    {dim:'width',sel:'.nm-link:not(.nm-head)',unless:'.c-members,#dg-who',
+      why:'文の途中の名前は横幅を見ない。箱にすると文の行が崩れるので、押せる範囲を縦にだけ広げている（spec.md「タブ」）。水晶の一行の名前と、留守のあいだにの「手帳を見る：」の名前は、名前だけを並べるので見る（#266）'},
+  ];
+  const exempt=(el,dim)=>TAP_EXEMPT.some(x=>(!x.dim||x.dim===dim)&&(!x.wide||!phone)&&el.matches(x.sel)&&!(x.unless&&el.closest(x.unless)));
   const shown=el=>{for(let e=el;e&&e.nodeType===1;e=e.parentElement){const cs=getComputedStyle(e);if(cs.display==='none'||cs.visibility==='hidden')return false;}return true;};
   const where=el=>{const p=[];for(let e=el;e&&e!==document.body&&p.length<3;e=e.parentElement)p.unshift(e.tagName.toLowerCase()+(e.id?'#'+e.id:'')+[...e.classList].map(c=>'.'+c).join(''));return p.join('>');};
   const say=el=>(el.innerText||el.textContent||'').replace(/\s+/g,' ').trim().slice(0,20);
@@ -3337,9 +3343,8 @@ function screenAudit(){
   // 押す所
   for(const el of document.querySelectorAll('button,a[href],input,select,summary,[data-act]:not(.modal)')){
     if(!el.getClientRects().length||!shown(el))continue;
-    if(!phone&&!el.matches('[data-act="mark"],.life>summary'))continue;
-    const r=el.getBoundingClientRect(),inline=el.matches('.nm-link:not(.nm-head)')&&!el.closest('.c-members');
-    if((!inline&&r.width<44)||r.height<44)bad.push(`押す所が小さい ${where(el)}「${say(el)}」${Math.round(r.width)}×${Math.round(r.height)}`);
+    const r=el.getBoundingClientRect();
+    if((r.width<44&&!exempt(el,'width'))||(r.height<44&&!exempt(el,'height')))bad.push(`押す所が小さい ${where(el)}「${say(el)}」${Math.round(r.width)}×${Math.round(r.height)}`);
   }
   // はみ出し
   if(document.documentElement.scrollWidth>vw+1)bad.push(`ページが横にはみ出す ${document.documentElement.scrollWidth}px`);
@@ -3529,6 +3534,48 @@ test('どのタブも、375px・768px・1280pxで押す所が44px以上あり、
   assert.equal(await page.locator('#payoff').isVisible(),true,'完済の場面が出ていない');
   for(const [width,height] of widths){await page.setViewportSize({width,height});await check(width,'完済の場面');}
   await page.locator('#po-btn').click();
+  // 踏破のひと幕（#269）
+  await page.evaluate(()=>{const a=Object.values(S.adv).find(x=>x.tav==='ours'&&isActive(x));S.conquered={tk:S.tick,tav:'ours',party:'夜明け団',names:[a.name],ending:true};render();});
+  assert.equal(await page.locator('#ending').isVisible(),true,'踏破のひと幕が出ていない');
+  for(const [width,height] of widths){await page.setViewportSize({width,height});await check(width,'踏破のひと幕');}
+  await page.evaluate(()=>{S.conquered.ending=false;document.querySelector('#ending').hidden=true;});
+  // 留守のあいだに。「手帳を見る：」には短い名前（2字）と長い名前を並べる（#266 の24pxの名前は、ここを見ていなかったので見逃した）（#269）
+  await page.evaluate(()=>{
+    const ours=Object.values(S.adv).filter(x=>x.tav==='ours'&&isActive(x)).slice(0,4);
+    ours[0].name='ポム';ours[1].name='ゴットフリート';
+    const t0=S.tick;for(const a of ours)news(S,'levelOurs',{tav:'黒猫亭',who:a.name,lvl:a.lvl},'info');
+    drawDigest({i:50,n:50,awaySec:36000,startTick:t0-1,g0:S.taverns.ours.gold,e0:0,s0:0,r0:0,lost0:S.memorial.length,returns:2,wipes:0});
+    document.querySelector('#digest').hidden=false;
+  });
+  assert.equal(await page.locator('#dg-who button').count(),4);
+  for(const [width,height] of widths){await page.setViewportSize({width,height});await check(width,'留守のあいだに');}
+  await page.locator('#digest button[data-act="closedigest"]').click();
+  assert.deepEqual(errors,[]);await ctx.close();
+});
+
+test('画面の確かめは、375pxでわざと入れた24pxのボタンと横にはみ出す要素で落ち、1280pxでもはみ出しで落ちる（#269）',async()=>{
+  const {ctx,page,errors}=await open();
+  await page.locator('#sp0').click();
+  await page.locator('#tabs button[data-v="desk"]').click();
+  // 崩した要素を入れたまま確かめるため、確かめの関数をページの中に置く
+  await page.evaluate(`window.screenAudit=${screenAudit}`);
+  for(const [width,height] of [[375,740],[1280,800]]){
+    await page.setViewportSize({width,height});
+    await page.evaluate(()=>document.fonts.ready);
+    assert.deepEqual(await page.evaluate(screenAudit),[],`${width}px で、崩す前の帳場`);
+    // 24px四方のボタン
+    const small=await page.evaluate(()=>{
+      const b=document.createElement('button');b.className='btn';b.id='bad-btn';b.textContent='小';b.style.cssText='width:24px;height:24px;min-width:0;min-height:0;padding:0';
+      document.querySelector('#tbody').prepend(b);const r=screenAudit();b.remove();return r;});
+    if(width<=640)assert.ok(small.some(x=>/^押す所が小さい .*button#bad-btn.*「小」24×24$/.test(x)),`${width}px：24pxのボタンで落ちない ${small.join(' / ')}`);
+    else assert.deepEqual(small,[],`${width}px：広い画面の44pxは除外リストのとおり見ない`);
+    // 横にはみ出す要素
+    const wide=await page.evaluate(()=>{
+      const d=document.createElement('div');d.id='bad-wide';d.textContent='はみ出す';d.style.cssText=`width:${innerWidth+200}px;background:red`;
+      document.querySelector('#tbody').prepend(d);const r=screenAudit();d.remove();return r;});
+    assert.ok(wide.some(x=>/^画面の外 .*「はみ出す」/.test(x)),`${width}px：はみ出す要素で落ちない ${wide.join(' / ')}`);
+    assert.deepEqual(await page.evaluate(screenAudit),[],`${width}px で、元に戻した帳場`);
+  }
   assert.deepEqual(errors,[]);await ctx.close();
 });
 
