@@ -184,19 +184,21 @@ test('「留守のあいだに」は留守の全体から常連ごとの出来�
   const {ctx,page,errors}=await open();
   await page.locator('#sp0').click();
   const m=await page.evaluate(()=>{
-    const ours=Object.values(S.adv).filter(x=>x.tav==='ours'&&isActive(x)).slice(0,4);
-    ['エッダ','ゴットフリート','カイ','ネル'].forEach((n,i)=>{ours[i].name=n;});
+    const ours=Object.values(S.adv).filter(x=>x.tav==='ours'&&isActive(x)).slice(0,5);
+    ['エッダ','ゴットフリート','カイ','ネル','ポム'].forEach((n,i)=>{ours[i].name=n;});
     const t0=S.tick;S.tick+=TICKS_PER_DAY;
     // 留守の前半：エッダに二つ名と転職、ゴットフリートはLvが上がっただけ
     chron(S,ours[0],'titled',{t:'鉄壁'});chron(S,ours[0],'promote',{from:'warrior',to:'paladin'});chron(S,ours[0],'levelUp',{l:21});
     chron(S,ours[1],'levelUp',{l:12});chron(S,ours[1],'levelUp',{l:13});
     // カイは倒れて息を吹き返し、話を果たした
     chron(S,ours[2],'revived',{});chron(S,ours[2],'errandDone',{n:'鐘楼の光'});
-    // 留守の後半：知らせが40件（前半の出来事は新しい30件からはみ出す）。ネルは知らせにだけ名前が出る
+    // ネルには長い出来事（口癖が移った変化）。375pxで文の途中で折れて、横にはみ出さない
+    chron(S,ours[3],'change',{t:'ゴットフリートの口癖『金にならないことはしない』が、いつのまにか移っていた'});
+    // 留守の後半：知らせが41件（前半の出来事は新しい30件からはみ出す）。ポムは知らせにだけ名前が出る
     S.tick+=8*TICKS_PER_DAY;
     for(let i=0;i<20;i++)news(S,'edict',{from:'噂',t:'北の街道で荷車がひっくり返ったらしい（'+i+'）'},'info');
     for(let i=0;i<19;i++)news(S,'depart',{maze:['灰色の鷺'],mine:[]},'info');
-    news(S,'edict',{from:'噂',t:'ネルが酒場で歌った'},'info');
+    news(S,'edict',{from:'噂',t:'ネルが酒場で歌った'},'info');news(S,'edict',{from:'噂',t:'ポムが酒場で歌った'},'info');
     drawDigest({i:500,n:500,awaySec:36000,startTick:t0,g0:S.taverns.ours.gold,e0:0,s0:0,r0:0,lost0:S.memorial.length,returns:3,wipes:0});
     document.querySelector('#digest').hidden=false;
     return {rows:[...document.querySelectorAll('#dg-who .dg-row')].map(r=>r.innerText.replace(/\s+/g,' ').trim()),
@@ -206,12 +208,19 @@ test('「留守のあいだに」は留守の全体から常連ごとの出来�
   assert.equal(m.head,'常連ごとの出来事');
   assert.deepEqual(m.rows,[
     'エッダ 「鉄壁」と呼ばれはじめた、聖騎士になった、Lv21に上がった',
+    'ネル ゴットフリートの口癖『金にならないことはしない』が、いつのまにか移っていた',
     'カイ 倒れて、息を吹き返した、「鐘楼の光」を果たした',
     'ゴットフリート Lv13に上がった',
-    'ネル 知らせに名前が出た',
+    'ポム 知らせに名前が出た',
   ]);
   // 店の出来事は件数と合計で、一つ一つは下の知らせ（新しい30件と案内）と迷宮日報に
-  assert.equal(m.shop,'帰還 3回・売上 +0G、出発 19件、お触れ 21件。一つ一つの知らせは、下と迷宮日報で見られる。');
+  assert.equal(m.shop,'帰還 3回・売上 +0G、出発 19件、お触れ 22件。一つ一つの知らせは、下と迷宮日報で見られる。');
+  // 帰還も売上もないときは書かない（0件のものは書かない）
+  const shop0=await page.evaluate(()=>{S.tick+=TICKS_PER_DAY;const t0=S.tick-1;news(S,'edict',{from:'噂',t:'北の街道で荷車がひっくり返ったらしい'},'info');
+    drawDigest({i:50,n:50,awaySec:3600,startTick:t0,g0:S.taverns.ours.gold,e0:S.taverns.ours.earned||0,s0:0,r0:0,lost0:S.memorial.length,returns:0,wipes:0});
+    const r=document.querySelector('#dg-shop').innerText;
+    drawDigest({i:500,n:500,awaySec:36000,startTick:S.tick-9*TICKS_PER_DAY-1,g0:S.taverns.ours.gold,e0:0,s0:0,r0:0,lost0:S.memorial.length,returns:3,wipes:0});return r;});
+  assert.equal(shop0,'お触れ 1件。一つ一つの知らせは、下と迷宮日報で見られる。');
   assert.equal(m.newsN,31);
   // 名前を押すとその人の手帳が開く
   await page.locator(`#dg-who button[data-a="${m.ids[0]}"]`).click();

@@ -4734,11 +4734,11 @@ function drawDigest(st){
   // 常連ごとの出来事。留守の全体から、手帳の記録で一人一行にまとめる。名前を押すと手帳が開く（「手帳を見る：」の役目もここ）（#276）
   const people=done?digestPeople(st.startTick,items):[];
   $('dg-who').hidden=!people.length;
-  $('dg-who').innerHTML=people.length?'<h3 class="dg-h">常連ごとの出来事</h3>'+people.map(({a,parts})=>`<div class="dg-row"><button class="nm-link" data-act="digestadv" data-a="${a.id}">${esc(a.name)}</button> <span class="what">${parts.map(t=>nw(esc(t))).join('、')}</span></div>`).join(''):'';
+  $('dg-who').innerHTML=people.length?'<h3 class="dg-h">常連ごとの出来事</h3>'+people.map(({a,parts})=>`<div class="dg-row"><button class="nm-link" data-act="digestadv" data-a="${a.id}">${esc(a.name)}</button> <span class="what">${parts.map(esc).join('、')}</span></div>`).join(''):'';
   // 店の出来事。帰還と稼ぎ、出発、お触れ、ほかの店と街の知らせは件数と合計にまとめる。一つ一つの行はこの下と迷宮日報に（#276）
   const cnt=f=>items.filter(f).length,dep=cnt(x=>x.kind==='depart'),edict=cnt(x=>x.kind==='edict'),other=cnt(x=>x.kind!=='depart'&&x.kind!=='edict'&&!digestOurs(x));
   $('dg-shop-h').hidden=$('dg-shop').hidden=!done;
-  $('dg-shop').innerHTML=done?[`帰還 ${st.returns}回・売上 ${sign(earned)}`,dep&&`出発 ${dep}件`,edict&&`お触れ ${edict}件`,other&&`ほかの店と街の知らせ ${other}件`].filter(Boolean).map(nw).join('、')+'。一つ一つの知らせは、下と迷宮日報で見られる。':'';
+  $('dg-shop').innerHTML=done?[(st.returns||earned)&&`帰還 ${st.returns}回・売上 ${sign(earned)}`,dep&&`出発 ${dep}件`,edict&&`お触れ ${edict}件`,other&&`ほかの店と街の知らせ ${other}件`].filter(Boolean).map(nw).join('、').replace(/^(.+)$/,'$1。')+'一つ一つの知らせは、下と迷宮日報で見られる。':'';
 }
 // 常連ごとの出来事の種類。w は並べる重さ（3：一生に残る出来事、2：倒れて戻った・話を果たした、1：Lv・深さ・呪文）と、短い言葉（#276）
 const DIGEST_LIFE={
