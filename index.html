@@ -317,6 +317,9 @@ button:focus-visible,[tabindex]:focus-visible{outline:2px solid var(--amber);out
   .c-members{gap:0 10px}
   .c-members .m{min-height:44px;align-items:center}
   .c-members .nm-link{display:inline-flex;align-items:center;min-width:44px;min-height:44px;padding:0 4px;margin-left:-4px}
+  /* 留守のあいだにの「手帳を見る：」。短い名前でも44px四方を押せるようにし、知らせとのあいだを空ける（#266） */
+  #dg-who{margin-top:12px}
+  #dg-who .nm-link{display:inline-flex;align-items:center;justify-content:center;box-sizing:border-box;min-width:44px;min-height:44px;padding:0 4px;margin:0;vertical-align:middle}
   /* 一言があるとき、稼ぎは一言の下の行。右端に寄せる */
   .c-foot:has(.c-warn) .c-loot{flex:1 0 100%;margin-left:0;text-align:right}
   .desk .row{align-items:flex-start}
@@ -4934,7 +4937,8 @@ function sideBoard(){
     return `<div class="quote board"><b>${esc(e.n)}</b>${e.arc?`<span class="markmark">続きもの・${esc(ARCS[e.arc].n)}　${e.stage}/${ARCS[e.arc].stages.length}</span>`:''}<span class="by">${esc(e.from)}から・${h?'引き受け済み':`掲示はあと${dd(e.until)}日`}</span>「${esc(e.t)}」${foot}</div>`;};
   const log=E.log.slice(-5).reverse().map(l=>`<div class="row"><span class="who">${l.ok?'<span class="chip">果たした</span>':'<span class="chip ash">果たせず</span>'} ${esc(l.n)}${l.who?`・${l.id&&S.adv[l.id]?nmLink(S.adv[l.id]):esc(l.who)}`:''}<span class="does">${esc(l.t)}</span></span><span class="meta">${dayMark(l.tk)}</span></div>`).join('');
   const shallow=st===1?'<p class="note">いまは浅い頼みごとだけ。名が上がれば、もっと持ち込まれる。</p>':'';
-  const gap=boardGap(S);
+  // 『話の回し方』を開いているときは、説明の最後と同じことを言う後半を省き、前半だけにする（#266）
+  const gap=boardHelpOpen?boardGap(S).replace(/。.+$/,'。'):boardGap(S);
   const marks=markCap?`<p class="markline">見込んだ者　${mk.length} / ${markCap}${mk.length?'：'+mk.map(a=>nmLink(a)).join('・'):''}。${st===2?'見込めるのは、いまは一人だけ。':''}手帳から見込める。見込んだ者に噛み合う話が来やすくなる。</p>`:'';
   const help=`<p class="boardhelp"><button class="btn sm" data-act="boardhelp" aria-expanded="${boardHelpOpen?'true':'false'}">話の回し方</button></p>${boardHelpOpen?'<p class="note">店主が決めるのは、話を誰に回すかだけ。向き不向きは話の文面ににじむ。手帳を開いて、怖いものや得意不得意、出身と照らし合わせること。話が伝わるのは、主役が酒場にいて、一行が街で休んでいるとき。迷宮に出ている者を選んでおけば、戻ったときに伝える。</p>':''}`;
   return `<div class="sect"><h3>掲示　持ち込まれた話　${E.board.length} / ${cap}</h3>
