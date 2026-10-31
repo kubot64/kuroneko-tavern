@@ -180,6 +180,63 @@ test('「留守のあいだに」の見出しに日の範囲が出て、30件を
   assert.deepEqual(errors,[]);await ctx.close();
 });
 
+test('「留守のあいだに」は留守の全体から常連ごとの出来事を一人一行にまとめ、一生に残る出来事の者を先に出し、店の出来事は件数でまとめる（#276）',async()=>{
+  const {ctx,page,errors}=await open();
+  await page.locator('#sp0').click();
+  const m=await page.evaluate(()=>{
+    const ours=Object.values(S.adv).filter(x=>x.tav==='ours'&&isActive(x)).slice(0,5);
+    ['エッダ','ゴットフリート','カイ','ネル','ポム'].forEach((n,i)=>{ours[i].name=n;});
+    const t0=S.tick;S.tick+=TICKS_PER_DAY;
+    // 留守の前半：エッダに二つ名と転職、ゴットフリートはLvが上がっただけ
+    chron(S,ours[0],'titled',{t:'鉄壁'});chron(S,ours[0],'promote',{from:'warrior',to:'paladin'});chron(S,ours[0],'levelUp',{l:21});
+    chron(S,ours[1],'levelUp',{l:12});chron(S,ours[1],'levelUp',{l:13});
+    // カイは倒れて息を吹き返し、話を果たした
+    chron(S,ours[2],'revived',{});chron(S,ours[2],'errandDone',{n:'鐘楼の光'});
+    // ネルには長い出来事（口癖が移った変化）。375pxで文の途中で折れて、横にはみ出さない
+    chron(S,ours[3],'change',{t:'ゴットフリートの口癖『金にならないことはしない』が、いつのまにか移っていた'});
+    // 留守の後半：知らせが41件（前半の出来事は新しい30件からはみ出す）。ポムは知らせにだけ名前が出る
+    S.tick+=8*TICKS_PER_DAY;
+    for(let i=0;i<20;i++)news(S,'edict',{from:'噂',t:'北の街道で荷車がひっくり返ったらしい（'+i+'）'},'info');
+    for(let i=0;i<19;i++)news(S,'depart',{maze:['灰色の鷺'],mine:[]},'info');
+    news(S,'edict',{from:'噂',t:'ネルが酒場で歌った'},'info');news(S,'edict',{from:'噂',t:'ポムが酒場で歌った'},'info');
+    drawDigest({i:500,n:500,awaySec:36000,startTick:t0,g0:S.taverns.ours.gold,e0:0,s0:0,r0:0,lost0:S.memorial.length,returns:3,wipes:0});
+    document.querySelector('#digest').hidden=false;
+    return {rows:[...document.querySelectorAll('#dg-who .dg-row')].map(r=>r.innerText.replace(/\s+/g,' ').trim()),
+      shop:document.querySelector('#dg-shop').innerText,ids:ours.map(a=>a.id),
+      head:document.querySelector('#dg-who h3').textContent,newsN:document.querySelectorAll('#dg-news > li').length};
+  });
+  assert.equal(m.head,'常連ごとの出来事');
+  assert.deepEqual(m.rows,[
+    'エッダ 「鉄壁」と呼ばれはじめた、聖騎士になった、Lv21に上がった',
+    'ネル ゴットフリートの口癖『金にならないことはしない』が、いつのまにか移っていた',
+    'カイ 倒れて、息を吹き返した、「鐘楼の光」を果たした',
+    'ゴットフリート Lv13に上がった',
+    'ポム 知らせに名前が出た',
+  ]);
+  // 店の出来事は件数と合計で、一つ一つは下の知らせ（新しい30件と案内）と迷宮日報に
+  assert.equal(m.shop,'帰還 3回・売上 +0G、出発 19件、お触れ 22件。一つ一つの知らせは、下と迷宮日報で見られる。');
+  // 帰還も売上もないときは書かない（0件のものは書かない）
+  const shop0=await page.evaluate(()=>{S.tick+=TICKS_PER_DAY;const t0=S.tick-1;news(S,'edict',{from:'噂',t:'北の街道で荷車がひっくり返ったらしい'},'info');
+    drawDigest({i:50,n:50,awaySec:3600,startTick:t0,g0:S.taverns.ours.gold,e0:S.taverns.ours.earned||0,s0:0,r0:0,lost0:S.memorial.length,returns:0,wipes:0});
+    const r=document.querySelector('#dg-shop').innerText;
+    drawDigest({i:500,n:500,awaySec:36000,startTick:S.tick-9*TICKS_PER_DAY-1,g0:S.taverns.ours.gold,e0:0,s0:0,r0:0,lost0:S.memorial.length,returns:3,wipes:0});return r;});
+  assert.equal(shop0,'お触れ 1件。一つ一つの知らせは、下と迷宮日報で見られる。');
+  assert.equal(m.newsN,31);
+  // 名前を押すとその人の手帳が開く
+  await page.locator(`#dg-who button[data-a="${m.ids[0]}"]`).click();
+  assert.equal(await page.locator('#digest').isVisible(),false);
+  assert.match(await page.locator('#advbox h2').innerText(),/エッダ/);
+  await page.keyboard.press('Escape');
+  // 375pxと1280pxで崩れない
+  await page.evaluate(()=>{document.querySelector('#digest').hidden=false;});
+  for(const [width,height] of [[375,740],[1280,800]]){
+    await page.setViewportSize({width,height});
+    await page.evaluate(()=>document.fonts.ready);
+    assert.deepEqual(await page.evaluate(screenAudit),[],`${width}px の留守のあいだに`);
+  }
+  assert.deepEqual(errors,[]);await ctx.close();
+});
+
 test('「留守のあいだに」の手帳を見るは、ほかの者の名前の一部として出ているだけの者を並べない（#263）',async()=>{
   const {ctx,page,errors}=await open();
   await page.locator('#sp0').click();
@@ -314,7 +371,7 @@ test('375pxで水晶を開いたまま別のタブへ行き戻ると畳まれ、
   assert.deepEqual(errors,[]);await ctx.close();
 });
 
-test('375pxで「手帳を見る：」の名前はどれも44px四方を押せ、最後の知らせとのあいだが空く。1280pxは変わらない（#266）',async()=>{
+test('375pxで「手帳を見る：」の名前はどれも44px四方を押せ、上とのあいだが空く。1280pxは変わらない（#266）',async()=>{
   const {ctx,page,errors}=await open();
   await page.locator('#sp0').click();
   const show=()=>page.evaluate(()=>{
@@ -323,7 +380,8 @@ test('375pxで「手帳を見る：」の名前はどれも44px四方を押せ�
     drawDigest({i:50,n:50,awaySec:3600,startTick:t0-1,g0:S.taverns.ours.gold,e0:0,s0:0,r0:0,lost0:S.memorial.length,returns:0,wipes:0});
     document.querySelector('#digest').hidden=false;
   });
-  const geo=()=>page.evaluate(()=>{const who=document.querySelector('#dg-who'),li=[...document.querySelectorAll('#dg-news li')].pop();
+  // 名前の行は「常連ごとの出来事」として知らせの上に移った（#276）。すぐ上の内訳とのあいだを見る
+  const geo=()=>page.evaluate(()=>{const who=document.querySelector('#dg-who'),li=document.querySelector('#dg-brk');
     return {gap:who.getBoundingClientRect().top-li.getBoundingClientRect().bottom,mt:getComputedStyle(who).marginTop,
       btns:[...who.querySelectorAll('button')].map(b=>{const r=b.getBoundingClientRect();return [r.width,r.height];})};});
   await page.setViewportSize({width:375,height:812});
@@ -331,7 +389,7 @@ test('375pxで「手帳を見る：」の名前はどれも44px四方を押せ�
   const m=await geo();
   assert.equal(m.btns.length,4);
   for(const [w,h] of m.btns)assert.ok(w>=44&&h>=44,`押せる幅が足りない ${w}×${h}`);
-  assert.ok(m.gap>=8,`最後の知らせとのあいだ ${m.gap}px`);
+  assert.ok(m.gap>=8,`上の内訳とのあいだ ${m.gap}px`);
   await page.setViewportSize({width:1280,height:800});
   assert.equal((await geo()).mt,'0px','1280pxで「手帳を見る：」の上の余白が変わった');
   assert.deepEqual(errors,[]);await ctx.close();
