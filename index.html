@@ -4715,22 +4715,28 @@ function drawDigest(st){
   $('dg-who').innerHTML=who.length?'手帳を見る：'+who.map(a=>`<button class="nm-link" data-act="digestadv" data-a="${a.id}">${esc(a.name)}</button>`).join('・'):'';
 }
 // 留守のあいだの知らせに名前の出た黒猫亭の者を、新しい知らせの順に4人まで。押すとその人の手帳が開く（#256）
-// 知らせの中身の値と名前が完全に一致する者を拾う。文のまま持つ知らせ（便りなど）は文から拾うが、ほかの者の名前の一部として出ているだけなら拾わない（#263）
+// 知らせの中身の値は、称号つきの名前（「「百戦錬磨」アル」）や名前を含む文（装備の由来など）もあるので、文のまま持つ知らせと同じく文の中から拾う（#268）。
+// ただし一行の名前（p）は人を指さないので、名前と完全に一致するときだけにする。ほかの者の名前の一部として出ているだけなら拾わない（#263）
 function digestWho(items){
   const all=Object.values(S.adv).filter(a=>a.name),ours=all.filter(a=>a.tav==='ours'),got=[];
   for(const x of items.slice().reverse()){
     const vals=[],texts=x.t!=null?[x.t]:[];
-    const walk=(v,k)=>{if(typeof v==='string')(k==='t'?texts:vals).push(v);else if(Array.isArray(v))v.forEach(y=>walk(y,k));else if(v&&typeof v==='object')for(const kk in v)walk(v[kk],kk);};
+    const walk=(v,k)=>{if(typeof v==='string')(k==='p'?vals:texts).push(v);else if(Array.isArray(v))v.forEach(y=>walk(y,k));else if(v&&typeof v==='object')for(const kk in v)walk(v[kk],kk);};
     walk(x.args,null);
     for(const a of ours)if(got.length<4&&!got.includes(a)&&(vals.includes(a.name)||texts.some(t=>nameInText(t,a.name,all))))got.push(a);
   }
   return got;
 }
-// 文の中に name が、より長いほかの者の名前の一部としてではなく出ているか
+// 文の中に name が、一つの語として出ているか。より長いほかの者の名前の一部や、前後にカタカナが続く語の一部（「ゴブリン」の「リン」）は数えない。区切りの「・」は語の続きにしない
+const KANA_RUN=/[\u30A1-\u30FA\u30FC-\u30FF]/;
 function nameInText(t,name,all){
   const spans=[];
   for(const b of all)if(b.name.length>name.length&&b.name.includes(name))for(let j=t.indexOf(b.name);j>=0;j=t.indexOf(b.name,j+1))spans.push([j,j+b.name.length]);
-  for(let i=t.indexOf(name);i>=0;i=t.indexOf(name,i+1))if(!spans.some(([s,e])=>s<=i&&i+name.length<=e))return true;
+  for(let i=t.indexOf(name);i>=0;i=t.indexOf(name,i+1)){
+    if(spans.some(([s,e])=>s<=i&&i+name.length<=e))continue;
+    if(KANA_RUN.test(t[i-1]||'')||KANA_RUN.test(t[i+name.length]||''))continue;
+    return true;
+  }
   return false;
 }
 // 丸めて60分や24時間になるときは、上の単位で出す
