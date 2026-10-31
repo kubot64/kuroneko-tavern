@@ -151,6 +151,42 @@ test('手帳の上に場面が出ているときの Esc は、場面だけを閉
   assert.deepEqual(errors,[]);await ctx.close();
 });
 
+test('375pxで店側のタブを開くと水晶と一行を畳み、中身の先頭が最初の画面に見える。ボタンで開け閉めでき、1280pxと見る側のタブは変わらない（#264）',async()=>{
+  const {ctx,page,errors}=await open();
+  await page.locator('#sp0').click();
+  await page.setViewportSize({width:375,height:812});
+  const left=page.locator('.left'),fold=page.locator('#foldbar');
+  // 見る側のタブでは、これまでどおり水晶が先
+  assert.equal(await left.isVisible(),true);assert.equal(await fold.isVisible(),false);
+  for(const v of ['desk','shop','maps']){
+    await page.locator(`#tabs button[data-v="${v}"]`).click();await frames(page);
+    assert.equal(await left.isVisible(),false,`${v}：水晶と一行が畳まれていない`);
+    assert.equal(await fold.isVisible(),true);
+    assert.ok(await fold.evaluate(b=>{const r=b.getBoundingClientRect();return r.top>=0&&r.bottom<=innerHeight;}),`${v}：開け閉めのボタンが画面の外`);
+    // 中身の先頭（最初の段）が、タブを押したあと手で滑らせずに、下のタブと返済の帯より上に見える
+    const m=await page.evaluate(()=>{const h=document.querySelector('#tbody').firstElementChild.getBoundingClientRect();
+      const cs=getComputedStyle(document.documentElement),bar=parseFloat(cs.getPropertyValue('--tabbar-h'))+parseFloat(cs.getPropertyValue('--paybar-h')||'0');
+      return {top:h.top,limit:innerHeight-bar};});
+    // 先頭の見出しと一行目が入るぶん（80px）は、帯より上に見えている
+    assert.ok(m.top+80<=m.limit,`${v}：中身の先頭が最初の画面に入らない（${m.top}+80 > ${m.limit}）`);
+  }
+  await page.locator('#tabs button[data-v="desk"]').click();
+  assert.equal(await fold.getAttribute('aria-expanded'),'false');
+  await fold.click();
+  assert.equal(await left.isVisible(),true,'開いても水晶と一行が見えない');
+  assert.equal(await fold.getAttribute('aria-expanded'),'true');
+  assert.ok(await page.locator('#crystals').innerText()!=='','水晶の中身が空');
+  await page.locator('#foldbar').click();
+  assert.equal(await left.isVisible(),false,'もう一度押しても畳まれない');
+  await page.locator('#tabs button[data-v="news"]').click();
+  assert.equal(await left.isVisible(),true,'見る側のタブに戻っても水晶が畳まれたまま');
+  // 1280pxでは、店側のタブでも水晶と一行はそのまま、ボタンは出ない
+  await page.setViewportSize({width:1280,height:800});
+  await page.locator('#tabs button[data-v="desk"]').click();
+  assert.equal(await left.isVisible(),true);assert.equal(await fold.isVisible(),false);
+  assert.deepEqual(errors,[]);await ctx.close();
+});
+
 test('375pxで「手帳を見る：」の名前はどれも44px四方を押せ、最後の知らせとのあいだが空く。1280pxは変わらない（#266）',async()=>{
   const {ctx,page,errors}=await open();
   await page.locator('#sp0').click();
@@ -979,6 +1015,8 @@ test('スマホ幅では帳場と名簿と留守のあいだの押し場所が44
       return new Set([...range.getClientRects()].filter(r=>r.width>2).map(r=>Math.round(r.top))).size;
     };
     for(const h of document.querySelectorAll('h2.h2')){
+      // 店側のタブで畳んだ左の列の見出しは、画面に出ていないので測らない（#264）
+      if(!h.getClientRects().length)continue;
       const tn=[...h.childNodes].find(n=>n.nodeType===3&&n.textContent.trim());
       const span=h.querySelector('span');
       const title=tn.textContent.trim();
@@ -1297,7 +1335,8 @@ test('900px以下では返済の帯とタブが初めから見え、ページ自
       if(narrow&&(getComputedStyle(pay).position!=='fixed'||getComputedStyle(tabs).position!=='fixed'))bad.push('帳場でも帯かタブが固定されていない');
       if(pr.top<-1||pr.bottom>innerHeight+1||tr.top<-1||tr.bottom>innerHeight+1)bad.push('帳場で帯かタブが画面の外');
       if(document.scrollingElement.scrollTop!==0)bad.push('ページ自体が動いている');
-      const side=document.querySelector('.side').getBoundingClientRect();
+      // 店側のタブでは左の列を畳み、先頭は畳んだ帯になる（#264）
+      const side=(document.querySelector('.grid.shoptab .foldbar')||document.querySelector('.side')).getBoundingClientRect();
       const wrap=document.querySelector('.wrap').getBoundingClientRect();
       if(narrow&&side.top>wrap.top+8)bad.push(`帳場の先頭が上に来ていない ${Math.round(side.top-wrap.top)}`);
       const row=[...document.querySelectorAll('#tbody .row')].find(el=>el.innerText.includes('借金の残り'));
@@ -1365,7 +1404,8 @@ test('900px以下で中身の短いタブは、下まで送ったところで止
   const expect={375:{desk:'top',news:'top',stone:'short'},768:{desk:'top',news:'short',stone:'short'}};
   const place=()=>page.evaluate(()=>{
     const wrap=document.querySelector('.wrap');
-    const side=document.querySelector('.side').getBoundingClientRect();
+    // 店側のタブでは左の列を畳み、先頭は畳んだ帯になる（#264）
+    const side=(document.querySelector('.grid.shoptab .foldbar')||document.querySelector('.side')).getBoundingClientRect();
     const wr=wrap.getBoundingClientRect();
     const tb=document.querySelector('#tbody').getBoundingClientRect();
     const pay=document.querySelector('#payw'),tabs=document.querySelector('.tabs');
