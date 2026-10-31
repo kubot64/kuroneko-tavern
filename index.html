@@ -204,6 +204,10 @@ button:focus-visible,[tabindex]:focus-visible{outline:2px solid var(--amber);out
 .mbox.wide{max-width:640px}
 /* 留守のあいだにの見出しの日の範囲と、畳んだほかの店の知らせ（#275） */
 #dg-t .dgr{font-size:14px;letter-spacing:0;color:var(--muted)}
+/* 留守のあいだにの「常連ごとの出来事」と「店の出来事」（#276） */
+.dg-h{font-size:14px;margin:14px 0 4px;color:var(--amber);letter-spacing:.05em}
+.dg-row{margin:2px 0;line-height:1.7}
+.dg-row .what{color:var(--muted);font-size:13px}
 .dg-fold summary{cursor:pointer;color:var(--muted);font-size:13px;line-height:20px;box-sizing:border-box;min-height:44px;padding:12px 0}
 .ending p{margin:10px 0;line-height:1.8}
 .ending .said{padding-left:1em;border-left:2px solid var(--amber-dim)}
@@ -408,9 +412,11 @@ button:focus-visible,[tabindex]:focus-visible{outline:2px solid var(--amber);out
     <div class="note" id="dg-sub"></div>
     <div class="sum" id="dg-sum"></div>
     <div class="note" id="dg-brk"></div>
+    <div id="dg-who" hidden></div>
+    <h3 class="dg-h" id="dg-shop-h" hidden>店の出来事</h3>
+    <p class="note" id="dg-shop" hidden></p>
     <ul class="news" id="dg-news"></ul>
     <div id="dg-fold"></div>
-    <p class="note" id="dg-who" hidden></p>
     <div style="margin-top:16px;text-align:right"><button class="btn on" data-act="closedigest">店に戻る</button></div>
   </div>
 </div>
@@ -4725,10 +4731,46 @@ function drawDigest(st){
   if(items.length>30)list+=note(`これより前の${items.length-30}件は迷宮日報に。`);
   $('dg-news').innerHTML=list;
   $('dg-fold').innerHTML=quiet&&shown.length?`<details class="dg-fold"><summary>ほかの店と街の知らせ ${shown.length}件</summary><ul class="news">${shown.map(newsLi).join('')}</ul></details>`:'';
-  const who=done?digestWho(items.slice(-30)):[];
-  $('dg-who').hidden=!who.length;
-  // 名前と区切りの「・」を一続きにして、「・」だけが行の頭や終わりに残らないようにする（#275）
-  $('dg-who').innerHTML=who.length?'手帳を見る：'+who.map((a,i)=>`<span class="nw"><button class="nm-link" data-act="digestadv" data-a="${a.id}">${esc(a.name)}</button>${i<who.length-1?'・':''}</span>`).join(''):'';
+  // 常連ごとの出来事。留守の全体から、手帳の記録で一人一行にまとめる。名前を押すと手帳が開く（「手帳を見る：」の役目もここ）（#276）
+  const people=done?digestPeople(st.startTick,items):[];
+  $('dg-who').hidden=!people.length;
+  $('dg-who').innerHTML=people.length?'<h3 class="dg-h">常連ごとの出来事</h3>'+people.map(({a,parts})=>`<div class="dg-row"><button class="nm-link" data-act="digestadv" data-a="${a.id}">${esc(a.name)}</button> <span class="what">${parts.map(t=>nw(esc(t))).join('、')}</span></div>`).join(''):'';
+  // 店の出来事。帰還と稼ぎ、出発、お触れ、ほかの店と街の知らせは件数と合計にまとめる。一つ一つの行はこの下と迷宮日報に（#276）
+  const cnt=f=>items.filter(f).length,dep=cnt(x=>x.kind==='depart'),edict=cnt(x=>x.kind==='edict'),other=cnt(x=>x.kind!=='depart'&&x.kind!=='edict'&&!digestOurs(x));
+  $('dg-shop-h').hidden=$('dg-shop').hidden=!done;
+  $('dg-shop').innerHTML=done?[`帰還 ${st.returns}回・売上 ${sign(earned)}`,dep&&`出発 ${dep}件`,edict&&`お触れ ${edict}件`,other&&`ほかの店と街の知らせ ${other}件`].filter(Boolean).map(nw).join('、')+'。一つ一つの知らせは、下と迷宮日報で見られる。':'';
+}
+// 常連ごとの出来事の種類。w は並べる重さ（3：一生に残る出来事、2：倒れて戻った・話を果たした、1：Lv・深さ・呪文）と、短い言葉（#276）
+const DIGEST_LIFE={
+  titled:[3,x=>`「${x.t}」と呼ばれはじめた`],promote:[3,x=>`${clsName(x.to)}になった`],change:[3,x=>String(x.t).split('。')[0]],
+  dreamDone:[3,()=>'夢をかなえた'],dreamSeen:[3,()=>'仇の最期を見届けた'],rareKill:[3,x=>`名のある魔物「${x.m}」を討った`],
+  gate:[3,(x,c)=>chronText(c)],conquer:[3,(x,c)=>chronText(c)],mineConquer:[3,(x,c)=>chronText(c)],lost:[3,()=>'ロストした'],retire:[3,()=>'店を去った'],ash:[3,()=>'灰になった'],
+  revived:[2,()=>'倒れて、息を吹き返した'],ashBack:[2,()=>'灰の中からよみがえった'],yomiRevived:[2,()=>'倒れて、ヨミガエリで息を吹き返した'],fell:[2,()=>'倒れた'],
+  errandDone:[2,x=>`「${x.n}」を果たした`],markedDone:[2,x=>`「${x.n}」を果たした`],
+};
+// 留守のあいだ（since より後）の黒猫亭の常連の出来事を、一人一行に。一生に残る出来事のあった者を先にし、何もなかった者は出さない。
+// 手帳に記録がなくても知らせに名前が出た者は、「手帳を見る：」と同じ拾い方（digestWho）で後ろに並べる
+function digestPeople(since,items){
+  const rows=[];
+  for(const a of Object.values(S.adv)){
+    if(a.tav!=='ours'||!a.name)continue;
+    const cs=(a.chron||[]).filter(c=>c.tk>since&&c.kind&&chronShown(S,a,c));if(!cs.length)continue;
+    const got=[];let lv=0,deep=0,spells=0;
+    for(const c of cs){
+      const x=c.args||{};
+      if(c.kind==='levelUp')lv=Math.max(lv,x.l||0);else if(c.kind==='deep')deep=Math.max(deep,x.f||0);else if(c.kind==='spell')spells++;
+      else if(DIGEST_LIFE[c.kind]){const [w,f]=DIGEST_LIFE[c.kind],t=f(x,c);if(t&&!got.some(g=>g.t===t))got.push({w,t});}
+    }
+    if(lv)got.push({w:1,t:`Lv${lv}に上がった`});
+    if(deep)got.push({w:1,t:`はじめて${FN(deep)}に着いた`});
+    if(spells)got.push({w:1,t:`呪文を${spells}つ覚えた`});
+    if(!got.length)continue;
+    got.sort((p,q)=>q.w-p.w);
+    rows.push({a,parts:got.map(g=>g.t),top:got[0].w,sum:got.reduce((n,g)=>n+g.w,0)});
+  }
+  rows.sort((p,q)=>q.top-p.top||q.sum-p.sum);
+  for(const a of digestWho(items))if(!rows.some(r=>r.a===a))rows.push({a,parts:['知らせに名前が出た'],top:0,sum:0});
+  return rows;
 }
 // 留守のあいだの知らせのうち、黒猫亭の行か（黒猫亭の知らせか、黒猫亭の者の名前が出ている）
 function digestOurs(x){return (x.args&&x.args.tav===S.taverns.ours.name)||digestWho([x]).length>0;}
