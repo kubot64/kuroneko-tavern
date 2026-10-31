@@ -5274,8 +5274,9 @@ document.addEventListener('click',e=>{
   if(act==='closelife'){$('life').hidden=true;S.lifeQ=[];save();maybePayoff();return;}
   if(act==='adv'){advOpen=+b.dataset.a;$('advm').hidden=false;$('advbox').scrollTop=0;renderAdv();return;}
   if(act==='closeadv'){if(b.id==='advm'&&e.target!==b)return;advOpen=null;$('advm').hidden=true;return;}
-  if(act==='memo'){reviveNote=null;tab='desk';$('tbody').scrollTop=0;render();focusSide();const memo=$('memo');if(memo&&!matchMedia('(max-width:900px)').matches)memo.scrollIntoView({block:'nearest',behavior:'instant'});return;}
-  if(act==='tab'){if(b.dataset.v!=='desk')reviveNote=null;tab=b.dataset.v;$('tbody').scrollTop=0;renderSide();focusSide();return;}
+  if(act==='memo'){reviveNote=null;tab='desk';leftOpen=false;$('tbody').scrollTop=0;render();focusSide();const memo=$('memo');if(memo&&!matchMedia('(max-width:900px)').matches)memo.scrollIntoView({block:'nearest',behavior:'instant'});return;}
+  // タブを押したら（同じタブを押し直しても）水晶と一行は畳んだ形に戻し、中身の先頭を最初の画面に出す（#279）
+  if(act==='tab'){if(b.dataset.v!=='desk')reviveNote=null;tab=b.dataset.v;leftOpen=false;$('tbody').scrollTop=0;renderSide();focusSide();return;}
   if(act==='shoptier'){shopTier=+b.dataset.v;renderSide();return;}
   if(act==='selc'){S.sel=+b.dataset.i;render();return;}
   if(act==='watch'){
