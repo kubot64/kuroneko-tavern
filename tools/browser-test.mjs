@@ -1889,6 +1889,51 @@ test('掲示の主役選びの行に、手帳と同じ文で夢の進みが出�
   assert.deepEqual(errors,[]);await ctx.close();
 });
 
+test('名簿に夢の進みが出て、8割を越えた者にだけ「夢が近い」が付き、主役欄では謝礼で届く貯金の夢にだけ「謝礼で届くかもしれない」が出る（#277）',async()=>{
+  const {ctx,page,errors}=await open();
+  await page.locator('#sp0').click();
+  const ids=await page.evaluate(()=>{
+    const T0=S.taverns.ours;T0.debt=0;T0.debtFree=S.tick;const E=errandsOf(S);E.stage=3;E.next=S.tick+99*TICKS_PER_DAY;
+    E.board=[{id:900,k:'bell',n:'鐘楼の光',from:'梟の地図屋',t:ERRANDS.find(x=>x.k==='bell').txt(8),f:8,until:S.tick+TICKS_PER_DAY*20,hero:null,refused:[],tk:S.tick}];
+    const ours=Object.values(S.adv).filter(x=>x.tav==='ours'&&isActive(x)).slice(0,5);
+    const g4=errandGift(E.board[0],4);
+    // 0：貯金の夢・8割を越え、謝礼で届く 1：貯金の夢・半分、謝礼でも届かない 2：Lvの夢・8割を越える 3：Lvの夢・半分 4：夢なし
+    ours[0].dream={k:'home',amt:g4*6};ours[0].gold=g4*5;
+    ours[1].dream={k:'home',amt:10000+g4*3};ours[1].gold=5000;
+    ours[2].dream={k:'hero',l:30};ours[2].lvl=25;
+    ours[3].dream={k:'hero',l:30};ours[3].lvl=15;
+    ours[4].dream=null;
+    tab='roster';render();
+    return {ids:ours.map(a=>a.id),frac:ours.map(a=>dreamFrac(a))};
+  });
+  assert.ok(ids.frac[0]>=.8&&ids.frac[1]<.8&&ids.frac[2]>=.8&&ids.frac[3]<.8&&ids.frac[4]===null,JSON.stringify(ids.frac));
+  const rowOf=(sel,id)=>page.evaluate(([sel,id])=>{const b=document.querySelector(`${sel} button[data-act="adv"][data-a="${id}"]`);return b?b.closest('.row').innerText.replace(/\s+/g,' '):'';},[sel,id]);
+  const progs=await page.evaluate(ids=>ids.map(id=>dreamProgress(S.adv[id])),ids.ids);
+  // 名簿：手帳と同じ文の進み、8割を越えた者にだけ「夢が近い」
+  for(let i=0;i<5;i++){
+    const r=await rowOf('#tbody',ids.ids[i]);
+    if(progs[i])assert.ok(r.includes(progs[i]),`名簿${i}に進み「${progs[i]}」がない：${r}`);
+    assert.equal(r.includes('夢が近い'),i===0||i===2,`名簿${i}の印：${r}`);
+  }
+  assert.doesNotMatch(await rowOf('#tbody',ids.ids[4]),/貯金|いまLv/);
+  // 主役を選ぶ欄
+  await page.evaluate(()=>{tab='bar';pickErr=900;render();});
+  for(let i=0;i<5;i++){
+    const r=await rowOf('.pick',ids.ids[i]);
+    assert.equal(r.includes('夢が近い'),i===0||i===2,`主役欄${i}の印：${r}`);
+    assert.equal(r.includes('謝礼で届くかもしれない'),i===0,`主役欄${i}の添え書き：${r}`);
+  }
+  for(const [width,height] of [[375,740],[1280,800]]){
+    await page.setViewportSize({width,height});
+    await page.evaluate(()=>document.fonts.ready);
+    assert.deepEqual(await page.evaluate(screenAudit),[],`${width}px の主役欄`);
+    await page.evaluate(()=>{tab='roster';render();});
+    assert.deepEqual(await page.evaluate(screenAudit),[],`${width}px の名簿`);
+    await page.evaluate(()=>{tab='bar';render();});
+  }
+  assert.deepEqual(errors,[]);await ctx.close();
+});
+
 test('掲示の主役選びで話を持ちかけると、本人が口調どおりに返し、断った者は選べない。375px・768px・1280pxで崩れない',async()=>{
   const {ctx,page,errors}=await open();
   await page.locator('#sp0').click();

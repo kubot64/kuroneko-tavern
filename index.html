@@ -2781,6 +2781,23 @@ const PUSH_GO={shop:1,temple:1,tour:1,sea:1,home:1};
 function pushNeed(S,a){const d=a&&a.dream;
   if(S.taverns.ours.debtFree==null||a.tav!=='ours'||!isIdle(a)||!d||d.done||d.push||d.pushNo||PUSH_NOT[d.k]||!DREAMS[d.k]||!DREAMS[d.k].pay||!(d.amt>0))return 0;
   return Math.max(0,d.amt-Math.max(0,Math.floor(a.gold||0)));}
+// 夢の進みの割合（0〜1）。目標が数で決まる夢（貯金・レベル・深さ・数）だけを測り、ほかの夢と夢のない者は null（#277）
+const DREAM_PACE={hero:(a,d)=>[a.lvl,d.l],prove:(a,d)=>[a.lvl,d.l],defy:(a,d)=>[a.lvl,d.l],archmage:a=>[a.lvl,32],
+  deep:(a,d)=>[a.deepest,d.f],lastdive:(a,d)=>[a.deepest,d.f],elfrelic:(a,d)=>[a.deepest,d.f],father:(a,d)=>[a.deepest,d.f],
+  abyss:a=>[a.deepest,MAXF],truth:a=>[a.deepest,MAXF],crest:a=>[a.deepest,18],elixir:a=>[a.deepest,24],
+  trapper:(a,d)=>[a.disarms,d.n],thousand:(a,d)=>[a.kills,d.n]};
+function dreamFrac(a){
+  const d=a&&a.dream;if(!d||!DREAMS[d.k])return null;
+  const pace=MONEY_DREAMS.includes(d.k)?[Math.floor(a.gold||0),d.amt]:DREAM_PACE[d.k]&&DREAM_PACE[d.k](a,d);
+  if(!pace||!(pace[1]>0))return null;
+  return Math.min(1,Math.max(0,(pace[0]||0)/pace[1]));
+}
+// 夢が近い：進みが8割を越えた（#277）
+function dreamNear(a){const f=dreamFrac(a);return f!=null&&f>=.8;}
+// 話を果たしたときの主役への謝礼。その階の稼ぎの m 倍（2〜4）を100G単位に丸める
+function errandGift(e,m){return r100(incomeAt(dz(e.f))*m);}
+// 謝礼の見込みのいちばん多い額で、貯金の夢の額に届くか（#277）
+function giftReach(a,e){const d=a&&a.dream;if(!d||!MONEY_DREAMS.includes(d.k)||!(d.amt>0))return false;const g=Math.floor(a.gold||0);return g<d.amt&&g+errandGift(e,4)>=d.amt;}
 // 一部を出すときの額。足りない分の半分を100G単位に切り上げる。足りない分より小さくならなければ出さない
 function pushHalf(n){const h=Math.ceil(n/200)*100;return h<n?h:0;}
 // 受け止め方。強欲な者は当てにして受け取り、誇り高い者（古風・ぶっきらぼうな口調）は断る。乱数は引かない
@@ -4218,7 +4235,7 @@ function errandEvent(S,p,e){
   alive(S,p).filter(m=>m!==a).forEach(m=>{const g=fitOf(def,m).s*.3;help+=g;if(g>0&&(!helper||g>helper.g))helper={m,g};});help=clamp(help,-.6,.6);
   plog(p,`${a.name}が たのまれた ばしょに たどりついた（${def.at}）`,'sys');
   if(chance(clamp(.5+.3*(f.s+help),.1,.95))){
-    const mk=!!a.marked,fee=Math.max(50,Math.round(incomeAt(dz(e.f))*.3/10)*10),gift=r100(incomeAt(dz(e.f))*ri(2,4));
+    const mk=!!a.marked,fee=Math.max(50,Math.round(incomeAt(dz(e.f))*.3/10)*10),gift=errandGift(e,ri(2,4));
     T0.gold+=fee;T0.earned+=fee;flowAdd(S,'e',fee);a.gold+=gift;favor(a,mk?3:1);a.errandsDone=(a.errandsDone||0)+1;
     const why=(f.best?f.best.why(a.name):`${a.name}が、手間取りながらも果たした`)+(helper&&help>0?`（${helper.m.name}が手を貸した）`:'');
     plog(p,`${a.name} は たのまれごとを はたした`,'loot');
@@ -4927,6 +4944,8 @@ function focusSide(){
 function sideNews(){const ed=(S.edicts||[]).filter(e=>e.until>S.tick);return `${ed.length?`<div class="sect"><h3>いま出ているお触れ</h3>${ed.map(e=>`<div class="quote edict">【${esc(e.from)}】${esc(e.t)}<span class="by">あと${Math.max(1,Math.ceil((e.until-S.tick)/TICKS_PER_DAY))}日</span></div>`).join('')}</div>`:''}<p class="note">黒猫亭にも、銀の杯亭にも、迷宮の出来事は届く。</p><ul class="news">${newsOrder(S.news.slice(-60)).map(newsLi).join('')}</ul>`}
 // 日報は新しい順に出す。ただし開店の日の導入（刻0の知らせ）だけは、いちばん下に書いた順のまま並べ、上から読めるようにする（#255）
 function newsOrder(list){return list.filter(x=>x.tk>0).reverse().concat(list.filter(x=>!(x.tk>0)))}
+// 夢が近い者の印。名簿と、掲示で主役を選ぶ欄に出す（#277）
+function nearTag(a){return a.tav==='ours'&&isActive(a)&&dreamNear(a)?'<span class="markmark" title="夢の進みが8割を越えた">夢が近い</span>':''}
 function markTag(a){return a.marked&&a.tav==='ours'&&isActive(a)?'<span class="markmark" title="店主が見込んだ者">◆見込み</span>':''}
 // 掲示にまだ誰にも回していない話があるのに、いま酒場で伝えられる常連がいないとき、そのわけを一言で返す（#253）。それ以外は空
 function boardGap(S){
@@ -4951,7 +4970,7 @@ function sideBoard(){
         .sort((x,y)=>(rank(x)-rank(y))||(!!y.a.marked-!!x.a.marked)||byTeam(x.a,y.a));
       // 持ちかけた者には、そのときの返しを本人の言葉として添える
       const said=a=>{const r=e.asked&&e.asked[a.id];return r?`<span class="does ask">${keepText(`「${r.t}」`)}</span>`:'';};
-      foot=`<div class="pick"><p class="note" style="margin:4px 0">誰を主役にするか。名前を押すと手帳が開く。酒場にいる者には、話を持ちかけて返事を聞ける。迷宮や寺院にいる者を選んだときは、次に酒場で会えたときに伝える。<button class="btn sm" data-act="pickerr" data-e="">やめる</button></p>${cs.map(({a,d,b})=>`<div class="row"><span class="who">${nmLink(a,true)}${markTag(a)}${teamTag(a)} <span class="meta">${lvCls(a)}・${a.pers}${b&&!d?'・'+esc(b):''}${dreamMeta(a)}</span>${said(a)}</span>${d?`<span class="chip">${d}</span>`:`${askBlock(S,e,a)?'':`<button class="btn sm" data-act="ask" data-e="${e.id}" data-a="${a.id}">話を持ちかける</button>`}<button class="btn sm" data-act="assign" data-e="${e.id}" data-a="${a.id}">${b?'戻ったら伝える':'回す'}</button>`}</div>`).join('')||'<p class="note">黒猫亭の常連がいない。</p>'}</div>`;}
+      foot=`<div class="pick"><p class="note" style="margin:4px 0">誰を主役にするか。名前を押すと手帳が開く。酒場にいる者には、話を持ちかけて返事を聞ける。迷宮や寺院にいる者を選んだときは、次に酒場で会えたときに伝える。<button class="btn sm" data-act="pickerr" data-e="">やめる</button></p>${cs.map(({a,d,b})=>`<div class="row"><span class="who">${nmLink(a,true)}${markTag(a)}${nearTag(a)}${teamTag(a)} <span class="meta">${lvCls(a)}・${a.pers}${b&&!d?'・'+esc(b):''}${dreamMeta(a)}</span>${giftReach(a,e)?'<span class="does">謝礼で届くかもしれない</span>':''}${said(a)}</span>${d?`<span class="chip">${d}</span>`:`${askBlock(S,e,a)?'':`<button class="btn sm" data-act="ask" data-e="${e.id}" data-a="${a.id}">話を持ちかける</button>`}<button class="btn sm" data-act="assign" data-e="${e.id}" data-a="${a.id}">${b?'戻ったら伝える':'回す'}</button>`}</div>`).join('')||'<p class="note">黒猫亭の常連がいない。</p>'}</div>`;}
     return `<div class="quote board"><b>${esc(e.n)}</b>${e.arc?`<span class="markmark">続きもの・${esc(ARCS[e.arc].n)}　${e.stage}/${ARCS[e.arc].stages.length}</span>`:''}<span class="by">${esc(e.from)}から・${h?'引き受け済み':`掲示はあと${dd(e.until)}日`}</span>「${esc(e.t)}」${foot}</div>`;};
   const log=E.log.slice(-5).reverse().map(l=>`<div class="row"><span class="who">${l.ok?'<span class="chip">果たした</span>':'<span class="chip ash">果たせず</span>'} ${esc(l.n)}${l.who?`・${l.id&&S.adv[l.id]?nmLink(S.adv[l.id]):esc(l.who)}`:''}<span class="does">${esc(l.t)}</span></span><span class="meta">${dayMark(l.tk)}</span></div>`).join('');
   const shallow=st===1?'<p class="note">いまは浅い頼みごとだけ。名が上がれば、もっと持ち込まれる。</p>':'';
@@ -4982,7 +5001,7 @@ function advRow(a){
   const st=shownStatus(S,a);const down=st==='party'&&!isMissing(a)&&a.hp<=0;
   const chip=down?'倒れている':{idle:'酒場',party:'探索中',missing:'行方不明',dead:'寺院・死',ash:'寺院・灰'}[st]||st;
   const hp=hpView(S,a);const hpBit=hp.hide?'':nw('HP'+hp.label);
-  return `<div class="row"><span class="chip ${down?'down':st}">${chip}</span><span class="who">${a.title?`<span class="ttl">「${esc(a.title)}」</span>`:''}${nmLink(a,true)}${markTag(a)}${teamTag(a)}${a.odd?'<span class="oddmark">異例</span>':''}${C(a).rare?'<span class="clsmark">レア</span>':C(a).adv?'<span class="clsmark">上級</span>':''} <span class="meta">${sexAgeHtml(a)} ${originBit(a)}${lvCls(a)}・${a.pers}${hpBit?'・'+hpBit:''}</span><span class="does">${a.dream?'夢：'+esc(dreamText(a.dream)):'次の夢を探している'}${(a.pastDreams||[]).length?`（かなえた夢 ${a.pastDreams.length}）`:''}</span></span></div>`;
+  return `<div class="row"><span class="chip ${down?'down':st}">${chip}</span><span class="who">${a.title?`<span class="ttl">「${esc(a.title)}」</span>`:''}${nmLink(a,true)}${markTag(a)}${nearTag(a)}${teamTag(a)}${a.odd?'<span class="oddmark">異例</span>':''}${C(a).rare?'<span class="clsmark">レア</span>':C(a).adv?'<span class="clsmark">上級</span>':''} <span class="meta">${sexAgeHtml(a)} ${originBit(a)}${lvCls(a)}・${a.pers}${hpBit?'・'+hpBit:''}</span><span class="does">${a.dream?'夢：'+esc(dreamText(a.dream)):'次の夢を探している'}${(a.pastDreams||[]).length?`（かなえた夢 ${a.pastDreams.length}）`:''}</span>${dreamProgress(a)?`<span class="does">${parenNw(dreamProgress(a))}</span>`:''}</span></div>`;
 }
 function sideRoster(){
   const ours=Object.values(S.adv).filter(a=>a.tav==='ours'&&!isLost(a));

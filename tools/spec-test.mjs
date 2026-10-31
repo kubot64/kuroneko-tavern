@@ -1841,6 +1841,21 @@ function checkFoes(){
 }
 
 // 「呪文」：レベル30〜60で覚える呪文。資料の一覧と覚えるレベルが一致し、それぞれの効き目が決まりどおり
+// 「名簿タブ」：夢が近い（進みが8割を越えた）の測り方と、主役欄の「謝礼で届くかもしれない」（#277）
+function checkDreamNear(){
+  const E=load(1),S=E.newState(),a=Object.values(S.adv).find(x=>x.tav==='ours');
+  check('夢が近い：進みを測る夢の種類は、どれも夢の表にあり、貯金の夢とは重ならない',Object.keys(E.DREAM_PACE).every(k=>E.DREAMS[k]&&!E.MONEY_DREAMS.includes(k)),'DREAM_PACE',Object.keys(E.DREAM_PACE).filter(k=>!E.DREAMS[k]||E.MONEY_DREAMS.includes(k)).join(','));
+  const at=(dream,o)=>{Object.assign(a,{gold:0,lvl:1,deepest:1,kills:0,disarms:0},o);a.dream=dream;return E.dreamNear(a);};
+  check('夢が近い：貯金の夢は貯金が夢の額の8割から',!at({k:'home',amt:1000},{gold:799})&&at({k:'home',amt:1000},{gold:800}),'船賃1000G','');
+  check('夢が近い：レベルの夢はめざすレベルの8割から',!at({k:'hero',l:30},{lvl:23})&&at({k:'hero',l:30},{lvl:24}),'Lv30の英雄','');
+  check('夢が近い：深さの夢はめざす階の8割から',!at({k:'deep',f:20},{deepest:15})&&at({k:'deep',f:20},{deepest:16}),'B20F','');
+  check('夢が近い：一度で決まる夢と、夢のない者には付かない',!at({k:'conquer'},{deepest:99,lvl:99})&&!at({k:'legend'},{})&&!at(null,{}),'迷宮の主・伝説の武具・夢なし','');
+  const e={f:8},g4=E.errandGift(e,4);
+  Object.assign(a,{gold:1000});a.dream={k:'home',amt:1000+g4};
+  const reach=E.giftReach(a,e);a.dream={k:'home',amt:1001+g4};const over=E.giftReach(a,e);a.dream={k:'hero',l:30};const lv=E.giftReach(a,e);
+  check('謝礼で届くかもしれない：貯金に謝礼のいちばん多い額（その階の稼ぎの4回分）を足して夢の額に届く貯金の夢だけ',reach&&!over&&!lv,`謝礼の最大${g4}G`,`届く${reach} 1G足りない${over} レベルの夢${lv}`);
+}
+
 // 古いセーブの見本（tools/old-saves/vNN.json.gz）。版ごとに、その版のコードで店を300日回して保存したもの。
 // 今の migrate で最新の形になり、人も一行も記録も欠けず、そのまま続けて遊べることを確かめる
 function checkOldSaves(){
@@ -2618,7 +2633,7 @@ function checkLife(){
 
 if(!isMainThread){const line=runSeed(workerData.seed);parentPort.postMessage({line,res:[...results]});}
 else{
-  if(SHARD.k===1){checkTables();checkScenes();checkLife();checkLetters();checkErrands();checkCrest();checkRowFallback();checkMine();checkAffinity();checkRevive();checkMemoNotes();checkOpening();checkCareer();checkIntro();checkAge();checkFoes();checkQuarrel();checkFlow();checkLedger();checkLevelNews();checkBounty();checkMissing();checkLastWords();checkHighSpells();checkSpellTable();checkPhases();checkPush();checkOldSaves();checkKinds();checkSaveLoad();}
+  if(SHARD.k===1){checkTables();checkScenes();checkLife();checkLetters();checkErrands();checkCrest();checkRowFallback();checkMine();checkAffinity();checkRevive();checkMemoNotes();checkOpening();checkCareer();checkIntro();checkAge();checkFoes();checkQuarrel();checkFlow();checkLedger();checkLevelNews();checkBounty();checkMissing();checkLastWords();checkHighSpells();checkSpellTable();checkPhases();checkPush();checkOldSaves();checkKinds();checkSaveLoad();checkDreamNear();}
   // 種ごとの結果は、種の順に重ねる。反例は、いちばん若い種の最初のものを残す。進捗の行も種の順に出す
   const out=new Array(SEEDS.length);let next=0,printed=0;
   const flush=()=>{while(printed<out.length&&out[printed]){if(out[printed].line)console.log(out[printed].line);printed++;}};
