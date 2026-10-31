@@ -139,6 +139,33 @@ test('「留守のあいだに」の手帳を見るは、ほかの者の名前�
   assert.deepEqual(errors,[]);await ctx.close();
 });
 
+test('「留守のあいだに」の手帳を見るは、称号つきの名前の昇格・去った・ロストと、名前を含む値の本人を並べ、語の一部と一行の名前では並べない（#268）',async()=>{
+  const {ctx,page,errors}=await open();
+  await page.locator('#sp0').click();
+  const shown=(names,add)=>page.evaluate(([names,add])=>{
+    const ours=Object.values(S.adv).filter(x=>x.tav==='ours');
+    names.forEach((n,i)=>{ours[i].name=n;});
+    const t0=S.tick;
+    for(const [k,args] of add)news(S,k,args,'info');
+    drawDigest({i:50,n:50,awaySec:3600,startTick:t0-1,g0:S.taverns.ours.gold,e0:0,s0:0,r0:0,lost0:S.memorial.length,returns:0,wipes:0});
+    document.querySelector('#digest').hidden=false;
+    return [...document.querySelectorAll('#dg-who button')].map(b=>b.textContent).sort();
+  },[names,add]);
+  // 再現手順：称号つきの昇格・ロスト・去った知らせと、装備の由来の文
+  assert.deepEqual(await shown(['アル','ダリオ','エッダ','マティアス'],[
+    ['promote',{tav:'黒猫亭',who:'「百戦錬磨」アル',from:'warrior',to:'berserker'}],
+    ['lost',{tav:'黒猫亭',who:'「鉄壁」ダリオ',farewell:''}],
+    ['farewell',{tav:'黒猫亭',who:'「船乗り」エッダ',why:'夢をかなえた'}],
+    ['rareKill',{tav:'黒猫亭',p:'灰色の鷺',f:12,m:'首狩り',what:'首狩りの小刀（マティアスが手にした）'}],
+  ]),['アル','エッダ','ダリオ','マティアス'].sort(),'称号つきの名前や、名前を含む値の本人が並ばない');
+  // 並ばないもの：魔物の名の一部（ゴブリンのリン）、より長い名前の一部（ミナトのミナ）、一行の名前（リンの一行）
+  assert.deepEqual(await shown(['リン','ミナ','ミナト','カイ'],[
+    ['rareKill',{tav:'黒猫亭',p:'リンの一行',f:3,m:'ゴブリンの王',what:'錆びた冠（カイが手にした）'}],
+    ['promote',{tav:'黒猫亭',who:'「百戦錬磨」ミナト',from:'warrior',to:'berserker'}],
+  ]),['カイ','ミナト'].sort(),'語の一部や一行の名前として出ているだけの者が並ぶ');
+  assert.deepEqual(errors,[]);await ctx.close();
+});
+
 test('手帳の上に場面が出ているときの Esc は、場面だけを閉じ、手帳は開いたまま（#263）',async()=>{
   const {ctx,page,errors}=await open();
   await page.locator('#sp0').click();
