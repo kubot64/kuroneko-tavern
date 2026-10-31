@@ -119,6 +119,67 @@ test('「留守のあいだに」は、知らせに名前の出た黒猫亭の�
   assert.deepEqual(errors,[]);await ctx.close();
 });
 
+test('「留守のあいだに」の見出しに日の範囲が出て、30件を越えた分は件数で案内し、黒猫亭の行がなければ居場所を添えてほかは畳む（#275）',async()=>{
+  const {ctx,page,errors}=await open();
+  await page.locator('#sp0').click();
+  // edicts：黒猫亭の者の名前を含まない噂を n 件、ours=true なら黒猫亭の知らせを1件足して開く
+  const draw=(n,ours,days)=>page.evaluate(([n,ours,days])=>{
+    const t0=S.tick-days*TICKS_PER_DAY-1;
+    for(let i=0;i<n;i++)news(S,'edict',{from:'噂',t:'北の街道で荷車がひっくり返ったらしい（'+i+'）'},'info');
+    if(ours){const a=Object.values(S.adv).find(x=>x.tav==='ours');news(S,'levelOurs',{tav:'黒猫亭',who:a.name,lvl:5},'info');}
+    drawDigest({i:50,n:50,awaySec:3600,startTick:t0,g0:S.taverns.ours.gold,e0:0,s0:0,r0:0,lost0:S.memorial.length,returns:0,wipes:0});
+    document.querySelector('#digest').hidden=false;
+    const d0=Math.floor((t0+1)/TICKS_PER_DAY)+1,d1=Math.floor(S.tick/TICKS_PER_DAY)+1;
+    return {head:document.querySelector('#dg-t').textContent,d0,d1,
+      lis:[...document.querySelectorAll('#dg-news > li')].map(li=>li.textContent),
+      fold:document.querySelector('#dg-fold details')?{open:document.querySelector('#dg-fold details').open,sum:document.querySelector('#dg-fold summary').textContent,n:document.querySelectorAll('#dg-fold li').length}:null};
+  },[n,ours,days]);
+  await page.evaluate(()=>{S.tick+=12*TICKS_PER_DAY;});
+  // 10日の留守で35件、黒猫亭の行もある：日の範囲、30件と案内、畳まない
+  let m=await draw(34,true,10);
+  assert.equal(m.head,`留守のあいだに ${m.d0}日目〜${m.d1}日目`);
+  assert.equal(m.lis.length,31);
+  assert.match(m.lis.at(-1),/^これより前の5件は迷宮日報に。$/);
+  assert.equal(m.fold,null,'黒猫亭の行があるのに畳んだ');
+  // 30件ちょうどなら案内は出ない（前の分が入らないよう、留守の始まりを今の刻の直前にする）
+  await page.evaluate(()=>{S.tick+=TICKS_PER_DAY;});
+  m=await draw(29,true,0);
+  assert.equal(m.lis.length,30);assert.ok(!m.lis.some(t=>/迷宮日報に/.test(t)));
+  assert.equal(m.head,`留守のあいだに ${m.d1}日目`);
+  // 1日放置で黒猫亭の行がない：居場所の一行だけ出し、ほかは畳む
+  await page.evaluate(()=>{S.tick+=TICKS_PER_DAY;const p=Object.values(S.parties).find(x=>x.tav==='ours');setPhase(S,p,'explore');p.floor=3;});
+  m=await draw(3,false,0);
+  assert.equal(m.lis.length,1);
+  assert.match(m.lis[0],/^いま潜っている：.+（B3F .+）$/);
+  assert.deepEqual(m.fold,{open:false,sum:'ほかの店と街の知らせ 3件',n:3});
+  // 誰も潜っていなければ、そう書く
+  await page.evaluate(()=>{S.tick+=TICKS_PER_DAY;for(const p of Object.values(S.parties))if(p.tav==='ours'&&p.state==='explore')setPhase(S,p,'town');});
+  m=await draw(2,false,0);
+  assert.deepEqual(m.lis,['いま迷宮に潜っている黒猫亭の一行はいない。']);
+  // 375pxで長い名前が4人並んで折れても、「・」だけが行の頭や終わりに残らない
+  await page.setViewportSize({width:375,height:812});
+  const dots=await page.evaluate(()=>{
+    const ours=Object.values(S.adv).filter(x=>x.tav==='ours').slice(0,4);
+    ['ゴットフリート','アストリッド','ツェツィーリエ','ベネディクト'].forEach((n,i)=>{ours[i].name=n;});
+    S.tick+=TICKS_PER_DAY;const t0=S.tick;
+    for(const a of ours)news(S,'levelOurs',{tav:'黒猫亭',who:a.name,lvl:5},'info');
+    drawDigest({i:50,n:50,awaySec:3600,startTick:t0-1,g0:S.taverns.ours.gold,e0:0,s0:0,r0:0,lost0:S.memorial.length,returns:0,wipes:0});
+    const who=document.querySelector('#dg-who'),bad=[];
+    const tops=new Set([...who.querySelectorAll('button')].map(b=>Math.round(b.getBoundingClientRect().top)));
+    if(tops.size<2)bad.push('折れていない（確かめにならない）');
+    for(const node of [...who.querySelectorAll('*'),who].flatMap(e=>[...e.childNodes]).filter(n=>n.nodeType===3&&n.textContent.includes('・'))){
+      const span=node.parentElement;
+      if(!span.classList.contains('nw')||!span.querySelector('button'))bad.push('「・」が名前と一続きになっていない');
+      const r=document.createRange();r.selectNodeContents(node);const d=r.getBoundingClientRect(),bt=span.querySelector('button').getBoundingClientRect(),mid=(d.top+d.bottom)/2;
+      if(!(mid>=bt.top&&mid<=bt.bottom&&d.left>=bt.right-1))bad.push('名前と「・」のあいだで折れた');
+    }
+    return bad;
+  });
+  assert.deepEqual(dots,[]);
+  assert.deepEqual(await page.evaluate(screenAudit),[],'375px の留守のあいだに');
+  assert.deepEqual(errors,[]);await ctx.close();
+});
+
 test('「留守のあいだに」の手帳を見るは、ほかの者の名前の一部として出ているだけの者を並べない（#263）',async()=>{
   const {ctx,page,errors}=await open();
   await page.locator('#sp0').click();

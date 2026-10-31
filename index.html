@@ -202,6 +202,9 @@ button:focus-visible,[tabindex]:focus-visible{outline:2px solid var(--amber);out
 .sum span{font-size:11px;color:var(--muted)}
 @media (max-width:420px){.sum{grid-template-columns:repeat(2,1fr)}}
 .mbox.wide{max-width:640px}
+/* 留守のあいだにの見出しの日の範囲と、畳んだほかの店の知らせ（#275） */
+#dg-t .dgr{font-size:14px;letter-spacing:0;color:var(--muted)}
+.dg-fold summary{cursor:pointer;color:var(--muted);font-size:13px;line-height:20px;box-sizing:border-box;min-height:44px;padding:12px 0}
 .ending p{margin:10px 0;line-height:1.8}
 .ending .said{padding-left:1em;border-left:2px solid var(--amber-dim)}
 .ending h3{margin:14px 0 0;font-family:var(--f-display);font-size:15px}
@@ -406,6 +409,7 @@ button:focus-visible,[tabindex]:focus-visible{outline:2px solid var(--amber);out
     <div class="sum" id="dg-sum"></div>
     <div class="note" id="dg-brk"></div>
     <ul class="news" id="dg-news"></ul>
+    <div id="dg-fold"></div>
     <p class="note" id="dg-who" hidden></p>
     <div style="margin-top:16px;text-align:right"><button class="btn on" data-act="closedigest">店に戻る</button></div>
   </div>
@@ -4709,10 +4713,29 @@ function drawDigest(st){
   $('dg-sum').innerHTML=groupMoney([[st.returns,'帰還'],[st.wipes,'消息不明'],[S.memorial.length-st.lost0,'ロスト'],[sign(gd),'所持金']].map(([v,l])=>`<div><b>${v}</b><span>${l}</span></div>`).join(''));
   const earned=(T0.earned||0)-(st.e0||0),support=(T0.support||0)-(st.s0||0),paid=(T0.repaid||0)-(st.r0||0);
   $('dg-brk').innerHTML=groupMoney([`売上 ${sign(earned)}`,`支援 ${support}G`,`返済 ${paid}G`].map(nw).join('、'));
-  $('dg-news').innerHTML=items.length?items.slice(-30).reverse().map(newsLi).join(''):`<li><span></span><span class="note">${done?'静かな日々だった。':'……'}</span></li>`;
+  // 見出しに留守の日の範囲を書く（#275）
+  const d0=Math.floor((st.startTick+1)/TICKS_PER_DAY)+1,d1=Math.floor(S.tick/TICKS_PER_DAY)+1;
+  $('dg-t').innerHTML='留守のあいだに'+(done?` <span class="nw dgr">${d0===d1?`${d0}日目`:`${d0}日目〜${d1}日目`}</span>`:'');
+  const shown=items.slice(-30).reverse(),note=t=>`<li><span></span><span class="note">${t}</span></li>`;
+  // 黒猫亭の行が一つもないときは、潜っている一行の居場所を一行添え、ほかの店と街の知らせは畳む（#275）
+  const quiet=done&&!shown.some(x=>digestOurs(x));
+  let list=items.length?shown.map(newsLi).join(''):note(done?'静かな日々だった。':'……');
+  if(quiet)list=(items.length?'':note('静かな日々だった。'))+note(digestWhere());
+  // 30件を越えたら、出していない前の件数を添える
+  if(items.length>30)list+=note(`これより前の${items.length-30}件は迷宮日報に。`);
+  $('dg-news').innerHTML=list;
+  $('dg-fold').innerHTML=quiet&&shown.length?`<details class="dg-fold"><summary>ほかの店と街の知らせ ${shown.length}件</summary><ul class="news">${shown.map(newsLi).join('')}</ul></details>`:'';
   const who=done?digestWho(items.slice(-30)):[];
   $('dg-who').hidden=!who.length;
-  $('dg-who').innerHTML=who.length?'手帳を見る：'+who.map(a=>`<button class="nm-link" data-act="digestadv" data-a="${a.id}">${esc(a.name)}</button>`).join('・'):'';
+  // 名前と区切りの「・」を一続きにして、「・」だけが行の頭や終わりに残らないようにする（#275）
+  $('dg-who').innerHTML=who.length?'手帳を見る：'+who.map((a,i)=>`<span class="nw"><button class="nm-link" data-act="digestadv" data-a="${a.id}">${esc(a.name)}</button>${i<who.length-1?'・':''}</span>`).join(''):'';
+}
+// 留守のあいだの知らせのうち、黒猫亭の行か（黒猫亭の知らせか、黒猫亭の者の名前が出ている）
+function digestOurs(x){return (x.args&&x.args.tav===S.taverns.ours.name)||digestWho([x]).length>0;}
+// いま潜っている黒猫亭の一行の居場所。まだ知れていない全滅も、水晶と同じく探索中として出す
+function digestWhere(){
+  const out=Object.values(S.parties).filter(p=>{const v=viewOf(S,p);return p.tav==='ours'&&!v.waiting&&(v.hidden||p.state==='explore'||p.state==='return');});
+  return out.length?'いま潜っている：'+out.map(p=>nw(esc(p.name)+'（'+viewOf(S,p).label[0]+'）')).join('、'):'いま迷宮に潜っている黒猫亭の一行はいない。';
 }
 // 留守のあいだの知らせに名前の出た黒猫亭の者を、新しい知らせの順に4人まで。押すとその人の手帳が開く（#256）
 // 知らせの中身の値は、称号つきの名前（「「百戦錬磨」アル」）や名前を含む文（装備の由来など）もあるので、文のまま持つ知らせと同じく文の中から拾う（#268）。
