@@ -187,6 +187,45 @@ test('375pxで店側のタブを開くと水晶と一行を畳み、中身の先
   assert.deepEqual(errors,[]);await ctx.close();
 });
 
+test('375pxで水晶を開いたまま別のタブへ行き戻ると畳まれ、中身の先頭が最初の画面に見える。覚え書きの帯から帳場へ移っても同じ（#279）',async()=>{
+  const {ctx,page,errors}=await open();
+  await page.locator('#sp0').click();
+  await page.setViewportSize({width:375,height:812});
+  const left=page.locator('.left'),fold=page.locator('#foldbar');
+  const tab=async v=>{await page.locator(`#tabs button[data-v="${v}"]`).click();await frames(page);};
+  // 中身の先頭（最初の段）の見出しと一行目が、下のタブと返済の帯より上に入っている
+  const headSeen=()=>page.evaluate(()=>{const h=document.querySelector('#tbody').firstElementChild.getBoundingClientRect();
+    const cs=getComputedStyle(document.documentElement),bar=parseFloat(cs.getPropertyValue('--tabbar-h'))+parseFloat(cs.getPropertyValue('--paybar-h')||'0');
+    return h.top+80<=innerHeight-bar;});
+  // 再現の場面：帳場で開く → 酒場 → 帳場
+  await tab('desk');await fold.click();
+  assert.equal(await left.isVisible(),true,'帳場で開けない');
+  await tab('bar');await tab('desk');
+  assert.equal(await left.isVisible(),false,'酒場から帳場に戻っても水晶が開いたまま');
+  assert.equal(await fold.getAttribute('aria-expanded'),'false');
+  assert.ok(await headSeen(),'帳場に戻ったとき中身の先頭が最初の画面に入らない');
+  // 店側のタブどうしで移っても畳む
+  await fold.click();await tab('shop');
+  assert.equal(await left.isVisible(),false,'帳場から武具屋に移っても水晶が開いたまま');
+  assert.ok(await headSeen(),'武具屋の中身の先頭が最初の画面に入らない');
+  // 同じタブにいるあいだは、開け閉めできる
+  await fold.click();assert.equal(await left.isVisible(),true,'武具屋で開けない');
+  await fold.click();assert.equal(await left.isVisible(),false,'武具屋で畳めない');
+  // 覚え書きの帯から帳場に移ったとき
+  await fold.click();assert.equal(await left.isVisible(),true);
+  await page.evaluate(()=>{const m=document.querySelector('#memoline');m.hidden=false;m.textContent='覚え書き';});
+  await page.locator('#memoline').click();await frames(page);
+  assert.equal(await page.evaluate(()=>tab),'desk');
+  assert.equal(await left.isVisible(),false,'覚え書きの帯から帳場に移っても水晶が開いたまま');
+  assert.ok(await headSeen(),'覚え書きから移ったとき中身の先頭が最初の画面に入らない');
+  // 境目：899pxでは畳み、901pxでは畳まない
+  await page.setViewportSize({width:899,height:900});await tab('desk');
+  assert.equal(await left.isVisible(),false,'899pxで畳まれない');assert.equal(await fold.isVisible(),true);
+  await page.setViewportSize({width:901,height:900});await tab('desk');
+  assert.equal(await left.isVisible(),true,'901pxで畳まれた');assert.equal(await fold.isVisible(),false);
+  assert.deepEqual(errors,[]);await ctx.close();
+});
+
 test('375pxで「手帳を見る：」の名前はどれも44px四方を押せ、最後の知らせとのあいだが空く。1280pxは変わらない（#266）',async()=>{
   const {ctx,page,errors}=await open();
   await page.locator('#sp0').click();
