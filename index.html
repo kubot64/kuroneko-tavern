@@ -323,6 +323,9 @@ button:focus-visible,[tabindex]:focus-visible{outline:2px solid var(--amber);out
   .c-members{gap:0 10px}
   .c-members .m{min-height:44px;align-items:center}
   .c-members .nm-link{display:inline-flex;align-items:center;min-width:44px;min-height:44px;padding:0 4px;margin-left:-4px}
+  /* 留守のあいだにの「手帳を見る：」。短い名前でも44px四方を押せるようにし、知らせとのあいだを空ける（#266） */
+  #dg-who{margin-top:12px}
+  #dg-who .nm-link{display:inline-flex;align-items:center;justify-content:center;box-sizing:border-box;min-width:44px;min-height:44px;padding:0 4px;margin:0;vertical-align:middle}
   /* 一言があるとき、稼ぎは一言の下の行。右端に寄せる */
   .c-foot:has(.c-warn) .c-loot{flex:1 0 100%;margin-left:0;text-align:right}
   .desk .row{align-items:flex-start}
@@ -4946,7 +4949,8 @@ function sideBoard(){
     return `<div class="quote board"><b>${esc(e.n)}</b>${e.arc?`<span class="markmark">続きもの・${esc(ARCS[e.arc].n)}　${e.stage}/${ARCS[e.arc].stages.length}</span>`:''}<span class="by">${esc(e.from)}から・${h?'引き受け済み':`掲示はあと${dd(e.until)}日`}</span>「${esc(e.t)}」${foot}</div>`;};
   const log=E.log.slice(-5).reverse().map(l=>`<div class="row"><span class="who">${l.ok?'<span class="chip">果たした</span>':'<span class="chip ash">果たせず</span>'} ${esc(l.n)}${l.who?`・${l.id&&S.adv[l.id]?nmLink(S.adv[l.id]):esc(l.who)}`:''}<span class="does">${esc(l.t)}</span></span><span class="meta">${dayMark(l.tk)}</span></div>`).join('');
   const shallow=st===1?'<p class="note">いまは浅い頼みごとだけ。名が上がれば、もっと持ち込まれる。</p>':'';
-  const gap=boardGap(S);
+  // 『話の回し方』を開いているときは、説明の最後と同じことを言う後半を省き、前半だけにする（#266）
+  const gap=boardHelpOpen?boardGap(S).replace(/。.+$/,'。'):boardGap(S);
   const marks=markCap?`<p class="markline">見込んだ者　${mk.length} / ${markCap}${mk.length?'：'+mk.map(a=>nmLink(a)).join('・'):''}。${st===2?'見込めるのは、いまは一人だけ。':''}手帳から見込める。見込んだ者に噛み合う話が来やすくなる。</p>`:'';
   const help=`<p class="boardhelp"><button class="btn sm" data-act="boardhelp" aria-expanded="${boardHelpOpen?'true':'false'}">話の回し方</button></p>${boardHelpOpen?'<p class="note">店主が決めるのは、話を誰に回すかだけ。向き不向きは話の文面ににじむ。手帳を開いて、怖いものや得意不得意、出身と照らし合わせること。話が伝わるのは、主役が酒場にいて、一行が街で休んでいるとき。迷宮に出ている者を選んでおけば、戻ったときに伝える。</p>':''}`;
   return `<div class="sect"><h3>掲示　持ち込まれた話　${E.board.length} / ${cap}</h3>
@@ -5028,6 +5032,8 @@ function reachHtml(){
 }
 function sideDesk(){
   const miss=Object.values(S.parties).filter(p=>viewOf(S,p).waiting);
+  // 出ている黒猫亭の一行。まだ知れていない全滅（伏せ中）も、水晶と同じく探索中として入れる。消息が広まる前の依頼額の目安を出す（#265）
+  const out=Object.values(S.parties).filter(p=>{const v=viewOf(S,p);return p.tav==='ours'&&!v.waiting&&(v.hidden||p.state==='explore'||p.state==='return');});
   const To=T(),ns=nextSeats(S),due=nextDue(S);
   const baseSeats=To.seats||12,seatLv=SEAT_STEPS.filter(x=>x[1]<=baseSeats).length,seatExtra=seatCap(S,'ours')-baseSeats;
   const seatDoes=`${seatExtra?`支店で+${seatExtra}席あり、あわせて${baseSeats+seatExtra}席。拡張の段とは別。`:''}${ns?`店を広げると、${ns[1]}席まで常連を迎えられる。`:'これ以上は広げられない。'}銀の杯亭は${seatCap(S,'rival')}席。`;
@@ -5057,7 +5063,8 @@ function sideDesk(){
 <div class="sect"><h3>銀の杯亭の客を引き抜く</h3><p class="note">銀の杯亭で酒場にいる客を、借金を肩代わりして黒猫亭に迎え入れる。借金に加えて、腕に見合った支度金がかかる。席が空いているときだけ声をかけられる。</p>
   ${(()=>{const L=poachList(S);return L.length?L.map(a=>`<div class="row"><span class="who"><b>${esc(a.name)}</b> <span class="meta">${lvCls(a)}・借金${nw((a.debt||0)+'G')}</span></span><button class="btn sm" data-act="poach" data-a="${a.id}" ${T().gold<poachPrice(S,a)?'disabled':''}>迎え入れる ${poachPrice(S,a)}G</button></div>`).join(''):`<p class="note">${seatsUsed(S,'ours')>=seatCap(S,'ours')?'黒猫亭の席が埋まっている。':'いま声をかけられる客はいない。'}</p>`;})()}</div>
 <div class="sect"><h3>死体回収の依頼</h3><p class="note">依頼を出すと、同じ階を歩く一行が見つけやすくなり、欲深い者も遺体を連れ帰るようになる。報酬は、知れている探索先と深さで決まり、依頼を出すときに預ける。連れ帰った一行に払い、見つからなければ戻る。一行ごとに、知れている深さから見た見つかる見込みを添える。</p>
-  ${miss.map(p=>`<div class="row"><span class="who"><b>${partyHtml(p.name)}</b> <span class="meta">${S.taverns[p.tav].name}・${inMine(p.floor)?'坑道':'迷宮'}・${p.members.length}人${p.looted?'・装備が持ち去られた形跡':''}</span><span class="does">${keepText(bountyHint(S,p))}</span>${!S.bounties[p.id]&&bountyShort(S,p)?`<span class="does short">${keepText('預けると、次の返済に足りなくなる')}</span>`:''}</span>${S.bounties[p.id]?`<span class="chip">依頼中 ${S.bounties[p.id]}G</span>`:`<button class="btn sm" data-act="bounty" data-p="${p.id}" ${T().gold<bountyPrice(p)?'disabled':''}>依頼を出す ${bountyPrice(p)}G</button>`}</div>`).join('')||'<p class="note">消息不明の一行はいない。</p>'}</div>
+  ${miss.map(p=>`<div class="row"><span class="who"><b>${partyHtml(p.name)}</b> <span class="meta">${S.taverns[p.tav].name}・${inMine(p.floor)?'坑道':'迷宮'}・${p.members.length}人${p.looted?'・装備が持ち去られた形跡':''}</span><span class="does">${keepText(bountyHint(S,p))}</span>${!S.bounties[p.id]&&bountyShort(S,p)?`<span class="does short">${keepText('預けると、次の返済に足りなくなる')}</span>`:''}</span>${S.bounties[p.id]?`<span class="chip">依頼中 ${S.bounties[p.id]}G</span>`:`<button class="btn sm" data-act="bounty" data-p="${p.id}" ${T().gold<bountyPrice(p)?'disabled':''}>依頼を出す ${bountyPrice(p)}G</button>`}</div>`).join('')}${miss.length?'':`<p class="note">${out.length?'いま消息不明と知れている一行はいない。':'消息不明の一行はいない。'}</p>`}
+  ${out.length?`<p class="note" style="margin-top:8px">出ている一行が予定を過ぎても戻らず、消息不明の知らせが出たら、ここから依頼を出せる。いま出ている一行の依頼額の目安：</p>`+out.map(p=>`<div class="row" data-out="${p.id}"><span class="who"><b>${partyHtml(p.name)}</b> <span class="meta">${inMine(p.floor)?'坑道':'迷宮'}・${p.members.length}人</span></span><span class="meta">目安 ${bountyPrice(p)}G</span></div>`).join(''):''}</div>
   <div class="sect"><h3>店の帳簿</h3><div class="row"><span class="who">これまでの売上</span><span class="meta">${T().earned}G</span></div><div class="row"><span class="who">これまでの支援</span><span class="meta">${T().support||0}G</span></div></div>
   ${resetSect()}</div>`;
 }

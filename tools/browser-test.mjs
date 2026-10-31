@@ -187,6 +187,29 @@ test('375pxで店側のタブを開くと水晶と一行を畳み、中身の先
   assert.deepEqual(errors,[]);await ctx.close();
 });
 
+test('375pxで「手帳を見る：」の名前はどれも44px四方を押せ、最後の知らせとのあいだが空く。1280pxは変わらない（#266）',async()=>{
+  const {ctx,page,errors}=await open();
+  await page.locator('#sp0').click();
+  const show=()=>page.evaluate(()=>{
+    const ours=Object.values(S.adv).filter(x=>x.tav==='ours').slice(0,4);ours[0].name='ポム';
+    const t0=S.tick;for(const a of ours)news(S,'levelOurs',{tav:'黒猫亭',who:a.name,lvl:5},'info');
+    drawDigest({i:50,n:50,awaySec:3600,startTick:t0-1,g0:S.taverns.ours.gold,e0:0,s0:0,r0:0,lost0:S.memorial.length,returns:0,wipes:0});
+    document.querySelector('#digest').hidden=false;
+  });
+  const geo=()=>page.evaluate(()=>{const who=document.querySelector('#dg-who'),li=[...document.querySelectorAll('#dg-news li')].pop();
+    return {gap:who.getBoundingClientRect().top-li.getBoundingClientRect().bottom,mt:getComputedStyle(who).marginTop,
+      btns:[...who.querySelectorAll('button')].map(b=>{const r=b.getBoundingClientRect();return [r.width,r.height];})};});
+  await page.setViewportSize({width:375,height:812});
+  await show();
+  const m=await geo();
+  assert.equal(m.btns.length,4);
+  for(const [w,h] of m.btns)assert.ok(w>=44&&h>=44,`押せる幅が足りない ${w}×${h}`);
+  assert.ok(m.gap>=8,`最後の知らせとのあいだ ${m.gap}px`);
+  await page.setViewportSize({width:1280,height:800});
+  assert.equal((await geo()).mt,'0px','1280pxで「手帳を見る：」の上の余白が変わった');
+  assert.deepEqual(errors,[]);await ctx.close();
+});
+
 test('留守のあいだの減りは売上と書かず、帳場は返した額と利息を分ける',async()=>{
   const {ctx,page,errors}=await open();
   await page.locator('#sp0').click();
@@ -1756,6 +1779,12 @@ test('掲示に主役の決まっていない話があるのに、いま酒場�
   assert.equal(await gap(),'','酒場で伝えられる常連がいるとき');
   await page.evaluate(()=>{Object.values(S.parties).filter(p=>p.tav==='ours').forEach(p=>{p.state='explore';});render();});
   assert.equal(await gap(),'いま酒場で話を伝えられる常連はいない。迷宮に出ている者を主役に選んでおけば、戻ったときに伝える。');
+  // 『話の回し方』を開いているときは、説明の最後と重なる後半を出さない（#266）
+  await page.locator('button[data-act="boardhelp"]').click();
+  assert.equal(await gap(),'いま酒場で話を伝えられる常連はいない。');
+  assert.equal((await page.locator('#tbody').innerText()).split('戻ったときに伝える').length-1,1,'説明と一言で同じ文が二度出ている');
+  await page.locator('button[data-act="boardhelp"]').click();
+  assert.equal(await gap(),'いま酒場で話を伝えられる常連はいない。迷宮に出ている者を主役に選んでおけば、戻ったときに伝える。');
   await page.evaluate(()=>{const e=errandsOf(S).board[0];e.refused=Object.values(S.adv).filter(a=>a.tav==='ours'&&isActive(a)).map(a=>a.id);render();});
   assert.equal(await gap(),'いま話を回せる黒猫亭の常連がいない。');
   await page.evaluate(()=>{const e=errandsOf(S).board[0];e.refused=[];e.pend=Object.values(S.adv).find(a=>a.tav==='ours'&&isActive(a)).id;render();});
@@ -3145,6 +3174,47 @@ test('帳場の死体回収の依頼は、見つかる見込みを言葉で添�
   const none=await page.evaluate(id=>{Object.values(S.parties).forEach(q=>{if(q.id!==id)q.state='wiped';});S.deepest.ours=1;S.deepest.rival=1;render();return bountyHint(S,S.parties[id]);},prep.id);
   assert.equal(none,'いまその深さに届く一行は、ほとんどいない');
   assert.match(await page.locator('#tbody').innerText(),/いまその深さに届く一行は、ほとんどいない/);
+  assert.deepEqual(errors,[]);await ctx.close();
+});
+
+test('伏せ中の全滅は、帳場の依頼の欄で出ている一行と同じ形で目安額だけ出し、消息が出たら同じ額で依頼できる（#265）',async()=>{
+  const {ctx,page,errors}=await open();
+  await page.locator('#sp0').click();
+  const prep=await page.evaluate(()=>{
+    const p=Object.values(S.parties).find(x=>x.tav==='ours');
+    for(const x of Object.values(S.parties))if(x.tav==='ours'&&x!==p)x.state='town';
+    // 探索中の一行をもう一つ。形を比べるためだけなので、写しでよい
+    const q=JSON.parse(JSON.stringify(p));q.id=S.nid++;q.name='灰色の鷺';S.parties[q.id]=q;
+    p.members.forEach(id=>{const a=S.adv[id];a.status='missing';a.hp=0;a.party=p.id;});
+    Object.assign(p,{state:'wiped',wipe:'hidden',wipedAt:S.tick,floor:4,killer:'オーク',dueAt:S.tick+999});
+    q.state='explore';q.floor=3;
+    S.taverns.ours.gold=99999;
+    return {p:p.id,q:q.id,price:bountyPrice(p),qprice:bountyPrice(q)};
+  });
+  await page.locator('button[data-v="desk"]').click();
+  const sect=page.locator('#tbody .sect').filter({has:page.locator('h3',{hasText:'死体回収の依頼'})});
+  const txt=await sect.innerText();
+  assert.doesNotMatch(txt,/消息不明の一行はいない。/,'伏せ中の一行がいるのに「消息不明の一行はいない。」');
+  assert.match(txt,/いま消息不明と知れている一行はいない。/);
+  assert.match(txt,/消息不明の知らせが出たら、ここから依頼を出せる/);
+  assert.equal(await sect.locator('button[data-act="bounty"]').count(),0,'伏せ中に依頼のボタンが出ている');
+  const rowP=sect.locator(`.row[data-out="${prep.p}"]`),rowQ=sect.locator(`.row[data-out="${prep.q}"]`);
+  assert.match(await rowP.innerText(),new RegExp(`目安 ${prep.price}G`));
+  assert.match(await rowQ.innerText(),new RegExp(`目安 ${prep.qprice}G`));
+  assert.doesNotMatch(await rowP.innerText(),/全滅|オーク|消息不明/,'伏せ中の行に全滅と分かる言葉が出ている');
+  // 伏せ中の行と探索中の行は、一行の名と数だけが違う同じ形
+  const shape=t=>t.replace(/\d+/g,'#').split(/\s+/).slice(1).join(' ');
+  assert.equal(shape(await rowP.innerText()).replace(/坑道|迷宮/,''),shape(await rowQ.innerText()).replace(/坑道|迷宮/,''));
+  // 消息が出たら、今までどおり依頼できる。額は目安と同じ
+  await page.evaluate(id=>{setPhase(S,S.parties[id],'missing');render();},prep.p);
+  assert.equal(await sect.locator(`.row[data-out="${prep.p}"]`).count(),0);
+  const btn=sect.locator(`button[data-act="bounty"][data-p="${prep.p}"]`);
+  assert.equal(await btn.innerText(),`依頼を出す ${prep.price}G`);
+  await btn.click();
+  assert.match(await sect.innerText(),new RegExp(`依頼中 ${prep.price}G`));
+  // 出ている一行がいなければ、これまでどおりの言葉
+  await page.evaluate(()=>{for(const x of Object.values(S.parties))if(x.tav==='ours')x.state='town';S.bounties={};render();});
+  assert.match(await sect.innerText(),/消息不明の一行はいない。/);
   assert.deepEqual(errors,[]);await ctx.close();
 });
 
