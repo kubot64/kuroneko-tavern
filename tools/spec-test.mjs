@@ -1860,6 +1860,16 @@ function checkDreamSteps(){
   const E=load(1);
   const keys=k=>Object.keys(k).sort().join(',');
   check('夢の節目：一言のある夢は、進みを測れる夢（貯金・レベル・深さ・数）とちょうど同じ',keys(E.DREAM_STEP)===[...Object.keys(E.DREAM_PACE),...E.MONEY_DREAMS].sort().join(','),'DREAM_STEP',keys(E.DREAM_STEP));
+  // 進みの目標の数（DREAM_PACE と貯金の額）が、夢のかなう条件（DREAMS の ok）とずれない：進みが1でかない、1つ手前ではかなわない（#292 のレビュー）
+  {const S=E.newState(),a=Object.values(S.adv).find(x=>x.tav==='ours'&&E.isActive(x)),bad=[];S.shop=S.shop||{};S.shop.tiers=Object.assign({},S.shop.tiers,{t:1});
+    for(const k of [...Object.keys(E.DREAM_PACE),...E.MONEY_DREAMS]){
+      const d={k,l:30,f:20,n:50,amt:1000,t:'t'};a.dream=d;
+      const goal=E.MONEY_DREAMS.includes(k)?d.amt:E.DREAM_PACE[k](a,d)[1];
+      const put=v=>Object.assign(a,{lvl:v,deepest:v,kills:v,disarms:v,gold:v});
+      put(goal);const yes=E.dreamFrac(a)===1&&!!E.DREAMS[k].ok(S,a,d);
+      put(goal-1);const no=E.dreamFrac(a)<1&&!E.DREAMS[k].ok(S,a,d);
+      if(!yes||!no)bad.push(`${k}（目標${goal}：届いて${yes}、手前で${no}）`);}
+    check('夢の節目：進みの目標の数は、夢のかなう条件と同じ（進みが1でかない、1つ手前ではかなわない）',!bad.length,'DREAM_PACE と貯金の夢',bad.join(' / '));}
   const S=E.newState(),a=Object.values(S.adv).find(x=>x.tav==='ours'&&E.isActive(x));
   const lines=()=>S.news.filter(n=>n.kind==='dreamStep');
   const at=g=>{a.gold=g;E.dreamSteps(S);return lines().length;};
