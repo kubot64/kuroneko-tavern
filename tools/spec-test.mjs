@@ -1840,7 +1840,6 @@ function checkFoes(){
     check('古い記録：新しい記録の版と、移行を終えた記録の版はどちらも今の版',E.newState().v===SAVE_V&&S.v===SAVE_V,`版${SAVE_V-1}`,`新しい記録${E.newState().v} 移行後${S.v} 今の版${SAVE_V}`);}
 }
 
-// 「呪文」：レベル30〜60で覚える呪文。資料の一覧と覚えるレベルが一致し、それぞれの効き目が決まりどおり
 // 「名簿タブ」：夢が近い（進みが8割を越えた）の測り方と、主役欄の「謝礼で届くかもしれない」（#277）
 function checkDreamNear(){
   const E=load(1),S=E.newState(),a=Object.values(S.adv).find(x=>x.tav==='ours');
@@ -1854,6 +1853,44 @@ function checkDreamNear(){
   Object.assign(a,{gold:1000});a.dream={k:'home',amt:1000+g4};
   const reach=E.giftReach(a,e);a.dream={k:'home',amt:1001+g4};const over=E.giftReach(a,e);a.dream={k:'hero',l:30};const lv=E.giftReach(a,e);
   check('謝礼で届くかもしれない：貯金に謝礼のいちばん多い額（その階の稼ぎの4回分）を足して夢の額に届く貯金の夢だけ',reach&&!over&&!lv,`謝礼の最大${g4}G`,`届く${reach} 1G足りない${over} レベルの夢${lv}`);
+}
+
+// 画面の側（ENGINE END より下）の名前を、index.html の文から取り出して動かす。関数は中かっこの対で、const は行の終わりまで。
+// 画面の S は引数で渡す（#270）
+function uiNames(names){
+  const src=names.map(n=>{
+    const m=new RegExp(`^(function ${n}\\(|const ${n}=)`,'m').exec(html);if(!m)throw new Error(`index.html に ${n} がない`);
+    if(m[1].startsWith('const'))return html.slice(m.index,html.indexOf('\n',m.index));
+    let i=html.indexOf('{',m.index),d=0;
+    for(let j=i;j<html.length;j++){if(html[j]==='{')d++;else if(html[j]==='}'&&--d===0)return html.slice(m.index,j+1);}
+    throw new Error(`${n} の中かっこが閉じない`);
+  }).join('\n');
+  return S=>new Function('S',`${src}\nreturn {${names.join(',')}};`)(S);
+}
+// 「留守のあいだに」の「手帳を見る：」の名前の拾い方（#263・#268）。マージ後に退行が続いたので、場面ごとに並ぶ人と並ばない人を確かめる（#270）
+function checkDigestWho(){
+  const E=load(1),S=E.newState(),ui=uiNames(['digestWho','KANA_RUN','nameInText'])(S);
+  const ours=Object.values(S.adv).filter(a=>a.tav==='ours');
+  const who=(names,add)=>{
+    names.forEach((n,i)=>{ours[i].name=n;});
+    S.news=[];for(const [k,args] of add)E.news(S,k,args,'info');
+    return ui.digestWho(S.news).map(a=>a.name).sort().join('・');
+  };
+  const cases=[
+    ['名前だけが値に入っている知らせの本人が並ぶ',['カイ','セラ'],[['levelOurs',{tav:'黒猫亭',who:'カイ',lvl:5}]],'カイ'],
+    ['称号つきの名前で入った昇格の本人が並ぶ',['アル','セラ'],[['promote',{tav:'黒猫亭',who:'「百戦錬磨」アル',from:'warrior',to:'berserker'}]],'アル'],
+    ['称号つきの名前で入ったロストの本人が並ぶ',['ダリオ','セラ'],[['lost',{tav:'黒猫亭',who:'「鉄壁」ダリオ',farewell:''}]],'ダリオ'],
+    ['称号つきの名前で入った去った知らせの本人が並ぶ',['エッダ','セラ'],[['farewell',{tav:'黒猫亭',who:'「船乗り」エッダ',why:'夢をかなえた'}]],'エッダ'],
+    ['名前を文の中に含む値（装備の由来）の本人が並ぶ',['マティアス','セラ'],[['rareKill',{tav:'黒猫亭',p:'灰色の鷺',f:12,m:'首狩り',what:'首狩りの小刀（マティアスが手にした）'}]],'マティアス'],
+    ['文のまま持つ知らせの本人が並ぶ',['ネル','セラ'],[['edict',{from:'噂',t:'ネルが酒場で歌った'}]],'ネル'],
+    ['名前の一部が重なるとき、長い名前だけの知らせで短い名前の者は並ばない（値）',['ミナ','ミナト'],[['levelOurs',{tav:'黒猫亭',who:'ミナト',lvl:5}]],'ミナト'],
+    ['名前の一部が重なるとき、長い名前だけの知らせで短い名前の者は並ばない（称号つき）',['ミナ','ミナト'],[['promote',{tav:'黒猫亭',who:'「百戦錬磨」ミナト',from:'warrior',to:'berserker'}]],'ミナト'],
+    ['名前の一部が重なるとき、長い名前だけの知らせで短い名前の者は並ばない（文）',['ミナ','ミナト'],[['edict',{from:'噂',t:'ミナトが酒場で歌った'}]],'ミナト'],
+    ['名前の一部が重なるとき、短い名前の知らせでは短い名前の者だけが並ぶ',['ミナ','ミナト'],[['levelOurs',{tav:'黒猫亭',who:'ミナ',lvl:5}]],'ミナ'],
+    ['魔物の名の一部（ゴブリンのリン）では並ばない',['リン','セラ'],[['rareKill',{tav:'黒猫亭',p:'灰色の鷺',f:3,m:'ゴブリンの王',what:'錆びた冠（セラが手にした）'}]],'セラ'],
+    ['一行の名前（リンの一行）では並ばない',['リン','セラ'],[['recruit',{leader:'セラ',who:'セラ',p:'リンの一行'}]],'セラ'],
+  ];
+  for(const [name,names,add,want] of cases){const got=who(names,add);check(`留守のあいだに：${name}`,got===want,JSON.stringify(add),`並んだのは「${got}」、並ぶべきは「${want}」`);}
 }
 
 // 古いセーブの見本（tools/old-saves/vNN.json.gz）。版ごとに、その版のコードで店を300日回して保存したもの。
@@ -1961,6 +1998,7 @@ function checkPhases(){
     S2.v=33;E2.migrate(S2);
     check('一行の状態：版33の全滅のフラグは、全滅の中の状態に写り、フラグは外れる',S2.v===E2.SAVE_V&&q.wipe===want&&['announced','knownWiped','retrieved','causeTold'].every(k=>!(k in q))&&(!town||(!('wipe' in town)&&!('announced' in town))),JSON.stringify(f),`${q.wipe}（${want} のはず）`);}
 }
+// 「呪文」：レベル30〜60で覚える呪文。資料の一覧と覚えるレベルが一致し、それぞれの効き目が決まりどおり
 function checkHighSpells(){
   const E=load(1);
   const keys={キヨメ:'kiyome',ゴウエン:'goen',タマヨビ:'tamayobi',オリハライ:'orihara',ホシオトシ:'hoshi',イシガタメ:'ishi',ウツシエ:'utsushi',イシワタリ:'watari'};
@@ -2633,7 +2671,7 @@ function checkLife(){
 
 if(!isMainThread){const line=runSeed(workerData.seed);parentPort.postMessage({line,res:[...results]});}
 else{
-  if(SHARD.k===1){checkTables();checkScenes();checkLife();checkLetters();checkErrands();checkCrest();checkRowFallback();checkMine();checkAffinity();checkRevive();checkMemoNotes();checkOpening();checkCareer();checkIntro();checkAge();checkFoes();checkQuarrel();checkFlow();checkLedger();checkLevelNews();checkBounty();checkMissing();checkLastWords();checkHighSpells();checkSpellTable();checkPhases();checkPush();checkOldSaves();checkKinds();checkSaveLoad();checkDreamNear();}
+  if(SHARD.k===1){checkTables();checkScenes();checkLife();checkLetters();checkErrands();checkCrest();checkRowFallback();checkMine();checkAffinity();checkRevive();checkMemoNotes();checkOpening();checkCareer();checkIntro();checkAge();checkFoes();checkQuarrel();checkFlow();checkLedger();checkLevelNews();checkBounty();checkMissing();checkLastWords();checkHighSpells();checkSpellTable();checkPhases();checkPush();checkOldSaves();checkKinds();checkSaveLoad();checkDigestWho();checkDreamNear();}
   // 種ごとの結果は、種の順に重ねる。反例は、いちばん若い種の最初のものを残す。進捗の行も種の順に出す
   const out=new Array(SEEDS.length);let next=0,printed=0;
   const flush=()=>{while(printed<out.length&&out[printed]){if(out[printed].line)console.log(out[printed].line);printed++;}};
