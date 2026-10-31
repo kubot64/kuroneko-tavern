@@ -1831,6 +1831,37 @@ test('掲示に主役の決まっていない話があるのに、いま酒場�
   assert.deepEqual(errors,[]);await ctx.close();
 });
 
+test('掲示の主役選びの行に、手帳と同じ文で夢の進みが出る。夢がない者・かなえた者には足さず、375pxで崩れない（#274）',async()=>{
+  const {ctx,page,errors}=await open();
+  await page.locator('#sp0').click();
+  const ids=await page.evaluate(()=>{
+    const T0=S.taverns.ours;T0.debt=0;T0.debtFree=S.tick;const E=errandsOf(S);E.stage=3;E.next=S.tick+99*TICKS_PER_DAY;
+    E.board=[{id:900,k:'bell',n:'鐘楼の光',from:'梟の地図屋',t:ERRANDS.find(x=>x.k==='bell').txt(8),f:8,until:S.tick+TICKS_PER_DAY*20,hero:null,refused:[],tk:S.tick}];
+    const ours=Object.values(S.adv).filter(x=>x.tav==='ours'&&isActive(x)).slice(0,3);
+    ours[0].dream={k:'home',amt:4200};ours[0].gold=2180;
+    ours[1].dream={k:'hero',l:30};
+    ours[2].dream=null;
+    tab='bar';pickErr=900;render();
+    return ours.map(a=>a.id);
+  });
+  const metas=await page.evaluate(ids=>ids.map(id=>{const b=document.querySelector(`.pick button[data-act="adv"][data-a="${id}"]`);return b.closest('.row').querySelector('.meta').textContent;}),ids);
+  const progs=await page.evaluate(ids=>ids.map(id=>dreamProgress(S.adv[id])),ids);
+  assert.equal(progs[0],'貯金 2,180G / 4,200G');
+  assert.ok(metas[0].endsWith('・夢 '+progs[0]),metas[0]);
+  assert.ok(metas[1].endsWith('・夢 '+progs[1])&&/いまLv\d+/.test(progs[1]),metas[1]);
+  assert.doesNotMatch(metas[2],/夢/,'夢がない者に夢の進みが出た');
+  // 手帳と同じ数字
+  await page.locator(`.pick button[data-act="adv"][data-a="${ids[0]}"]`).click();
+  assert.match(await page.locator('#advm').innerText(),/貯金 2,180G \/ 4,200G/);
+  await page.keyboard.press('Escape');
+  for(const [width,height] of [[375,740],[1280,800]]){
+    await page.setViewportSize({width,height});
+    await page.evaluate(()=>document.fonts.ready);
+    assert.deepEqual(await page.evaluate(screenAudit),[],`${width}px の主役選び`);
+  }
+  assert.deepEqual(errors,[]);await ctx.close();
+});
+
 test('掲示の主役選びで話を持ちかけると、本人が口調どおりに返し、断った者は選べない。375px・768px・1280pxで崩れない',async()=>{
   const {ctx,page,errors}=await open();
   await page.locator('#sp0').click();

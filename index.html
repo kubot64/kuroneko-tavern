@@ -4945,7 +4945,7 @@ function sideBoard(){
         .sort((x,y)=>(rank(x)-rank(y))||(!!y.a.marked-!!x.a.marked)||byTeam(x.a,y.a));
       // 持ちかけた者には、そのときの返しを本人の言葉として添える
       const said=a=>{const r=e.asked&&e.asked[a.id];return r?`<span class="does ask">${keepText(`「${r.t}」`)}</span>`:'';};
-      foot=`<div class="pick"><p class="note" style="margin:4px 0">誰を主役にするか。名前を押すと手帳が開く。酒場にいる者には、話を持ちかけて返事を聞ける。迷宮や寺院にいる者を選んだときは、次に酒場で会えたときに伝える。<button class="btn sm" data-act="pickerr" data-e="">やめる</button></p>${cs.map(({a,d,b})=>`<div class="row"><span class="who">${nmLink(a,true)}${markTag(a)}${teamTag(a)} <span class="meta">${lvCls(a)}・${a.pers}${b&&!d?'・'+esc(b):''}</span>${said(a)}</span>${d?`<span class="chip">${d}</span>`:`${askBlock(S,e,a)?'':`<button class="btn sm" data-act="ask" data-e="${e.id}" data-a="${a.id}">話を持ちかける</button>`}<button class="btn sm" data-act="assign" data-e="${e.id}" data-a="${a.id}">${b?'戻ったら伝える':'回す'}</button>`}</div>`).join('')||'<p class="note">黒猫亭の常連がいない。</p>'}</div>`;}
+      foot=`<div class="pick"><p class="note" style="margin:4px 0">誰を主役にするか。名前を押すと手帳が開く。酒場にいる者には、話を持ちかけて返事を聞ける。迷宮や寺院にいる者を選んだときは、次に酒場で会えたときに伝える。<button class="btn sm" data-act="pickerr" data-e="">やめる</button></p>${cs.map(({a,d,b})=>`<div class="row"><span class="who">${nmLink(a,true)}${markTag(a)}${teamTag(a)} <span class="meta">${lvCls(a)}・${a.pers}${b&&!d?'・'+esc(b):''}${dreamMeta(a)}</span>${said(a)}</span>${d?`<span class="chip">${d}</span>`:`${askBlock(S,e,a)?'':`<button class="btn sm" data-act="ask" data-e="${e.id}" data-a="${a.id}">話を持ちかける</button>`}<button class="btn sm" data-act="assign" data-e="${e.id}" data-a="${a.id}">${b?'戻ったら伝える':'回す'}</button>`}</div>`).join('')||'<p class="note">黒猫亭の常連がいない。</p>'}</div>`;}
     return `<div class="quote board"><b>${esc(e.n)}</b>${e.arc?`<span class="markmark">続きもの・${esc(ARCS[e.arc].n)}　${e.stage}/${ARCS[e.arc].stages.length}</span>`:''}<span class="by">${esc(e.from)}から・${h?'引き受け済み':`掲示はあと${dd(e.until)}日`}</span>「${esc(e.t)}」${foot}</div>`;};
   const log=E.log.slice(-5).reverse().map(l=>`<div class="row"><span class="who">${l.ok?'<span class="chip">果たした</span>':'<span class="chip ash">果たせず</span>'} ${esc(l.n)}${l.who?`・${l.id&&S.adv[l.id]?nmLink(S.adv[l.id]):esc(l.who)}`:''}<span class="does">${esc(l.t)}</span></span><span class="meta">${dayMark(l.tk)}</span></div>`).join('');
   const shallow=st===1?'<p class="note">いまは浅い頼みごとだけ。名が上がれば、もっと持ち込まれる。</p>':'';
@@ -5202,6 +5202,8 @@ function doing(a){
   if(!opts.length)return '';
   return opts[(a.id*7+day(S)*3+Math.floor(S.tick/20))%opts.length];
 }
+// 主役を選ぶ欄の meta に添える夢の進み。手帳と同じ文で、夢がない者・かなえた者には何も足さない（#274）
+function dreamMeta(a){const t=dreamProgress(a);return t?'・夢 '+parenNw(t):'';}
 function dreamProgress(a){
   const d=a.dream;if(!d||!DREAMS[d.k])return '';
   return DREAMS[d.k].prog?DREAMS[d.k].prog(a,d,S):'';
