@@ -1855,6 +1855,49 @@ function checkDreamNear(){
   check('謝礼で届くかもしれない：貯金に謝礼のいちばん多い額（その階の稼ぎの4回分）を足して夢の額に届く貯金の夢だけ',reach&&!over&&!lv,`謝礼の最大${g4}G`,`届く${reach} 1G足りない${over} レベルの夢${lv}`);
 }
 
+// 「夢」：夢の節目（半分・8割）の一行。初めて越えたときに一度だけ出し、読み込み直し・進みの上げ下げ・古い記録で二度出さない（#278）
+function checkDreamSteps(){
+  const E=load(1);
+  const keys=k=>Object.keys(k).sort().join(',');
+  check('夢の節目：一言のある夢は、進みを測れる夢（貯金・レベル・深さ・数）とちょうど同じ',keys(E.DREAM_STEP)===[...Object.keys(E.DREAM_PACE),...E.MONEY_DREAMS].sort().join(','),'DREAM_STEP',keys(E.DREAM_STEP));
+  // 進みの目標の数（DREAM_PACE と貯金の額）が、夢のかなう条件（DREAMS の ok）とずれない：進みが1でかない、1つ手前ではかなわない（#292 のレビュー）
+  {const S=E.newState(),a=Object.values(S.adv).find(x=>x.tav==='ours'&&E.isActive(x)),bad=[];S.shop=S.shop||{};S.shop.tiers=Object.assign({},S.shop.tiers,{t:1});
+    for(const k of [...Object.keys(E.DREAM_PACE),...E.MONEY_DREAMS]){
+      const d={k,l:30,f:20,n:50,amt:1000,t:'t'};a.dream=d;
+      const goal=E.MONEY_DREAMS.includes(k)?d.amt:E.DREAM_PACE[k](a,d)[1];
+      const put=v=>Object.assign(a,{lvl:v,deepest:v,kills:v,disarms:v,gold:v});
+      put(goal);const yes=E.dreamFrac(a)===1&&!!E.DREAMS[k].ok(S,a,d);
+      put(goal-1);const no=E.dreamFrac(a)<1&&!E.DREAMS[k].ok(S,a,d);
+      if(!yes||!no)bad.push(`${k}（目標${goal}：届いて${yes}、手前で${no}）`);}
+    check('夢の節目：進みの目標の数は、夢のかなう条件と同じ（進みが1でかない、1つ手前ではかなわない）',!bad.length,'DREAM_PACE と貯金の夢',bad.join(' / '));}
+  const S=E.newState(),a=Object.values(S.adv).find(x=>x.tav==='ours'&&E.isActive(x));
+  const lines=()=>S.news.filter(n=>n.kind==='dreamStep');
+  const at=g=>{a.gold=g;E.dreamSteps(S);return lines().length;};
+  S.news=[];a.dream={k:'home',amt:1000};
+  const seq=[at(0),at(499),at(500),at(600),at(300),at(550),at(799),at(800),at(950),at(500),at(900)];
+  check('夢の節目：半分と8割を初めて越えたときに一行ずつ。下がってまた越えても二度出さない',JSON.stringify(seq)==='[0,0,1,1,1,1,1,2,2,2,2]','船賃1000Gの貯金を上げ下げ',JSON.stringify(seq));
+  const ns=lines();
+  check('夢の節目：本人の名前つきで、本人の言葉として出る',ns.length===2&&nt(ns[0])===`黒猫亭の${a.name}が「船賃、半分は貯まった」と話していた。`&&nt(ns[1])===`黒猫亭の${a.name}が「もうすぐ故郷へ帰る船に乗れる」と笑っていた。`,'船賃',ns.map(nt).join(' / '));
+  // 一度に二つ越えたら8割の一行だけ。かなう額まで一気に届いたら出さない
+  S.news=[];a.dream={k:'home',amt:1000};at(0);at(850);
+  const jump=lines().map(n=>n.args.step).join(',');
+  S.news=[];a.dream={k:'home',amt:1000};at(0);at(1000);
+  check('夢の節目：一度に二つ越えたら8割の一行だけ、かなう額に届いたら出さない',jump==='2'&&lines().length===0,'0→850G、0→1000G',`${jump} / ${lines().length}`);
+  // 初めて見た夢は、そのとき越えている節目を出したことにする（新しく抱いたレベルの夢が初めから半分を越えていても出さない）
+  S.news=[];a.lvl=18;a.dream={k:'hero',l:30};E.dreamSteps(S);
+  check('夢の節目：初めて見た夢は、もう越えている節目を黙って出したことにする',lines().length===0&&a.dream.st===1,'Lv18でLv30の夢を抱く',`${lines().length} st=${a.dream.st}`);
+  // 読み込み直しても二度出さない
+  a.lvl=25;E.dreamSteps(S);const S2=E.loadSave(JSON.parse(JSON.stringify({S})));const n0=S2.news.filter(n=>n.kind==='dreamStep').length;E.dreamSteps(S2);
+  check('夢の節目：読み込み直しても同じ節目は出さない',lines().length===1&&S2.news.filter(n=>n.kind==='dreamStep').length===n0,'Lv25で8割を出したあと読み込み直す',`${lines().length} ${n0}`);
+  // 古い記録（節目を持たない夢）を開いて回しても、もう越えている節目がまとめて出ない
+  const dir=new URL('./old-saves/',import.meta.url);
+  const last=readdirSync(dir).filter(f=>/^v\d+\.json\.gz$/.test(f)).sort((x,y)=>parseInt(x.slice(1))-parseInt(y.slice(1))).pop();
+  const O=E.loadSave(JSON.parse(gunzipSync(readFileSync(new URL(last,dir))).toString()));
+  const passed=Object.values(O.adv).filter(b=>b.tav==='ours'&&b.dream&&E.DREAM_STEP[b.dream.k]&&E.isActive(b)&&(E.dreamFrac(b)||0)>=.5).length;
+  const before=O.news.length;E.dreamSteps(O);
+  check('夢の節目：古い記録を開いても、もう越えている節目はまとめて出ない',O.news.length===before&&O.news.every(n=>n.kind!=='dreamStep'),last,`もう半分を越えていた常連${passed}人、出た一行${O.news.length-before}`);
+}
+
 // 画面の側（ENGINE END より下）の名前を、index.html の文から取り出して動かす。関数は中かっこの対で、const は行の終わりまで。
 // 画面の S は引数で渡す（#270）
 function uiNames(names){
@@ -2671,7 +2714,7 @@ function checkLife(){
 
 if(!isMainThread){const line=runSeed(workerData.seed);parentPort.postMessage({line,res:[...results]});}
 else{
-  if(SHARD.k===1){checkTables();checkScenes();checkLife();checkLetters();checkErrands();checkCrest();checkRowFallback();checkMine();checkAffinity();checkRevive();checkMemoNotes();checkOpening();checkCareer();checkIntro();checkAge();checkFoes();checkQuarrel();checkFlow();checkLedger();checkLevelNews();checkBounty();checkMissing();checkLastWords();checkHighSpells();checkSpellTable();checkPhases();checkPush();checkOldSaves();checkKinds();checkSaveLoad();checkDigestWho();checkDreamNear();}
+  if(SHARD.k===1){checkTables();checkScenes();checkLife();checkLetters();checkErrands();checkCrest();checkRowFallback();checkMine();checkAffinity();checkRevive();checkMemoNotes();checkOpening();checkCareer();checkIntro();checkAge();checkFoes();checkQuarrel();checkFlow();checkLedger();checkLevelNews();checkBounty();checkMissing();checkLastWords();checkHighSpells();checkSpellTable();checkPhases();checkPush();checkOldSaves();checkKinds();checkSaveLoad();checkDigestWho();checkDreamNear();checkDreamSteps();}
   // 種ごとの結果は、種の順に重ねる。反例は、いちばん若い種の最初のものを残す。進捗の行も種の順に出す
   const out=new Array(SEEDS.length);let next=0,printed=0;
   const flush=()=>{while(printed<out.length&&out[printed]){if(out[printed].line)console.log(out[printed].line);printed++;}};

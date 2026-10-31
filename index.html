@@ -975,6 +975,7 @@ const NEWS={
   kinNoSeat:{t:x=>`${x.who}の${x.label}が黒猫亭を訪ねたが、席がなかったので故郷へ帰った。`},
   kinCame:{t:x=>x.t+(x.cls?` ${raceName(x.race)}の${clsName(x.cls)}、Lv${x.lvl}。`:'')},
   dreamDone:{t:x=>(x.rival?'銀の杯亭の':'')+x.t},
+  dreamStep:{t:x=>`黒猫亭の${x.who}が「${DREAM_STEP[x.k][x.step-1]}」と${x.step===2?'笑っていた':'話していた'}。`},
   foundAlive:{t:x=>`${x.tav}の${x.who}が、${FN(x.f)}で行方知れずだった${x.kin}の${x.name}を生きて見つけ出した！`},
   foundKeep:{t:x=>`${x.tav}の${x.who}が、${FN(x.f)}で行方知れずの${x.kin}の${x.keep}を見つけた。`},
   formParty:{t:x=>`${x.leader}が仲間を集め、${x.p}を結成した。仲間は${x.mates.join('・')}。`},
@@ -2377,7 +2378,7 @@ function chatterTick(S){
 }
 
 function tick(S){
-  S.tick++;flowRoll(S);edictTick(S);mapTick(S);chatterTick(S);debtTick(S);rivalTick(S);
+  S.tick++;flowRoll(S);edictTick(S);mapTick(S);chatterTick(S);debtTick(S);rivalTick(S);dreamSteps(S);
   for(const p of Object.values(S.parties)) stepParty(S,p);
   for(const tav of ['ours','rival']){
     if(chance(.12)) formParties(S,tav);
@@ -2801,6 +2802,37 @@ function dreamFrac(a){
   const pace=MONEY_DREAMS.includes(d.k)?[Math.floor(a.gold||0),d.amt]:DREAM_PACE[d.k]&&DREAM_PACE[d.k](a,d);
   if(!pace||!(pace[1]>0))return null;
   return Math.min(1,Math.max(0,(pace[0]||0)/pace[1]));
+}
+// 夢の節目の一言。夢の種類ごとに、[半分を越えたとき, 8割を越えたとき] の本人の言葉（#278）
+const DREAM_STEP={
+  home:['船賃、半分は貯まった','もうすぐ故郷へ帰る船に乗れる'],debt:['故郷の借金、返す金が半分は貯まった','あと少しで借金がきれいになる'],
+  wealth:['遊んで暮らす財産まで、もう半分だ','あと少しで一生遊んで暮らせる'],shop:['店の元手、半分は貯まった','大通りに店を出す日が近い'],
+  temple:['村の寺院の金、半分は貯まった','もうすぐ村に寺院を建てられる'],sendhome:['仕送りの金、半分は貯まった','もうすぐ仕送りを届けられる'],
+  marry:['所帯を持つ金、半分は貯まった','もうすぐ迎えに行ける'],pension:['余生の蓄え、半分はできた','剣を置く日が近い'],
+  mine:['坑道を買い戻す金、半分は貯まった','もうすぐ一族の坑道を取り戻せる'],hobbithome:['丸い窓の家の金、半分は貯まった','もうすぐ麦穂の丘に家を建てられる'],
+  ship:['船を買う金、半分は貯まった','自分の船を持つ日が近い'],absolve:['寄進の金、半分は積めた','もうすぐ破門が解ける'],
+  grain:['村に送る麦の金、半分は貯まった','もうすぐ村に麦を送れる'],horse:['名馬を買い戻す金、半分は貯まった','あと少しで一族の馬を取り戻せる'],
+  dwarfaxe:['親方に払う金、半分は貯まった','もうすぐ親方に得物を打ってもらえる'],
+  hero:['めざすレベルの半ばまで来た','英雄の域まで、あと少しだ'],prove:['めざすレベルの半ばまで来た','あの連中に見せつける日が近い'],
+  defy:['めざすレベルの半ばまで来た','故郷の連中を見返す日が近い'],archmage:['呪文の道の半ばまでは来た','大魔導士と呼ばれる日が近い'],
+  deep:['めざす階の半分までは潜った','あの階の景色まで、あと少しだ'],lastdive:['めざす階の半分までは潜った','最後に潜りたい階まで、あと少しだ'],
+  elfrelic:['めざす階の半分までは潜った','エルフの弓の眠る階が近い'],father:['親父の目指した階の、半分までは来た','親父の目指した階が近い'],
+  abyss:['最下層までの半分は潜った','最下層まで、あと少しだ'],truth:['故国の沈んだ底まで、半分は来た','故国が沈んだ真相まで、あと少しだ'],
+  crest:['紋章の眠る深さの、半分までは来た','紋章の眠る宮廷が近い'],elixir:['澱晶のある深さの、半分までは来た','澱晶のある深みが近い'],
+  trapper:['外した罠が、めざす数の半分を越えた','迷宮一の罠外しまで、あと少しだ'],thousand:['斬った魔物が、めざす数の半分を越えた','あと少しで、めざす数を斬り伏せる'],
+};
+// 夢の節目（半分・8割）を初めて越えたら、本人の言葉で日報に一行出す（#278）。黒猫亭の常連だけ。乱数は引かない。
+// 出した節目は夢に st（0〜2）として持つ。初めて見た夢（新しく抱いた夢・古い記録の夢）は、そのとき越えている節目を出したことにして黙って付ける。
+// st は下がらないので、同じ節目は二度出さず、貯金を使って下がってからまた越えても出さない。一度に二つ越えたら8割の一行だけ。かなう（10割）ときは、かなった知らせに任せる
+function dreamSteps(S){
+  for(const a of Object.values(S.adv)){
+    const d=a.dream;if(a.tav!=='ours'||!d||!DREAM_STEP[d.k]||!isActive(a))continue;
+    const f=dreamFrac(a);if(f==null)continue;
+    const step=f>=.8?2:f>=.5?1:0;
+    if(d.st==null){d.st=step;continue;}
+    if(step<=d.st)continue;
+    d.st=step;if(f<1)news(S,'dreamStep',{who:a.name,k:d.k,step},'info');
+  }
 }
 // 夢が近い：進みが8割を越えた（#277）
 function dreamNear(a){const f=dreamFrac(a);return f!=null&&f>=.8;}
