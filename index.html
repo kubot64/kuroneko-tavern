@@ -4738,22 +4738,28 @@ function digestWhere(){
   return out.length?'いま潜っている：'+out.map(p=>nw(esc(p.name)+'（'+viewOf(S,p).label[0]+'）')).join('、'):'いま迷宮に潜っている黒猫亭の一行はいない。';
 }
 // 留守のあいだの知らせに名前の出た黒猫亭の者を、新しい知らせの順に4人まで。押すとその人の手帳が開く（#256）
-// 知らせの中身の値と名前が完全に一致する者を拾う。文のまま持つ知らせ（便りなど）は文から拾うが、ほかの者の名前の一部として出ているだけなら拾わない（#263）
+// 知らせの中身の値は、称号つきの名前（「「百戦錬磨」アル」）や名前を含む文（装備の由来など）もあるので、文のまま持つ知らせと同じく文の中から拾う（#268）。
+// ただし一行の名前（p）は人を指さないので、名前と完全に一致するときだけにする。ほかの者の名前の一部として出ているだけなら拾わない（#263）
 function digestWho(items){
   const all=Object.values(S.adv).filter(a=>a.name),ours=all.filter(a=>a.tav==='ours'),got=[];
   for(const x of items.slice().reverse()){
     const vals=[],texts=x.t!=null?[x.t]:[];
-    const walk=(v,k)=>{if(typeof v==='string')(k==='t'?texts:vals).push(v);else if(Array.isArray(v))v.forEach(y=>walk(y,k));else if(v&&typeof v==='object')for(const kk in v)walk(v[kk],kk);};
+    const walk=(v,k)=>{if(typeof v==='string')(k==='p'?vals:texts).push(v);else if(Array.isArray(v))v.forEach(y=>walk(y,k));else if(v&&typeof v==='object')for(const kk in v)walk(v[kk],kk);};
     walk(x.args,null);
     for(const a of ours)if(got.length<4&&!got.includes(a)&&(vals.includes(a.name)||texts.some(t=>nameInText(t,a.name,all))))got.push(a);
   }
   return got;
 }
-// 文の中に name が、より長いほかの者の名前の一部としてではなく出ているか
+// 文の中に name が、一つの語として出ているか。より長いほかの者の名前の一部や、前後にカタカナが続く語の一部（「ゴブリン」の「リン」）は数えない。区切りの「・」は語の続きにしない
+const KANA_RUN=/[\u30A1-\u30FA\u30FC-\u30FF]/;
 function nameInText(t,name,all){
   const spans=[];
   for(const b of all)if(b.name.length>name.length&&b.name.includes(name))for(let j=t.indexOf(b.name);j>=0;j=t.indexOf(b.name,j+1))spans.push([j,j+b.name.length]);
-  for(let i=t.indexOf(name);i>=0;i=t.indexOf(name,i+1))if(!spans.some(([s,e])=>s<=i&&i+name.length<=e))return true;
+  for(let i=t.indexOf(name);i>=0;i=t.indexOf(name,i+1)){
+    if(spans.some(([s,e])=>s<=i&&i+name.length<=e))continue;
+    if(KANA_RUN.test(t[i-1]||'')||KANA_RUN.test(t[i+name.length]||''))continue;
+    return true;
+  }
   return false;
 }
 // 丸めて60分や24時間になるときは、上の単位で出す
@@ -4968,7 +4974,7 @@ function sideBoard(){
         .sort((x,y)=>(rank(x)-rank(y))||(!!y.a.marked-!!x.a.marked)||byTeam(x.a,y.a));
       // 持ちかけた者には、そのときの返しを本人の言葉として添える
       const said=a=>{const r=e.asked&&e.asked[a.id];return r?`<span class="does ask">${keepText(`「${r.t}」`)}</span>`:'';};
-      foot=`<div class="pick"><p class="note" style="margin:4px 0">誰を主役にするか。名前を押すと手帳が開く。酒場にいる者には、話を持ちかけて返事を聞ける。迷宮や寺院にいる者を選んだときは、次に酒場で会えたときに伝える。<button class="btn sm" data-act="pickerr" data-e="">やめる</button></p>${cs.map(({a,d,b})=>`<div class="row"><span class="who">${nmLink(a,true)}${markTag(a)}${teamTag(a)} <span class="meta">${lvCls(a)}・${a.pers}${b&&!d?'・'+esc(b):''}</span>${said(a)}</span>${d?`<span class="chip">${d}</span>`:`${askBlock(S,e,a)?'':`<button class="btn sm" data-act="ask" data-e="${e.id}" data-a="${a.id}">話を持ちかける</button>`}<button class="btn sm" data-act="assign" data-e="${e.id}" data-a="${a.id}">${b?'戻ったら伝える':'回す'}</button>`}</div>`).join('')||'<p class="note">黒猫亭の常連がいない。</p>'}</div>`;}
+      foot=`<div class="pick"><p class="note" style="margin:4px 0">誰を主役にするか。名前を押すと手帳が開く。酒場にいる者には、話を持ちかけて返事を聞ける。迷宮や寺院にいる者を選んだときは、次に酒場で会えたときに伝える。<button class="btn sm" data-act="pickerr" data-e="">やめる</button></p>${cs.map(({a,d,b})=>`<div class="row"><span class="who">${nmLink(a,true)}${markTag(a)}${teamTag(a)} <span class="meta">${lvCls(a)}・${a.pers}${b&&!d?'・'+esc(b):''}${dreamMeta(a)}</span>${said(a)}</span>${d?`<span class="chip">${d}</span>`:`${askBlock(S,e,a)?'':`<button class="btn sm" data-act="ask" data-e="${e.id}" data-a="${a.id}">話を持ちかける</button>`}<button class="btn sm" data-act="assign" data-e="${e.id}" data-a="${a.id}">${b?'戻ったら伝える':'回す'}</button>`}</div>`).join('')||'<p class="note">黒猫亭の常連がいない。</p>'}</div>`;}
     return `<div class="quote board"><b>${esc(e.n)}</b>${e.arc?`<span class="markmark">続きもの・${esc(ARCS[e.arc].n)}　${e.stage}/${ARCS[e.arc].stages.length}</span>`:''}<span class="by">${esc(e.from)}から・${h?'引き受け済み':`掲示はあと${dd(e.until)}日`}</span>「${esc(e.t)}」${foot}</div>`;};
   const log=E.log.slice(-5).reverse().map(l=>`<div class="row"><span class="who">${l.ok?'<span class="chip">果たした</span>':'<span class="chip ash">果たせず</span>'} ${esc(l.n)}${l.who?`・${l.id&&S.adv[l.id]?nmLink(S.adv[l.id]):esc(l.who)}`:''}<span class="does">${esc(l.t)}</span></span><span class="meta">${dayMark(l.tk)}</span></div>`).join('');
   const shallow=st===1?'<p class="note">いまは浅い頼みごとだけ。名が上がれば、もっと持ち込まれる。</p>':'';
@@ -5225,6 +5231,8 @@ function doing(a){
   if(!opts.length)return '';
   return opts[(a.id*7+day(S)*3+Math.floor(S.tick/20))%opts.length];
 }
+// 主役を選ぶ欄の meta に添える夢の進み。手帳と同じ文で、夢がない者・かなえた者には何も足さない（#274）
+function dreamMeta(a){const t=dreamProgress(a);return t?'・夢 '+parenNw(t):'';}
 function dreamProgress(a){
   const d=a.dream;if(!d||!DREAMS[d.k])return '';
   return DREAMS[d.k].prog?DREAMS[d.k].prog(a,d,S):'';
@@ -5297,8 +5305,9 @@ document.addEventListener('click',e=>{
   if(act==='closelife'){$('life').hidden=true;S.lifeQ=[];save();maybePayoff();return;}
   if(act==='adv'){advOpen=+b.dataset.a;$('advm').hidden=false;$('advbox').scrollTop=0;renderAdv();return;}
   if(act==='closeadv'){if(b.id==='advm'&&e.target!==b)return;advOpen=null;$('advm').hidden=true;return;}
-  if(act==='memo'){reviveNote=null;tab='desk';$('tbody').scrollTop=0;render();focusSide();const memo=$('memo');if(memo&&!matchMedia('(max-width:900px)').matches)memo.scrollIntoView({block:'nearest',behavior:'instant'});return;}
-  if(act==='tab'){if(b.dataset.v!=='desk')reviveNote=null;tab=b.dataset.v;$('tbody').scrollTop=0;renderSide();focusSide();return;}
+  if(act==='memo'){reviveNote=null;tab='desk';leftOpen=false;$('tbody').scrollTop=0;render();focusSide();const memo=$('memo');if(memo&&!matchMedia('(max-width:900px)').matches)memo.scrollIntoView({block:'nearest',behavior:'instant'});return;}
+  // タブを押したら（同じタブを押し直しても）水晶と一行は畳んだ形に戻し、中身の先頭を最初の画面に出す（#279）
+  if(act==='tab'){if(b.dataset.v!=='desk')reviveNote=null;tab=b.dataset.v;leftOpen=false;$('tbody').scrollTop=0;renderSide();focusSide();return;}
   if(act==='shoptier'){shopTier=+b.dataset.v;renderSide();return;}
   if(act==='selc'){S.sel=+b.dataset.i;render();return;}
   if(act==='watch'){

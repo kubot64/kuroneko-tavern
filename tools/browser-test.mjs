@@ -200,6 +200,33 @@ test('「留守のあいだに」の手帳を見るは、ほかの者の名前�
   assert.deepEqual(errors,[]);await ctx.close();
 });
 
+test('「留守のあいだに」の手帳を見るは、称号つきの名前の昇格・去った・ロストと、名前を含む値の本人を並べ、語の一部と一行の名前では並べない（#268）',async()=>{
+  const {ctx,page,errors}=await open();
+  await page.locator('#sp0').click();
+  const shown=(names,add)=>page.evaluate(([names,add])=>{
+    const ours=Object.values(S.adv).filter(x=>x.tav==='ours');
+    names.forEach((n,i)=>{ours[i].name=n;});
+    const t0=S.tick;
+    for(const [k,args] of add)news(S,k,args,'info');
+    drawDigest({i:50,n:50,awaySec:3600,startTick:t0-1,g0:S.taverns.ours.gold,e0:0,s0:0,r0:0,lost0:S.memorial.length,returns:0,wipes:0});
+    document.querySelector('#digest').hidden=false;
+    return [...document.querySelectorAll('#dg-who button')].map(b=>b.textContent).sort();
+  },[names,add]);
+  // 再現手順：称号つきの昇格・ロスト・去った知らせと、装備の由来の文
+  assert.deepEqual(await shown(['アル','ダリオ','エッダ','マティアス'],[
+    ['promote',{tav:'黒猫亭',who:'「百戦錬磨」アル',from:'warrior',to:'berserker'}],
+    ['lost',{tav:'黒猫亭',who:'「鉄壁」ダリオ',farewell:''}],
+    ['farewell',{tav:'黒猫亭',who:'「船乗り」エッダ',why:'夢をかなえた'}],
+    ['rareKill',{tav:'黒猫亭',p:'灰色の鷺',f:12,m:'首狩り',what:'首狩りの小刀（マティアスが手にした）'}],
+  ]),['アル','エッダ','ダリオ','マティアス'].sort(),'称号つきの名前や、名前を含む値の本人が並ばない');
+  // 並ばないもの：魔物の名の一部（ゴブリンのリン）、より長い名前の一部（ミナトのミナ）、一行の名前（リンの一行）
+  assert.deepEqual(await shown(['リン','ミナ','ミナト','カイ'],[
+    ['rareKill',{tav:'黒猫亭',p:'リンの一行',f:3,m:'ゴブリンの王',what:'錆びた冠（カイが手にした）'}],
+    ['promote',{tav:'黒猫亭',who:'「百戦錬磨」ミナト',from:'warrior',to:'berserker'}],
+  ]),['カイ','ミナト'].sort(),'語の一部や一行の名前として出ているだけの者が並ぶ');
+  assert.deepEqual(errors,[]);await ctx.close();
+});
+
 test('手帳の上に場面が出ているときの Esc は、場面だけを閉じ、手帳は開いたまま（#263）',async()=>{
   const {ctx,page,errors}=await open();
   await page.locator('#sp0').click();
@@ -245,6 +272,45 @@ test('375pxで店側のタブを開くと水晶と一行を畳み、中身の先
   await page.setViewportSize({width:1280,height:800});
   await page.locator('#tabs button[data-v="desk"]').click();
   assert.equal(await left.isVisible(),true);assert.equal(await fold.isVisible(),false);
+  assert.deepEqual(errors,[]);await ctx.close();
+});
+
+test('375pxで水晶を開いたまま別のタブへ行き戻ると畳まれ、中身の先頭が最初の画面に見える。覚え書きの帯から帳場へ移っても同じ（#279）',async()=>{
+  const {ctx,page,errors}=await open();
+  await page.locator('#sp0').click();
+  await page.setViewportSize({width:375,height:812});
+  const left=page.locator('.left'),fold=page.locator('#foldbar');
+  const tab=async v=>{await page.locator(`#tabs button[data-v="${v}"]`).click();await frames(page);};
+  // 中身の先頭（最初の段）の見出しと一行目が、下のタブと返済の帯より上に入っている
+  const headSeen=()=>page.evaluate(()=>{const h=document.querySelector('#tbody').firstElementChild.getBoundingClientRect();
+    const cs=getComputedStyle(document.documentElement),bar=parseFloat(cs.getPropertyValue('--tabbar-h'))+parseFloat(cs.getPropertyValue('--paybar-h')||'0');
+    return h.top+80<=innerHeight-bar;});
+  // 再現の場面：帳場で開く → 酒場 → 帳場
+  await tab('desk');await fold.click();
+  assert.equal(await left.isVisible(),true,'帳場で開けない');
+  await tab('bar');await tab('desk');
+  assert.equal(await left.isVisible(),false,'酒場から帳場に戻っても水晶が開いたまま');
+  assert.equal(await fold.getAttribute('aria-expanded'),'false');
+  assert.ok(await headSeen(),'帳場に戻ったとき中身の先頭が最初の画面に入らない');
+  // 店側のタブどうしで移っても畳む
+  await fold.click();await tab('shop');
+  assert.equal(await left.isVisible(),false,'帳場から武具屋に移っても水晶が開いたまま');
+  assert.ok(await headSeen(),'武具屋の中身の先頭が最初の画面に入らない');
+  // 同じタブにいるあいだは、開け閉めできる
+  await fold.click();assert.equal(await left.isVisible(),true,'武具屋で開けない');
+  await fold.click();assert.equal(await left.isVisible(),false,'武具屋で畳めない');
+  // 覚え書きの帯から帳場に移ったとき
+  await fold.click();assert.equal(await left.isVisible(),true);
+  await page.evaluate(()=>{const m=document.querySelector('#memoline');m.hidden=false;m.textContent='覚え書き';});
+  await page.locator('#memoline').click();await frames(page);
+  assert.equal(await page.evaluate(()=>tab),'desk');
+  assert.equal(await left.isVisible(),false,'覚え書きの帯から帳場に移っても水晶が開いたまま');
+  assert.ok(await headSeen(),'覚え書きから移ったとき中身の先頭が最初の画面に入らない');
+  // 境目：899pxでは畳み、901pxでは畳まない
+  await page.setViewportSize({width:899,height:900});await tab('desk');
+  assert.equal(await left.isVisible(),false,'899pxで畳まれない');assert.equal(await fold.isVisible(),true);
+  await page.setViewportSize({width:901,height:900});await tab('desk');
+  assert.equal(await left.isVisible(),true,'901pxで畳まれた');assert.equal(await fold.isVisible(),false);
   assert.deepEqual(errors,[]);await ctx.close();
 });
 
@@ -1850,6 +1916,37 @@ test('掲示に主役の決まっていない話があるのに、いま酒場�
   assert.equal(await gap(),'いま話を回せる黒猫亭の常連がいない。');
   await page.evaluate(()=>{const e=errandsOf(S).board[0];e.refused=[];e.pend=Object.values(S.adv).find(a=>a.tav==='ours'&&isActive(a)).id;render();});
   assert.equal(await gap(),'','主役の決まっていない話がないとき');
+  assert.deepEqual(errors,[]);await ctx.close();
+});
+
+test('掲示の主役選びの行に、手帳と同じ文で夢の進みが出る。夢がない者・かなえた者には足さず、375pxで崩れない（#274）',async()=>{
+  const {ctx,page,errors}=await open();
+  await page.locator('#sp0').click();
+  const ids=await page.evaluate(()=>{
+    const T0=S.taverns.ours;T0.debt=0;T0.debtFree=S.tick;const E=errandsOf(S);E.stage=3;E.next=S.tick+99*TICKS_PER_DAY;
+    E.board=[{id:900,k:'bell',n:'鐘楼の光',from:'梟の地図屋',t:ERRANDS.find(x=>x.k==='bell').txt(8),f:8,until:S.tick+TICKS_PER_DAY*20,hero:null,refused:[],tk:S.tick}];
+    const ours=Object.values(S.adv).filter(x=>x.tav==='ours'&&isActive(x)).slice(0,3);
+    ours[0].dream={k:'home',amt:4200};ours[0].gold=2180;
+    ours[1].dream={k:'hero',l:30};
+    ours[2].dream=null;
+    tab='bar';pickErr=900;render();
+    return ours.map(a=>a.id);
+  });
+  const metas=await page.evaluate(ids=>ids.map(id=>{const b=document.querySelector(`.pick button[data-act="adv"][data-a="${id}"]`);return b.closest('.row').querySelector('.meta').textContent;}),ids);
+  const progs=await page.evaluate(ids=>ids.map(id=>dreamProgress(S.adv[id])),ids);
+  assert.equal(progs[0],'貯金 2,180G / 4,200G');
+  assert.ok(metas[0].endsWith('・夢 '+progs[0]),metas[0]);
+  assert.ok(metas[1].endsWith('・夢 '+progs[1])&&/いまLv\d+/.test(progs[1]),metas[1]);
+  assert.doesNotMatch(metas[2],/夢/,'夢がない者に夢の進みが出た');
+  // 手帳と同じ数字
+  await page.locator(`.pick button[data-act="adv"][data-a="${ids[0]}"]`).click();
+  assert.match(await page.locator('#advm').innerText(),/貯金 2,180G \/ 4,200G/);
+  await page.keyboard.press('Escape');
+  for(const [width,height] of [[375,740],[1280,800]]){
+    await page.setViewportSize({width,height});
+    await page.evaluate(()=>document.fonts.ready);
+    assert.deepEqual(await page.evaluate(screenAudit),[],`${width}px の主役選び`);
+  }
   assert.deepEqual(errors,[]);await ctx.close();
 });
 
