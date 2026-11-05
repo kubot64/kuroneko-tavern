@@ -291,6 +291,34 @@ test('375pxで『留守のあいだに』の居場所の一行の「。」「、
   assert.deepEqual(errors,[]);await ctx.close();
 });
 
+test('375pxで『留守のあいだに』の居場所の行は、長い名前でも枠からはみ出さず「）、」が見え、句読点だけが行の頭に落ちない（#302）',async()=>{
+  const {ctx,page,errors}=await open();
+  await page.locator('#sp0').click();
+  await page.setViewportSize({width:375,height:812});
+  const m=await page.evaluate(async()=>{
+    await document.fonts.ready;
+    // 黒猫亭の一行を写して三つにし、読みつきの長い名前で潜らせる
+    const p0=Object.values(S.parties).find(p=>p.tav==='ours');
+    for(const id of ['t302a','t302b'])S.parties[id]=Object.assign(JSON.parse(JSON.stringify(p0)),{id});
+    const ps=[p0,S.parties.t302a,S.parties.t302b];
+    ['アルト・オイレ（古の梟）','シュタール・シュヴェルト（鋼の剣）','灰色の鷺'].forEach((nm,i)=>{ps[i].name=nm;setPhase(S,ps[i],'explore');ps[i].floor=6;});
+    S.tick+=TICKS_PER_DAY;news(S,'edict',{from:'噂',t:'北の街道で荷車がひっくり返ったらしい'},'info');
+    drawDigest({i:50,n:50,awaySec:3600,startTick:S.tick-1,g0:S.taverns.ours.gold,e0:S.taverns.ours.earned||0,s0:0,r0:0,lost0:S.memorial.length,returns:0,wipes:0});
+    document.querySelector('#digest').hidden=false;
+    const el=[...document.querySelectorAll('#dg-news > li .note')].at(-1),box=el.getBoundingClientRect(),L=box.left,bad=[],tops=new Set();
+    const w=document.createTreeWalker(el,NodeFilter.SHOW_TEXT);let n;
+    while((n=w.nextNode()))for(let i=0;i<n.length;i++){const r=document.createRange();r.setStart(n,i);r.setEnd(n,i+1);const b=r.getBoundingClientRect();if(!b.width)continue;tops.add(Math.round(b.top));
+      if(b.right>box.right+1)bad.push(`枠の外「${n.data[i]}」`);
+      if('。、）'.includes(n.data[i])&&b.left-L<2)bad.push(`行の頭「${n.data[i]}」`);}
+    return {text:el.textContent,bad,lines:tops.size};
+  });
+  assert.match(m.text,/^いま潜っている：アルト・オイレ（古の梟）（B6F .+）、シュタール・シュヴェルト（鋼の剣）（B6F .+）、灰色の鷺（B6F .+）$/);
+  assert.ok(m.lines>=2,'折れていない（確かめにならない）');
+  assert.deepEqual(m.bad,[],'375px で居場所の行が崩れた');
+  assert.deepEqual(await page.evaluate(screenAudit),[],'375px の留守のあいだに');
+  assert.deepEqual(errors,[]);await ctx.close();
+});
+
 test('『留守のあいだに』で黒猫亭の帰還・返済・掲示・挑発・首位・初到達・遺体の知らせは黒猫亭の側に数え、ほかの店の知らせは「ほか」に入れる（#294）',async()=>{
   const {ctx,page,errors}=await open();
   await page.locator('#sp0').click();
