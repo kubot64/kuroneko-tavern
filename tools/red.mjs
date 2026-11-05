@@ -25,36 +25,38 @@ const git=(...a)=>execFileSync('git',a,{cwd:ROOT,encoding:'utf8',stdio:['ignore'
 let base=opt('--base');
 try{base=base?git('rev-parse','--short',`${base}^{commit}`):git('merge-base','HEAD','origin/main').slice(0,7);}
 catch(e){console.error(`比べる版を決められない（${String(e.stderr||e.message).trim()}）。--base で渡す`);process.exit(2);}
-const dir=mkdtempSync(join(tmpdir(),'kt-red-')),html=join(dir,'index.html');
-writeFileSync(html,git('show',`${base}:index.html`));
-const env={...process.env,KT_HTML:html};
-const run=(cmd,a)=>spawnSync(cmd,a,{cwd:ROOT,env,encoding:'utf8',maxBuffer:1<<28});
-
-console.log(`直す前の版：${base}（${git('log','-1','--format=%s',base)}）`);
 const red=[],green=[],unsure=[];
-if(ONLY!=='spec'){
-  const r=run(process.execPath,['--test','--test-name-pattern',PAT.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'),'tools/browser-test.mjs']);
-  const out=r.stdout+r.stderr;
-  // TAP の各テストの行と、その下の失敗の中身（次のテストの行まで）
-  const blocks=out.split(/\n(?=(?:not )?ok \d+ - )/);
-  for(const b of blocks){
-    const m=/^(not )?ok \d+ - (.+)$/m.exec(b),title=m&&m[2].replace(/\\#/g,'#');if(!m||!title.includes(PAT))continue;
-    const name='画面：'+title;
-    if(!m[1])green.push(name);else if(/page\.goto: Timeout/.test(b))unsure.push(name+'（読み込みのタイムアウト）');else red.push(name);
+// 取り出した版を一時フォルダに置いて回す。途中で例外になっても、一時フォルダは残さない
+const dir=mkdtempSync(join(tmpdir(),'kt-red-'));
+try{runAgainst(join(dir,'index.html'));}
+finally{rmSync(dir,{recursive:true,force:true});}
+
+function runAgainst(html){
+  try{writeFileSync(html,git('show',`${base}:index.html`));}
+  catch(e){console.error(`${base} の index.html を取り出せない（${String(e.stderr||e.message).trim()}）`);process.exitCode=2;return;}
+  const env={...process.env,KT_HTML:html};
+  const run=(cmd,a)=>spawnSync(cmd,a,{cwd:ROOT,env,encoding:'utf8',maxBuffer:1<<28});
+  console.log(`直す前の版：${base}（${git('log','-1','--format=%s',base)}）`);
+  if(ONLY!=='spec'){
+    const r=run(process.execPath,['--test','--test-name-pattern',PAT.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'),'tools/browser-test.mjs']);
+    // TAP の各テストの行と、その下の失敗の中身（次のテストの行まで）
+    for(const b of (r.stdout+r.stderr).split(/\n(?=(?:not )?ok \d+ - )/)){
+      const m=/^(not )?ok \d+ - (.+)$/m.exec(b),title=m&&m[2].replace(/\\#/g,'#');if(!m||!title.includes(PAT))continue;
+      const name='画面：'+title;
+      if(!m[1])green.push(name);else if(/page\.goto: Timeout/.test(b))unsure.push(name+'（読み込みのタイムアウト）');else red.push(name);
+    }
+  }
+  if(ONLY!=='browser'){
+    const r=run(process.execPath,['tools/spec-test.mjs','--seeds','0']),out=r.stdout+r.stderr;
+    for(const line of out.split('\n')){
+      const m=/^([○×]) (.+)$/.exec(line);if(!m||!m[2].includes(PAT))continue;
+      (m[1]==='×'?red:green).push('仕様：'+m[2]);
+    }
+    // 古い版にない名前を呼んで、確かめの途中で止まったとき。どの確かめで止まったかは分からないので、確かめにならなかったものとして扱う
+    if(r.status!==0&&!/件のうち/.test(out)){const e=/^\w*Error: .+$/m.exec(out);unsure.push(`仕様：確かめが途中で止まった（${e?e[0]:'終了コード'+r.status}）`);}
   }
 }
-if(ONLY!=='browser'){
-  const r=run(process.execPath,['tools/spec-test.mjs','--seeds','0']);
-  const out=r.stdout+r.stderr;
-  for(const line of out.split('\n')){
-    const m=/^([○×]) (.+)$/.exec(line);if(!m||!m[2].includes(PAT))continue;
-    (m[1]==='×'?red:green).push('仕様：'+m[2]);
-  }
-  // 古い版にない名前を呼んで、確かめの途中で止まったとき
-  // どの確かめで止まったかは分からないので、確かめにならなかったものとして扱う
-  if(r.status!==0&&!/件のうち/.test(out)){const e=/^\w*Error: .+$/m.exec(out);unsure.push(`仕様：確かめが途中で止まった（${e?e[0]:'終了コード'+r.status}）`);}
-}
-rmSync(dir,{recursive:true,force:true});
+if(process.exitCode===2)process.exit(2);
 
 for(const n of red)console.log(`red    ${n}`);
 for(const n of green)console.log(`通った ${n}`);
