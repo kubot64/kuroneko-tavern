@@ -975,7 +975,7 @@ const NEWS={
   kinNoSeat:{t:x=>`${x.who}の${x.label}が黒猫亭を訪ねたが、席がなかったので故郷へ帰った。`},
   kinCame:{t:x=>x.t+(x.cls?` ${raceName(x.race)}の${clsName(x.cls)}、Lv${x.lvl}。`:'')},
   dreamDone:{t:x=>(x.rival?'銀の杯亭の':'')+x.t},
-  dreamStep:{t:x=>`黒猫亭の${x.who}が「${DREAM_STEP[x.k][x.step-1]}」と${x.step===2?'笑っていた':'話していた'}。`},
+  dreamStep:{t:x=>`黒猫亭の${x.who}が「${x.say||dreamStepText(x.k,null,x.step)}」と${x.step===2?'笑っていた':'話していた'}。`},
   foundAlive:{t:x=>`${x.tav}の${x.who}が、${FN(x.f)}で行方知れずだった${x.kin}の${x.name}を生きて見つけ出した！`},
   foundKeep:{t:x=>`${x.tav}の${x.who}が、${FN(x.f)}で行方知れずの${x.kin}の${x.keep}を見つけた。`},
   formParty:{t:x=>`${x.leader}が仲間を集め、${x.p}を結成した。仲間は${x.mates.join('・')}。`},
@@ -1318,21 +1318,23 @@ function chronText(c){return c.t!=null?c.t:CHRON[c.kind].t(c.args||{});}
 // 記録の種類の印（end・lv・revive）。lv は args によって決まる種類もある
 function chronMark(c,m){const d=c&&c.kind&&CHRON[c.kind];if(!d||!d[m])return false;return typeof d[m]==='function'?d[m](c.args||{}):d[m];}
 function dreamArgs(d){const x={d:dreamText(d)};if(d&&d.l!=null)x.lv=1;return x;}
+// 貯金の夢の進み：[いまの所持金, 夢の額]。所持金が夢の額以上でかなう夢は、これを pace に持つ（#293）
+const goldPace=(a,d)=>[Math.floor(a.gold||0),d.amt];
 const DREAMS={
   conquer:{w:.6,cw:{'warrior':1,'samurai':1,'paladin':1.5,'kensei':1.5,'dragoon':1.2},mk:()=>({}),txt:()=>'迷宮の主を討ち、踏破者として名を残したい',
     ok:(S,a)=>a.conq,msg:a=>`${a.name}が迷宮の主を討ち、踏破者として名を残した。`,prog:a=>`これまでの最深 ${deepNow(a.deepest)}`},
   truth:{w:0,ow:{'灰の荒野':3},mk:()=>({}),txt:()=>'故国エスタリアが沈んだ真相を、この目で確かめたい',
     pace:(a,d)=>[a.deepest,MAXF],msg:a=>`${a.name}が迷宮の最下層にたどり着き、故国が沈んだ地の底をその目で見た。`,prog:a=>`これまでの最深 ${deepNow(a.deepest)}`},
   home:{w:0,ow:{'東方の島国アズマ':3,'砂の大陸ザハル':3,'北の氷海ノルデン':3},mk:a=>({amt:r100(Math.max(5000,incomeAt(depthOf(a)+3)*ri(12,20)))}),txt:d=>`海を渡って故郷へ帰る船賃と土産（${d.amt}G）を稼ぎたい`,
-    ok:(S,a,d)=>a.gold>=d.amt,pay:d=>d.amt,msg:a=>`${a.name}が故郷へ帰る船賃を稼ぎ終えた。`,ret:d=>d.vi===1&&d.who?`海を渡って故郷の${d.who}のもとへ帰る`:'海を渡って故郷へ帰る',prog:(a,d)=>`貯金 ${G(a.gold)} / ${G(d.amt)}`},
+    pace:goldPace,pay:d=>d.amt,msg:a=>`${a.name}が故郷へ帰る船賃を稼ぎ終えた。`,ret:d=>d.vi===1&&d.who?`海を渡って故郷の${d.who}のもとへ帰る`:'海を渡って故郷へ帰る',prog:(a,d)=>`貯金 ${G(a.gold)} / ${G(d.amt)}`},
   debt:{w:1.2,mk:a=>({amt:r100(Math.max(1500,incomeAt(depthOf(a)+2)*ri(6,12)))}),txt:d=>`故郷に残した莫大な借金${d.amt}Gを返したい`,
-    ok:(S,a,d)=>a.gold>=d.amt,pay:d=>d.amt,msg:(a,d)=>d.vi===2&&d.what?`${a.name}が、高利貸しに取られた${d.what}をついに取り戻した。`:d.vi===1&&d.who?`${a.name}が${d.who}の残した借金${d.amt}Gを返し、家を取り戻した。`:`${a.name}が故郷の借金${d.amt}Gをついに返し終えた。`,ret:()=>chance(.35)?'故郷へ帰る':null,prog:(a,d)=>`貯金 ${G(a.gold)} / ${G(d.amt)}`},
+    pace:goldPace,pay:d=>d.amt,msg:(a,d)=>d.vi===2&&d.what?`${a.name}が、高利貸しに取られた${d.what}をついに取り戻した。`:d.vi===1&&d.who?`${a.name}が${d.who}の残した借金${d.amt}Gを返し、家を取り戻した。`:`${a.name}が故郷の借金${d.amt}Gをついに返し終えた。`,ret:()=>chance(.35)?'故郷へ帰る':null,prog:(a,d)=>`貯金 ${G(a.gold)} / ${G(d.amt)}`},
   wealth:{w:1,mk:a=>({amt:r100(Math.max(30000,incomeAt(depthOf(a)+3)*ri(40,60)))}),txt:d=>`一生遊んで暮らせる財産（${d.amt}G）を築きたい`,
-    ok:(S,a,d)=>a.gold>=d.amt,msg:(a,d)=>`${a.name}が${d.amt}Gの財を成した。`,ret:d=>d.vi===1&&d.place?`${d.place}に屋敷を構える`:'財を成し、悠々自適の暮らしに入る',prog:(a,d)=>`貯金 ${G(a.gold)} / ${G(d.amt)}`},
+    pace:goldPace,msg:(a,d)=>`${a.name}が${d.amt}Gの財を成した。`,ret:d=>d.vi===1&&d.place?`${d.place}に屋敷を構える`:'財を成し、悠々自適の暮らしに入る',prog:(a,d)=>`貯金 ${G(a.gold)} / ${G(d.amt)}`},
   shop:{w:1,mk:a=>({amt:r100(Math.max(12000,incomeAt(depthOf(a)+3)*ri(20,30))),what:pick(['パン屋','鍛冶屋','宿屋','薬屋','本屋','花屋','酒場','武具屋'])}),txt:d=>`王都の大通りに${d.what}を構えたい（${d.amt}G）`,
-    ok:(S,a,d)=>a.gold>=d.amt,pay:d=>d.amt,msg:(a,d)=>`${a.name}が貯めた金で、${d.place||'王都の大通り'}に${d.what}を構えることになった。`,ret:d=>`${d.place||'王都'}に${d.what}を構える`,prog:(a,d)=>`貯金 ${G(a.gold)} / ${G(d.amt)}`},
+    pace:goldPace,pay:d=>d.amt,msg:(a,d)=>`${a.name}が貯めた金で、${d.place||'王都の大通り'}に${d.what}を構えることになった。`,ret:d=>`${d.place||'王都'}に${d.what}を構える`,prog:(a,d)=>`貯金 ${G(a.gold)} / ${G(d.amt)}`},
   temple:{w:.3,cw:{'priest':2.5,'bishop':2.5},mk:a=>({amt:r100(Math.max(10000,incomeAt(depthOf(a)+3)*ri(15,25)))}),txt:d=>`故郷の村に寺院を建てたい（${d.amt}G）`,
-    ok:(S,a,d)=>a.gold>=d.amt,pay:d=>d.amt,msg:(a,d)=>`${a.name}の寄進で、故郷の村に${d.what||'寺院'}が建つことになった。`,ret:d=>`故郷に建てた${d.what||'寺院'}を守る`,prog:(a,d)=>`貯金 ${G(a.gold)} / ${G(d.amt)}`},
+    pace:goldPace,pay:d=>d.amt,msg:(a,d)=>`${a.name}の寄進で、故郷の村に${d.what||'寺院'}が建つことになった。`,ret:d=>`故郷に建てた${d.what||'寺院'}を守る`,prog:(a,d)=>`貯金 ${G(a.gold)} / ${G(d.amt)}`},
   abyss:{w:1.2,mk:a=>({f:MAXF}),txt:()=>`迷宮の最下層、${FN(MAXF)}にたどり着きたい`,
     pace:(a,d)=>[a.deepest,MAXF],msg:a=>`${a.name}が迷宮の最下層${FN(MAXF)}にたどり着き、長年の夢を果たした。`,prog:a=>`これまでの最深 ${deepNow(a.deepest)}`},
   deep:{w:1,mk:(a,S)=>{const f=clamp(Math.max(a.deepest||0,Math.ceil(PL(a)))+ri(5,9),GATE_F+2,MAXF-1);return {f,unseen:!!S&&f>Math.max(S.deepest.ours,S.deepest.rival)};},txt:d=>`${d.unseen?'まだ誰も見ぬ':''}${FN(d.f)}の景色を、この目で見たい`,
@@ -1344,7 +1346,7 @@ const DREAMS={
   slay:{w:1,mk:()=>({}),txt:d=>`故郷を滅ぼした${d.m}を討ちたい`,
     ok:(S,a,d)=>(a.slain||{})[d.m],msg:(a,d)=>`${a.name}が、${d.why||'故郷を滅ぼした'}${d.m}への仇を討った。`,ret:()=>chance(.4)?'仇を討ち、剣を置く':null,prog:a=>`これまでの最深 ${deepNow(a.deepest)}`},
   hero:{w:1,mk:a=>({l:Math.max(30,a.lvl+16)}),txt:d=>`レベル${d.l}の英雄になりたい`,
-    pace:(a,d)=>[a.lvl,d.l],msg:(a,d)=>`${a.name}がレベル${d.l}に達し、英雄の域に踏み込んだ。`,prog:a=>`いまLv${a.lvl}`},
+    lv:1,pace:(a,d)=>[a.lvl,d.l,d.l0],msg:(a,d)=>`${a.name}がレベル${d.l}に達し、英雄の域に踏み込んだ。`,prog:a=>`いまLv${a.lvl}`},
   legend:{w:.8,mk:()=>({}),txt:()=>'伝説の武具を、この手に握りたい',
     ok:(S,a)=>eqList(a).some(i=>i.rare),msg:a=>`${a.name}が伝説の${eqList(a).find(i=>i.rare).n}を手にし、夢を果たした。`,prog:()=>'伝説の武具は、この世にひとつずつしかない'},
   fame:{w:1,mk:()=>({}),txt:()=>'吟遊詩人に歌われるほどの英雄になりたい',
@@ -1352,49 +1354,49 @@ const DREAMS={
   knight:{w:.4,cw:{'warrior':1.5,'samurai':1.2,'priest':1,'paladin':3,'dragoon':2},mk:()=>({}),txt:()=>'王国の騎士に取り立てられたい',
     ok:(S,a)=>a.lvl>=28&&a.kills>=150,msg:(a,d)=>d.vi===1&&d.who&&d.who!=='王国'?`${a.name}の名声が${d.who}の耳に届き、騎士として召し抱えられることになった。`:`${a.name}の名声が王都に届き、騎士として召し抱えられることになった。`,ret:d=>d.vi===1&&d.who&&d.who!=='王国'?`${d.who}に仕える騎士となる`:'王国の騎士に取り立てられる',prog:a=>`Lv${a.lvl}・討伐${a.kills}（騎士の目に留まるには、もっと名を上げねば）`},
   archmage:{w:0,cw:{'mage':3,'sorcerer':3,'bishop':1},mk:()=>({}),txt:()=>'あらゆる呪文を極め、大魔導士と呼ばれたい',
-    pace:(a,d)=>[a.lvl,32],msg:a=>`${a.name}があらゆる呪文を極め、大魔導士と呼ばれるようになった。`,prog:a=>`いまLv${a.lvl}`},
+    lv:1,pace:(a,d)=>[a.lvl,32,d.l0],msg:a=>`${a.name}があらゆる呪文を極め、大魔導士と呼ばれるようになった。`,prog:a=>`いまLv${a.lvl}`},
   map:{w:.4,cw:{'thief':1.5,'ninja':1.5},mk:()=>({}),txt:()=>'迷宮の完全な地図を描き上げたい',
     ok:(S,a)=>a.deepest>=MAXF&&(a.trips||0)>=40,msg:a=>`${a.name}が、迷宮の完全な地図を描き上げた。写しは高値で売れるだろう。`,prog:a=>`探索${a.trips||0}回・最深${deepNow(a.deepest)}`},
   sendhome:{w:.8,aw:a=>humanAge(a)<22?2:humanAge(a)>40?.4:1,mk:a=>({amt:r100(Math.max(2000,incomeAt(depthOf(a)+2)*ri(5,9))),who:pick(['弟や妹たち','病気の母','年老いた両親','村の孤児院','戦で片腕をなくした兄'])}),txt:d=>`${d.who}への仕送り（${d.amt}G）を貯めて送りたい`,
-    ok:(S,a,d)=>a.gold>=d.amt,pay:d=>d.amt,msg:(a,d)=>`${a.name}が、${d.who}へ${d.amt}Gを送り届けた。`,prog:(a,d)=>`貯金 ${G(a.gold)} / ${G(d.amt)}`},
+    pace:goldPace,pay:d=>d.amt,msg:(a,d)=>`${a.name}が、${d.who}へ${d.amt}Gを送り届けた。`,prog:(a,d)=>`貯金 ${G(a.gold)} / ${G(d.amt)}`},
   marry:{w:.7,aw:a=>{const h=humanAge(a);return h>=20&&h<=35?1.6:h>45?.2:.6},mk:a=>({amt:r100(Math.max(6000,incomeAt(depthOf(a)+3)*ri(15,22))),who:pick(['故郷で待つ幼なじみ','王都で知り合った仕立て屋','ロウエンの花売り','寺院で働く若者','同じ村の羊飼い','武具屋で見習いをしている子'])}),txt:d=>`${d.who}と所帯を持つための金（${d.amt}G）を貯めたい`,
-    ok:(S,a,d)=>a.gold>=d.amt,pay:d=>d.amt,msg:(a,d)=>`${a.name}が貯めた金を手に、${d.who}に結婚を申し込んだ。返事は「はい」だった。`,ret:()=>chance(.6)?'所帯を持つ':null,prog:(a,d)=>`貯金 ${G(a.gold)} / ${G(d.amt)}`},
+    pace:goldPace,pay:d=>d.amt,msg:(a,d)=>`${a.name}が貯めた金を手に、${d.who}に結婚を申し込んだ。返事は「はい」だった。`,ret:()=>chance(.6)?'所帯を持つ':null,prog:(a,d)=>`貯金 ${G(a.gold)} / ${G(d.amt)}`},
   pension:{w:1.5,can:a=>humanAge(a)>=40,mk:a=>({amt:r100(Math.max(15000,incomeAt(depthOf(a)+2)*ri(25,35)))}),txt:d=>`剣を置く前に、静かな余生のための蓄え（${d.amt}G）を作りたい`,
-    ok:(S,a,d)=>a.gold>=d.amt,msg:(a,d)=>`${a.name}が、余生の蓄えを作り終えた。`,ret:d=>d.vi===1&&d.place?`剣を置いて${d.place}で隠居する`:'剣を置いて隠居する',prog:(a,d)=>`貯金 ${G(a.gold)} / ${G(d.amt)}`},
+    pace:goldPace,msg:(a,d)=>`${a.name}が、余生の蓄えを作り終えた。`,ret:d=>d.vi===1&&d.place?`剣を置いて${d.place}で隠居する`:'剣を置いて隠居する',prog:(a,d)=>`貯金 ${G(a.gold)} / ${G(d.amt)}`},
   lastdive:{w:1.2,can:a=>humanAge(a)>=42,mk:a=>({f:clamp(Math.max(a.deepest||0,Math.ceil(PL(a)))+ri(2,4),GATE_F+1,MAXF)}),txt:d=>`体が言うことをきくうちに、もう一度だけ${FN(d.f)}まで潜りたい`,
     pace:(a,d)=>[a.deepest,d.f],msg:(a,d)=>`${a.name}が老いた体で、ついに${FN(d.f)}に立った。「これで思い残すことはない」`,ret:()=>chance(.6)?'思い残すことなく引退する':null,prog:a=>`これまでの最深 ${deepNow(a.deepest)}`},
   mentor:{w:1,can:a=>humanAge(a)>=33&&a.lvl>=16,mk:()=>({}),txt:()=>'駆け出しを一人、一人前に育て上げたい',
     ok:(S,a,d)=>{const b=Object.values(S.adv).find(b=>b!==a&&b.tav===a.tav&&b.party&&b.party===a.party&&(b.lvl0||99)<=4&&b.lvl>=14&&!isLost(b));if(b)d.pupil=b.name;return !!b;},
     msg:(a,d)=>`${a.name}が駆け出しのころから面倒を見てきた${d.pupil}が、一人前の冒険者になった。`,prog:()=>'同じ一行の駆け出しが育つのを待っている'},
   prove:{w:1.5,can:a=>humanAge(a)<20,mk:a=>({l:Math.max(16,a.lvl+10)}),txt:d=>`「子どもは帰れ」と笑った連中に、レベル${d.l}の姿を見せつけたい`,
-    pace:(a,d)=>[a.lvl,d.l],msg:(a,d)=>`${a.name}がレベル${d.l}に達した。子ども扱いしていた連中も、もう笑わない。`,prog:a=>`いまLv${a.lvl}`},
+    lv:1,pace:(a,d)=>[a.lvl,d.l,d.l0],msg:(a,d)=>`${a.name}がレベル${d.l}に達した。子ども扱いしていた連中も、もう笑わない。`,prog:a=>`いまLv${a.lvl}`},
   defy:{w:.6,mk:a=>({l:Math.max(20,a.lvl+12),g:a.sex}),txt:d=>d.g==='女'?`「女に剣は振れない」と言った故郷の連中を、レベル${d.l}になって見返したい`:`家業を継げと言う父に、レベル${d.l}になって自分の生き方を認めさせたい`,
-    pace:(a,d)=>[a.lvl,d.l],msg:(a,d)=>d.g==='女'?`${a.name}がレベル${d.l}に達した。故郷に届いた噂に、かつて笑った連中は黙り込んだという。`:`${a.name}がレベル${d.l}に達し、故郷の父から「好きにしろ」とだけ書いた手紙が届いた。`,prog:a=>`いまLv${a.lvl}`},
+    lv:1,pace:(a,d)=>[a.lvl,d.l,d.l0],msg:(a,d)=>d.g==='女'?`${a.name}がレベル${d.l}に達した。故郷に届いた噂に、かつて笑った連中は黙り込んだという。`:`${a.name}がレベル${d.l}に達し、故郷の父から「好きにしろ」とだけ書いた手紙が届いた。`,prog:a=>`いまLv${a.lvl}`},
   elfsong:{w:1.5,can:a=>a.race==='elf',mk:()=>({}),txt:()=>'森へ帰る前に、人の世の英雄譚をこの目で見届けたい',
     ok:(S,a)=>(a.trips||0)>=25&&a.deepest>=GATE_F+5,msg:a=>`${a.name}が、森へ持ち帰る英雄譚をいくつも見届けた。`,ret:()=>chance(.5)?'人の世の歌を携えて森へ帰る':null,prog:a=>`探索${a.trips||0}回・最深${deepNow(a.deepest)}`},
   elfrelic:{w:1.2,can:a=>a.race==='elf',mk:()=>({f:ri(GATE_F+4,GATE_F+12)}),txt:d=>`${FN(d.f)}あたりに沈んだという、古いエルフの弓を見つけて森へ返したい`,
     pace:(a,d)=>[a.deepest,d.f],msg:(a,d)=>`${a.name}が${FN(d.f)}で古いエルフの弓を見つけ出した。森の長老たちに届けるという。`,prog:a=>`これまでの最深 ${deepNow(a.deepest)}`},
   dwarfaxe:{w:1.5,can:a=>a.race==='dwarf'||a.origin==='ベルクラント鉱山諸侯領',mk:()=>{const t=ri(4,6);return {t,mat:SHOP_MAT.metal[t-1],amt:SHOP_PRICE[t]*2}},txt:d=>`グンター親方に、${d.mat}で自分だけの得物を打たせたい（${d.amt}G）`,
-    ok:(S,a,d)=>!!(S.shop&&S.shop.tiers&&S.shop.tiers[d.t])&&a.gold>=d.amt,pay:d=>d.amt,act:(S,a,d)=>{const o=shopOffers(S,a.cls).filter(x=>x.t===d.t&&x.b.slot==='wpn')[0];if(o){const it=shopMake(S,o.b,o.t);it.n=`${a.name}の${d.mat}の${o.b.t}`;it.atk=(it.atk||0)+2;it.src.up={atk:2};equip(a,it);}},
+    pace:goldPace,ok:(S,a,d)=>!!(S.shop&&S.shop.tiers&&S.shop.tiers[d.t])&&a.gold>=d.amt,pay:d=>d.amt,act:(S,a,d)=>{const o=shopOffers(S,a.cls).filter(x=>x.t===d.t&&x.b.slot==='wpn')[0];if(o){const it=shopMake(S,o.b,o.t);it.n=`${a.name}の${d.mat}の${o.b.t}`;it.atk=(it.atk||0)+2;it.src.up={atk:2};equip(a,it);}},
     msg:(a,d)=>`${a.name}が、グンター親方に打たせた${d.mat}の得物を手にした。`,prog:(a,d)=>`貯金 ${G(a.gold)} / ${G(d.amt)}${S.shop&&S.shop.tiers&&S.shop.tiers[d.t]?'':'（武具屋にまだ'+d.mat+'の品がない）'}`},
   mine:{w:0,ow:{'鉄の山脈':2,'ベルクラント鉱山諸侯領':2.5},mk:a=>({amt:r100(Math.max(20000,incomeAt(depthOf(a)+3)*ri(30,45)))}),txt:d=>`一族が手放した坑道を買い戻したい（${d.amt}G）`,
-    ok:(S,a,d)=>a.gold>=d.amt,pay:d=>d.amt,msg:(a,d)=>`${a.name}が、一族の坑道を買い戻した。`,ret:()=>chance(.5)?'買い戻した坑道へ帰る':null,prog:(a,d)=>`貯金 ${G(a.gold)} / ${G(d.amt)}`},
+    pace:goldPace,pay:d=>d.amt,msg:(a,d)=>`${a.name}が、一族の坑道を買い戻した。`,ret:()=>chance(.5)?'買い戻した坑道へ帰る':null,prog:(a,d)=>`貯金 ${G(a.gold)} / ${G(d.amt)}`},
   hobbithome:{w:1.6,can:a=>a.race==='hobbit',mk:a=>({amt:r100(Math.max(8000,incomeAt(depthOf(a)+3)*ri(18,26)))}),txt:d=>`麦穂の丘に、丸い窓のある大きな家を建てたい（${d.amt}G）`,
-    ok:(S,a,d)=>a.gold>=d.amt,pay:d=>d.amt,msg:(a,d)=>`${a.name}が、麦穂の丘に丸い窓の家を建てる金を送った。`,ret:()=>chance(.5)?'丘に帰って、丸い窓の家で暮らす':null,prog:(a,d)=>`貯金 ${G(a.gold)} / ${G(d.amt)}`},
+    pace:goldPace,pay:d=>d.amt,msg:(a,d)=>`${a.name}が、麦穂の丘に丸い窓の家を建てる金を送った。`,ret:()=>chance(.5)?'丘に帰って、丸い窓の家で暮らす':null,prog:(a,d)=>`貯金 ${G(a.gold)} / ${G(d.amt)}`},
   book:{w:.3,aw:a=>(a.race==='hobbit'?3:1)*(a.quirk==='読書家'?3:1),mk:()=>({}),txt:()=>'迷宮での冒険を、一冊の本に書き上げたい',
     ok:(S,a)=>(a.trips||0)>=30&&a.deepest>=GATE_F+3,msg:a=>`${a.name}が、迷宮での冒険を一冊の本に書き上げた。ロウエンの本屋に並ぶらしい。`,prog:a=>`探索${a.trips||0}回・最深${deepNow(a.deepest)}`},
   ship:{w:0,ow:{'セーレ自由都市同盟':2.5},mk:a=>({amt:r100(Math.max(25000,incomeAt(depthOf(a)+3)*ri(35,50)))}),txt:d=>`自分の船を一隻持ちたい（${d.amt}G）`,
-    ok:(S,a,d)=>a.gold>=d.amt,pay:d=>d.amt,msg:(a,d)=>`${a.name}が、セーレの港で自分の船を買った。`,ret:()=>chance(.6)?'自分の船で海に出る':null,prog:(a,d)=>`貯金 ${G(a.gold)} / ${G(d.amt)}`},
+    pace:goldPace,pay:d=>d.amt,msg:(a,d)=>`${a.name}が、セーレの港で自分の船を買った。`,ret:()=>chance(.6)?'自分の船で海に出る':null,prog:(a,d)=>`貯金 ${G(a.gold)} / ${G(d.amt)}`},
   clearname:{w:0,ow:{'グラウ帝国':2},mk:()=>({}),txt:()=>'帝国の脱走兵という汚名を、迷宮での手柄で消したい',
     ok:(S,a)=>!!a.title,msg:a=>`「${a.title}」${a.name}の名が帝国にまで届き、脱走兵の罪は不問にされたという。`,prog:a=>a.title?`「${a.title}」と呼ばれている`:'まだ二つ名もない'},
   absolve:{w:0,ow:{'聖オルド教国':2},mk:a=>({amt:r100(Math.max(8000,incomeAt(depthOf(a)+3)*ri(15,22)))}),txt:d=>`破門を解いてもらうための寄進（${d.amt}G）を積みたい`,
-    ok:(S,a,d)=>a.gold>=d.amt,pay:d=>d.amt,msg:(a,d)=>`${a.name}が教国に${d.amt}Gを寄進し、破門を解かれた。`,ret:()=>chance(.3)?'教国へ戻り、もう一度神に仕える':null,prog:(a,d)=>`貯金 ${G(a.gold)} / ${G(d.amt)}`},
+    pace:goldPace,pay:d=>d.amt,msg:(a,d)=>`${a.name}が教国に${d.amt}Gを寄進し、破門を解かれた。`,ret:()=>chance(.3)?'教国へ戻り、もう一度神に仕える':null,prog:(a,d)=>`貯金 ${G(a.gold)} / ${G(d.amt)}`},
   grain:{w:0,ow:{'カルセ王国':2.5},mk:a=>({amt:r100(Math.max(4000,incomeAt(depthOf(a)+2)*ri(8,14)))}),txt:d=>`不作に苦しむ故郷の村に、麦を買って送りたい（${d.amt}G）`,
-    ok:(S,a,d)=>a.gold>=d.amt,pay:d=>d.amt,msg:(a,d)=>`${a.name}が故郷の村に${d.amt}G分の麦を送った。村は冬を越せるだろう。`,prog:(a,d)=>`貯金 ${G(a.gold)} / ${G(d.amt)}`},
+    pace:goldPace,pay:d=>d.amt,msg:(a,d)=>`${a.name}が故郷の村に${d.amt}G分の麦を送った。村は冬を越せるだろう。`,prog:(a,d)=>`貯金 ${G(a.gold)} / ${G(d.amt)}`},
   duke:{w:0,ow:{'リンデ公国':2},mk:()=>({}),txt:()=>'リンデの公爵家に、自分の名を覚えさせたい',
     ok:(S,a)=>a.lvl>=26||(a.titleTier||0)>=3,msg:a=>`${a.name}の名がリンデの公爵の耳に届き、公国から招きの手紙が来た。`,ret:()=>chance(.4)?'リンデ公国に召し抱えられる':null,prog:a=>`いまLv${a.lvl}`},
   horse:{w:0,ow:{'ハザン草原':3},mk:a=>({amt:r100(Math.max(6000,incomeAt(depthOf(a)+3)*ri(12,18)))}),txt:d=>`博打で取られた一族の名馬を買い戻したい（${d.amt}G）`,
-    ok:(S,a,d)=>a.gold>=d.amt,pay:d=>d.amt,msg:(a,d)=>`${a.name}が一族の名馬を買い戻した。`,ret:()=>chance(.5)?'名馬に乗って草原へ帰る':null,prog:(a,d)=>`貯金 ${G(a.gold)} / ${G(d.amt)}`},
+    pace:goldPace,pay:d=>d.amt,msg:(a,d)=>`${a.name}が一族の名馬を買い戻した。`,ret:()=>chance(.5)?'名馬に乗って草原へ帰る':null,prog:(a,d)=>`貯金 ${G(a.gold)} / ${G(d.amt)}`},
   crest:{w:0,ow:{'灰の荒野':2.5},mk:()=>({}),txt:()=>'宮廷のどこかに眠るエスタリア王家の紋章を、荒野の長老に届けたい',
     pace:(a,d)=>[a.deepest,18],msg:a=>`${a.name}が宮廷の奥でエスタリア王家の紋章を見つけ、荒野の長老たちに届けた。流民たちは夜通し泣いたという。`,prog:a=>`これまでの最深 ${deepNow(a.deepest)}`},
   father:{w:0,ow:{'ロウエン':3},mk:()=>({f:GATE_F+ri(2,7)}),txt:d=>`帰ってこなかった親父が目指していた${FN(d.f)}に、代わりに立ちたい`,
@@ -1412,7 +1414,7 @@ const DREAMS={
   ballad:{w:0,cw:{'bard':4},mk:()=>({}),txt:()=>'迷宮の英雄たちの歌を、一曲に仕上げたい',
     ok:(S,a)=>(a.trips||0)>=25&&a.deepest>=GATE_F+5,msg:a=>`${a.name}の新しい歌「沈んだ都の英雄たち」が、ロウエンじゅうの酒場で歌われはじめた。`,prog:a=>`探索${a.trips||0}回・最深${deepNow(a.deepest)}`},
   partner:{w:0,cw:{'tamer':4},mk:()=>({f:ri(GATE_F+3,GATE_F+10)}),txt:d=>`相棒と一緒に、${FN(d.f)}の景色を見たい`,
-    ok:(S,a,d)=>a.deepest>=d.f,msg:(a,d)=>`${a.name}と相棒の${a.beast?a.beast.kind+'の'+a.beast.name:'獣'}が、${FN(d.f)}の景色を見た。`,prog:a=>`これまでの最深 ${deepNow(a.deepest)}`},
+    pace:(a,d)=>[a.deepest,d.f],msg:(a,d)=>`${a.name}と相棒の${a.beast?a.beast.kind+'の'+a.beast.name:'獣'}が、${FN(d.f)}の景色を見た。`,prog:a=>`これまでの最深 ${deepNow(a.deepest)}`},
 
 
   minebottom:{w:0,can:(a,S)=>mineOpen(S),aw:a=>a.race==='dwarf'||a.origin==='鉄の山脈'||a.origin==='ベルクラント鉱山諸侯領'?4:1.5,mk:()=>({}),txt:()=>'鉄の山脈の坑道の底を、この目で見たい',
@@ -1422,13 +1424,13 @@ const DREAMS={
   firstfoot:{w:.7,aw:a=>a.pers==='無謀'?2.5:a.pers==='臆病'?.2:1,mk:a=>({n:(a.firsts||0)+1}),txt:()=>'まだ誰も踏み入れていない階に、一番乗りしたい',
     ok:(S,a,d)=>(a.firsts||0)>=d.n,msg:a=>`${a.name}が、誰も踏み入れていない階に一番乗りした。`,prog:()=>'一番乗りの機会をうかがっている'},
   payback:{w:0,can:a=>a.tav==='ours'&&(a.favor||0)>=2,aw:a=>Math.min(4,1+(a.favor||0)/2),mk:a=>({amt:r100(Math.max(3000,incomeAt(depthOf(a)+2)*ri(6,10)))}),txt:d=>`世話になった黒猫亭の店主に、恩を返したい（${d.amt}G）`,
-    ok:(S,a,d)=>a.gold>=d.amt,pay:d=>d.amt,act:(S,a,d)=>{if(a.tav==='ours'){S.taverns.ours.gold+=d.amt;S.taverns.ours.earned+=d.amt;flowAdd(S,'e',d.amt);}},msg:(a,d)=>`${a.name}が「借りを返す」と言って、黒猫亭の店主に${d.amt}Gを置いていった。`,prog:(a,d)=>`貯金 ${G(a.gold)} / ${G(d.amt)}`},
+    pace:goldPace,pay:d=>d.amt,act:(S,a,d)=>{if(a.tav==='ours'){S.taverns.ours.gold+=d.amt;S.taverns.ours.earned+=d.amt;flowAdd(S,'e',d.amt);}},msg:(a,d)=>`${a.name}が「借りを返す」と言って、黒猫亭の店主に${d.amt}Gを置いていった。`,prog:(a,d)=>`貯金 ${G(a.gold)} / ${G(d.amt)}`},
   beatrival:{w:0,can:a=>a.tav==='ours',aw:()=>3,mk:()=>({}),txt:()=>'銀の杯亭の連中より先に、迷宮の深みへ行きたい',
     ok:(S,a)=>S.deepest.ours>S.deepest.rival&&a.deepest>=S.deepest.ours,msg:a=>`${a.name}が、銀の杯亭の看板より深い階に立った。`,prog:()=>`最深到達 黒猫亭 ${FN(S.deepest.ours)} / 銀の杯亭 ${FN(S.deepest.rival)}`},
   letters:{w:.6,can:a=>humanAge(a)<26&&a.lvl<14,mk:()=>({n:ri(8,14)}),txt:()=>'読み書きを覚えて、自分で故郷に手紙を書きたい',
     ok:(S,a,d)=>(a.trips||0)>=d.n,msg:a=>`${a.name}が、初めて自分の手で故郷へ手紙を書いた。`,prog:a=>`酒場の隅で、文字を練習している（探索${a.trips||0}回）`},
   pilgrim:{w:0,ow:{'聖オルド教国':1.5},cw:{'priest':1,'bishop':1.2,'paladin':1},mk:a=>({amt:r100(Math.max(3000,incomeAt(depthOf(a)+2)*ri(6,9)))}),txt:d=>`聖都へ巡礼する旅費（${d.amt}G）を貯めたい`,
-    ok:(S,a,d)=>a.gold>=d.amt,pay:d=>d.amt,msg:a=>`${a.name}が、聖都への巡礼に旅立つ支度を整えた。`,ret:()=>chance(.5)?'聖都へ巡礼に出る':null,prog:(a,d)=>`貯金 ${G(a.gold)} / ${G(d.amt)}`},
+    pace:goldPace,pay:d=>d.amt,msg:a=>`${a.name}が、聖都への巡礼に旅立つ支度を整えた。`,ret:()=>chance(.5)?'聖都へ巡礼に出る':null,prog:(a,d)=>`貯金 ${G(a.gold)} / ${G(d.amt)}`},
   library:{w:0,aw:a=>a.quirk==='読書家'?1:0,mk:()=>({}),txt:()=>'迷宮で拾った古文書を、王都の図書館に寄贈したい',
     ok:(S,a)=>a.deepest>=GATE_F+6&&(a.trips||0)>=15,msg:a=>`${a.name}が集めた古文書が、王都の図書館に収められた。`,prog:a=>`これまでの最深 ${deepNow(a.deepest)}`},
   catdream:{w:0,aw:a=>a.quirk==='猫好き'?1.5:0,mk:()=>({n:ri(10,20)}),txt:()=>'黒猫亭の黒猫に、膝の上で眠ってもらいたい',
@@ -1436,20 +1438,20 @@ const DREAMS={
   jackpot:{w:0,aw:a=>a.quirk==='博打好き'?1.5:0,mk:a=>({amt:r100(Math.max(3000,incomeAt(depthOf(a)+2)*ri(8,12)))}),txt:d=>`賭場で一晩に${d.amt}G勝ってみたい`,
     ok:(S,a,d)=>a.gold>=d.amt/2&&chance(.15),act:(S,a,d)=>{a.gold+=d.amt;},msg:(a,d)=>`${a.name}が裏通りの賭場で一晩に${d.amt}G勝った。`,prog:()=>'今夜こそ、と言い続けている'},
   feast:{w:0,aw:a=>['酒好き','大食い'].includes(a.quirk)?1.5:0,mk:a=>({amt:r100(Math.max(1500,incomeAt(depthOf(a)+1)*ri(4,6)))}),txt:d=>`店の客全員に、腹いっぱい飲み食いさせてやりたい（${d.amt}G）`,
-    ok:(S,a,d)=>a.gold>=d.amt,pay:d=>d.amt,act:(S,a,d)=>{const T0=S.taverns[a.tav];if(a.tav==='ours'){T0.gold+=d.amt;T0.earned+=d.amt;flowAdd(S,'e',d.amt);}},msg:(a,d)=>`${a.name}が店の客全員におごった。${d.amt}Gの大盤振る舞いだ。`,prog:(a,d)=>`貯金 ${G(a.gold)} / ${G(d.amt)}`},
+    pace:goldPace,pay:d=>d.amt,act:(S,a,d)=>{const T0=S.taverns[a.tav];if(a.tav==='ours'){T0.gold+=d.amt;T0.earned+=d.amt;flowAdd(S,'e',d.amt);}},msg:(a,d)=>`${a.name}が店の客全員におごった。${d.amt}Gの大盤振る舞いだ。`,prog:(a,d)=>`貯金 ${G(a.gold)} / ${G(d.amt)}`},
   grave:{w:0,can:(a,S)=>!!lostFriend(S,a),aw:()=>2,mk:(a,S)=>{const o=lostFriend(S,a);return {who:o?o.name:'仲間',amt:r100(Math.max(2000,incomeAt(depthOf(a)+1)*ri(4,7)))}},txt:d=>`迷宮で消えた${d.who}のために、墓地の丘に墓を立てたい（${d.amt}G）`,
-    ok:(S,a,d)=>a.gold>=d.amt,pay:d=>d.amt,msg:(a,d)=>`${a.name}が、墓地の丘に${d.who}の墓を立てた。`,prog:(a,d)=>`貯金 ${G(a.gold)} / ${G(d.amt)}`},
+    pace:goldPace,pay:d=>d.amt,msg:(a,d)=>`${a.name}が、墓地の丘に${d.who}の墓を立てた。`,prog:(a,d)=>`貯金 ${G(a.gold)} / ${G(d.amt)}`},
   avenge:{w:0,can:(a,S)=>{const o=lostFriend(S,a);return !!(o&&MON.some(m=>m.n===o.lastBy))},aw:()=>2.5,mk:(a,S)=>{const o=lostFriend(S,a);return {who:o?o.name:'仲間',m:o?o.lastBy:'黒竜'}},txt:d=>`${d.who}を殺した${d.m}に、仇を討ちたい`,
     ok:(S,a,d)=>(a.slain||{})[d.m],msg:(a,d)=>`${a.name}が、${d.who}の仇の${d.m}を討った。`,prog:a=>`これまでの最深 ${deepNow(a.deepest)}`},
   keepsake:{w:0,can:(a,S)=>!!lostFriend(S,a),aw:()=>1.2,mk:(a,S)=>{const o=lostFriend(S,a);return {who:o?o.name:'仲間',from:o?o.origin:'故郷',amt:r100(Math.max(2500,incomeAt(depthOf(a)+1)*ri(5,8)))}},txt:d=>`${d.who}の形見を、${d.from}の家族に届けたい（旅費${d.amt}G）`,
-    ok:(S,a,d)=>a.gold>=d.amt,pay:d=>d.amt,msg:(a,d)=>`${a.name}が、${d.who}の形見を${d.from}の家族に届ける旅に出た。`,ret:()=>chance(.3)?'形見を届けたまま、故郷に留まる':null,prog:(a,d)=>`貯金 ${G(a.gold)} / ${G(d.amt)}`},
+    pace:goldPace,pay:d=>d.amt,msg:(a,d)=>`${a.name}が、${d.who}の形見を${d.from}の家族に届ける旅に出た。`,ret:()=>chance(.3)?'形見を届けたまま、故郷に留まる':null,prog:(a,d)=>`貯金 ${G(a.gold)} / ${G(d.amt)}`},
   tour:{w:.4,mk:a=>({amt:r100(Math.max(8000,incomeAt(depthOf(a)+2)*ri(15,22)))}),txt:d=>`大陸の八つの国を、すべて巡ってみたい（${d.amt}G）`,
-    ok:(S,a,d)=>a.gold>=d.amt,pay:d=>d.amt,msg:a=>`${a.name}が、大陸をめぐる旅の支度を整えた。`,ret:()=>'大陸をめぐる旅に出る',prog:(a,d)=>`貯金 ${G(a.gold)} / ${G(d.amt)}`},
+    pace:goldPace,pay:d=>d.amt,msg:a=>`${a.name}が、大陸をめぐる旅の支度を整えた。`,ret:()=>'大陸をめぐる旅に出る',prog:(a,d)=>`貯金 ${G(a.gold)} / ${G(d.amt)}`},
   sea:{w:.3,can:a=>!ORIGINS[a.origin]||!ORIGINS[a.origin].far,mk:a=>({amt:r100(Math.max(10000,incomeAt(depthOf(a)+3)*ri(18,25))),to:pick(['東方の島国アズマ','砂の大陸ザハル','北の氷海ノルデン'])}),txt:d=>`海を渡って、${d.to}をこの目で見たい（${d.amt}G）`,
-    ok:(S,a,d)=>a.gold>=d.amt,pay:d=>d.amt,msg:(a,d)=>`${a.name}が、${d.to}行きの船の切符を手に入れた。`,ret:d=>`海を渡って${d.to}へ向かう`,prog:(a,d)=>`貯金 ${G(a.gold)} / ${G(d.amt)}`},
+    pace:goldPace,pay:d=>d.amt,msg:(a,d)=>`${a.name}が、${d.to}行きの船の切符を手に入れた。`,ret:d=>`海を渡って${d.to}へ向かう`,prog:(a,d)=>`貯金 ${G(a.gold)} / ${G(d.amt)}`},
   // 開店の顔ぶれだけに持たせる。重み0なので、あとから来る客の夢には入らない
   stele:{w:0,mk:()=>({f:6}),txt:()=>'B6Fの転移の石碑に、一度触れてみたい',
-    ok:(S,a)=>(a.deepest||0)>=6,msg:(a,d)=>d.vi===1?`${a.name}が、B6Fから地上の店に戻った。`:`${a.name}が、B6Fの転移の石碑に触れた。`,prog:a=>(a.deepest||0)?`これまでの最深 ${deepNow(a.deepest)}`:'まだ迷宮に潜っていない'},
+    pace:a=>[a.deepest||0,6],msg:(a,d)=>d.vi===1?`${a.name}が、B6Fから地上の店に戻った。`:`${a.name}が、B6Fの転移の石碑に触れた。`,prog:a=>(a.deepest||0)?`これまでの最深 ${deepNow(a.deepest)}`:'まだ迷宮に潜っていない'},
   // 続柄で来た者だけが持つ。重み0なので、ほかの客の夢には入らない
   kinvenge:{w:0,txt:d=>`${d.elder||'兄'}を殺した${d.m||'魔物'}を討ちたい`,
     ok:(S,a,d)=>!!(a.slain||{})[d.m]||kinVengeOther(S,a,d.m),
@@ -1461,7 +1463,8 @@ const DREAMS={
     ok:(S,a)=>!!a.title||a.lvl>=16,msg:(a,d)=>`${a.name}が、${d.who||'身内'}のように黒猫亭で名を上げた。`,prog:a=>a.title?`「${a.title}」と呼ばれている`:`いまLv${a.lvl}`}
 
 };
-// 数で決まる夢（レベル・深さ・数）は、pace で [いまの数, めざす数] を持ち、かなう条件はそこから作る。めざす数は pace の一か所だけに書く（#285）
+// 数で決まる夢（貯金・レベル・深さ・数）は、pace で [いまの数, めざす数] を持ち、かなう条件はそこから作る。めざす数は pace の一か所だけに書く（#285）。
+// レベルの夢（lv）は、三つめに夢を抱いたときのレベルを返す。進みはそこから数える（#293）
 for(const D of Object.values(DREAMS))if(D.pace&&!D.ok)D.ok=(S,a,d)=>{const [c,t]=D.pace(a,d);return c>=t;};
 
 const DV={
@@ -1500,7 +1503,7 @@ function makeDream(S,a){
   const texts=new Set(act.map(b=>dreamText(b.dream)));const kc={};act.filter(b=>b.tav===a.tav).forEach(b=>{kc[b.dream.k]=(kc[b.dream.k]||0)+1;});
   const pool=Object.fromEntries((opts.length?opts:[['fame',1]]).map(([k,w])=>[k,w/(1+(kc[k]||0)*2.5)]));
   let d=null;
-  for(let t=0;t<15;t++){const k=wpick(pool);d=Object.assign({k},DREAMS[k].mk(a,S));dvFill(d);if(!texts.has(dreamText(d)))return d;if(t>4)pool[k]=0;}
+  for(let t=0;t<15;t++){const k=wpick(pool);d=Object.assign({k},DREAMS[k].mk(a,S));dvFill(d);if(DREAMS[k].lv)d.l0=a.lvl;if(!texts.has(dreamText(d)))return d;if(t>4)pool[k]=0;}
   return d;
 }
 function dreamText(d){return d&&DREAMS[d.k]?(DV[d.k]&&d.vi!=null?dvText(d):DREAMS[d.k].txt(d)):''}
@@ -1914,6 +1917,7 @@ function shopPrice(b,t){return Math.round(SHOP_PRICE[t]*(b.two?1.4:1)*(b.slot===
 function shopOffers(S,cls){const sh=shopInit(S);const out=[];for(let t=1;t<=SHOP_TOP;t++){if(!sh.tiers[t])continue;for(const b of ITEM_BASES){if(cls&&!canUse(cls,b))continue;out.push({b,t,price:shopPrice(b,t)});}}return out;}
 function shopMake(S,b,t){const sh=shopInit(S);sh.serial++;const st=b.st(t);
   return Object.assign({for:[...b.for],f:t,slot:b.slot,base:b.t,shop:true,n:`${SHOP_MAT[b.m][t-1]}の${b.t}（工房${sh.serial}番）`},b.two?{two:true}:{},st,{src:Object.assign(baseSrc(b,t,st),{shop:1})});}
+// 金を貯める夢の一覧。ゲームの決まり（夢の選び方・克服など）に使う。進みと「夢が近い」の印は、夢の表の pace（savingDream）で決める（#293）
 const MONEY_DREAMS=['debt','wealth','shop','temple','home','sendhome','marry','pension','mine','hobbithome','ship','absolve','grain','horse','dwarfaxe'];
 function shopVisit(S,a,mates){
   if(!isIdle(a))return;const sh=shopInit(S);
@@ -2794,23 +2798,36 @@ const PUSH_GO={shop:1,temple:1,tour:1,sea:1,home:1};
 function pushNeed(S,a){const d=a&&a.dream;
   if(S.taverns.ours.debtFree==null||a.tav!=='ours'||!isIdle(a)||!d||d.done||d.push||d.pushNo||PUSH_NOT[d.k]||!DREAMS[d.k]||!DREAMS[d.k].pay||!(d.amt>0))return 0;
   return Math.max(0,d.amt-Math.max(0,Math.floor(a.gold||0)));}
-// 夢の進みの割合（0〜1）。目標が数で決まる夢（貯金・レベル・深さ・数）だけを測り、ほかの夢と夢のない者は null（#277）
+// 夢の進みの割合（0〜1）。目標が数で決まる夢（夢の表で pace を持つ夢：貯金・レベル・深さ・数）だけを測り、ほかの夢と夢のない者は null（#277・#293）。
+// レベルの夢は、夢を抱いたときのレベルから数える。抱いたときのレベルが記録にない古い記録の夢は、今までどおり 0 から数える（#293）
 function dreamFrac(a){
-  const d=a&&a.dream;if(!d||!DREAMS[d.k])return null;
-  const pace=MONEY_DREAMS.includes(d.k)?[Math.floor(a.gold||0),d.amt]:DREAMS[d.k].pace&&DREAMS[d.k].pace(a,d);
-  if(!pace||!(pace[1]>0))return null;
-  return Math.min(1,Math.max(0,(pace[0]||0)/pace[1]));
+  const d=a&&a.dream;if(!d||!DREAMS[d.k]||!DREAMS[d.k].pace)return null;
+  const [c,t,b]=DREAMS[d.k].pace(a,d);
+  if(!(t>0))return null;
+  const from=b!=null&&b<t?b:0;
+  return Math.min(1,Math.max(0,((c||0)-from)/(t-from)));
 }
-// 夢の節目の一言。夢の種類ごとに、[半分を越えたとき, 8割を越えたとき] の本人の言葉（#278）
+// 貯金の夢か（所持金が夢の額以上でかなう夢）。夢の表の pace から決める（#293）
+function savingDream(d){return !!(d&&DREAMS[d.k]&&DREAMS[d.k].pace===goldPace);}
+// 夢の節目の一言。夢の種類ごとに、[半分を越えたとき, 8割を越えたとき] の本人の言葉（#278）。
+// 建てるもの・店の場所など夢の中身で言葉が変わる夢は、夢を受けて二つの言葉を返す関数にする（#293）
 const DREAM_STEP={
-  home:['船賃、半分は貯まった','もうすぐ故郷へ帰る船に乗れる'],debt:['故郷の借金、返す金が半分は貯まった','あと少しで借金がきれいになる'],
-  wealth:['遊んで暮らす財産まで、もう半分だ','あと少しで一生遊んで暮らせる'],shop:['店の元手、半分は貯まった','大通りに店を出す日が近い'],
-  temple:['村の寺院の金、半分は貯まった','もうすぐ村に寺院を建てられる'],sendhome:['仕送りの金、半分は貯まった','もうすぐ仕送りを届けられる'],
+  home:['船賃、半分は貯まった','もうすぐ故郷へ帰る船に乗れる'],
+  debt:d=>d&&d.vi===2&&d.what?[`${d.what}を取り戻す金、半分は貯まった`,`あと少しで${d.what}を取り戻せる`]:d&&d.vi===1&&d.who?[`${d.who}が残した借金、返す金が半分は貯まった`,'あと少しで家を取り戻せる']:['故郷の借金、返す金が半分は貯まった','あと少しで借金がきれいになる'],
+  wealth:d=>d&&d.vi===1&&d.place?[`${d.place}に屋敷を構える財まで、もう半分だ`,`あと少しで${d.place}に屋敷を構えられる`]:d&&d.vi===2?['腹を空かせない身分まで、もう半分だ','あと少しで、二度と腹を空かせずに済む']:['遊んで暮らす財産まで、もう半分だ','あと少しで一生遊んで暮らせる'],
+  shop:d=>['店の元手、半分は貯まった',`${d&&d.place||'王都の大通り'}に${d&&d.what||'店'}を出す日が近い`],
+  temple:d=>[`村の${d&&d.what||'寺院'}の金、半分は貯まった`,`もうすぐ村に${d&&d.what||'寺院'}を建てられる`],sendhome:['仕送りの金、半分は貯まった','もうすぐ仕送りを届けられる'],
   marry:['所帯を持つ金、半分は貯まった','もうすぐ迎えに行ける'],pension:['余生の蓄え、半分はできた','剣を置く日が近い'],
   mine:['坑道を買い戻す金、半分は貯まった','もうすぐ一族の坑道を取り戻せる'],hobbithome:['丸い窓の家の金、半分は貯まった','もうすぐ麦穂の丘に家を建てられる'],
   ship:['船を買う金、半分は貯まった','自分の船を持つ日が近い'],absolve:['寄進の金、半分は積めた','もうすぐ破門が解ける'],
   grain:['村に送る麦の金、半分は貯まった','もうすぐ村に麦を送れる'],horse:['名馬を買い戻す金、半分は貯まった','あと少しで一族の馬を取り戻せる'],
   dwarfaxe:['親方に払う金、半分は貯まった','もうすぐ親方に得物を打ってもらえる'],
+  payback:['店主に返す恩の金、半分は貯まった','もうすぐ店主に借りを返せる'],pilgrim:['巡礼の旅費、半分は貯まった','もうすぐ聖都へ旅立てる'],
+  feast:['おごる金、半分は貯まった','もうすぐ店の客全員におごってやれる'],
+  grave:d=>[`${d&&d.who||'あいつ'}の墓の金、半分は貯まった`,`もうすぐ${d&&d.who||'あいつ'}の墓を立ててやれる`],
+  keepsake:d=>['形見を届ける旅費、半分は貯まった',`もうすぐ${d&&d.who||'あいつ'}の形見を届けに行ける`],
+  tour:['大陸を巡る旅費、半分は貯まった','もうすぐ大陸を巡る旅に出られる'],sea:d=>['海を渡る船賃、半分は貯まった',`もうすぐ${d&&d.to||'海の向こう'}へ渡れる`],
+  partner:['相棒とめざす階の、半分までは来た','相棒と見る景色が近い'],stele:['石碑のある階の、半分までは潜った','転移の石碑が近い'],
   hero:['めざすレベルの半ばまで来た','英雄の域まで、あと少しだ'],prove:['めざすレベルの半ばまで来た','あの連中に見せつける日が近い'],
   defy:['めざすレベルの半ばまで来た','故郷の連中を見返す日が近い'],archmage:['呪文の道の半ばまでは来た','大魔導士と呼ばれる日が近い'],
   deep:['めざす階の半分までは潜った','あの階の景色まで、あと少しだ'],lastdive:['めざす階の半分までは潜った','最後に潜りたい階まで、あと少しだ'],
@@ -2822,6 +2839,7 @@ const DREAM_STEP={
 // 夢の節目（半分・8割）を初めて越えたら、本人の言葉で日報に一行出す（#278）。黒猫亭の常連だけ。乱数は引かない。
 // 出した節目は夢に st（0〜2）として持つ。初めて見た夢（新しく抱いた夢・古い記録の夢）は、そのとき越えている節目を出したことにして黙って付ける。
 // st は下がらないので、同じ節目は二度出さず、貯金を使って下がってからまた越えても出さない。一度に二つ越えたら8割の一行だけ。かなう（10割）ときは、かなった知らせに任せる
+function dreamStepText(k,d,step){const w=DREAM_STEP[k];return (typeof w==='function'?w(d):w)[step-1];}
 function dreamSteps(S){
   for(const a of Object.values(S.adv)){
     const d=a.dream;if(a.tav!=='ours'||!d||!DREAM_STEP[d.k]||!isActive(a))continue;
@@ -2829,15 +2847,17 @@ function dreamSteps(S){
     const step=f>=.8?2:f>=.5?1:0;
     if(d.st==null){d.st=step;continue;}
     if(step<=d.st)continue;
-    d.st=step;if(f<1)news(S,'dreamStep',{who:a.name,k:d.k,step},'info');
+    d.st=step;if(f<1)news(S,'dreamStep',{who:a.name,k:d.k,step,say:dreamStepText(d.k,d,step)},'info');
   }
 }
-// 夢が近い：進みが8割を越えた（#277）
-function dreamNear(a){const f=dreamFrac(a);return f!=null&&f>=.8;}
+// 夢が近い：進みが8割を越えた（#277）。10割に届いて、まだかなう判定の来ていない者は「近い」ではない（dreamReady）（#293）
+function dreamNear(a){const f=dreamFrac(a);return f!=null&&f>=.8&&f<1;}
+// 進みが10割に届いたが、まだかなっていない。かなう判定は迷宮から戻ったときに来るので、次に戻ればかなう（#293）
+function dreamReady(a){return dreamFrac(a)===1;}
 // 話を果たしたときの主役への謝礼。その階の稼ぎの m 倍（2〜4）を100G単位に丸める
 function errandGift(e,m){return r100(incomeAt(dz(e.f))*m);}
 // 謝礼の見込みのいちばん多い額で、貯金の夢の額に届くか（#277）
-function giftReach(a,e){const d=a&&a.dream;if(!d||!MONEY_DREAMS.includes(d.k)||!(d.amt>0))return false;const g=Math.floor(a.gold||0);return g<d.amt&&g+errandGift(e,4)>=d.amt;}
+function giftReach(a,e){const d=a&&a.dream;if(!savingDream(d)||!(d.amt>0))return false;const g=Math.floor(a.gold||0);return g<d.amt&&g+errandGift(e,4)>=d.amt;}
 // 一部を出すときの額。足りない分の半分を100G単位に切り上げる。足りない分より小さくならなければ出さない
 function pushHalf(n){const h=Math.ceil(n/200)*100;return h<n?h:0;}
 // 受け止め方。強欲な者は当てにして受け取り、誇り高い者（古風・ぶっきらぼうな口調）は断る。乱数は引かない
@@ -5043,7 +5063,9 @@ function sideNews(){const ed=(S.edicts||[]).filter(e=>e.until>S.tick);return `${
 // 日報は新しい順に出す。ただし開店の日の導入（刻0の知らせ）だけは、いちばん下に書いた順のまま並べ、上から読めるようにする（#255）
 function newsOrder(list){return list.filter(x=>x.tk>0).reverse().concat(list.filter(x=>!(x.tk>0)))}
 // 夢が近い者の印。名簿と、掲示で主役を選ぶ欄に出す（#277）
-function nearTag(a){return a.tav==='ours'&&isActive(a)&&dreamNear(a)?'<span class="markmark nw" title="夢の進みが8割を越えた">夢が近い</span>':''}
+function nearTag(a){if(a.tav!=='ours'||!isActive(a))return '';
+  if(dreamReady(a))return '<span class="markmark nw" title="夢の目標に届いた。次に迷宮から戻ったときにかなう">次の帰還でかなう</span>';
+  return dreamNear(a)?'<span class="markmark nw" title="夢の進みが8割を越えた">夢が近い</span>':'';}
 function markTag(a){return a.marked&&a.tav==='ours'&&isActive(a)?'<span class="markmark nw" title="店主が見込んだ者">◆見込み</span>':''}
 // 掲示にまだ誰にも回していない話があるのに、いま酒場で伝えられる常連がいないとき、そのわけを一言で返す（#253）。それ以外は空
 function boardGap(S){

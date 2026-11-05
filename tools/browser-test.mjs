@@ -2108,6 +2108,42 @@ test('名簿に夢の進みが出て、8割を越えた者にだけ「夢が近�
   assert.deepEqual(errors,[]);await ctx.close();
 });
 
+test('名簿と主役欄で、海を渡る・相棒・石碑の夢にも「夢が近い」と謝礼の添え書きが付き、目標を越えてまだかなわない者には「次の帰還でかなう」が出る（#293）',async()=>{
+  const {ctx,page,errors}=await open();
+  await page.locator('#sp0').click();
+  const ids=await page.evaluate(()=>{
+    const T0=S.taverns.ours;T0.debt=0;T0.debtFree=S.tick;const E=errandsOf(S);E.stage=3;E.next=S.tick+99*TICKS_PER_DAY;
+    E.board=[{id:900,k:'bell',n:'鐘楼の光',from:'梟の地図屋',t:ERRANDS.find(x=>x.k==='bell').txt(8),f:8,until:S.tick+TICKS_PER_DAY*20,hero:null,refused:[],tk:S.tick}];
+    const ours=Object.values(S.adv).filter(x=>x.tav==='ours'&&isActive(x)).slice(0,5);const g4=errandGift(E.board[0],4);
+    // 0：issue の再現（海を渡る夢・8割） 1：相棒と景色を見る夢・8割 2：石碑の夢・B5F 3：船賃を越えたがまだかなっていない 4：海を渡る夢・謝礼で届く
+    ours[0].gold=11520;ours[0].dream={k:'sea',amt:14400,to:'東方の島国アズマ'};
+    ours[1].deepest=16;ours[1].dream={k:'partner',f:20};
+    ours[2].deepest=5;ours[2].dream={k:'stele',f:6,vi:0};
+    ours[3].gold=1500;ours[3].dream={k:'home',amt:1000};
+    ours[4].gold=g4*5;ours[4].dream={k:'sea',amt:g4*6,to:'砂の大陸ザハル'};
+    tab='roster';render();
+    return ours.map(a=>a.id);
+  });
+  const rowOf=(sel,id)=>page.evaluate(([sel,id])=>{const b=document.querySelector(`${sel} button[data-act="adv"][data-a="${id}"]`);return b?b.closest('.row').innerText.replace(/\s+/g,' '):'';},[sel,id]);
+  for(const i of [0,1,2,4])assert.match(await rowOf('#tbody',ids[i]),/夢が近い/,`名簿${i}に「夢が近い」がない`);
+  const over=await rowOf('#tbody',ids[3]);
+  assert.doesNotMatch(over,/夢が近い/,'目標を越えた者に「夢が近い」が出た');
+  assert.match(over,/次の帰還でかなう/);
+  await page.evaluate(()=>{tab='bar';pickErr=900;render();});
+  assert.match(await rowOf('.pick',ids[0]),/夢が近い/);
+  assert.match(await rowOf('.pick',ids[4]),/謝礼で届くかもしれない/,'海を渡る夢に謝礼の添え書きがない');
+  assert.doesNotMatch(await rowOf('.pick',ids[3]),/夢が近い|謝礼で届く/);
+  for(const [width,height] of [[375,740],[1280,800]]){
+    await page.setViewportSize({width,height});
+    await page.evaluate(()=>{render();return document.fonts.ready;});
+    assert.deepEqual(await page.evaluate(screenAudit),[],`${width}px の主役欄`);
+    await page.evaluate(()=>{tab='roster';render();});
+    assert.deepEqual(await page.evaluate(screenAudit),[],`${width}px の名簿`);
+    await page.evaluate(()=>{tab='bar';render();});
+  }
+  assert.deepEqual(errors,[]);await ctx.close();
+});
+
 test('375pxと1280pxの主役欄で、印だけが行末に残らず、夢の進みは別の行で「夢」と「X / Y」が途中で折れない。選べない者には謝礼の添え書きを出さない（#285）',async()=>{
   const {ctx,page,errors}=await open();
   await page.locator('#sp0').click();
