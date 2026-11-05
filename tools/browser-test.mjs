@@ -82,7 +82,8 @@ test('ゲームが作りうるいちばん長い名前で、375pxと1280pxの主
   const bad=[];
   for(const [width,height] of [[375,740],[1280,800]]){
     await page.setViewportSize({width,height});
-    for(const t of ['stone','roster','bar','desk','news','rank','maps']){
+    // タブはゲームのタブの並び（TAB_GROUPS）から取るので、新しいタブを足すとここでも確かめる（#309 のレビュー）
+    for(const t of await page.evaluate(()=>TAB_GROUPS.flatMap(([,ts])=>ts.map(([k])=>k)))){
       await page.evaluate(t=>{tab=t;render();return document.fonts.ready;},t);
       for(const b of await page.evaluate(screenAudit))bad.push(`${width}px ${t}：${b}`);
     }
@@ -3729,10 +3730,16 @@ test('伏せ中の全滅は、帳場の依頼の欄で出ている一行と同�
 });
 
 // 名前を、ゲームが作りうるいちばん長いものにそろえる（ページの中で動かす）。短い名前のテストでは、狭い画面のはみ出しを見逃すため（#302）。
-// 名前は、乱数で何年か回したときに出た長い名前から取った。冒険者は称号つき、一行は読みのつく名前も入れる
+// 名前はゲームの表から長い順に取るので、表が変わっても追いつく（#309 のレビュー）。
+//   冒険者：NAMES_M・NAMES_F の長いもの。1人めには、いちばん長い称号（名のある魔物の名前＋「殺し」）を付ける
+//   一行：紋章の前半（PT_A）と後半（PT_B）の、語だけで長いものと、読みを添えて長いものを組み合わせる
 function longNames(){
-  const advs=['ゴットフリート','ツェツィーリエ','ベネディクト','アストリッド','バスティアン'],ptys=['アルト・ナハティガル','グルート・ボーゲン','ヒューゲル・シルト','フェルゼン・ベーレ'];
-  Object.values(S.adv).filter(a=>a.tav==='ours').forEach((a,i)=>{a.name=advs[i%advs.length]+(i<advs.length?'':i);if(i===0)a.title='市場の大ガーゴイル殺し';});
+  const byLen=(xs,f=x=>x)=>xs.slice().sort((x,y)=>f(y).length-f(x).length);
+  const advs=byLen([...NAMES_M,...NAMES_F]).slice(0,5),title=byLen(RARES.map(r=>r.n+'殺し'))[0];
+  // 読みを添えない所（居場所の行など）と添える所があるので、紋章の語だけで長いものと、読みまで入れて長いものの両方を作る
+  const pair=f=>{const a=byLen(PT_A,f)[0],b=byLen(PT_B,f)[0];return a.t+'・'+b.t;};
+  const ptys=[...new Set([pair(w=>w.t),pair(w=>w.t+w.ja)])];
+  Object.values(S.adv).filter(a=>a.tav==='ours').forEach((a,i)=>{a.name=advs[i%advs.length]+(i<advs.length?'':i);if(i===0)a.title=title;});
   Object.values(S.parties).forEach((p,i)=>{p.name=ptys[i%ptys.length];});
 }
 
