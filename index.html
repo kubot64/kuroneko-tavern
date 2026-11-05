@@ -4855,8 +4855,11 @@ function digestOurs(x){const g=x.args||{},k=x.kind||'';
 // いま潜っている黒猫亭の一行の居場所。まだ知れていない全滅も、水晶と同じく探索中として出す
 function digestWhere(){
   const out=Object.values(S.parties).filter(p=>{const v=viewOf(S,p);return p.tav==='ours'&&!v.waiting&&(v.hidden||p.state==='explore'||p.state==='return');});
-  // 「、」は前の名前のかたまりに入れ、「。」は前の語と一続きにする。知らせの行は語の途中で折らない（keep-all）ので、折れてよい所に <wbr> を置く。句読点だけが行の頭に落ちないように（#289）
-  return out.length?'いま潜っている：'+out.map((p,i)=>nw(esc(p.name)+'（'+viewOf(S,p).label[0]+'）'+(i<out.length-1?'、':''))).join(''):'いま迷宮に<wbr>潜っている<wbr>黒猫亭の<wbr>'+nw('一行はいない。');
+  // 「、」は前の居場所のかたまりに入れ、「。」は前の語と一続きにする。知らせの行は語の途中で折らない（keep-all）ので、折れてよい所に <wbr> を置く。句読点だけが行の頭に落ちないように（#289）
+  // 名前・名前の読み（「（古の梟）」）・居場所はそれぞれ一続きにし、そのあいだで折れるようにする。一行ぶんが狭い画面の幅を越えないように（#302）
+  const where=(p,i)=>{const m=/^(.+?)(（[^（）]{1,12}）)$/.exec(String(p.name)),name=m?nw(esc(m[1]))+'<wbr>'+nw(esc(m[2])):nw(esc(p.name));
+    return name+'<wbr>'+nw('（'+viewOf(S,p).label[0]+'）'+(i<out.length-1?'、':''));};
+  return out.length?'いま潜っている：'+out.map(where).join(''):'いま迷宮に<wbr>潜っている<wbr>黒猫亭の<wbr>'+nw('一行はいない。');
 }
 // 留守のあいだの知らせに名前の出た黒猫亭の者を、新しい知らせの順に4人まで。押すとその人の手帳が開く（#256）
 // 知らせの中身の値は、称号つきの名前（「「百戦錬磨」アル」）や名前を含む文（装備の由来など）もあるので、文のまま持つ知らせと同じく文の中から拾う（#268）。
