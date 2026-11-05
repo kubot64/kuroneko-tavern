@@ -1322,7 +1322,7 @@ const DREAMS={
   conquer:{w:.6,cw:{'warrior':1,'samurai':1,'paladin':1.5,'kensei':1.5,'dragoon':1.2},mk:()=>({}),txt:()=>'迷宮の主を討ち、踏破者として名を残したい',
     ok:(S,a)=>a.conq,msg:a=>`${a.name}が迷宮の主を討ち、踏破者として名を残した。`,prog:a=>`これまでの最深 ${deepNow(a.deepest)}`},
   truth:{w:0,ow:{'灰の荒野':3},mk:()=>({}),txt:()=>'故国エスタリアが沈んだ真相を、この目で確かめたい',
-    ok:(S,a)=>a.deepest>=MAXF,msg:a=>`${a.name}が迷宮の最下層にたどり着き、故国が沈んだ地の底をその目で見た。`,prog:a=>`これまでの最深 ${deepNow(a.deepest)}`},
+    pace:(a,d)=>[a.deepest,MAXF],msg:a=>`${a.name}が迷宮の最下層にたどり着き、故国が沈んだ地の底をその目で見た。`,prog:a=>`これまでの最深 ${deepNow(a.deepest)}`},
   home:{w:0,ow:{'東方の島国アズマ':3,'砂の大陸ザハル':3,'北の氷海ノルデン':3},mk:a=>({amt:r100(Math.max(5000,incomeAt(depthOf(a)+3)*ri(12,20)))}),txt:d=>`海を渡って故郷へ帰る船賃と土産（${d.amt}G）を稼ぎたい`,
     ok:(S,a,d)=>a.gold>=d.amt,pay:d=>d.amt,msg:a=>`${a.name}が故郷へ帰る船賃を稼ぎ終えた。`,ret:d=>d.vi===1&&d.who?`海を渡って故郷の${d.who}のもとへ帰る`:'海を渡って故郷へ帰る',prog:(a,d)=>`貯金 ${G(a.gold)} / ${G(d.amt)}`},
   debt:{w:1.2,mk:a=>({amt:r100(Math.max(1500,incomeAt(depthOf(a)+2)*ri(6,12)))}),txt:d=>`故郷に残した莫大な借金${d.amt}Gを返したい`,
@@ -1334,9 +1334,9 @@ const DREAMS={
   temple:{w:.3,cw:{'priest':2.5,'bishop':2.5},mk:a=>({amt:r100(Math.max(10000,incomeAt(depthOf(a)+3)*ri(15,25)))}),txt:d=>`故郷の村に寺院を建てたい（${d.amt}G）`,
     ok:(S,a,d)=>a.gold>=d.amt,pay:d=>d.amt,msg:(a,d)=>`${a.name}の寄進で、故郷の村に${d.what||'寺院'}が建つことになった。`,ret:d=>`故郷に建てた${d.what||'寺院'}を守る`,prog:(a,d)=>`貯金 ${G(a.gold)} / ${G(d.amt)}`},
   abyss:{w:1.2,mk:a=>({f:MAXF}),txt:()=>`迷宮の最下層、${FN(MAXF)}にたどり着きたい`,
-    ok:(S,a,d)=>a.deepest>=MAXF,msg:a=>`${a.name}が迷宮の最下層${FN(MAXF)}にたどり着き、長年の夢を果たした。`,prog:a=>`これまでの最深 ${deepNow(a.deepest)}`},
+    pace:(a,d)=>[a.deepest,MAXF],msg:a=>`${a.name}が迷宮の最下層${FN(MAXF)}にたどり着き、長年の夢を果たした。`,prog:a=>`これまでの最深 ${deepNow(a.deepest)}`},
   deep:{w:1,mk:(a,S)=>{const f=clamp(Math.max(a.deepest||0,Math.ceil(PL(a)))+ri(5,9),GATE_F+2,MAXF-1);return {f,unseen:!!S&&f>Math.max(S.deepest.ours,S.deepest.rival)};},txt:d=>`${d.unseen?'まだ誰も見ぬ':''}${FN(d.f)}の景色を、この目で見たい`,
-    ok:(S,a,d)=>a.deepest>=d.f,msg:(a,d)=>`${a.name}が${FN(d.f)}の景色を見るという夢を果たした。`,prog:a=>`これまでの最深 ${deepNow(a.deepest)}`},
+    pace:(a,d)=>[a.deepest,d.f],msg:(a,d)=>`${a.name}が${FN(d.f)}の景色を見るという夢を果たした。`,prog:a=>`これまでの最深 ${deepNow(a.deepest)}`},
   kin:{w:1,mk:(a,S)=>{const who=pick(['兄','姉','師匠','幼なじみ','父','弟']);const g=KIN_G[who]||pick(['男','女']);return {who,g,f:ri(GATE_F+1,GATE_F+6),name:uname(S,g)}},
     txt:d=>`封じの門を密かに越えて消えた${d.who}の${d.name}を探している（${FN(d.f)}付近）`,ok:()=>false,prog:a=>`これまでの最深 ${deepNow(a.deepest)}`},
   dragon:{w:.8,cw:{'warrior':1.3,'samurai':1.6,'dragoon':4},mk:()=>({m:'黒竜'}),txt:()=>'黒竜を討ち、竜殺しと呼ばれたい',
@@ -1344,7 +1344,7 @@ const DREAMS={
   slay:{w:1,mk:()=>({}),txt:d=>`故郷を滅ぼした${d.m}を討ちたい`,
     ok:(S,a,d)=>(a.slain||{})[d.m],msg:(a,d)=>`${a.name}が、${d.why||'故郷を滅ぼした'}${d.m}への仇を討った。`,ret:()=>chance(.4)?'仇を討ち、剣を置く':null,prog:a=>`これまでの最深 ${deepNow(a.deepest)}`},
   hero:{w:1,mk:a=>({l:Math.max(30,a.lvl+16)}),txt:d=>`レベル${d.l}の英雄になりたい`,
-    ok:(S,a,d)=>a.lvl>=d.l,msg:(a,d)=>`${a.name}がレベル${d.l}に達し、英雄の域に踏み込んだ。`,prog:a=>`いまLv${a.lvl}`},
+    pace:(a,d)=>[a.lvl,d.l],msg:(a,d)=>`${a.name}がレベル${d.l}に達し、英雄の域に踏み込んだ。`,prog:a=>`いまLv${a.lvl}`},
   legend:{w:.8,mk:()=>({}),txt:()=>'伝説の武具を、この手に握りたい',
     ok:(S,a)=>eqList(a).some(i=>i.rare),msg:a=>`${a.name}が伝説の${eqList(a).find(i=>i.rare).n}を手にし、夢を果たした。`,prog:()=>'伝説の武具は、この世にひとつずつしかない'},
   fame:{w:1,mk:()=>({}),txt:()=>'吟遊詩人に歌われるほどの英雄になりたい',
@@ -1352,7 +1352,7 @@ const DREAMS={
   knight:{w:.4,cw:{'warrior':1.5,'samurai':1.2,'priest':1,'paladin':3,'dragoon':2},mk:()=>({}),txt:()=>'王国の騎士に取り立てられたい',
     ok:(S,a)=>a.lvl>=28&&a.kills>=150,msg:(a,d)=>d.vi===1&&d.who&&d.who!=='王国'?`${a.name}の名声が${d.who}の耳に届き、騎士として召し抱えられることになった。`:`${a.name}の名声が王都に届き、騎士として召し抱えられることになった。`,ret:d=>d.vi===1&&d.who&&d.who!=='王国'?`${d.who}に仕える騎士となる`:'王国の騎士に取り立てられる',prog:a=>`Lv${a.lvl}・討伐${a.kills}（騎士の目に留まるには、もっと名を上げねば）`},
   archmage:{w:0,cw:{'mage':3,'sorcerer':3,'bishop':1},mk:()=>({}),txt:()=>'あらゆる呪文を極め、大魔導士と呼ばれたい',
-    ok:(S,a)=>a.lvl>=32,msg:a=>`${a.name}があらゆる呪文を極め、大魔導士と呼ばれるようになった。`,prog:a=>`いまLv${a.lvl}`},
+    pace:(a,d)=>[a.lvl,32],msg:a=>`${a.name}があらゆる呪文を極め、大魔導士と呼ばれるようになった。`,prog:a=>`いまLv${a.lvl}`},
   map:{w:.4,cw:{'thief':1.5,'ninja':1.5},mk:()=>({}),txt:()=>'迷宮の完全な地図を描き上げたい',
     ok:(S,a)=>a.deepest>=MAXF&&(a.trips||0)>=40,msg:a=>`${a.name}が、迷宮の完全な地図を描き上げた。写しは高値で売れるだろう。`,prog:a=>`探索${a.trips||0}回・最深${deepNow(a.deepest)}`},
   sendhome:{w:.8,aw:a=>humanAge(a)<22?2:humanAge(a)>40?.4:1,mk:a=>({amt:r100(Math.max(2000,incomeAt(depthOf(a)+2)*ri(5,9))),who:pick(['弟や妹たち','病気の母','年老いた両親','村の孤児院','戦で片腕をなくした兄'])}),txt:d=>`${d.who}への仕送り（${d.amt}G）を貯めて送りたい`,
@@ -1362,18 +1362,18 @@ const DREAMS={
   pension:{w:1.5,can:a=>humanAge(a)>=40,mk:a=>({amt:r100(Math.max(15000,incomeAt(depthOf(a)+2)*ri(25,35)))}),txt:d=>`剣を置く前に、静かな余生のための蓄え（${d.amt}G）を作りたい`,
     ok:(S,a,d)=>a.gold>=d.amt,msg:(a,d)=>`${a.name}が、余生の蓄えを作り終えた。`,ret:d=>d.vi===1&&d.place?`剣を置いて${d.place}で隠居する`:'剣を置いて隠居する',prog:(a,d)=>`貯金 ${G(a.gold)} / ${G(d.amt)}`},
   lastdive:{w:1.2,can:a=>humanAge(a)>=42,mk:a=>({f:clamp(Math.max(a.deepest||0,Math.ceil(PL(a)))+ri(2,4),GATE_F+1,MAXF)}),txt:d=>`体が言うことをきくうちに、もう一度だけ${FN(d.f)}まで潜りたい`,
-    ok:(S,a,d)=>a.deepest>=d.f,msg:(a,d)=>`${a.name}が老いた体で、ついに${FN(d.f)}に立った。「これで思い残すことはない」`,ret:()=>chance(.6)?'思い残すことなく引退する':null,prog:a=>`これまでの最深 ${deepNow(a.deepest)}`},
+    pace:(a,d)=>[a.deepest,d.f],msg:(a,d)=>`${a.name}が老いた体で、ついに${FN(d.f)}に立った。「これで思い残すことはない」`,ret:()=>chance(.6)?'思い残すことなく引退する':null,prog:a=>`これまでの最深 ${deepNow(a.deepest)}`},
   mentor:{w:1,can:a=>humanAge(a)>=33&&a.lvl>=16,mk:()=>({}),txt:()=>'駆け出しを一人、一人前に育て上げたい',
     ok:(S,a,d)=>{const b=Object.values(S.adv).find(b=>b!==a&&b.tav===a.tav&&b.party&&b.party===a.party&&(b.lvl0||99)<=4&&b.lvl>=14&&!isLost(b));if(b)d.pupil=b.name;return !!b;},
     msg:(a,d)=>`${a.name}が駆け出しのころから面倒を見てきた${d.pupil}が、一人前の冒険者になった。`,prog:()=>'同じ一行の駆け出しが育つのを待っている'},
   prove:{w:1.5,can:a=>humanAge(a)<20,mk:a=>({l:Math.max(16,a.lvl+10)}),txt:d=>`「子どもは帰れ」と笑った連中に、レベル${d.l}の姿を見せつけたい`,
-    ok:(S,a,d)=>a.lvl>=d.l,msg:(a,d)=>`${a.name}がレベル${d.l}に達した。子ども扱いしていた連中も、もう笑わない。`,prog:a=>`いまLv${a.lvl}`},
+    pace:(a,d)=>[a.lvl,d.l],msg:(a,d)=>`${a.name}がレベル${d.l}に達した。子ども扱いしていた連中も、もう笑わない。`,prog:a=>`いまLv${a.lvl}`},
   defy:{w:.6,mk:a=>({l:Math.max(20,a.lvl+12),g:a.sex}),txt:d=>d.g==='女'?`「女に剣は振れない」と言った故郷の連中を、レベル${d.l}になって見返したい`:`家業を継げと言う父に、レベル${d.l}になって自分の生き方を認めさせたい`,
-    ok:(S,a,d)=>a.lvl>=d.l,msg:(a,d)=>d.g==='女'?`${a.name}がレベル${d.l}に達した。故郷に届いた噂に、かつて笑った連中は黙り込んだという。`:`${a.name}がレベル${d.l}に達し、故郷の父から「好きにしろ」とだけ書いた手紙が届いた。`,prog:a=>`いまLv${a.lvl}`},
+    pace:(a,d)=>[a.lvl,d.l],msg:(a,d)=>d.g==='女'?`${a.name}がレベル${d.l}に達した。故郷に届いた噂に、かつて笑った連中は黙り込んだという。`:`${a.name}がレベル${d.l}に達し、故郷の父から「好きにしろ」とだけ書いた手紙が届いた。`,prog:a=>`いまLv${a.lvl}`},
   elfsong:{w:1.5,can:a=>a.race==='elf',mk:()=>({}),txt:()=>'森へ帰る前に、人の世の英雄譚をこの目で見届けたい',
     ok:(S,a)=>(a.trips||0)>=25&&a.deepest>=GATE_F+5,msg:a=>`${a.name}が、森へ持ち帰る英雄譚をいくつも見届けた。`,ret:()=>chance(.5)?'人の世の歌を携えて森へ帰る':null,prog:a=>`探索${a.trips||0}回・最深${deepNow(a.deepest)}`},
   elfrelic:{w:1.2,can:a=>a.race==='elf',mk:()=>({f:ri(GATE_F+4,GATE_F+12)}),txt:d=>`${FN(d.f)}あたりに沈んだという、古いエルフの弓を見つけて森へ返したい`,
-    ok:(S,a,d)=>a.deepest>=d.f,msg:(a,d)=>`${a.name}が${FN(d.f)}で古いエルフの弓を見つけ出した。森の長老たちに届けるという。`,prog:a=>`これまでの最深 ${deepNow(a.deepest)}`},
+    pace:(a,d)=>[a.deepest,d.f],msg:(a,d)=>`${a.name}が${FN(d.f)}で古いエルフの弓を見つけ出した。森の長老たちに届けるという。`,prog:a=>`これまでの最深 ${deepNow(a.deepest)}`},
   dwarfaxe:{w:1.5,can:a=>a.race==='dwarf'||a.origin==='ベルクラント鉱山諸侯領',mk:()=>{const t=ri(4,6);return {t,mat:SHOP_MAT.metal[t-1],amt:SHOP_PRICE[t]*2}},txt:d=>`グンター親方に、${d.mat}で自分だけの得物を打たせたい（${d.amt}G）`,
     ok:(S,a,d)=>!!(S.shop&&S.shop.tiers&&S.shop.tiers[d.t])&&a.gold>=d.amt,pay:d=>d.amt,act:(S,a,d)=>{const o=shopOffers(S,a.cls).filter(x=>x.t===d.t&&x.b.slot==='wpn')[0];if(o){const it=shopMake(S,o.b,o.t);it.n=`${a.name}の${d.mat}の${o.b.t}`;it.atk=(it.atk||0)+2;it.src.up={atk:2};equip(a,it);}},
     msg:(a,d)=>`${a.name}が、グンター親方に打たせた${d.mat}の得物を手にした。`,prog:(a,d)=>`貯金 ${G(a.gold)} / ${G(d.amt)}${S.shop&&S.shop.tiers&&S.shop.tiers[d.t]?'':'（武具屋にまだ'+d.mat+'の品がない）'}`},
@@ -1396,17 +1396,17 @@ const DREAMS={
   horse:{w:0,ow:{'ハザン草原':3},mk:a=>({amt:r100(Math.max(6000,incomeAt(depthOf(a)+3)*ri(12,18)))}),txt:d=>`博打で取られた一族の名馬を買い戻したい（${d.amt}G）`,
     ok:(S,a,d)=>a.gold>=d.amt,pay:d=>d.amt,msg:(a,d)=>`${a.name}が一族の名馬を買い戻した。`,ret:()=>chance(.5)?'名馬に乗って草原へ帰る':null,prog:(a,d)=>`貯金 ${G(a.gold)} / ${G(d.amt)}`},
   crest:{w:0,ow:{'灰の荒野':2.5},mk:()=>({}),txt:()=>'宮廷のどこかに眠るエスタリア王家の紋章を、荒野の長老に届けたい',
-    ok:(S,a)=>a.deepest>=18,msg:a=>`${a.name}が宮廷の奥でエスタリア王家の紋章を見つけ、荒野の長老たちに届けた。流民たちは夜通し泣いたという。`,prog:a=>`これまでの最深 ${deepNow(a.deepest)}`},
+    pace:(a,d)=>[a.deepest,18],msg:a=>`${a.name}が宮廷の奥でエスタリア王家の紋章を見つけ、荒野の長老たちに届けた。流民たちは夜通し泣いたという。`,prog:a=>`これまでの最深 ${deepNow(a.deepest)}`},
   father:{w:0,ow:{'ロウエン':3},mk:()=>({f:GATE_F+ri(2,7)}),txt:d=>`帰ってこなかった親父が目指していた${FN(d.f)}に、代わりに立ちたい`,
-    ok:(S,a,d)=>a.deepest>=d.f,msg:(a,d)=>`${a.name}が、父が目指した${FN(d.f)}に立った。`,prog:a=>`これまでの最深 ${deepNow(a.deepest)}`},
+    pace:(a,d)=>[a.deepest,d.f],msg:(a,d)=>`${a.name}が、父が目指した${FN(d.f)}に立った。`,prog:a=>`これまでの最深 ${deepNow(a.deepest)}`},
   lord:{w:0,ow:{'東方の島国アズマ':3},mk:()=>({}),txt:()=>'亡き主君の墓前に、迷宮の名品を供えたい',
     ok:(S,a)=>eqList(a).some(i=>i.rare),msg:a=>`${a.name}が、亡き主君の墓前に供える名品を手に入れた。`,ret:()=>chance(.5)?'主君の墓前へ帰る':null,prog:()=>'伝説の品を探している'},
   elixir:{w:0,ow:{'砂の大陸ザハル':3},cw:{'alchemist':4},mk:()=>({}),txt:()=>'澱が結晶した「澱晶」を持ち帰り、師の錬金術を完成させたい',
-    ok:(S,a)=>a.deepest>=24,msg:a=>`${a.name}が澱晶を手に入れ、師の研究を完成させた。`,ret:()=>chance(.5)?'澱晶を携えてザハルへ帰る':null,prog:a=>`これまでの最深 ${deepNow(a.deepest)}`},
+    pace:(a,d)=>[a.deepest,24],msg:a=>`${a.name}が澱晶を手に入れ、師の研究を完成させた。`,ret:()=>chance(.5)?'澱晶を携えてザハルへ帰る':null,prog:a=>`これまでの最深 ${deepNow(a.deepest)}`},
   trapper:{w:0,cw:{'thief':2,'ninja':2},mk:a=>({n:Math.max(30,(a.disarms||0)+20)}),txt:d=>`迷宮一の罠外しと呼ばれたい（罠${d.n}個）`,
-    ok:(S,a,d)=>(a.disarms||0)>=d.n,msg:(a,d)=>`${a.name}が外した罠が${d.n}個に達した。ロウエンで一番の罠外しだ。`,prog:a=>`外した罠 ${a.disarms||0}個`},
+    pace:(a,d)=>[(a.disarms||0),d.n],msg:(a,d)=>`${a.name}が外した罠が${d.n}個に達した。ロウエンで一番の罠外しだ。`,prog:a=>`外した罠 ${a.disarms||0}個`},
   thousand:{w:0,cw:{'warrior':1.2,'samurai':1.2,'kensei':2,'ninja':1},mk:a=>({n:Math.max(500,(a.kills||0)+300)}),txt:d=>`魔物を${d.n}体斬り伏せたい`,
-    ok:(S,a,d)=>a.kills>=d.n,msg:(a,d)=>`${a.name}が斬った魔物が${d.n}体に達した。`,prog:a=>`討伐 ${a.kills}`},
+    pace:(a,d)=>[a.kills,d.n],msg:(a,d)=>`${a.name}が斬った魔物が${d.n}体に達した。`,prog:a=>`討伐 ${a.kills}`},
   yomi:{w:0,cw:{'priest':1.5,'bishop':1.5},mk:()=>({}),txt:()=>'寺院に頼らず、迷宮の中で仲間を蘇らせたい（ヨミガエリ）',
     ok:(S,a)=>(a.yomiN||0)>=1,msg:a=>`${a.name}が、迷宮の中でヨミガエリを成功させた。`,prog:a=>`いまLv${a.lvl}`},
   ballad:{w:0,cw:{'bard':4},mk:()=>({}),txt:()=>'迷宮の英雄たちの歌を、一曲に仕上げたい',
@@ -1461,6 +1461,8 @@ const DREAMS={
     ok:(S,a)=>!!a.title||a.lvl>=16,msg:(a,d)=>`${a.name}が、${d.who||'身内'}のように黒猫亭で名を上げた。`,prog:a=>a.title?`「${a.title}」と呼ばれている`:`いまLv${a.lvl}`}
 
 };
+// 数で決まる夢（レベル・深さ・数）は、pace で [いまの数, めざす数] を持ち、かなう条件はそこから作る。めざす数は pace の一か所だけに書く（#285）
+for(const D of Object.values(DREAMS))if(D.pace&&!D.ok)D.ok=(S,a,d)=>{const [c,t]=D.pace(a,d);return c>=t;};
 
 const DV={
   conquer:{t:['迷宮の主を討ち、踏破者として名を残したい','沈んだ王を討ち、{place}に凱旋したい','玉座の間で、迷宮の主と刃を交えたい','{who}に「迷宮を踏破した」と胸を張って言いたい'],place:['王都','故郷の村','ロウエンの大通り'],who:['故郷の母','死んだ師匠の墓','昔の仲間たち','自分を笑った連中']},
@@ -2793,13 +2795,9 @@ function pushNeed(S,a){const d=a&&a.dream;
   if(S.taverns.ours.debtFree==null||a.tav!=='ours'||!isIdle(a)||!d||d.done||d.push||d.pushNo||PUSH_NOT[d.k]||!DREAMS[d.k]||!DREAMS[d.k].pay||!(d.amt>0))return 0;
   return Math.max(0,d.amt-Math.max(0,Math.floor(a.gold||0)));}
 // 夢の進みの割合（0〜1）。目標が数で決まる夢（貯金・レベル・深さ・数）だけを測り、ほかの夢と夢のない者は null（#277）
-const DREAM_PACE={hero:(a,d)=>[a.lvl,d.l],prove:(a,d)=>[a.lvl,d.l],defy:(a,d)=>[a.lvl,d.l],archmage:a=>[a.lvl,32],
-  deep:(a,d)=>[a.deepest,d.f],lastdive:(a,d)=>[a.deepest,d.f],elfrelic:(a,d)=>[a.deepest,d.f],father:(a,d)=>[a.deepest,d.f],
-  abyss:a=>[a.deepest,MAXF],truth:a=>[a.deepest,MAXF],crest:a=>[a.deepest,18],elixir:a=>[a.deepest,24],
-  trapper:(a,d)=>[a.disarms,d.n],thousand:(a,d)=>[a.kills,d.n]};
 function dreamFrac(a){
   const d=a&&a.dream;if(!d||!DREAMS[d.k])return null;
-  const pace=MONEY_DREAMS.includes(d.k)?[Math.floor(a.gold||0),d.amt]:DREAM_PACE[d.k]&&DREAM_PACE[d.k](a,d);
+  const pace=MONEY_DREAMS.includes(d.k)?[Math.floor(a.gold||0),d.amt]:DREAMS[d.k].pace&&DREAMS[d.k].pace(a,d);
   if(!pace||!(pace[1]>0))return null;
   return Math.min(1,Math.max(0,(pace[0]||0)/pace[1]));
 }
@@ -5045,8 +5043,8 @@ function sideNews(){const ed=(S.edicts||[]).filter(e=>e.until>S.tick);return `${
 // 日報は新しい順に出す。ただし開店の日の導入（刻0の知らせ）だけは、いちばん下に書いた順のまま並べ、上から読めるようにする（#255）
 function newsOrder(list){return list.filter(x=>x.tk>0).reverse().concat(list.filter(x=>!(x.tk>0)))}
 // 夢が近い者の印。名簿と、掲示で主役を選ぶ欄に出す（#277）
-function nearTag(a){return a.tav==='ours'&&isActive(a)&&dreamNear(a)?'<span class="markmark" title="夢の進みが8割を越えた">夢が近い</span>':''}
-function markTag(a){return a.marked&&a.tav==='ours'&&isActive(a)?'<span class="markmark" title="店主が見込んだ者">◆見込み</span>':''}
+function nearTag(a){return a.tav==='ours'&&isActive(a)&&dreamNear(a)?'<span class="markmark nw" title="夢の進みが8割を越えた">夢が近い</span>':''}
+function markTag(a){return a.marked&&a.tav==='ours'&&isActive(a)?'<span class="markmark nw" title="店主が見込んだ者">◆見込み</span>':''}
 // 掲示にまだ誰にも回していない話があるのに、いま酒場で伝えられる常連がいないとき、そのわけを一言で返す（#253）。それ以外は空
 function boardGap(S){
   if(!boardOpen(S))return '';
@@ -5070,7 +5068,7 @@ function sideBoard(){
         .sort((x,y)=>(rank(x)-rank(y))||(!!y.a.marked-!!x.a.marked)||byTeam(x.a,y.a));
       // 持ちかけた者には、そのときの返しを本人の言葉として添える
       const said=a=>{const r=e.asked&&e.asked[a.id];return r?`<span class="does ask">${keepText(`「${r.t}」`)}</span>`:'';};
-      foot=`<div class="pick"><p class="note" style="margin:4px 0">誰を主役にするか。名前を押すと手帳が開く。酒場にいる者には、話を持ちかけて返事を聞ける。迷宮や寺院にいる者を選んだときは、次に酒場で会えたときに伝える。<button class="btn sm" data-act="pickerr" data-e="">やめる</button></p>${cs.map(({a,d,b})=>`<div class="row"><span class="who">${nmLink(a,true)}${markTag(a)}${nearTag(a)}${teamTag(a)} <span class="meta">${lvCls(a)}・${a.pers}${b&&!d?'・'+esc(b):''}${dreamMeta(a)}</span>${giftReach(a,e)?'<span class="does">謝礼で届くかもしれない</span>':''}${said(a)}</span>${d?`<span class="chip">${d}</span>`:`${askBlock(S,e,a)?'':`<button class="btn sm" data-act="ask" data-e="${e.id}" data-a="${a.id}">話を持ちかける</button>`}<button class="btn sm" data-act="assign" data-e="${e.id}" data-a="${a.id}">${b?'戻ったら伝える':'回す'}</button>`}</div>`).join('')||'<p class="note">黒猫亭の常連がいない。</p>'}</div>`;}
+      foot=`<div class="pick"><p class="note" style="margin:4px 0">誰を主役にするか。名前を押すと手帳が開く。酒場にいる者には、話を持ちかけて返事を聞ける。迷宮や寺院にいる者を選んだときは、次に酒場で会えたときに伝える。<button class="btn sm" data-act="pickerr" data-e="">やめる</button></p>${cs.map(({a,d,b})=>`<div class="row"><span class="who">${nmLink(a,true)}${markTag(a)}${nearTag(a)}${teamTag(a)} <span class="meta">${lvCls(a)}・${a.pers}${b&&!d?'・'+esc(b):''}</span>${dreamLine(a)}${!d&&giftReach(a,e)?'<span class="does">謝礼で届くかもしれない</span>':''}${said(a)}</span>${d?`<span class="chip">${d}</span>`:`${askBlock(S,e,a)?'':`<button class="btn sm" data-act="ask" data-e="${e.id}" data-a="${a.id}">話を持ちかける</button>`}<button class="btn sm" data-act="assign" data-e="${e.id}" data-a="${a.id}">${b?'戻ったら伝える':'回す'}</button>`}</div>`).join('')||'<p class="note">黒猫亭の常連がいない。</p>'}</div>`;}
     return `<div class="quote board"><b>${esc(e.n)}</b>${e.arc?`<span class="markmark">続きもの・${esc(ARCS[e.arc].n)}　${e.stage}/${ARCS[e.arc].stages.length}</span>`:''}<span class="by">${esc(e.from)}から・${h?'引き受け済み':`掲示はあと${dd(e.until)}日`}</span>「${esc(e.t)}」${foot}</div>`;};
   const log=E.log.slice(-5).reverse().map(l=>`<div class="row"><span class="who">${l.ok?'<span class="chip">果たした</span>':'<span class="chip ash">果たせず</span>'} ${esc(l.n)}${l.who?`・${l.id&&S.adv[l.id]?nmLink(S.adv[l.id]):esc(l.who)}`:''}<span class="does">${esc(l.t)}</span></span><span class="meta">${dayMark(l.tk)}</span></div>`).join('');
   const shallow=st===1?'<p class="note">いまは浅い頼みごとだけ。名が上がれば、もっと持ち込まれる。</p>':'';
@@ -5101,7 +5099,7 @@ function advRow(a){
   const st=shownStatus(S,a);const down=st==='party'&&!isMissing(a)&&a.hp<=0;
   const chip=down?'倒れている':{idle:'酒場',party:'探索中',missing:'行方不明',dead:'寺院・死',ash:'寺院・灰'}[st]||st;
   const hp=hpView(S,a);const hpBit=hp.hide?'':nw('HP'+hp.label);
-  return `<div class="row"><span class="chip ${down?'down':st}">${chip}</span><span class="who">${a.title?`<span class="ttl">「${esc(a.title)}」</span>`:''}${nmLink(a,true)}${markTag(a)}${nearTag(a)}${teamTag(a)}${a.odd?'<span class="oddmark">異例</span>':''}${C(a).rare?'<span class="clsmark">レア</span>':C(a).adv?'<span class="clsmark">上級</span>':''} <span class="meta">${sexAgeHtml(a)} ${originBit(a)}${lvCls(a)}・${a.pers}${hpBit?'・'+hpBit:''}</span><span class="does">${a.dream?'夢：'+esc(dreamText(a.dream)):'次の夢を探している'}${(a.pastDreams||[]).length?`（かなえた夢 ${a.pastDreams.length}）`:''}</span>${dreamProgress(a)?`<span class="does">${parenNw(dreamProgress(a))}</span>`:''}</span></div>`;
+  return `<div class="row"><span class="chip ${down?'down':st}">${chip}</span><span class="who">${a.title?`<span class="ttl">「${esc(a.title)}」</span>`:''}${nmLink(a,true)}${markTag(a)}${nearTag(a)}${teamTag(a)}${a.odd?'<span class="oddmark">異例</span>':''}${C(a).rare?'<span class="clsmark">レア</span>':C(a).adv?'<span class="clsmark">上級</span>':''} <span class="meta">${sexAgeHtml(a)} ${originBit(a)}${lvCls(a)}・${a.pers}${hpBit?'・'+hpBit:''}</span><span class="does">${a.dream?'夢：'+esc(dreamText(a.dream)):'次の夢を探している'}${(a.pastDreams||[]).length?`（かなえた夢 ${a.pastDreams.length}）`:''}</span>${dreamProgress(a)?`<span class="does">${progNw(dreamProgress(a))}</span>`:''}</span></div>`;
 }
 function sideRoster(){
   const ours=Object.values(S.adv).filter(a=>a.tav==='ours'&&!isLost(a));
@@ -5327,8 +5325,11 @@ function doing(a){
   if(!opts.length)return '';
   return opts[(a.id*7+day(S)*3+Math.floor(S.tick/20))%opts.length];
 }
-// 主役を選ぶ欄の meta に添える夢の進み。手帳と同じ文で、夢がない者・かなえた者には何も足さない（#274）
-function dreamMeta(a){const t=dreamProgress(a);return t?'・夢 '+parenNw(t):'';}
+// 主役を選ぶ欄の夢の進み。手帳と同じ文で、夢がない者・かなえた者には何も足さない（#274）。
+// 名簿と同じく別の行に出し、「夢 」と中身の先頭、「X / Y」は途中で折らない（#285）
+function dreamLine(a){const t=dreamProgress(a);return t?`<span class="does">${progNw('夢 '+t)}</span>`:'';}
+// 夢の進みの文を、かっこ書きと「X / Y」を一続きにして出す。先頭の語（「夢 貯金」など）も一続き（#285）
+function progNw(t){return parenNw(t).replace(/[^\s<>（）]+ \/ [^\s<>（）]+/g,m=>nw(m)).replace(/^夢 [^\s<>、。]{1,10}/,m=>nw(m));}
 function dreamProgress(a){
   const d=a.dream;if(!d||!DREAMS[d.k])return '';
   return DREAMS[d.k].prog?DREAMS[d.k].prog(a,d,S):'';
