@@ -291,6 +291,43 @@ test('375pxで『留守のあいだに』の居場所の一行の「。」「、
   assert.deepEqual(errors,[]);await ctx.close();
 });
 
+test('『留守のあいだに』で黒猫亭の帰還・返済・掲示・挑発・首位・初到達・遺体の知らせは黒猫亭の側に数え、ほかの店の知らせは「ほか」に入れる（#294）',async()=>{
+  const {ctx,page,errors}=await open();
+  await page.locator('#sp0').click();
+  // 知らせを1件だけ出した留守で、黒猫亭の行として数えたか（畳まれず、「ほかの店と街の知らせ」に数えない）
+  const r=await page.evaluate(()=>{
+    for(const p of Object.values(S.parties))if(p.tav==='ours'&&p.state!=='town')setPhase(S,p,'town');
+    const ours=Object.values(S.parties).find(p=>p.tav==='ours').name,rival=Object.values(S.parties).find(p=>p.tav==='rival');
+    const rv=rival?rival.name:'灰色の狼';
+    const one=(kind,args,k)=>{S.tick+=TICKS_PER_DAY;news(S,kind,args,k);
+      drawDigest({i:50,n:50,awaySec:3600,startTick:S.tick-1,g0:S.taverns.ours.gold,e0:S.taverns.ours.earned||0,s0:0,r0:0,lost0:S.memorial.length,returns:0,wipes:0});
+      return {fold:!!document.querySelector('#dg-fold details'),other:/ほかの店と街の知らせ/.test(document.querySelector('#dg-shop').textContent)};};
+    const mine={
+      home:['home',{p:ours,g:701},'loot'],repay:['repay',{due:3000,intr:400,debt:20000},'info'],repayShort:['repayShort',{short:500,pen:100,debt:20600},'death'],
+      errandPosted:['errandPosted',{from:'梟の地図屋',t:'B8Fの鐘楼に灯をともしてほしい'},'errand'],errandStage:['errandStage',{goal:1},'record'],
+      errandStolen:['errandStolen',{p:rv,n:'鐘楼の光'},'rumor'],errandExpired:['errandExpired',{n:'鐘楼の光'},'errand'],
+      rivalTaunt:['rivalTaunt',{ro:'ヴィクトル',f:5},'rumor'],rivalTsk:['rivalTsk',{p:ours,ro:'ヴィクトル'},'rumor'],topTavern:['topTavern',undefined,'record'],
+      firstFloor:['firstFloor',{rival:false,p:ours,f:9},'record'],bodyHome:['bodyHome',{how:'',w:'名もなき戦士'},'death'],
+    };
+    const theirs={
+      rivalFirst:['firstFloor',{rival:true,p:rv,f:9},'record'],rivalBody:['bodyHome',{how:'',w:'名もなき戦士'},'rumor'],
+      rivalAce:['rivalAce',{p:rv},'rumor'],
+    };
+    const out={mine:{},theirs:{}};
+    for(const [n,a] of Object.entries(mine))out.mine[n]=one(...a);
+    for(const [n,a] of Object.entries(theirs))out.theirs[n]=one(...a);
+    return out;
+  });
+  for(const [n,v] of Object.entries(r.mine))assert.deepEqual(v,{fold:false,other:false},`黒猫亭の ${n} が「ほか」に数えられた`);
+  for(const [n,v] of Object.entries(r.theirs))assert.deepEqual(v,{fold:true,other:true},`ほかの店の ${n} が黒猫亭に数えられた`);
+  for(const [width,height] of [[375,740],[1280,800]]){
+    await page.setViewportSize({width,height});
+    await page.evaluate(()=>{document.querySelector('#digest').hidden=false;return document.fonts.ready;});
+    assert.deepEqual(await page.evaluate(screenAudit),[],`${width}px の留守のあいだに`);
+  }
+  assert.deepEqual(errors,[]);await ctx.close();
+});
+
 test('「留守のあいだに」の手帳を見るは、ほかの者の名前の一部として出ているだけの者を並べない（#263）',async()=>{
   const {ctx,page,errors}=await open();
   await page.locator('#sp0').click();
