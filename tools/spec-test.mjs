@@ -1844,10 +1844,22 @@ function checkFoes(){
 function checkDreamNear(){
   const E=load(1),S=E.newState(),a=Object.values(S.adv).find(x=>x.tav==='ours');
   const paced=Object.keys(E.DREAMS).filter(k=>E.DREAMS[k].pace);
-  check('夢が近い：進みを測る夢（夢の表で pace を持つ夢）は、貯金の夢とは重ならない',paced.length>0&&paced.every(k=>!E.MONEY_DREAMS.includes(k)),'pace',paced.filter(k=>E.MONEY_DREAMS.includes(k)).join(','));
+  check('夢が近い：金を貯める夢（MONEY_DREAMS）は、どれも進みを測る夢（夢の表で pace を持つ夢）に入っている',E.MONEY_DREAMS.every(k=>paced.includes(k)),'pace',E.MONEY_DREAMS.filter(k=>!paced.includes(k)).join(','));
+  // 名簿に「X / Y」（貯金）を出す夢と、めざす階への最深を出す夢は、どれも印の対象（#293）。
+  // 最深を出しても、かなうのが一度の出来事か二つの条件で決まる夢は除く：魔物を討つ夢、沈んだ王を討つ（conquer）、身内を見つける（kin）、深さと探索の回数（library）
+  {const S0=E.newState(),b=Object.values(S0.adv).find(x=>x.tav==='ours'),miss=[],NOT={conquer:1,kin:1,library:1};
+    for(const [k,D] of Object.entries(E.DREAMS)){if(!D.prog)continue;
+      const d={k,l:30,f:20,n:50,amt:1000,t:1,who:'誰か',to:'海の向こう',m:'黒竜'};Object.assign(b,{gold:500,lvl:10,deepest:5,kills:0,disarms:0,rareKills:0,trips:1});
+      let t='';try{t=String(D.prog(b,d,S0)||'');}catch(e){if(!(e instanceof ReferenceError))throw e;t=D.pace?'':'（文を作れない）';}const kill=/slain|kinVenge/.test(String(D.ok));
+      if((/ \/ /.test(t)||(/^これまでの最深/.test(t)&&!kill&&!NOT[k]))&&!D.pace)miss.push(k);}
+    check('夢が近い：名簿に「X / Y」を出す夢と、めざす階への最深を出す夢は、どれも進みを測る（#293）',!miss.length,'夢の表の prog',miss.join(','));}
   const at=(dream,o)=>{Object.assign(a,{gold:0,lvl:1,deepest:1,kills:0,disarms:0},o);a.dream=dream;return E.dreamNear(a);};
   check('夢が近い：貯金の夢は貯金が夢の額の8割から',!at({k:'home',amt:1000},{gold:799})&&at({k:'home',amt:1000},{gold:800}),'船賃1000G','');
   check('夢が近い：レベルの夢はめざすレベルの8割から',!at({k:'hero',l:30},{lvl:23})&&at({k:'hero',l:30},{lvl:24}),'Lv30の英雄','');
+  check('夢が近い：レベルの夢は、夢を抱いたときのレベルから数える（#293）',!at({k:'hero',l:30,l0:20},{lvl:27})&&at({k:'hero',l:30,l0:20},{lvl:28}),'Lv20でLv30の英雄','');
+  check('夢が近い：これまで数えていなかった貯金の夢・深さの夢も8割から（#293）',at({k:'sea',amt:14400},{gold:11520})&&!at({k:'sea',amt:14400},{gold:11519})&&at({k:'payback',amt:1000},{gold:800})&&at({k:'partner',f:20},{deepest:16})&&!at({k:'partner',f:20},{deepest:15})&&at({k:'stele',f:6},{deepest:5})&&!at({k:'stele',f:6},{deepest:4}),'海を渡る・恩返し・相棒・石碑','');
+  {const over=at({k:'home',amt:1000},{gold:1500}),ready=!!E.dreamReady&&E.dreamReady(a),near=at({k:'home',amt:1000},{gold:900}),ready9=!!E.dreamReady&&E.dreamReady(a);
+    check('夢が近い：目標に届いてまだかなっていない者は「近い」ではなく、次に戻ればかなう（#293）',!over&&ready&&near&&!ready9,'船賃1000Gに1500G・900G',`近い${over} 届いた${ready} / 近い${near} 届いた${ready9}`);}
   check('夢が近い：深さの夢はめざす階の8割から',!at({k:'deep',f:20},{deepest:15})&&at({k:'deep',f:20},{deepest:16}),'B20F','');
   check('夢が近い：一度で決まる夢と、夢のない者には付かない',!at({k:'conquer'},{deepest:99,lvl:99})&&!at({k:'legend'},{})&&!at(null,{}),'迷宮の主・伝説の武具・夢なし','');
   const e={f:8},g4=E.errandGift(e,4);
@@ -1860,12 +1872,12 @@ function checkDreamNear(){
 function checkDreamSteps(){
   const E=load(1);
   const keys=k=>Object.keys(k).sort().join(',');
-  check('夢の節目：一言のある夢は、進みを測れる夢（貯金・レベル・深さ・数）とちょうど同じ',keys(E.DREAM_STEP)===[...Object.keys(E.DREAMS).filter(k=>E.DREAMS[k].pace),...E.MONEY_DREAMS].sort().join(','),'DREAM_STEP',keys(E.DREAM_STEP));
+  check('夢の節目：一言のある夢は、進みを測れる夢（貯金・レベル・深さ・数）とちょうど同じ',keys(E.DREAM_STEP)===Object.keys(E.DREAMS).filter(k=>E.DREAMS[k].pace).sort().join(','),'DREAM_STEP',keys(E.DREAM_STEP));
   // 進みの目標の数（夢の表の pace と貯金の額）が、夢のかなう条件（DREAMS の ok）とずれない：進みが1でかない、1つ手前ではかなわない（#292 のレビュー）
   {const S=E.newState(),a=Object.values(S.adv).find(x=>x.tav==='ours'&&E.isActive(x)),bad=[];S.shop=S.shop||{};S.shop.tiers=Object.assign({},S.shop.tiers,{t:1});
-    for(const k of [...Object.keys(E.DREAMS).filter(k=>E.DREAMS[k].pace),...E.MONEY_DREAMS]){
+    for(const k of Object.keys(E.DREAMS).filter(k=>E.DREAMS[k].pace)){
       const d={k,l:30,f:20,n:50,amt:1000,t:'t'};a.dream=d;
-      const goal=E.MONEY_DREAMS.includes(k)?d.amt:E.DREAMS[k].pace(a,d)[1];
+      const goal=E.DREAMS[k].pace(a,d)[1];
       const put=v=>Object.assign(a,{lvl:v,deepest:v,kills:v,disarms:v,gold:v});
       put(goal);const yes=E.dreamFrac(a)===1&&!!E.DREAMS[k].ok(S,a,d);
       put(goal-1);const no=E.dreamFrac(a)<1&&!E.DREAMS[k].ok(S,a,d);
@@ -1890,6 +1902,30 @@ function checkDreamSteps(){
   // 読み込み直しても二度出さない
   a.lvl=25;E.dreamSteps(S);const S2=E.loadSave(JSON.parse(JSON.stringify({S})));const n0=S2.news.filter(n=>n.kind==='dreamStep').length;E.dreamSteps(S2);
   check('夢の節目：読み込み直しても同じ節目は出さない',lines().length===1&&S2.news.filter(n=>n.kind==='dreamStep').length===n0,'Lv25で8割を出したあと読み込み直す',`${lines().length} ${n0}`);
+  // 新しくレベルの夢を抱いた者には、抱いたときのレベルから数えて、半分と8割の一言がそれぞれ出る（#293）
+  {S.news=[];a.lvl=18;a.dream={k:'hero',l:30,l0:18};E.dreamSteps(S);const st0=a.dream.st;
+    a.lvl=24;E.dreamSteps(S);const s1=lines().map(n=>n.args.step).join(',');a.lvl=28;E.dreamSteps(S);const s2=lines().map(n=>n.args.step).join(',');
+    check('夢の節目：新しく抱いたレベルの夢は、抱いたときのレベルから数えて半分と8割の一言がそれぞれ出る（#293）',st0===0&&s1==='1'&&s2==='1,2','Lv18でLv30の夢を抱き、Lv24・Lv28',`st=${st0} ${s1} / ${s2}`);
+    const D0=E.newState(),b=Object.values(D0.adv).find(x=>x.tav==='ours'&&E.isActive(x));const t0=E.makeDream(D0,b);
+    check('夢の節目：レベルの夢を抱くとき、そのときのレベルを覚える（#293）',['hero','prove','defy','archmage'].every(k=>E.DREAMS[k].lv&&E.DREAMS[k].pace({lvl:1},{l:30,l0:7})[2]===7)&&(!E.DREAMS[t0.k].lv||t0.l0===b.lvl),'hero・prove・defy・archmage',`${t0.k} l0=${t0.l0}`);}
+  // これまで黙っていた9種にも、半分と8割の一言が出る（#293）
+  {const bad=[];
+    for(const [k,d,set] of [['payback',{amt:1000},v=>a.gold=v*10],['pilgrim',{amt:1000},v=>a.gold=v*10],['feast',{amt:1000},v=>a.gold=v*10],['grave',{amt:1000,who:'ハンス'},v=>a.gold=v*10],
+      ['keepsake',{amt:1000,who:'ハンス',from:'ロウエン'},v=>a.gold=v*10],['tour',{amt:1000},v=>a.gold=v*10],['sea',{amt:1000,to:'東方の島国アズマ'},v=>a.gold=v*10],
+      ['partner',{f:20},v=>a.deepest=v/5],['stele',{f:6},v=>a.deepest=Math.floor(v*6/100)]]){
+      S.news=[];a.gold=0;a.deepest=0;a.dream=Object.assign({k},d);E.dreamSteps(S);set(50);E.dreamSteps(S);set(84);E.dreamSteps(S);
+      const ls=lines();if(ls.length!==2||ls.some(n=>!/^黒猫亭の.+が「.+」と/.test(nt(n))))bad.push(`${k}：${ls.map(nt).join(' / ')}`);}
+    check('夢の節目：貯金の夢7種・相棒・石碑の夢にも、半分と8割の一言が出る（#293）',!bad.length,'payback・pilgrim・feast・grave・keepsake・tour・sea・partner・stele',bad.join(' / '));}
+  // 寺院の夢6種と店の夢6か所では、一言が夢の中身と合う（#293）
+  {const bad=[];
+    for(const what of E.DV.temple.what){S.news=[];a.gold=0;a.dream={k:'temple',amt:1000,vi:0,what};E.dreamSteps(S);a.gold=500;E.dreamSteps(S);a.gold=850;E.dreamSteps(S);
+      const t=lines().map(nt).join(' / ');if(!(t.includes(`村の${what}の金`)&&t.includes(`もうすぐ村に${what}を建てられる`))||(what!=='寺院'&&t.includes('寺院')))bad.push(t);}
+    for(const place of E.DV.shop.place){S.news=[];a.gold=0;a.dream={k:'shop',amt:1000,vi:0,place,what:'パン屋'};E.dreamSteps(S);a.gold=850;E.dreamSteps(S);
+      const t=lines().map(nt).join(' / ');if(!t.includes(`${place}にパン屋を出す日が近い`)||(place!=='王都の大通り'&&t.includes('大通り')))bad.push(t);}
+    S.news=[];a.gold=0;a.dream={k:'debt',amt:1000,vi:2,what:'実家の畑'};E.dreamSteps(S);a.gold=850;E.dreamSteps(S);const debt=lines().map(nt).join('');
+    S.news=[];a.gold=0;a.dream={k:'wealth',amt:1000,vi:1,place:'セーレの港'};E.dreamSteps(S);a.gold=850;E.dreamSteps(S);const wealth=lines().map(nt).join('');
+    if(!debt.includes('実家の畑を取り戻せる'))bad.push(debt);if(!wealth.includes('セーレの港に屋敷を構えられる'))bad.push(wealth);
+    check('夢の節目：寺院の夢6種・店の夢6か所・借金と財産の夢の一言は、その夢の中身と合う（#293）',!bad.length&&E.DV.temple.what.length===6&&E.DV.shop.place.length===6,'寺院・店・借金・財産',bad.join(' / '));}
   // 古い記録（節目を持たない夢）を開いて回しても、もう越えている節目がまとめて出ない
   const dir=new URL('./old-saves/',import.meta.url);
   const last=readdirSync(dir).filter(f=>/^v\d+\.json\.gz$/.test(f)).sort((x,y)=>parseInt(x.slice(1))-parseInt(y.slice(1))).pop();
