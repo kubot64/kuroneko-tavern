@@ -4841,8 +4841,17 @@ function digestPeople(since,items){
   for(const a of digestWho(items))if(!rows.some(r=>r.a===a))rows.push({a,parts:['知らせに名前が出た'],top:0,sum:0});
   return rows;
 }
-// 留守のあいだの知らせのうち、黒猫亭の行か（黒猫亭の知らせか、黒猫亭の者の名前が出ている）
-function digestOurs(x){return (x.args&&x.args.tav===S.taverns.ours.name)||digestWho([x]).length>0;}
+// 黒猫亭にしか起きない知らせの種類。店の稼ぎ・返済・掲示（errand で始まる種類）・銀の杯亭の挑発・首位・店主のすることなど（#294）
+const DIGEST_OURS_KINDS=new Set(['home','repay','repayShort','rivalTaunt','rivalTsk','topTavern','invest','buyShop','facility','donate','smithGift','poach',
+  'pushRefuse','pushTake','expand','gift','dreamStep','farewellFav','kinNoSeat','owedLost','bountyBack','bountyPaid','overdue','crystalWipe',
+  'rivalPoach','rivalPoachFail','rivalPoachTalk','rivalBuyShop']);
+// 留守のあいだの知らせのうち、黒猫亭の行か。黒猫亭にしか起きない種類、黒猫亭の知らせ（店の名・rival が false・黒猫亭の遺体）、
+// 黒猫亭の一行の名前（p）が出ている知らせ、黒猫亭の者の名前が出ている知らせ（#294）。銀の杯亭の知らせ（rival が true）は一行の名前では数えない
+function digestOurs(x){const g=x.args||{},k=x.kind||'';
+  if(DIGEST_OURS_KINDS.has(k)||k.startsWith('errand')||g.tav===S.taverns.ours.name||g.rival===false)return true;
+  if((k==='bodyHome'||k==='bodyHomeCause')&&x.k==='death')return true;
+  if(g.rival!==true&&typeof g.p==='string'&&Object.values(S.parties).some(p=>p.tav==='ours'&&p.name===g.p))return true;
+  return digestWho([x]).length>0;}
 // いま潜っている黒猫亭の一行の居場所。まだ知れていない全滅も、水晶と同じく探索中として出す
 function digestWhere(){
   const out=Object.values(S.parties).filter(p=>{const v=viewOf(S,p);return p.tav==='ours'&&!v.waiting&&(v.hidden||p.state==='explore'||p.state==='return');});
