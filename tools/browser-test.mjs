@@ -237,6 +237,60 @@ test('「留守のあいだに」は留守の全体から常連ごとの出来�
   assert.deepEqual(errors,[]);await ctx.close();
 });
 
+test('375pxで『留守のあいだに』の居場所の一行の「。」「、」が行の頭に落ちず、店の出来事は0件なら出さず、知らせ0件なら案内を出さず、売上は桁を区切る（#289）',async()=>{
+  const {ctx,page,errors}=await open();
+  await page.locator('#sp0').click();
+  // 句読点が行の頭に来ていないか。行の頭は、その文字の左が要素の左端にあることで見る
+  const heads=()=>page.evaluate(()=>{
+    const el=[...document.querySelectorAll('#dg-news > li .note')].at(-1),L=el.getBoundingClientRect().left,bad=[],tops=new Set();
+    const w=document.createTreeWalker(el,NodeFilter.SHOW_TEXT);let n;
+    while((n=w.nextNode()))for(let i=0;i<n.length;i++){const r=document.createRange();r.setStart(n,i);r.setEnd(n,i+1);const b=r.getBoundingClientRect();if(!b.width)continue;tops.add(Math.round(b.top));
+      if('。、'.includes(n.data[i])&&b.left-L<2)bad.push(n.data[i]);}
+    return {text:el.textContent,bad,lines:tops.size};
+  });
+  const draw=(t0,o)=>page.evaluate(([t0,o])=>{drawDigest(Object.assign({i:50,n:50,awaySec:3600,startTick:t0,g0:S.taverns.ours.gold,e0:S.taverns.ours.earned||0,s0:0,r0:0,lost0:S.memorial.length,returns:0,wipes:0},o));document.querySelector('#digest').hidden=false;},[t0,o]);
+  await page.setViewportSize({width:375,height:812});
+  await page.evaluate(()=>document.fonts.ready);
+  // 誰も潜っておらず、黒猫亭の行のない留守：375pxで「。」だけが次の行に落ちない
+  const t0=await page.evaluate(()=>{for(const p of Object.values(S.parties))if(p.tav==='ours'&&p.state!=='town')setPhase(S,p,'town');S.tick+=TICKS_PER_DAY;const t0=S.tick-1;news(S,'edict',{from:'噂',t:'北の街道で荷車がひっくり返ったらしい'},'info');return t0;});
+  await draw(t0,{});
+  let h=await heads();
+  assert.equal(h.text,'いま迷宮に潜っている黒猫亭の一行はいない。');
+  assert.deepEqual(h.bad,[],'375px で句読点が行の頭に落ちた');
+  // 長い名前の一行が三つ潜っている：折れても「、」が行の頭に来ない
+  const t1=await page.evaluate(()=>{
+    // 黒猫亭の一行を写して三つにする（表示だけを見るので、顔ぶれは同じでよい）
+    const p0=Object.values(S.parties).find(p=>p.tav==='ours');
+    for(const id of ['t289a','t289b'])S.parties[id]=Object.assign(JSON.parse(JSON.stringify(p0)),{id});
+    const ps=[p0,S.parties.t289a,S.parties.t289b];
+    ['灰色の鷺','夜明けの鐘','北の風見'].forEach((nm,i)=>{if(ps[i]){ps[i].name=nm;setPhase(S,ps[i],'explore');ps[i].floor=12;}});
+    S.tick+=TICKS_PER_DAY;const t0=S.tick-1;news(S,'edict',{from:'噂',t:'北の街道で荷車がひっくり返ったらしい'},'info');return t0;});
+  await draw(t1,{});
+  h=await heads();
+  assert.match(h.text,/^いま潜っている：.+、.+$/);
+  assert.ok(h.lines>=2,'折れていない（確かめにならない）');
+  assert.deepEqual(h.bad,[],'375px で「、」が行の頭に来た');
+  assert.deepEqual(await page.evaluate(screenAudit),[],'375px の留守のあいだに');
+  // 390px・414px・1280px では「誰も潜っていない」の一行は1行のまま
+  await page.evaluate(()=>{delete S.parties.t289a;delete S.parties.t289b;for(const p of Object.values(S.parties))if(p.tav==='ours'&&p.state!=='town')setPhase(S,p,'town');});
+  for(const width of [390,414,1280]){
+    await page.setViewportSize({width,height:812});
+    await draw(t0,{});
+    h=await heads();
+    assert.equal(h.lines,1,`${width}px で折れた`);
+  }
+  // 店の出来事が0件：欄も案内も出さない
+  const shop=()=>page.evaluate(()=>({hidden:document.querySelector('#dg-shop').hidden,head:document.querySelector('#dg-shop-h').hidden,t:document.querySelector('#dg-shop').innerText}));
+  const t2=await page.evaluate(()=>{S.tick+=TICKS_PER_DAY;const a=Object.values(S.adv).find(x=>x.tav==='ours');news(S,'levelOurs',{tav:'黒猫亭',who:a.name,lvl:5},'info');return S.tick-1;});
+  await draw(t2,{});
+  assert.deepEqual(await shop(),{hidden:true,head:true,t:''});
+  // 知らせが0件で帰還だけある：案内の文は出さず、売上は桁を区切る
+  const t3=await page.evaluate(()=>{S.tick+=TICKS_PER_DAY;return S.tick-1;});
+  await draw(t3,{returns:2,e0:(await page.evaluate(()=>S.taverns.ours.earned||0))-10827});
+  assert.deepEqual(await shop(),{hidden:false,head:false,t:'帰還 2回・売上 +10,827G。'});
+  assert.deepEqual(errors,[]);await ctx.close();
+});
+
 test('「留守のあいだに」の手帳を見るは、ほかの者の名前の一部として出ているだけの者を並べない（#263）',async()=>{
   const {ctx,page,errors}=await open();
   await page.locator('#sp0').click();
