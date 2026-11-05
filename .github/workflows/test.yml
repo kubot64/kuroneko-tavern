@@ -212,15 +212,41 @@ jobs:
           name: measure
           path: measure.txt
 
+  # 不具合を直す PR（本文で bug の Issue を閉じる PR）の再現テストが、直す前の版で落ちるか（tools/red-pr.mjs → tools/red.mjs）。
+  # 直す前の index.html を git から取り出すので履歴をすべて取る。Issue のラベルを読むので issues: read が要る
+  red-check:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      issues: read
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: node tools/red-pr.mjs
+        env:
+          PR_BODY: ${{ github.event.pull_request.body }}
+          REPO: ${{ github.repository }}
+          BASE_REF: ${{ github.base_ref }}
+          GITHUB_TOKEN: ${{ github.token }}
+
   # 分けたジョブがすべて通ったら合格。必須のチェックの名前を test のまま保つ
   test:
     if: always()
-    needs: [spec-test, browser-test, lint, fingerprint]
+    needs: [spec-test, browser-test, lint, fingerprint, red-check]
     runs-on: ubuntu-24.04
     steps:
+      # red-check は pull request のときだけ走る。それ以外は skipped でよい
       - run: |
-          if [ "$SPEC" != "success" ] || [ "$BROWSER" != "success" ] || [ "$LINT" != "success" ] || [ "$FINGERPRINT" != "success" ]; then
-            echo "spec-test: $SPEC / browser-test: $BROWSER / lint: $LINT / fingerprint: $FINGERPRINT"
+          if [ "$SPEC" != "success" ] || [ "$BROWSER" != "success" ] || [ "$LINT" != "success" ] || [ "$FINGERPRINT" != "success" ] || { [ "$RED" != "success" ] && [ "$RED" != "skipped" ]; }; then
+            echo "spec-test: $SPEC / browser-test: $BROWSER / lint: $LINT / fingerprint: $FINGERPRINT / red-check: $RED"
             exit 1
           fi
         env:
@@ -228,3 +254,4 @@ jobs:
           BROWSER: ${{ needs.browser-test.result }}
           LINT: ${{ needs.lint.result }}
           FINGERPRINT: ${{ needs.fingerprint.result }}
+          RED: ${{ needs.red-check.result }}

@@ -26,6 +26,8 @@ let base=opt('--base');
 try{base=base?git('rev-parse','--short',`${base}^{commit}`):git('merge-base','HEAD','origin/main').slice(0,7);}
 catch(e){console.error(`比べる版を決められない（${String(e.stderr||e.message).trim()}）。--base で渡す`);process.exit(2);}
 const red=[],green=[],unsure=[];
+// 名前に PAT を含むか。番号のあとに数字が続くもの（「#30」に対する「#302」）は含めない
+const hit=t=>{for(let i=t.indexOf(PAT);i>=0;i=t.indexOf(PAT,i+1))if(!/^\d/.test(t.slice(i+PAT.length))||!/\d$/.test(PAT))return true;return false;};
 // 取り出した版を一時フォルダに置いて回す。途中で例外になっても、一時フォルダは残さない
 const dir=mkdtempSync(join(tmpdir(),'kt-red-'));
 try{runAgainst(join(dir,'index.html'));}
@@ -41,7 +43,7 @@ function runAgainst(html){
     const r=run(process.execPath,['--test','--test-name-pattern',PAT.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'),'tools/browser-test.mjs']);
     // TAP の各テストの行と、その下の失敗の中身（次のテストの行まで）
     for(const b of (r.stdout+r.stderr).split(/\n(?=(?:not )?ok \d+ - )/)){
-      const m=/^(not )?ok \d+ - (.+)$/m.exec(b),title=m&&m[2].replace(/\\#/g,'#');if(!m||!title.includes(PAT))continue;
+      const m=/^(not )?ok \d+ - (.+)$/m.exec(b),title=m&&m[2].replace(/\\#/g,'#');if(!m||!hit(title))continue;
       const name='画面：'+title;
       if(!m[1])green.push(name);else if(/page\.goto: Timeout/.test(b))unsure.push(name+'（読み込みのタイムアウト）');else red.push(name);
     }
@@ -49,7 +51,7 @@ function runAgainst(html){
   if(ONLY!=='browser'){
     const r=run(process.execPath,['tools/spec-test.mjs','--seeds','0']),out=r.stdout+r.stderr;
     for(const line of out.split('\n')){
-      const m=/^([○×]) (.+)$/.exec(line);if(!m||!m[2].includes(PAT))continue;
+      const m=/^([○×]) (.+)$/.exec(line);if(!m||!hit(m[2]))continue;
       (m[1]==='×'?red:green).push('仕様：'+m[2]);
     }
     // 古い版にない名前を呼んで、確かめの途中で止まったとき。どの確かめで止まったかは分からないので、確かめにならなかったものとして扱う
