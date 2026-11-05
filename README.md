@@ -97,6 +97,7 @@ node --test tools/browser-test.mjs               # 2分ほど
 ```
 
 - 時計は偽物に差し替えて、開いたときの時刻で止めておき、テストが進めたぶんだけ進める。乱数（`Math.random`）は種を決めて固定する。どちらも、結果がページを開いてからの実時間や、たまたまの乱数で変わらないようにするため。タブの表と裏は、ページの見え方を差し替えて起こす。
+- 狭い画面の崩れは、短い名前では起きないことがある。`longNames()` でゲームが作りうるいちばん長い名前にそろえ、主な画面（水晶・名簿・酒場・帳場・日報・番付・地図・留守のあいだに）を 375px と 1280px で `screenAudit` にかけるテストがある。新しい画面を足したら、そこにも入れる。
 - 字体（Google Fonts）は、一度取れたら `.cache/fonts/` に置き、次からはそこから返す。外のサーバーが遅いとページの読み込みが待たされ、30秒のタイムアウトで落ちることがあったため。取れないときは字体なしで続ける。字体を取り直したいときは `.cache/fonts/` を消す。
 
 ## 再現テストが直す前に落ちるか
@@ -120,7 +121,7 @@ node tools/red.mjs --test "#302" --only browser  # 画面のテストだけ（--
 
 ```
 npm install            # 最初の一度だけ
-node tools/lint.mjs    # 見つかれば index.html の行番号つきで出し、終了コード1で終わる
+node tools/lint.mjs    # 見つかれば index.html の行番号つきで出し、終了コード1で終わる。ESLint が入っていなければ「npm ci を回す」と出して終了コード1
 ```
 
 - 関数の引数は見ない（同じ形で並べた表の関数が、使わない引数を持つため）。
@@ -132,3 +133,7 @@ node tools/lint.mjs    # 見つかれば index.html の行番号つきで出し�
 - 画面の側（`/*ENGINE END*/` より下）は、全滅を伏せるためのフラグ（`announced`・`knownWiped`・`causeTold`・`retrieved`・`calmHp` など）や判定（`wipeHidden` など）を直に使わず、`viewOf(S,p)`・`hpView`・`shownStatus`・`chronShown` を通して一行と仲間を見る。伏せる判定は、エンジンのこれらの関数にだけ書く。
 - テストや measure からだけ使うトップレベルの名前は、`index.html` の `/*ENGINE START*/` のすぐ下にある `/* exported … */` に並べる。
 - 自動テストでも別のジョブで回す。
+
+## Claude Code のセッションを始めたとき
+
+`.claude/settings.json` の SessionStart の hook が `tools/session-start.sh` を回す。`git fetch` して、手元の `main` といまのブランチが `origin/main` より遅れていれば、そのコミット数をエージェントに知らせる。遅れがなければ何も出さない。古い `main` のまま調べ始めて、もう直っているコードを読むことを防ぐため。
