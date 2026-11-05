@@ -1990,11 +1990,12 @@ test('掲示の主役選びの行に、手帳と同じ文で夢の進みが出�
     tab='bar';pickErr=900;render();
     return ours.map(a=>a.id);
   });
-  const metas=await page.evaluate(ids=>ids.map(id=>{const b=document.querySelector(`.pick button[data-act="adv"][data-a="${id}"]`);return b.closest('.row').querySelector('.meta').textContent;}),ids);
+  // 夢の進みは、名簿と同じく meta の下の別の行に出る（#285）
+  const metas=await page.evaluate(ids=>ids.map(id=>{const b=document.querySelector(`.pick button[data-act="adv"][data-a="${id}"]`);return [...b.closest('.row').querySelectorAll('.who > .does')].map(x=>x.textContent).join('|');}),ids);
   const progs=await page.evaluate(ids=>ids.map(id=>dreamProgress(S.adv[id])),ids);
   assert.equal(progs[0],'貯金 2,180G / 4,200G');
-  assert.ok(metas[0].endsWith('・夢 '+progs[0]),metas[0]);
-  assert.ok(metas[1].endsWith('・夢 '+progs[1])&&/いまLv\d+/.test(progs[1]),metas[1]);
+  assert.ok(metas[0].startsWith('夢 '+progs[0]),metas[0]);
+  assert.ok(metas[1].startsWith('夢 '+progs[1])&&/いまLv\d+/.test(progs[1]),metas[1]);
   assert.doesNotMatch(metas[2],/夢/,'夢がない者に夢の進みが出た');
   // 手帳と同じ数字
   await page.locator(`.pick button[data-act="adv"][data-a="${ids[0]}"]`).click();
@@ -2049,6 +2050,53 @@ test('名簿に夢の進みが出て、8割を越えた者にだけ「夢が近�
     await page.evaluate(()=>{tab='roster';render();});
     assert.deepEqual(await page.evaluate(screenAudit),[],`${width}px の名簿`);
     await page.evaluate(()=>{tab='bar';render();});
+  }
+  assert.deepEqual(errors,[]);await ctx.close();
+});
+
+test('375pxと1280pxの主役欄で、印だけが行末に残らず、夢の進みは別の行で「夢」と「X / Y」が途中で折れない。選べない者には謝礼の添え書きを出さない（#285）',async()=>{
+  const {ctx,page,errors}=await open();
+  await page.locator('#sp0').click();
+  const ids=await page.evaluate(()=>{
+    const T0=S.taverns.ours;T0.debt=0;T0.debtFree=S.tick;const E=errandsOf(S);E.stage=3;E.next=S.tick+99*TICKS_PER_DAY;S.marks=S.marks||{};
+    E.board=[{id:900,k:'bell',n:'鐘楼の光',from:'梟の地図屋',t:ERRANDS.find(x=>x.k==='bell').txt(8),f:8,until:S.tick+TICKS_PER_DAY*20,hero:null,refused:[],tk:S.tick}];
+    const ours=Object.values(S.adv).filter(x=>x.tav==='ours'&&isActive(x)).slice(0,4);const g4=errandGift(E.board[0],4);
+    // 0：名前が長い見込みの者で夢が近い 1：伝説の武具の夢 2：貯金の夢で謝礼で届くが、断った（選べない） 3：貯金の夢で謝礼で届く
+    ['ヴァルトシュタイン','ツェツィーリエ','ゴットフリート','ベネディクト'].forEach((n,i)=>{ours[i].name=n;});
+    ours[0].marked=true;ours[0].dream={k:'home',amt:538000};ours[0].gold=438000;
+    ours[1].dream={k:'legend'};
+    ours[2].dream={k:'home',amt:g4*6};ours[2].gold=g4*5;E.board[0].refused.push(ours[2].id);
+    ours[3].dream={k:'home',amt:g4*6};ours[3].gold=g4*5;
+    tab='bar';pickErr=900;render();
+    return ours.map(a=>a.id);
+  });
+  const rowText=id=>page.evaluate(id=>document.querySelector(`.pick button[data-act="adv"][data-a="${id}"]`).closest('.row').innerText.replace(/\s+/g,' '),id);
+  assert.match(await rowText(ids[2]),/断/,'断った者が選べないことになっていない');
+  assert.doesNotMatch(await rowText(ids[2]),/謝礼で届くかもしれない/,'選べない者に謝礼の添え書きが出た');
+  assert.match(await rowText(ids[3]),/謝礼で届くかもしれない/);
+  // 印・夢の進みの折れ方。文字ごとの位置で、行の頭と終わりを見る
+  const audit=()=>page.evaluate(ids=>{
+    const bad=[];
+    for(const id of ids){
+      const who=document.querySelector(`.pick button[data-act="adv"][data-a="${id}"]`).closest('.who');
+      const chars=[];const w=document.createTreeWalker(who,NodeFilter.SHOW_TEXT);let n;
+      while((n=w.nextNode()))for(let i=0;i<n.length;i++){if(/\s/.test(n.data[i]))continue;const r=document.createRange();r.setStart(n,i);r.setEnd(n,i+1);const b=r.getBoundingClientRect();if(b.width)chars.push({c:n.data[i],top:Math.round(b.top),el:n.parentElement});}
+      for(let i=0;i<chars.length;i++){
+        const c=chars[i],nx=chars[i+1],pv=chars[i-1],end=!nx||nx.top>c.top+2,head=!pv||c.top>pv.top+2;
+        if(end&&nx&&c.el.closest('.markmark')&&c.el.closest('.markmark')===nx.el.closest('.markmark'))bad.push(`${id}：印の途中で折れた「${c.c}」`);
+        if(head&&c.c==='/')bad.push(`${id}：行の頭が「/」`);
+        if(end&&nx&&nx.c==='/')bad.push(`${id}：「/」の前で折れた`);
+        if(end&&c.c==='夢'&&c.el.closest('.does'))bad.push(`${id}：「夢」だけが行末に残った`);
+      }
+      const d=who.querySelector('.does');if(d&&/^夢 /.test(d.textContent)){const m=who.querySelector('.meta');if(m&&d.getBoundingClientRect().top<m.getBoundingClientRect().bottom-1)bad.push(`${id}：夢の進みが別の行でない`);}
+    }
+    return bad;
+  },ids);
+  for(const [width,height] of [[375,740],[1280,800]]){
+    await page.setViewportSize({width,height});
+    await page.evaluate(()=>{render();return document.fonts.ready;});
+    assert.deepEqual(await audit(),[],`${width}px の主役欄の折れ方`);
+    assert.deepEqual(await page.evaluate(screenAudit),[],`${width}px の主役欄`);
   }
   assert.deepEqual(errors,[]);await ctx.close();
 });
