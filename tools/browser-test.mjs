@@ -6,8 +6,25 @@
 import {test,before,after} from 'node:test';
 import assert from 'node:assert/strict';
 import {chromium} from 'playwright';
+import {readFileSync,writeFileSync,mkdirSync} from 'node:fs';
+import {createHash} from 'node:crypto';
+import {resolve} from 'node:path';
+import {pathToFileURL,fileURLToPath} from 'node:url';
 
-const URL_=new URL('../index.html',import.meta.url).href;
+// KT_HTML で別の index.html を開ける（tools/red.mjs が直す前の版を確かめるのに使う）
+const URL_=process.env.KT_HTML?pathToFileURL(resolve(process.env.KT_HTML)).href:new URL('../index.html',import.meta.url).href;
+// 字体（Google Fonts）は一度取れたら .cache/fonts/ に置き、次からはそこから返す。外のサーバーが遅くても、
+// ページの読み込みが待たされて落ちないように。取れないときは字体なしで続ける（読み込みは止めない）
+const FONT_DIR=fileURLToPath(new URL('../.cache/fonts/',import.meta.url));
+async function fontRoute(route){
+  const f=FONT_DIR+createHash('sha1').update(route.request().url()).digest('hex');
+  try{const {status,headers}=JSON.parse(readFileSync(f+'.json','utf8'));return await route.fulfill({status,headers,body:readFileSync(f)});}catch{/* まだ置いていない */}
+  try{
+    const r=await route.fetch({timeout:10000}),body=await r.body();
+    if(r.ok()){mkdirSync(FONT_DIR,{recursive:true});writeFileSync(f,body);writeFileSync(f+'.json',JSON.stringify({status:r.status(),headers:r.headers()}));}
+    return await route.fulfill({response:r,body});
+  }catch{return route.abort().catch(()=>{});}
+}
 const HOUR=3600*1000;
 let browser;
 before(async()=>{browser=await chromium.launch();});
@@ -16,7 +33,7 @@ after(async()=>{await browser?.close();});
 // まっさらな記録で店を開く。ctx を渡すと、その保存（localStorage）を引き継ぐ
 // 時計は time で止め、乱数は seed で固定する。時が進むのは runFor か setSystemTime を呼んだときだけで、結果は実時間に左右されない
 async function open({ctx,time=Date.UTC(2026,0,1),seed=1}={}){
-  ctx=ctx||await browser.newContext();
+  if(!ctx){ctx=await browser.newContext();await ctx.route(/^https:\/\/fonts\.(googleapis|gstatic)\.com\//,fontRoute);}
   const page=await ctx.newPage();
   const errors=[];page.on('pageerror',e=>errors.push(e.message));
   await page.addInitScript(s=>{
