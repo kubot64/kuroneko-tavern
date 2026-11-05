@@ -13,7 +13,7 @@
 | 決まり | 守らせるもの |
 |---|---|
 | `docs/spec.md` の決まりが、コードで成り立つ | テスト：`tools/spec-test.mjs`（CI） |
-| 画面の決まり（折り返し、はみ出し、押す所の大きさなど）が成り立つ | テスト：`tools/browser-test.mjs`（CI） |
+| 画面の決まり（折り返し、はみ出し、押す所の大きさなど）が成り立つ | テスト：`tools/browser-test.mjs`（CI）。ゲームが作りうるいちばん長い名前（`longNames`）でも主な画面を確かめる |
 | index.html の script に、使っていない名前と宣言していない名前を残さない | lint：`tools/lint.mjs`（ESLint、CI） |
 | テストと measure からだけ使う名前は、index.html の `/* exported … */` に並べる | lint：`tools/lint.mjs`（CI） |
 | 冒険者の status を文字列と直に比べない（`isActive`・`isIdle` などを通す） | lint：`tools/lint.mjs`（CI） |

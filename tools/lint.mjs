@@ -11,8 +11,9 @@
 // 関数の引数は見ない。会話や夢の表のように、同じ形で並べた関数（(A,B)=>…）は、使わない引数があっても形をそろえておくため。
 import {readFileSync} from 'node:fs';
 import {fileURLToPath} from 'node:url';
-import {ESLint} from 'eslint';
-import globals from 'globals';
+// ESLint は devDependencies にある。入っていなければ、Node の読み込みのエラーではなく、入れ方を一行出して止める
+const load=async m=>{try{return await import(m);}catch(e){if(e.code==='ERR_MODULE_NOT_FOUND'){console.error(`lint：${m} が入っていない。npm ci を回す`);process.exit(1);}throw e;}};
+const {ESLint}=await load('eslint'),{default:globals}=await load('globals');
 
 const FILE=fileURLToPath(new URL('../index.html',import.meta.url));
 const html=readFileSync(FILE,'utf8');

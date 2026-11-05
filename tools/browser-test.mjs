@@ -73,6 +73,31 @@ async function hideFor(page,ms,{show=true}={}){
   if(show)await setVisibility(page,'visible');
 }
 
+test('ゲームが作りうるいちばん長い名前で、375pxと1280pxの主な画面が崩れない（#302 のあと）',async()=>{
+  const {ctx,page,errors}=await open();
+  await page.locator('#sp0').click();
+  // 少し回して、知らせ・手帳・一行の札に中身を入れてから、名前を長くする
+  await page.evaluate(()=>{for(let i=0;i<20*TICKS_PER_DAY;i++)tick(S);});
+  await page.evaluate(`(${longNames})()`);
+  const bad=[];
+  for(const [width,height] of [[375,740],[1280,800]]){
+    await page.setViewportSize({width,height});
+    for(const t of ['stone','roster','bar','desk','news','rank','maps']){
+      await page.evaluate(t=>{tab=t;render();return document.fonts.ready;},t);
+      for(const b of await page.evaluate(screenAudit))bad.push(`${width}px ${t}：${b}`);
+    }
+    // 留守のあいだに（潜っている一行の居場所の行も出す）
+    // 居場所は、いちばん長くなる2桁の階と坑道の階にする
+    await page.evaluate(()=>{Object.values(S.parties).filter(p=>p.tav==='ours'&&p.members&&p.members.length).forEach((p,i)=>{if(p.state!=='explore')setPhase(S,p,'explore');p.floor=i%2?MINE_TOP+8:12;p.mineTrip=!!(i%2);});
+      drawDigest({i:50,n:50,awaySec:3600,startTick:S.tick-1,g0:S.taverns.ours.gold,e0:S.taverns.ours.earned||0,s0:0,r0:0,lost0:S.memorial.length,returns:0,wipes:0});document.querySelector('#digest').hidden=false;});
+    bad.push(...(await page.evaluate(()=>[...document.querySelectorAll('#dg-news .note')].map(x=>x.textContent).filter(t=>!/坑道B\d+F/.test(t)&&/いま潜っている/.test(t)).map(t=>'坑道の階が出ていない（確かめにならない）：'+t))));
+    for(const b of await page.evaluate(screenAudit))bad.push(`${width}px 留守のあいだに：${b}`);
+    await page.evaluate(()=>{document.querySelector('#digest').hidden=true;});
+  }
+  assert.deepEqual(bad,[]);
+  assert.deepEqual(errors,[]);await ctx.close();
+});
+
 test('地図屋は、名を知った魔物に相性を添え、まだ知らない名には出さない',async()=>{
   const {ctx,page,errors}=await open();
   await page.locator('#sp0').click();
@@ -3703,11 +3728,19 @@ test('伏せ中の全滅は、帳場の依頼の欄で出ている一行と同�
   assert.deepEqual(errors,[]);await ctx.close();
 });
 
+// 名前を、ゲームが作りうるいちばん長いものにそろえる（ページの中で動かす）。短い名前のテストでは、狭い画面のはみ出しを見逃すため（#302）。
+// 名前は、乱数で何年か回したときに出た長い名前から取った。冒険者は称号つき、一行は読みのつく名前も入れる
+function longNames(){
+  const advs=['ゴットフリート','ツェツィーリエ','ベネディクト','アストリッド','バスティアン'],ptys=['アルト・ナハティガル','グルート・ボーゲン','ヒューゲル・シルト','フェルゼン・ベーレ'];
+  Object.values(S.adv).filter(a=>a.tav==='ours').forEach((a,i)=>{a.name=advs[i%advs.length]+(i<advs.length?'':i);if(i===0)a.title='市場の大ガーゴイル殺し';});
+  Object.values(S.parties).forEach((p,i)=>{p.name=ptys[i%ptys.length];});
+}
+
 // 画面全体で、押す所の大きさ・はみ出し・折れ目を確かめ、崩れを「何が・どこで」の一行ずつで返す（ページの中で動かす）
 //   押す所：押せるもの（ボタン・リンク・欄の開け閉め・data-act の付いたもの）は縦横44px以上
 //   はみ出し：ページが横に滑らない。要素は画面の外に出ず、字は入れ物の外に出ず、横に滑る枠もない
 //   折れ目：一続きにした語（.nw・.tie、名前のボタン、所属の札）は1行。字を1字ずつ並べて、行が変わるところが
-//     人の名前・一行の名・店の名・地名、「Lv20 ホビットの盗賊」、B○F、数と単位（3,000G・12日目・10%など）、中が12字までのかっこ書きの途中なら崩れ。
+//     人の名前・一行の名・店の名・地名、「Lv20 ホビットの盗賊」、B○F、数と単位（3,000G・12日目・10%など）、「2,180G / 4,200G」の進み、中が12字までのかっこ書きの途中なら崩れ。
 //     句読点と閉じかっこが行の頭に来るのと、開きかっこが行の末尾に残るのも崩れ（docs/principles.md 8）
 // 例外とその理由（押す所の例外は、関数の頭の TAP_EXEMPT に理由つきで並べる）
 //   - 語ひとつが行より長いとき（表の狭いますに入る長い一行の名など）は、その語の途中で折れてよい（spec.md「タブ」）
@@ -3776,7 +3809,7 @@ function screenAudit(){
   // 人の名など（newsTerms）に加えて、性格と素質の言葉（「慎重」「有望」。土産話の添え書きと手帳の見出しに出る）も一続きの語とする
   const traits=[...Object.keys(PERS),...Object.keys(TAL)].filter(t=>t.length>=2);
   const terms=[...new Set(newsTerms().flatMap(t=>{const m=/^(.+)(（[^（）]+）)$/.exec(t);return m?[m[1],m[2]]:[t];}).concat(traits))];
-  const units=[/Lv\d+(?: [^\s・、。（）]+の[^\s・、。（）]+)?/g,/（[^（）\s￼]{1,12}）/g,/(?:坑道)?B\d+F/g,/[+-]?\d[\d,]*(?:\.\d+)?(?:G|日目|日|歳相当|歳|部|人|本|年|月|時|作目|刻|階|段|回|体|倍|%)?/g];
+  const units=[/[+-]?\d[\d,]*G? \/ \d[\d,]*G?/g,/Lv\d+(?: [^\s・、。（）]+の[^\s・、。（）]+)?/g,/（[^（）\s￼]{1,12}）/g,/(?:坑道)?B\d+F/g,/[+-]?\d[\d,]*(?:\.\d+)?(?:G|日目|日|歳相当|歳|部|人|本|年|月|時|作目|刻|階|段|回|体|倍|%)?/g];
   for(const [blk,arr] of groups){
     if(!shown(blk)||blk.closest('.c-log'))continue;
     const s=arr.map(x=>x.ch).join(''),spans=[];
