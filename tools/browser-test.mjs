@@ -16,13 +16,17 @@ const URL_=process.env.KT_HTML?pathToFileURL(resolve(process.env.KT_HTML)).href:
 // 字体（Google Fonts）は一度取れたら .cache/fonts/ に置き、次からはそこから返す。外のサーバーが遅くても、
 // ページの読み込みが待たされて落ちないように。取れないときは字体なしで続ける（読み込みは止めない）
 const FONT_DIR=fileURLToPath(new URL('../.cache/fonts/',import.meta.url));
+// 返す headers は、中身の種類と、別の場所から字体を読む許し（CORS）だけにする。body はほどいたあとのものなので、
+// 取ったときの content-encoding や content-length をそのまま返すと食い違う
+const FONT_HEADERS=['content-type','access-control-allow-origin'];
+const fontHeaders=h=>Object.fromEntries(FONT_HEADERS.filter(k=>h[k]!=null).map(k=>[k,h[k]]));
 async function fontRoute(route){
   const f=FONT_DIR+createHash('sha1').update(route.request().url()).digest('hex');
-  try{const {status,headers}=JSON.parse(readFileSync(f+'.json','utf8'));return await route.fulfill({status,headers,body:readFileSync(f)});}catch{/* まだ置いていない */}
+  try{const {status,headers}=JSON.parse(readFileSync(f+'.json','utf8'));return await route.fulfill({status,headers:fontHeaders(headers),body:readFileSync(f)});}catch{/* まだ置いていない */}
   try{
-    const r=await route.fetch({timeout:10000}),body=await r.body();
-    if(r.ok()){mkdirSync(FONT_DIR,{recursive:true});writeFileSync(f,body);writeFileSync(f+'.json',JSON.stringify({status:r.status(),headers:r.headers()}));}
-    return await route.fulfill({response:r,body});
+    const r=await route.fetch({timeout:10000}),body=await r.body(),headers=fontHeaders(r.headers());
+    if(r.ok()){mkdirSync(FONT_DIR,{recursive:true});writeFileSync(f,body);writeFileSync(f+'.json',JSON.stringify({status:r.status(),headers}));}
+    return await route.fulfill({status:r.status(),headers,body});
   }catch{return route.abort().catch(()=>{});}
 }
 const HOUR=3600*1000;
