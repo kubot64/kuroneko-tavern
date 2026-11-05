@@ -4786,8 +4786,10 @@ function drawDigest(st){
   $('dg-who').innerHTML=people.length?'<h3 class="dg-h">常連ごとの出来事</h3>'+people.map(({a,parts})=>`<div class="dg-row"><button class="nm-link" data-act="digestadv" data-a="${a.id}">${esc(a.name)}</button> <span class="what">${parts.map(esc).join('、')}</span></div>`).join(''):'';
   // 店の出来事。帰還と稼ぎ、出発、お触れ、ほかの店と街の知らせは件数と合計にまとめる。一つ一つの行はこの下と迷宮日報に（#276）
   const cnt=f=>items.filter(f).length,dep=cnt(x=>x.kind==='depart'),edict=cnt(x=>x.kind==='edict'),other=cnt(x=>x.kind!=='depart'&&x.kind!=='edict'&&!digestOurs(x));
-  $('dg-shop-h').hidden=$('dg-shop').hidden=!done;
-  $('dg-shop').innerHTML=done?[(st.returns||earned)&&`帰還 ${st.returns}回・売上 ${sign(earned)}`,dep&&`出発 ${dep}件`,edict&&`お触れ ${edict}件`,other&&`ほかの店と街の知らせ ${other}件`].filter(Boolean).map(nw).join('、').replace(/^(.+)$/,'$1。')+'一つ一つの知らせは、下と迷宮日報で見られる。':'';
+  // 数えるものが一つもなければ欄ごと出さない。知らせが0件なら「一つ一つの知らせは…」の案内も出さない。金額は桁を区切る（#289）
+  const shop=[(st.returns||earned)&&`帰還 ${st.returns}回・売上 ${sign(earned)}`,dep&&`出発 ${dep}件`,edict&&`お触れ ${edict}件`,other&&`ほかの店と街の知らせ ${other}件`].filter(Boolean);
+  $('dg-shop-h').hidden=$('dg-shop').hidden=!(done&&shop.length);
+  $('dg-shop').innerHTML=done&&shop.length?groupMoney(shop.map(nw).join('、')+'。'+(items.length?'一つ一つの知らせは、下と迷宮日報で見られる。':'')):'';
 }
 // 常連ごとの出来事の種類。w は並べる重さ（3：一生に残る出来事、2：倒れて戻った・話を果たした、1：Lv・深さ・呪文）と、短い言葉（#276）
 const DIGEST_LIFE={
@@ -4826,7 +4828,8 @@ function digestOurs(x){return (x.args&&x.args.tav===S.taverns.ours.name)||digest
 // いま潜っている黒猫亭の一行の居場所。まだ知れていない全滅も、水晶と同じく探索中として出す
 function digestWhere(){
   const out=Object.values(S.parties).filter(p=>{const v=viewOf(S,p);return p.tav==='ours'&&!v.waiting&&(v.hidden||p.state==='explore'||p.state==='return');});
-  return out.length?'いま潜っている：'+out.map(p=>nw(esc(p.name)+'（'+viewOf(S,p).label[0]+'）')).join('、'):'いま迷宮に潜っている黒猫亭の一行はいない。';
+  // 「、」は前の名前のかたまりに入れ、「。」は前の語と一続きにする。知らせの行は語の途中で折らない（keep-all）ので、折れてよい所に <wbr> を置く。句読点だけが行の頭に落ちないように（#289）
+  return out.length?'いま潜っている：'+out.map((p,i)=>nw(esc(p.name)+'（'+viewOf(S,p).label[0]+'）'+(i<out.length-1?'、':''))).join(''):'いま迷宮に<wbr>潜っている<wbr>黒猫亭の<wbr>'+nw('一行はいない。');
 }
 // 留守のあいだの知らせに名前の出た黒猫亭の者を、新しい知らせの順に4人まで。押すとその人の手帳が開く（#256）
 // 知らせの中身の値は、称号つきの名前（「「百戦錬磨」アル」）や名前を含む文（装備の由来など）もあるので、文のまま持つ知らせと同じく文の中から拾う（#268）。
