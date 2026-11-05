@@ -7,6 +7,8 @@
 //   node tools/spec-test.mjs --seed 12345    その種だけを回す（不合格の再現に使う）
 //   node tools/spec-test.mjs --jobs 2        同時に回す数。環境変数 SPEC_TEST_JOBS でも指定できる（ふだんは CPU のコア数）
 //   node tools/spec-test.mjs --shard 2/4     種を4つに分けたうちの2つめだけを回す（CI で並べて回すときに使う）。種に関係ない確かめは 1/n だけで行う
+//   node tools/spec-test.mjs --seeds 0       種に関係ない確かめだけを回す（数秒）
+//   KT_HTML=path/to/index.html node tools/spec-test.mjs   別の index.html を確かめる（tools/red.mjs が直す前の版を確かめるのに使う）
 // 種ごとに別のスレッドで回す。進捗と合否は種の順に出すので、同時に回す数を変えても結果は同じになる。
 import {readFileSync,readdirSync} from 'node:fs';
 import {gunzipSync} from 'node:zlib';
@@ -35,7 +37,7 @@ function jobCount(){
 }
 const JOBS=jobCount();
 
-const html=readFileSync(new URL('../index.html',import.meta.url),'utf8');
+const html=readFileSync(process.env.KT_HTML||new URL('../index.html',import.meta.url),'utf8');
 const ENGINE=engineOf(html);
 
 // 乱数の種を固定したゲームの中身を1つ作る。中身の Math.random だけを差し替える
